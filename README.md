@@ -106,3 +106,7 @@ Claude で使う場合:
 - Not checked:
 - Needs confirmation:
 ```
+
+## License
+
+MIT Licenseです。個人・商用を問わず、利用、改変、再配布できます。
