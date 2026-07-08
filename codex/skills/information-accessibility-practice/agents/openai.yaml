@@ -1,0 +1,5 @@
+interface:
+  display_name: "Information Accessibility Practice"
+  short_description: "開発・資料・イベントの情報アクセシビリティレビュー"
+  default_prompt: "Use $information-accessibility-practice to review development work, a document/slide deck, an event, or a support workflow for information accessibility."
+
