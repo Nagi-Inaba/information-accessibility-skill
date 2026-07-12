@@ -1,0 +1,2775 @@
+{
+  "schema_version": "1.0.0",
+  "catalog_status": "metadata_complete",
+  "verified_at": "2026-07-12",
+  "copyright_boundary": "Contains identifiers, titles, levels, source links, and original evidence classifications. Normative criterion text is not included.",
+  "sources": [
+    {
+      "id": "WCAG-2.2",
+      "url": "https://www.w3.org/TR/WCAG22/",
+      "role": "normative success-criterion metadata",
+      "source_sha256": "6e3c5fe397257cae509a2fb4752b73062cf8cbeb92c2cec618989b17e4cf7057"
+    },
+    {
+      "id": "WAIC-JIS-CHECKLIST-2020-12",
+      "url": "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+      "role": "Japanese checklist metadata",
+      "source_sha256": "1228e28559f944b91b1264d0390a9fda2abbc257b38712b1a15ed8539254f1f7"
+    },
+    {
+      "id": "DIGITAL-AGENCY-JP-PROFILE",
+      "url": "https://www.digital.go.jp/accessibility-statement",
+      "role": "18 additional WCAG criteria profile",
+      "source_sha256": "e935720b4e1256cb210967bade0a377cec0a59d37f1ed525732238ff0302dc70"
+    }
+  ],
+  "catalogs": {
+    "web_modern": [
+      {
+        "id": "WCAG-2.2-SC-1.1.1",
+        "success_criterion": "1.1.1",
+        "title_en": "Non-text Content",
+        "level": "A",
+        "introduced_in": "2.0",
+        "normative_url": "https://www.w3.org/TR/WCAG22/#non-text-content",
+        "understanding_url": "https://www.w3.org/WAI/WCAG22/Understanding/non-text-content.html",
+        "evidence_hints": [
+          "structure_inspection",
+          "manual_observation"
+        ],
+        "method_key": "non-text-content",
+        "official_method_sources": [
+          "https://www.w3.org/WAI/WCAG22/Understanding/non-text-content.html",
+          "https://www.w3.org/WAI/standards-guidelines/act/rules/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "WCAG-2.2-SC-1.2.1",
+        "success_criterion": "1.2.1",
+        "title_en": "Audio-only and Video-only (Prerecorded)",
+        "level": "A",
+        "introduced_in": "2.0",
+        "normative_url": "https://www.w3.org/TR/WCAG22/#audio-only-and-video-only-prerecorded",
+        "understanding_url": "https://www.w3.org/WAI/WCAG22/Understanding/audio-only-and-video-only-prerecorded.html",
+        "evidence_hints": [
+          "media_inventory",
+          "caption_or_transcript_review",
+          "manual_observation"
+        ],
+        "method_key": "time-based-media",
+        "official_method_sources": [
+          "https://www.w3.org/WAI/WCAG22/Understanding/audio-only-and-video-only-prerecorded.html",
+          "https://www.w3.org/WAI/standards-guidelines/act/rules/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "WCAG-2.2-SC-1.2.2",
+        "success_criterion": "1.2.2",
+        "title_en": "Captions (Prerecorded)",
+        "level": "A",
+        "introduced_in": "2.0",
+        "normative_url": "https://www.w3.org/TR/WCAG22/#captions-prerecorded",
+        "understanding_url": "https://www.w3.org/WAI/WCAG22/Understanding/captions-prerecorded.html",
+        "evidence_hints": [
+          "media_inventory",
+          "caption_or_transcript_review",
+          "manual_observation"
+        ],
+        "method_key": "time-based-media",
+        "official_method_sources": [
+          "https://www.w3.org/WAI/WCAG22/Understanding/captions-prerecorded.html",
+          "https://www.w3.org/WAI/standards-guidelines/act/rules/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "WCAG-2.2-SC-1.2.3",
+        "success_criterion": "1.2.3",
+        "title_en": "Audio Description or Media Alternative (Prerecorded)",
+        "level": "A",
+        "introduced_in": "2.0",
+        "normative_url": "https://www.w3.org/TR/WCAG22/#audio-description-or-media-alternative-prerecorded",
+        "understanding_url": "https://www.w3.org/WAI/WCAG22/Understanding/audio-description-or-media-alternative-prerecorded.html",
+        "evidence_hints": [
+          "media_inventory",
+          "caption_or_transcript_review",
+          "manual_observation"
+        ],
+        "method_key": "time-based-media",
+        "official_method_sources": [
+          "https://www.w3.org/WAI/WCAG22/Understanding/audio-description-or-media-alternative-prerecorded.html",
+          "https://www.w3.org/WAI/standards-guidelines/act/rules/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "WCAG-2.2-SC-1.2.4",
+        "success_criterion": "1.2.4",
+        "title_en": "Captions (Live)",
+        "level": "AA",
+        "introduced_in": "2.0",
+        "normative_url": "https://www.w3.org/TR/WCAG22/#captions-live",
+        "understanding_url": "https://www.w3.org/WAI/WCAG22/Understanding/captions-live.html",
+        "evidence_hints": [
+          "media_inventory",
+          "caption_or_transcript_review",
+          "manual_observation"
+        ],
+        "method_key": "time-based-media",
+        "official_method_sources": [
+          "https://www.w3.org/WAI/WCAG22/Understanding/captions-live.html",
+          "https://www.w3.org/WAI/standards-guidelines/act/rules/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "WCAG-2.2-SC-1.2.5",
+        "success_criterion": "1.2.5",
+        "title_en": "Audio Description (Prerecorded)",
+        "level": "AA",
+        "introduced_in": "2.0",
+        "normative_url": "https://www.w3.org/TR/WCAG22/#audio-description-prerecorded",
+        "understanding_url": "https://www.w3.org/WAI/WCAG22/Understanding/audio-description-prerecorded.html",
+        "evidence_hints": [
+          "media_inventory",
+          "caption_or_transcript_review",
+          "manual_observation"
+        ],
+        "method_key": "time-based-media",
+        "official_method_sources": [
+          "https://www.w3.org/WAI/WCAG22/Understanding/audio-description-prerecorded.html",
+          "https://www.w3.org/WAI/standards-guidelines/act/rules/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "WCAG-2.2-SC-1.3.1",
+        "success_criterion": "1.3.1",
+        "title_en": "Info and Relationships",
+        "level": "A",
+        "introduced_in": "2.0",
+        "normative_url": "https://www.w3.org/TR/WCAG22/#info-and-relationships",
+        "understanding_url": "https://www.w3.org/WAI/WCAG22/Understanding/info-and-relationships.html",
+        "evidence_hints": [
+          "structure_inspection",
+          "manual_observation"
+        ],
+        "method_key": "adaptable-structure",
+        "official_method_sources": [
+          "https://www.w3.org/WAI/WCAG22/Understanding/info-and-relationships.html",
+          "https://www.w3.org/WAI/standards-guidelines/act/rules/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "WCAG-2.2-SC-1.3.2",
+        "success_criterion": "1.3.2",
+        "title_en": "Meaningful Sequence",
+        "level": "A",
+        "introduced_in": "2.0",
+        "normative_url": "https://www.w3.org/TR/WCAG22/#meaningful-sequence",
+        "understanding_url": "https://www.w3.org/WAI/WCAG22/Understanding/meaningful-sequence.html",
+        "evidence_hints": [
+          "structure_inspection",
+          "manual_observation"
+        ],
+        "method_key": "adaptable-structure",
+        "official_method_sources": [
+          "https://www.w3.org/WAI/WCAG22/Understanding/meaningful-sequence.html",
+          "https://www.w3.org/WAI/standards-guidelines/act/rules/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "WCAG-2.2-SC-1.3.3",
+        "success_criterion": "1.3.3",
+        "title_en": "Sensory Characteristics",
+        "level": "A",
+        "introduced_in": "2.0",
+        "normative_url": "https://www.w3.org/TR/WCAG22/#sensory-characteristics",
+        "understanding_url": "https://www.w3.org/WAI/WCAG22/Understanding/sensory-characteristics.html",
+        "evidence_hints": [
+          "structure_inspection",
+          "manual_observation"
+        ],
+        "method_key": "adaptable-structure",
+        "official_method_sources": [
+          "https://www.w3.org/WAI/WCAG22/Understanding/sensory-characteristics.html",
+          "https://www.w3.org/WAI/standards-guidelines/act/rules/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "WCAG-2.2-SC-1.3.4",
+        "success_criterion": "1.3.4",
+        "title_en": "Orientation",
+        "level": "AA",
+        "introduced_in": "2.1",
+        "normative_url": "https://www.w3.org/TR/WCAG22/#orientation",
+        "understanding_url": "https://www.w3.org/WAI/WCAG22/Understanding/orientation.html",
+        "evidence_hints": [
+          "structure_inspection",
+          "manual_observation"
+        ],
+        "method_key": "adaptable-structure",
+        "official_method_sources": [
+          "https://www.w3.org/WAI/WCAG22/Understanding/orientation.html",
+          "https://www.w3.org/WAI/standards-guidelines/act/rules/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "WCAG-2.2-SC-1.3.5",
+        "success_criterion": "1.3.5",
+        "title_en": "Identify Input Purpose",
+        "level": "AA",
+        "introduced_in": "2.1",
+        "normative_url": "https://www.w3.org/TR/WCAG22/#identify-input-purpose",
+        "understanding_url": "https://www.w3.org/WAI/WCAG22/Understanding/identify-input-purpose.html",
+        "evidence_hints": [
+          "form_or_process_review",
+          "error_recovery_test",
+          "manual_observation"
+        ],
+        "method_key": "adaptable-structure",
+        "official_method_sources": [
+          "https://www.w3.org/WAI/WCAG22/Understanding/identify-input-purpose.html",
+          "https://www.w3.org/WAI/standards-guidelines/act/rules/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "WCAG-2.2-SC-1.4.1",
+        "success_criterion": "1.4.1",
+        "title_en": "Use of Color",
+        "level": "A",
+        "introduced_in": "2.0",
+        "normative_url": "https://www.w3.org/TR/WCAG22/#use-of-color",
+        "understanding_url": "https://www.w3.org/WAI/WCAG22/Understanding/use-of-color.html",
+        "evidence_hints": [
+          "visual_inspection",
+          "computed_style_or_rendering",
+          "zoom_or_reflow_test"
+        ],
+        "method_key": "distinguishable-presentation",
+        "official_method_sources": [
+          "https://www.w3.org/WAI/WCAG22/Understanding/use-of-color.html",
+          "https://www.w3.org/WAI/standards-guidelines/act/rules/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "WCAG-2.2-SC-1.4.2",
+        "success_criterion": "1.4.2",
+        "title_en": "Audio Control",
+        "level": "A",
+        "introduced_in": "2.0",
+        "normative_url": "https://www.w3.org/TR/WCAG22/#audio-control",
+        "understanding_url": "https://www.w3.org/WAI/WCAG22/Understanding/audio-control.html",
+        "evidence_hints": [
+          "visual_inspection",
+          "computed_style_or_rendering",
+          "zoom_or_reflow_test"
+        ],
+        "method_key": "distinguishable-presentation",
+        "official_method_sources": [
+          "https://www.w3.org/WAI/WCAG22/Understanding/audio-control.html",
+          "https://www.w3.org/WAI/standards-guidelines/act/rules/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "WCAG-2.2-SC-1.4.3",
+        "success_criterion": "1.4.3",
+        "title_en": "Contrast (Minimum)",
+        "level": "AA",
+        "introduced_in": "2.0",
+        "normative_url": "https://www.w3.org/TR/WCAG22/#contrast-minimum",
+        "understanding_url": "https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html",
+        "evidence_hints": [
+          "visual_inspection",
+          "computed_style_or_rendering",
+          "zoom_or_reflow_test"
+        ],
+        "method_key": "distinguishable-presentation",
+        "official_method_sources": [
+          "https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html",
+          "https://www.w3.org/WAI/standards-guidelines/act/rules/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "WCAG-2.2-SC-1.4.4",
+        "success_criterion": "1.4.4",
+        "title_en": "Resize Text",
+        "level": "AA",
+        "introduced_in": "2.0",
+        "normative_url": "https://www.w3.org/TR/WCAG22/#resize-text",
+        "understanding_url": "https://www.w3.org/WAI/WCAG22/Understanding/resize-text.html",
+        "evidence_hints": [
+          "visual_inspection",
+          "computed_style_or_rendering",
+          "zoom_or_reflow_test"
+        ],
+        "method_key": "distinguishable-presentation",
+        "official_method_sources": [
+          "https://www.w3.org/WAI/WCAG22/Understanding/resize-text.html",
+          "https://www.w3.org/WAI/standards-guidelines/act/rules/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "WCAG-2.2-SC-1.4.5",
+        "success_criterion": "1.4.5",
+        "title_en": "Images of Text",
+        "level": "AA",
+        "introduced_in": "2.0",
+        "normative_url": "https://www.w3.org/TR/WCAG22/#images-of-text",
+        "understanding_url": "https://www.w3.org/WAI/WCAG22/Understanding/images-of-text.html",
+        "evidence_hints": [
+          "visual_inspection",
+          "computed_style_or_rendering",
+          "zoom_or_reflow_test"
+        ],
+        "method_key": "distinguishable-presentation",
+        "official_method_sources": [
+          "https://www.w3.org/WAI/WCAG22/Understanding/images-of-text.html",
+          "https://www.w3.org/WAI/standards-guidelines/act/rules/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "WCAG-2.2-SC-1.4.10",
+        "success_criterion": "1.4.10",
+        "title_en": "Reflow",
+        "level": "AA",
+        "introduced_in": "2.1",
+        "normative_url": "https://www.w3.org/TR/WCAG22/#reflow",
+        "understanding_url": "https://www.w3.org/WAI/WCAG22/Understanding/reflow.html",
+        "evidence_hints": [
+          "visual_inspection",
+          "computed_style_or_rendering",
+          "zoom_or_reflow_test"
+        ],
+        "method_key": "distinguishable-presentation",
+        "official_method_sources": [
+          "https://www.w3.org/WAI/WCAG22/Understanding/reflow.html",
+          "https://www.w3.org/WAI/standards-guidelines/act/rules/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "WCAG-2.2-SC-1.4.11",
+        "success_criterion": "1.4.11",
+        "title_en": "Non-text Contrast",
+        "level": "AA",
+        "introduced_in": "2.1",
+        "normative_url": "https://www.w3.org/TR/WCAG22/#non-text-contrast",
+        "understanding_url": "https://www.w3.org/WAI/WCAG22/Understanding/non-text-contrast.html",
+        "evidence_hints": [
+          "visual_inspection",
+          "computed_style_or_rendering",
+          "zoom_or_reflow_test"
+        ],
+        "method_key": "distinguishable-presentation",
+        "official_method_sources": [
+          "https://www.w3.org/WAI/WCAG22/Understanding/non-text-contrast.html",
+          "https://www.w3.org/WAI/standards-guidelines/act/rules/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "WCAG-2.2-SC-1.4.12",
+        "success_criterion": "1.4.12",
+        "title_en": "Text Spacing",
+        "level": "AA",
+        "introduced_in": "2.1",
+        "normative_url": "https://www.w3.org/TR/WCAG22/#text-spacing",
+        "understanding_url": "https://www.w3.org/WAI/WCAG22/Understanding/text-spacing.html",
+        "evidence_hints": [
+          "visual_inspection",
+          "computed_style_or_rendering",
+          "zoom_or_reflow_test"
+        ],
+        "method_key": "distinguishable-presentation",
+        "official_method_sources": [
+          "https://www.w3.org/WAI/WCAG22/Understanding/text-spacing.html",
+          "https://www.w3.org/WAI/standards-guidelines/act/rules/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "WCAG-2.2-SC-1.4.13",
+        "success_criterion": "1.4.13",
+        "title_en": "Content on Hover or Focus",
+        "level": "AA",
+        "introduced_in": "2.1",
+        "normative_url": "https://www.w3.org/TR/WCAG22/#content-on-hover-or-focus",
+        "understanding_url": "https://www.w3.org/WAI/WCAG22/Understanding/content-on-hover-or-focus.html",
+        "evidence_hints": [
+          "visual_inspection",
+          "computed_style_or_rendering",
+          "zoom_or_reflow_test"
+        ],
+        "method_key": "distinguishable-presentation",
+        "official_method_sources": [
+          "https://www.w3.org/WAI/WCAG22/Understanding/content-on-hover-or-focus.html",
+          "https://www.w3.org/WAI/standards-guidelines/act/rules/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "WCAG-2.2-SC-2.1.1",
+        "success_criterion": "2.1.1",
+        "title_en": "Keyboard",
+        "level": "A",
+        "introduced_in": "2.0",
+        "normative_url": "https://www.w3.org/TR/WCAG22/#keyboard",
+        "understanding_url": "https://www.w3.org/WAI/WCAG22/Understanding/keyboard.html",
+        "evidence_hints": [
+          "keyboard_test",
+          "focus_inspection",
+          "manual_observation"
+        ],
+        "method_key": "keyboard-operation",
+        "official_method_sources": [
+          "https://www.w3.org/WAI/WCAG22/Understanding/keyboard.html",
+          "https://www.w3.org/WAI/standards-guidelines/act/rules/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "WCAG-2.2-SC-2.1.2",
+        "success_criterion": "2.1.2",
+        "title_en": "No Keyboard Trap",
+        "level": "A",
+        "introduced_in": "2.0",
+        "normative_url": "https://www.w3.org/TR/WCAG22/#no-keyboard-trap",
+        "understanding_url": "https://www.w3.org/WAI/WCAG22/Understanding/no-keyboard-trap.html",
+        "evidence_hints": [
+          "keyboard_test",
+          "focus_inspection",
+          "manual_observation"
+        ],
+        "method_key": "keyboard-operation",
+        "official_method_sources": [
+          "https://www.w3.org/WAI/WCAG22/Understanding/no-keyboard-trap.html",
+          "https://www.w3.org/WAI/standards-guidelines/act/rules/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "WCAG-2.2-SC-2.1.4",
+        "success_criterion": "2.1.4",
+        "title_en": "Character Key Shortcuts",
+        "level": "A",
+        "introduced_in": "2.1",
+        "normative_url": "https://www.w3.org/TR/WCAG22/#character-key-shortcuts",
+        "understanding_url": "https://www.w3.org/WAI/WCAG22/Understanding/character-key-shortcuts.html",
+        "evidence_hints": [
+          "structure_inspection",
+          "manual_observation"
+        ],
+        "method_key": "keyboard-operation",
+        "official_method_sources": [
+          "https://www.w3.org/WAI/WCAG22/Understanding/character-key-shortcuts.html",
+          "https://www.w3.org/WAI/standards-guidelines/act/rules/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "WCAG-2.2-SC-2.2.1",
+        "success_criterion": "2.2.1",
+        "title_en": "Timing Adjustable",
+        "level": "A",
+        "introduced_in": "2.0",
+        "normative_url": "https://www.w3.org/TR/WCAG22/#timing-adjustable",
+        "understanding_url": "https://www.w3.org/WAI/WCAG22/Understanding/timing-adjustable.html",
+        "evidence_hints": [
+          "structure_inspection",
+          "manual_observation"
+        ],
+        "method_key": "timing-and-motion",
+        "official_method_sources": [
+          "https://www.w3.org/WAI/WCAG22/Understanding/timing-adjustable.html",
+          "https://www.w3.org/WAI/standards-guidelines/act/rules/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "WCAG-2.2-SC-2.2.2",
+        "success_criterion": "2.2.2",
+        "title_en": "Pause, Stop, Hide",
+        "level": "A",
+        "introduced_in": "2.0",
+        "normative_url": "https://www.w3.org/TR/WCAG22/#pause-stop-hide",
+        "understanding_url": "https://www.w3.org/WAI/WCAG22/Understanding/pause-stop-hide.html",
+        "evidence_hints": [
+          "structure_inspection",
+          "manual_observation"
+        ],
+        "method_key": "timing-and-motion",
+        "official_method_sources": [
+          "https://www.w3.org/WAI/WCAG22/Understanding/pause-stop-hide.html",
+          "https://www.w3.org/WAI/standards-guidelines/act/rules/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "WCAG-2.2-SC-2.3.1",
+        "success_criterion": "2.3.1",
+        "title_en": "Three Flashes or Below Threshold",
+        "level": "A",
+        "introduced_in": "2.0",
+        "normative_url": "https://www.w3.org/TR/WCAG22/#three-flashes-or-below-threshold",
+        "understanding_url": "https://www.w3.org/WAI/WCAG22/Understanding/three-flashes-or-below-threshold.html",
+        "evidence_hints": [
+          "structure_inspection",
+          "manual_observation"
+        ],
+        "method_key": "seizure-and-physical-reaction",
+        "official_method_sources": [
+          "https://www.w3.org/WAI/WCAG22/Understanding/three-flashes-or-below-threshold.html",
+          "https://www.w3.org/WAI/standards-guidelines/act/rules/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "WCAG-2.2-SC-2.4.1",
+        "success_criterion": "2.4.1",
+        "title_en": "Bypass Blocks",
+        "level": "A",
+        "introduced_in": "2.0",
+        "normative_url": "https://www.w3.org/TR/WCAG22/#bypass-blocks",
+        "understanding_url": "https://www.w3.org/WAI/WCAG22/Understanding/bypass-blocks.html",
+        "evidence_hints": [
+          "structure_inspection",
+          "manual_observation"
+        ],
+        "method_key": "navigation-and-focus",
+        "official_method_sources": [
+          "https://www.w3.org/WAI/WCAG22/Understanding/bypass-blocks.html",
+          "https://www.w3.org/WAI/standards-guidelines/act/rules/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "WCAG-2.2-SC-2.4.2",
+        "success_criterion": "2.4.2",
+        "title_en": "Page Titled",
+        "level": "A",
+        "introduced_in": "2.0",
+        "normative_url": "https://www.w3.org/TR/WCAG22/#page-titled",
+        "understanding_url": "https://www.w3.org/WAI/WCAG22/Understanding/page-titled.html",
+        "evidence_hints": [
+          "structure_inspection",
+          "manual_observation"
+        ],
+        "method_key": "navigation-and-focus",
+        "official_method_sources": [
+          "https://www.w3.org/WAI/WCAG22/Understanding/page-titled.html",
+          "https://www.w3.org/WAI/standards-guidelines/act/rules/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "WCAG-2.2-SC-2.4.3",
+        "success_criterion": "2.4.3",
+        "title_en": "Focus Order",
+        "level": "A",
+        "introduced_in": "2.0",
+        "normative_url": "https://www.w3.org/TR/WCAG22/#focus-order",
+        "understanding_url": "https://www.w3.org/WAI/WCAG22/Understanding/focus-order.html",
+        "evidence_hints": [
+          "keyboard_test",
+          "focus_inspection",
+          "manual_observation"
+        ],
+        "method_key": "navigation-and-focus",
+        "official_method_sources": [
+          "https://www.w3.org/WAI/WCAG22/Understanding/focus-order.html",
+          "https://www.w3.org/WAI/standards-guidelines/act/rules/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "WCAG-2.2-SC-2.4.4",
+        "success_criterion": "2.4.4",
+        "title_en": "Link Purpose (In Context)",
+        "level": "A",
+        "introduced_in": "2.0",
+        "normative_url": "https://www.w3.org/TR/WCAG22/#link-purpose-in-context",
+        "understanding_url": "https://www.w3.org/WAI/WCAG22/Understanding/link-purpose-in-context.html",
+        "evidence_hints": [
+          "structure_inspection",
+          "manual_observation"
+        ],
+        "method_key": "navigation-and-focus",
+        "official_method_sources": [
+          "https://www.w3.org/WAI/WCAG22/Understanding/link-purpose-in-context.html",
+          "https://www.w3.org/WAI/standards-guidelines/act/rules/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "WCAG-2.2-SC-2.4.5",
+        "success_criterion": "2.4.5",
+        "title_en": "Multiple Ways",
+        "level": "AA",
+        "introduced_in": "2.0",
+        "normative_url": "https://www.w3.org/TR/WCAG22/#multiple-ways",
+        "understanding_url": "https://www.w3.org/WAI/WCAG22/Understanding/multiple-ways.html",
+        "evidence_hints": [
+          "structure_inspection",
+          "manual_observation"
+        ],
+        "method_key": "navigation-and-focus",
+        "official_method_sources": [
+          "https://www.w3.org/WAI/WCAG22/Understanding/multiple-ways.html",
+          "https://www.w3.org/WAI/standards-guidelines/act/rules/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "WCAG-2.2-SC-2.4.6",
+        "success_criterion": "2.4.6",
+        "title_en": "Headings and Labels",
+        "level": "AA",
+        "introduced_in": "2.0",
+        "normative_url": "https://www.w3.org/TR/WCAG22/#headings-and-labels",
+        "understanding_url": "https://www.w3.org/WAI/WCAG22/Understanding/headings-and-labels.html",
+        "evidence_hints": [
+          "structure_inspection",
+          "manual_observation"
+        ],
+        "method_key": "navigation-and-focus",
+        "official_method_sources": [
+          "https://www.w3.org/WAI/WCAG22/Understanding/headings-and-labels.html",
+          "https://www.w3.org/WAI/standards-guidelines/act/rules/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "WCAG-2.2-SC-2.4.7",
+        "success_criterion": "2.4.7",
+        "title_en": "Focus Visible",
+        "level": "AA",
+        "introduced_in": "2.0",
+        "normative_url": "https://www.w3.org/TR/WCAG22/#focus-visible",
+        "understanding_url": "https://www.w3.org/WAI/WCAG22/Understanding/focus-visible.html",
+        "evidence_hints": [
+          "keyboard_test",
+          "focus_inspection",
+          "manual_observation"
+        ],
+        "method_key": "navigation-and-focus",
+        "official_method_sources": [
+          "https://www.w3.org/WAI/WCAG22/Understanding/focus-visible.html",
+          "https://www.w3.org/WAI/standards-guidelines/act/rules/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "WCAG-2.2-SC-2.4.11",
+        "success_criterion": "2.4.11",
+        "title_en": "Focus Not Obscured (Minimum)",
+        "level": "AA",
+        "introduced_in": "2.2",
+        "normative_url": "https://www.w3.org/TR/WCAG22/#focus-not-obscured-minimum",
+        "understanding_url": "https://www.w3.org/WAI/WCAG22/Understanding/focus-not-obscured-minimum.html",
+        "evidence_hints": [
+          "keyboard_test",
+          "focus_inspection",
+          "manual_observation"
+        ],
+        "method_key": "navigation-and-focus",
+        "official_method_sources": [
+          "https://www.w3.org/WAI/WCAG22/Understanding/focus-not-obscured-minimum.html",
+          "https://www.w3.org/WAI/standards-guidelines/act/rules/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "WCAG-2.2-SC-2.5.1",
+        "success_criterion": "2.5.1",
+        "title_en": "Pointer Gestures",
+        "level": "A",
+        "introduced_in": "2.1",
+        "normative_url": "https://www.w3.org/TR/WCAG22/#pointer-gestures",
+        "understanding_url": "https://www.w3.org/WAI/WCAG22/Understanding/pointer-gestures.html",
+        "evidence_hints": [
+          "pointer_or_touch_test",
+          "manual_observation"
+        ],
+        "method_key": "input-modalities",
+        "official_method_sources": [
+          "https://www.w3.org/WAI/WCAG22/Understanding/pointer-gestures.html",
+          "https://www.w3.org/WAI/standards-guidelines/act/rules/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "WCAG-2.2-SC-2.5.2",
+        "success_criterion": "2.5.2",
+        "title_en": "Pointer Cancellation",
+        "level": "A",
+        "introduced_in": "2.1",
+        "normative_url": "https://www.w3.org/TR/WCAG22/#pointer-cancellation",
+        "understanding_url": "https://www.w3.org/WAI/WCAG22/Understanding/pointer-cancellation.html",
+        "evidence_hints": [
+          "pointer_or_touch_test",
+          "manual_observation"
+        ],
+        "method_key": "input-modalities",
+        "official_method_sources": [
+          "https://www.w3.org/WAI/WCAG22/Understanding/pointer-cancellation.html",
+          "https://www.w3.org/WAI/standards-guidelines/act/rules/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "WCAG-2.2-SC-2.5.3",
+        "success_criterion": "2.5.3",
+        "title_en": "Label in Name",
+        "level": "A",
+        "introduced_in": "2.1",
+        "normative_url": "https://www.w3.org/TR/WCAG22/#label-in-name",
+        "understanding_url": "https://www.w3.org/WAI/WCAG22/Understanding/label-in-name.html",
+        "evidence_hints": [
+          "pointer_or_touch_test",
+          "manual_observation"
+        ],
+        "method_key": "input-modalities",
+        "official_method_sources": [
+          "https://www.w3.org/WAI/WCAG22/Understanding/label-in-name.html",
+          "https://www.w3.org/WAI/standards-guidelines/act/rules/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "WCAG-2.2-SC-2.5.4",
+        "success_criterion": "2.5.4",
+        "title_en": "Motion Actuation",
+        "level": "A",
+        "introduced_in": "2.1",
+        "normative_url": "https://www.w3.org/TR/WCAG22/#motion-actuation",
+        "understanding_url": "https://www.w3.org/WAI/WCAG22/Understanding/motion-actuation.html",
+        "evidence_hints": [
+          "pointer_or_touch_test",
+          "manual_observation"
+        ],
+        "method_key": "input-modalities",
+        "official_method_sources": [
+          "https://www.w3.org/WAI/WCAG22/Understanding/motion-actuation.html",
+          "https://www.w3.org/WAI/standards-guidelines/act/rules/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "WCAG-2.2-SC-2.5.7",
+        "success_criterion": "2.5.7",
+        "title_en": "Dragging Movements",
+        "level": "AA",
+        "introduced_in": "2.2",
+        "normative_url": "https://www.w3.org/TR/WCAG22/#dragging-movements",
+        "understanding_url": "https://www.w3.org/WAI/WCAG22/Understanding/dragging-movements.html",
+        "evidence_hints": [
+          "pointer_or_touch_test",
+          "manual_observation"
+        ],
+        "method_key": "input-modalities",
+        "official_method_sources": [
+          "https://www.w3.org/WAI/WCAG22/Understanding/dragging-movements.html",
+          "https://www.w3.org/WAI/standards-guidelines/act/rules/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "WCAG-2.2-SC-2.5.8",
+        "success_criterion": "2.5.8",
+        "title_en": "Target Size (Minimum)",
+        "level": "AA",
+        "introduced_in": "2.2",
+        "normative_url": "https://www.w3.org/TR/WCAG22/#target-size-minimum",
+        "understanding_url": "https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html",
+        "evidence_hints": [
+          "pointer_or_touch_test",
+          "manual_observation"
+        ],
+        "method_key": "input-modalities",
+        "official_method_sources": [
+          "https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html",
+          "https://www.w3.org/WAI/standards-guidelines/act/rules/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "WCAG-2.2-SC-3.1.1",
+        "success_criterion": "3.1.1",
+        "title_en": "Language of Page",
+        "level": "A",
+        "introduced_in": "2.0",
+        "normative_url": "https://www.w3.org/TR/WCAG22/#language-of-page",
+        "understanding_url": "https://www.w3.org/WAI/WCAG22/Understanding/language-of-page.html",
+        "evidence_hints": [
+          "structure_inspection",
+          "manual_observation"
+        ],
+        "method_key": "readable-language",
+        "official_method_sources": [
+          "https://www.w3.org/WAI/WCAG22/Understanding/language-of-page.html",
+          "https://www.w3.org/WAI/standards-guidelines/act/rules/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "WCAG-2.2-SC-3.1.2",
+        "success_criterion": "3.1.2",
+        "title_en": "Language of Parts",
+        "level": "AA",
+        "introduced_in": "2.0",
+        "normative_url": "https://www.w3.org/TR/WCAG22/#language-of-parts",
+        "understanding_url": "https://www.w3.org/WAI/WCAG22/Understanding/language-of-parts.html",
+        "evidence_hints": [
+          "structure_inspection",
+          "manual_observation"
+        ],
+        "method_key": "readable-language",
+        "official_method_sources": [
+          "https://www.w3.org/WAI/WCAG22/Understanding/language-of-parts.html",
+          "https://www.w3.org/WAI/standards-guidelines/act/rules/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "WCAG-2.2-SC-3.2.1",
+        "success_criterion": "3.2.1",
+        "title_en": "On Focus",
+        "level": "A",
+        "introduced_in": "2.0",
+        "normative_url": "https://www.w3.org/TR/WCAG22/#on-focus",
+        "understanding_url": "https://www.w3.org/WAI/WCAG22/Understanding/on-focus.html",
+        "evidence_hints": [
+          "structure_inspection",
+          "manual_observation"
+        ],
+        "method_key": "predictable-behavior",
+        "official_method_sources": [
+          "https://www.w3.org/WAI/WCAG22/Understanding/on-focus.html",
+          "https://www.w3.org/WAI/standards-guidelines/act/rules/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "WCAG-2.2-SC-3.2.2",
+        "success_criterion": "3.2.2",
+        "title_en": "On Input",
+        "level": "A",
+        "introduced_in": "2.0",
+        "normative_url": "https://www.w3.org/TR/WCAG22/#on-input",
+        "understanding_url": "https://www.w3.org/WAI/WCAG22/Understanding/on-input.html",
+        "evidence_hints": [
+          "structure_inspection",
+          "manual_observation"
+        ],
+        "method_key": "predictable-behavior",
+        "official_method_sources": [
+          "https://www.w3.org/WAI/WCAG22/Understanding/on-input.html",
+          "https://www.w3.org/WAI/standards-guidelines/act/rules/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "WCAG-2.2-SC-3.2.3",
+        "success_criterion": "3.2.3",
+        "title_en": "Consistent Navigation",
+        "level": "AA",
+        "introduced_in": "2.0",
+        "normative_url": "https://www.w3.org/TR/WCAG22/#consistent-navigation",
+        "understanding_url": "https://www.w3.org/WAI/WCAG22/Understanding/consistent-navigation.html",
+        "evidence_hints": [
+          "structure_inspection",
+          "manual_observation"
+        ],
+        "method_key": "predictable-behavior",
+        "official_method_sources": [
+          "https://www.w3.org/WAI/WCAG22/Understanding/consistent-navigation.html",
+          "https://www.w3.org/WAI/standards-guidelines/act/rules/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "WCAG-2.2-SC-3.2.4",
+        "success_criterion": "3.2.4",
+        "title_en": "Consistent Identification",
+        "level": "AA",
+        "introduced_in": "2.0",
+        "normative_url": "https://www.w3.org/TR/WCAG22/#consistent-identification",
+        "understanding_url": "https://www.w3.org/WAI/WCAG22/Understanding/consistent-identification.html",
+        "evidence_hints": [
+          "structure_inspection",
+          "manual_observation"
+        ],
+        "method_key": "predictable-behavior",
+        "official_method_sources": [
+          "https://www.w3.org/WAI/WCAG22/Understanding/consistent-identification.html",
+          "https://www.w3.org/WAI/standards-guidelines/act/rules/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "WCAG-2.2-SC-3.2.6",
+        "success_criterion": "3.2.6",
+        "title_en": "Consistent Help",
+        "level": "A",
+        "introduced_in": "2.2",
+        "normative_url": "https://www.w3.org/TR/WCAG22/#consistent-help",
+        "understanding_url": "https://www.w3.org/WAI/WCAG22/Understanding/consistent-help.html",
+        "evidence_hints": [
+          "form_or_process_review",
+          "error_recovery_test",
+          "manual_observation"
+        ],
+        "method_key": "predictable-behavior",
+        "official_method_sources": [
+          "https://www.w3.org/WAI/WCAG22/Understanding/consistent-help.html",
+          "https://www.w3.org/WAI/standards-guidelines/act/rules/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "WCAG-2.2-SC-3.3.1",
+        "success_criterion": "3.3.1",
+        "title_en": "Error Identification",
+        "level": "A",
+        "introduced_in": "2.0",
+        "normative_url": "https://www.w3.org/TR/WCAG22/#error-identification",
+        "understanding_url": "https://www.w3.org/WAI/WCAG22/Understanding/error-identification.html",
+        "evidence_hints": [
+          "form_or_process_review",
+          "error_recovery_test",
+          "manual_observation"
+        ],
+        "method_key": "input-assistance",
+        "official_method_sources": [
+          "https://www.w3.org/WAI/WCAG22/Understanding/error-identification.html",
+          "https://www.w3.org/WAI/standards-guidelines/act/rules/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "WCAG-2.2-SC-3.3.2",
+        "success_criterion": "3.3.2",
+        "title_en": "Labels or Instructions",
+        "level": "A",
+        "introduced_in": "2.0",
+        "normative_url": "https://www.w3.org/TR/WCAG22/#labels-or-instructions",
+        "understanding_url": "https://www.w3.org/WAI/WCAG22/Understanding/labels-or-instructions.html",
+        "evidence_hints": [
+          "form_or_process_review",
+          "error_recovery_test",
+          "manual_observation"
+        ],
+        "method_key": "input-assistance",
+        "official_method_sources": [
+          "https://www.w3.org/WAI/WCAG22/Understanding/labels-or-instructions.html",
+          "https://www.w3.org/WAI/standards-guidelines/act/rules/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "WCAG-2.2-SC-3.3.3",
+        "success_criterion": "3.3.3",
+        "title_en": "Error Suggestion",
+        "level": "AA",
+        "introduced_in": "2.0",
+        "normative_url": "https://www.w3.org/TR/WCAG22/#error-suggestion",
+        "understanding_url": "https://www.w3.org/WAI/WCAG22/Understanding/error-suggestion.html",
+        "evidence_hints": [
+          "form_or_process_review",
+          "error_recovery_test",
+          "manual_observation"
+        ],
+        "method_key": "input-assistance",
+        "official_method_sources": [
+          "https://www.w3.org/WAI/WCAG22/Understanding/error-suggestion.html",
+          "https://www.w3.org/WAI/standards-guidelines/act/rules/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "WCAG-2.2-SC-3.3.4",
+        "success_criterion": "3.3.4",
+        "title_en": "Error Prevention (Legal, Financial, Data)",
+        "level": "AA",
+        "introduced_in": "2.0",
+        "normative_url": "https://www.w3.org/TR/WCAG22/#error-prevention-legal-financial-data",
+        "understanding_url": "https://www.w3.org/WAI/WCAG22/Understanding/error-prevention-legal-financial-data.html",
+        "evidence_hints": [
+          "form_or_process_review",
+          "error_recovery_test",
+          "manual_observation"
+        ],
+        "method_key": "input-assistance",
+        "official_method_sources": [
+          "https://www.w3.org/WAI/WCAG22/Understanding/error-prevention-legal-financial-data.html",
+          "https://www.w3.org/WAI/standards-guidelines/act/rules/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "WCAG-2.2-SC-3.3.7",
+        "success_criterion": "3.3.7",
+        "title_en": "Redundant Entry",
+        "level": "A",
+        "introduced_in": "2.2",
+        "normative_url": "https://www.w3.org/TR/WCAG22/#redundant-entry",
+        "understanding_url": "https://www.w3.org/WAI/WCAG22/Understanding/redundant-entry.html",
+        "evidence_hints": [
+          "form_or_process_review",
+          "error_recovery_test",
+          "manual_observation"
+        ],
+        "method_key": "input-assistance",
+        "official_method_sources": [
+          "https://www.w3.org/WAI/WCAG22/Understanding/redundant-entry.html",
+          "https://www.w3.org/WAI/standards-guidelines/act/rules/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "WCAG-2.2-SC-3.3.8",
+        "success_criterion": "3.3.8",
+        "title_en": "Accessible Authentication (Minimum)",
+        "level": "AA",
+        "introduced_in": "2.2",
+        "normative_url": "https://www.w3.org/TR/WCAG22/#accessible-authentication-minimum",
+        "understanding_url": "https://www.w3.org/WAI/WCAG22/Understanding/accessible-authentication-minimum.html",
+        "evidence_hints": [
+          "form_or_process_review",
+          "error_recovery_test",
+          "manual_observation"
+        ],
+        "method_key": "input-assistance",
+        "official_method_sources": [
+          "https://www.w3.org/WAI/WCAG22/Understanding/accessible-authentication-minimum.html",
+          "https://www.w3.org/WAI/standards-guidelines/act/rules/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "WCAG-2.2-SC-4.1.2",
+        "success_criterion": "4.1.2",
+        "title_en": "Name, Role, Value",
+        "level": "A",
+        "introduced_in": "2.0",
+        "normative_url": "https://www.w3.org/TR/WCAG22/#name-role-value",
+        "understanding_url": "https://www.w3.org/WAI/WCAG22/Understanding/name-role-value.html",
+        "evidence_hints": [
+          "dom_semantics",
+          "accessibility_tree",
+          "assistive_technology_test"
+        ],
+        "method_key": "compatible-semantics",
+        "official_method_sources": [
+          "https://www.w3.org/WAI/WCAG22/Understanding/name-role-value.html",
+          "https://www.w3.org/WAI/standards-guidelines/act/rules/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "WCAG-2.2-SC-4.1.3",
+        "success_criterion": "4.1.3",
+        "title_en": "Status Messages",
+        "level": "AA",
+        "introduced_in": "2.1",
+        "normative_url": "https://www.w3.org/TR/WCAG22/#status-messages",
+        "understanding_url": "https://www.w3.org/WAI/WCAG22/Understanding/status-messages.html",
+        "evidence_hints": [
+          "dom_semantics",
+          "accessibility_tree",
+          "assistive_technology_test"
+        ],
+        "method_key": "compatible-semantics",
+        "official_method_sources": [
+          "https://www.w3.org/WAI/WCAG22/Understanding/status-messages.html",
+          "https://www.w3.org/WAI/standards-guidelines/act/rules/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      }
+    ],
+    "jis_x_8341_3_2016": [
+      {
+        "id": "JIS-X-8341-3-2016-SC-1.1.1",
+        "success_criterion": "1.1.1",
+        "title_ja": "非テキストコンテンツ",
+        "level": "A",
+        "wcag_2_0_equivalent": "WCAG-2.0-SC-1.1.1",
+        "web_modern_record_id": "WCAG-2.2-SC-1.1.1",
+        "checklist_source_url": "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+        "evidence_hints": [
+          "structure_inspection",
+          "manual_observation"
+        ],
+        "method_key": "non-text-content",
+        "official_method_sources": [
+          "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+          "https://waic.jp/docs/jis2016/understanding/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "JIS-X-8341-3-2016-SC-1.2.1",
+        "success_criterion": "1.2.1",
+        "title_ja": "音声だけ及び映像だけ（収録済み）",
+        "level": "A",
+        "wcag_2_0_equivalent": "WCAG-2.0-SC-1.2.1",
+        "web_modern_record_id": "WCAG-2.2-SC-1.2.1",
+        "checklist_source_url": "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+        "evidence_hints": [
+          "media_inventory",
+          "caption_or_transcript_review",
+          "manual_observation"
+        ],
+        "method_key": "time-based-media",
+        "official_method_sources": [
+          "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+          "https://waic.jp/docs/jis2016/understanding/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "JIS-X-8341-3-2016-SC-1.2.2",
+        "success_criterion": "1.2.2",
+        "title_ja": "キャプション（収録済み）",
+        "level": "A",
+        "wcag_2_0_equivalent": "WCAG-2.0-SC-1.2.2",
+        "web_modern_record_id": "WCAG-2.2-SC-1.2.2",
+        "checklist_source_url": "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+        "evidence_hints": [
+          "media_inventory",
+          "caption_or_transcript_review",
+          "manual_observation"
+        ],
+        "method_key": "time-based-media",
+        "official_method_sources": [
+          "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+          "https://waic.jp/docs/jis2016/understanding/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "JIS-X-8341-3-2016-SC-1.2.3",
+        "success_criterion": "1.2.3",
+        "title_ja": "音声解説又はメディアに対する代替コンテンツ（収録済み）",
+        "level": "A",
+        "wcag_2_0_equivalent": "WCAG-2.0-SC-1.2.3",
+        "web_modern_record_id": "WCAG-2.2-SC-1.2.3",
+        "checklist_source_url": "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+        "evidence_hints": [
+          "media_inventory",
+          "caption_or_transcript_review",
+          "manual_observation"
+        ],
+        "method_key": "time-based-media",
+        "official_method_sources": [
+          "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+          "https://waic.jp/docs/jis2016/understanding/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "JIS-X-8341-3-2016-SC-1.2.4",
+        "success_criterion": "1.2.4",
+        "title_ja": "キャプション（ライブ）",
+        "level": "AA",
+        "wcag_2_0_equivalent": "WCAG-2.0-SC-1.2.4",
+        "web_modern_record_id": "WCAG-2.2-SC-1.2.4",
+        "checklist_source_url": "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+        "evidence_hints": [
+          "media_inventory",
+          "caption_or_transcript_review",
+          "manual_observation"
+        ],
+        "method_key": "time-based-media",
+        "official_method_sources": [
+          "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+          "https://waic.jp/docs/jis2016/understanding/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "JIS-X-8341-3-2016-SC-1.2.5",
+        "success_criterion": "1.2.5",
+        "title_ja": "音声解説（収録済み）",
+        "level": "AA",
+        "wcag_2_0_equivalent": "WCAG-2.0-SC-1.2.5",
+        "web_modern_record_id": "WCAG-2.2-SC-1.2.5",
+        "checklist_source_url": "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+        "evidence_hints": [
+          "media_inventory",
+          "caption_or_transcript_review",
+          "manual_observation"
+        ],
+        "method_key": "time-based-media",
+        "official_method_sources": [
+          "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+          "https://waic.jp/docs/jis2016/understanding/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "JIS-X-8341-3-2016-SC-1.3.1",
+        "success_criterion": "1.3.1",
+        "title_ja": "情報及び関係性",
+        "level": "A",
+        "wcag_2_0_equivalent": "WCAG-2.0-SC-1.3.1",
+        "web_modern_record_id": "WCAG-2.2-SC-1.3.1",
+        "checklist_source_url": "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+        "evidence_hints": [
+          "structure_inspection",
+          "manual_observation"
+        ],
+        "method_key": "adaptable-structure",
+        "official_method_sources": [
+          "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+          "https://waic.jp/docs/jis2016/understanding/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "JIS-X-8341-3-2016-SC-1.3.2",
+        "success_criterion": "1.3.2",
+        "title_ja": "意味のある順序",
+        "level": "A",
+        "wcag_2_0_equivalent": "WCAG-2.0-SC-1.3.2",
+        "web_modern_record_id": "WCAG-2.2-SC-1.3.2",
+        "checklist_source_url": "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+        "evidence_hints": [
+          "structure_inspection",
+          "manual_observation"
+        ],
+        "method_key": "adaptable-structure",
+        "official_method_sources": [
+          "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+          "https://waic.jp/docs/jis2016/understanding/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "JIS-X-8341-3-2016-SC-1.3.3",
+        "success_criterion": "1.3.3",
+        "title_ja": "感覚的な特徴",
+        "level": "A",
+        "wcag_2_0_equivalent": "WCAG-2.0-SC-1.3.3",
+        "web_modern_record_id": "WCAG-2.2-SC-1.3.3",
+        "checklist_source_url": "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+        "evidence_hints": [
+          "structure_inspection",
+          "manual_observation"
+        ],
+        "method_key": "adaptable-structure",
+        "official_method_sources": [
+          "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+          "https://waic.jp/docs/jis2016/understanding/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "JIS-X-8341-3-2016-SC-1.4.1",
+        "success_criterion": "1.4.1",
+        "title_ja": "色の使用",
+        "level": "A",
+        "wcag_2_0_equivalent": "WCAG-2.0-SC-1.4.1",
+        "web_modern_record_id": "WCAG-2.2-SC-1.4.1",
+        "checklist_source_url": "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+        "evidence_hints": [
+          "visual_inspection",
+          "computed_style_or_rendering",
+          "zoom_or_reflow_test"
+        ],
+        "method_key": "distinguishable-presentation",
+        "official_method_sources": [
+          "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+          "https://waic.jp/docs/jis2016/understanding/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "JIS-X-8341-3-2016-SC-1.4.2",
+        "success_criterion": "1.4.2",
+        "title_ja": "音声の制御",
+        "level": "A",
+        "wcag_2_0_equivalent": "WCAG-2.0-SC-1.4.2",
+        "web_modern_record_id": "WCAG-2.2-SC-1.4.2",
+        "checklist_source_url": "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+        "evidence_hints": [
+          "visual_inspection",
+          "computed_style_or_rendering",
+          "zoom_or_reflow_test"
+        ],
+        "method_key": "distinguishable-presentation",
+        "official_method_sources": [
+          "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+          "https://waic.jp/docs/jis2016/understanding/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "JIS-X-8341-3-2016-SC-1.4.3",
+        "success_criterion": "1.4.3",
+        "title_ja": "コントラスト（最低限レベル）",
+        "level": "AA",
+        "wcag_2_0_equivalent": "WCAG-2.0-SC-1.4.3",
+        "web_modern_record_id": "WCAG-2.2-SC-1.4.3",
+        "checklist_source_url": "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+        "evidence_hints": [
+          "visual_inspection",
+          "computed_style_or_rendering",
+          "zoom_or_reflow_test"
+        ],
+        "method_key": "distinguishable-presentation",
+        "official_method_sources": [
+          "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+          "https://waic.jp/docs/jis2016/understanding/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "JIS-X-8341-3-2016-SC-1.4.4",
+        "success_criterion": "1.4.4",
+        "title_ja": "テキストのサイズ変更",
+        "level": "AA",
+        "wcag_2_0_equivalent": "WCAG-2.0-SC-1.4.4",
+        "web_modern_record_id": "WCAG-2.2-SC-1.4.4",
+        "checklist_source_url": "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+        "evidence_hints": [
+          "visual_inspection",
+          "computed_style_or_rendering",
+          "zoom_or_reflow_test"
+        ],
+        "method_key": "distinguishable-presentation",
+        "official_method_sources": [
+          "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+          "https://waic.jp/docs/jis2016/understanding/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "JIS-X-8341-3-2016-SC-1.4.5",
+        "success_criterion": "1.4.5",
+        "title_ja": "文字画像",
+        "level": "AA",
+        "wcag_2_0_equivalent": "WCAG-2.0-SC-1.4.5",
+        "web_modern_record_id": "WCAG-2.2-SC-1.4.5",
+        "checklist_source_url": "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+        "evidence_hints": [
+          "visual_inspection",
+          "computed_style_or_rendering",
+          "zoom_or_reflow_test"
+        ],
+        "method_key": "distinguishable-presentation",
+        "official_method_sources": [
+          "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+          "https://waic.jp/docs/jis2016/understanding/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "JIS-X-8341-3-2016-SC-2.1.1",
+        "success_criterion": "2.1.1",
+        "title_ja": "キーボード",
+        "level": "A",
+        "wcag_2_0_equivalent": "WCAG-2.0-SC-2.1.1",
+        "web_modern_record_id": "WCAG-2.2-SC-2.1.1",
+        "checklist_source_url": "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+        "evidence_hints": [
+          "keyboard_test",
+          "focus_inspection",
+          "manual_observation"
+        ],
+        "method_key": "keyboard-operation",
+        "official_method_sources": [
+          "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+          "https://waic.jp/docs/jis2016/understanding/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "JIS-X-8341-3-2016-SC-2.1.2",
+        "success_criterion": "2.1.2",
+        "title_ja": "キーボードトラップなし",
+        "level": "A",
+        "wcag_2_0_equivalent": "WCAG-2.0-SC-2.1.2",
+        "web_modern_record_id": "WCAG-2.2-SC-2.1.2",
+        "checklist_source_url": "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+        "evidence_hints": [
+          "keyboard_test",
+          "focus_inspection",
+          "manual_observation"
+        ],
+        "method_key": "keyboard-operation",
+        "official_method_sources": [
+          "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+          "https://waic.jp/docs/jis2016/understanding/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "JIS-X-8341-3-2016-SC-2.2.1",
+        "success_criterion": "2.2.1",
+        "title_ja": "タイミング調整可能",
+        "level": "A",
+        "wcag_2_0_equivalent": "WCAG-2.0-SC-2.2.1",
+        "web_modern_record_id": "WCAG-2.2-SC-2.2.1",
+        "checklist_source_url": "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+        "evidence_hints": [
+          "structure_inspection",
+          "manual_observation"
+        ],
+        "method_key": "timing-and-motion",
+        "official_method_sources": [
+          "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+          "https://waic.jp/docs/jis2016/understanding/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "JIS-X-8341-3-2016-SC-2.2.2",
+        "success_criterion": "2.2.2",
+        "title_ja": "一時停止，停止及び非表示",
+        "level": "A",
+        "wcag_2_0_equivalent": "WCAG-2.0-SC-2.2.2",
+        "web_modern_record_id": "WCAG-2.2-SC-2.2.2",
+        "checklist_source_url": "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+        "evidence_hints": [
+          "structure_inspection",
+          "manual_observation"
+        ],
+        "method_key": "timing-and-motion",
+        "official_method_sources": [
+          "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+          "https://waic.jp/docs/jis2016/understanding/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "JIS-X-8341-3-2016-SC-2.3.1",
+        "success_criterion": "2.3.1",
+        "title_ja": "3回のせん（閃）光，又はしきい（閾）値以下",
+        "level": "A",
+        "wcag_2_0_equivalent": "WCAG-2.0-SC-2.3.1",
+        "web_modern_record_id": "WCAG-2.2-SC-2.3.1",
+        "checklist_source_url": "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+        "evidence_hints": [
+          "structure_inspection",
+          "manual_observation"
+        ],
+        "method_key": "seizure-and-physical-reaction",
+        "official_method_sources": [
+          "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+          "https://waic.jp/docs/jis2016/understanding/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "JIS-X-8341-3-2016-SC-2.4.1",
+        "success_criterion": "2.4.1",
+        "title_ja": "ブロックスキップ",
+        "level": "A",
+        "wcag_2_0_equivalent": "WCAG-2.0-SC-2.4.1",
+        "web_modern_record_id": "WCAG-2.2-SC-2.4.1",
+        "checklist_source_url": "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+        "evidence_hints": [
+          "structure_inspection",
+          "manual_observation"
+        ],
+        "method_key": "navigation-and-focus",
+        "official_method_sources": [
+          "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+          "https://waic.jp/docs/jis2016/understanding/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "JIS-X-8341-3-2016-SC-2.4.2",
+        "success_criterion": "2.4.2",
+        "title_ja": "ページタイトル",
+        "level": "A",
+        "wcag_2_0_equivalent": "WCAG-2.0-SC-2.4.2",
+        "web_modern_record_id": "WCAG-2.2-SC-2.4.2",
+        "checklist_source_url": "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+        "evidence_hints": [
+          "structure_inspection",
+          "manual_observation"
+        ],
+        "method_key": "navigation-and-focus",
+        "official_method_sources": [
+          "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+          "https://waic.jp/docs/jis2016/understanding/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "JIS-X-8341-3-2016-SC-2.4.3",
+        "success_criterion": "2.4.3",
+        "title_ja": "フォーカス順序",
+        "level": "A",
+        "wcag_2_0_equivalent": "WCAG-2.0-SC-2.4.3",
+        "web_modern_record_id": "WCAG-2.2-SC-2.4.3",
+        "checklist_source_url": "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+        "evidence_hints": [
+          "keyboard_test",
+          "focus_inspection",
+          "manual_observation"
+        ],
+        "method_key": "navigation-and-focus",
+        "official_method_sources": [
+          "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+          "https://waic.jp/docs/jis2016/understanding/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "JIS-X-8341-3-2016-SC-2.4.4",
+        "success_criterion": "2.4.4",
+        "title_ja": "リンクの目的（コンテキスト内）",
+        "level": "A",
+        "wcag_2_0_equivalent": "WCAG-2.0-SC-2.4.4",
+        "web_modern_record_id": "WCAG-2.2-SC-2.4.4",
+        "checklist_source_url": "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+        "evidence_hints": [
+          "structure_inspection",
+          "manual_observation"
+        ],
+        "method_key": "navigation-and-focus",
+        "official_method_sources": [
+          "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+          "https://waic.jp/docs/jis2016/understanding/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "JIS-X-8341-3-2016-SC-2.4.5",
+        "success_criterion": "2.4.5",
+        "title_ja": "複数の手段",
+        "level": "AA",
+        "wcag_2_0_equivalent": "WCAG-2.0-SC-2.4.5",
+        "web_modern_record_id": "WCAG-2.2-SC-2.4.5",
+        "checklist_source_url": "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+        "evidence_hints": [
+          "structure_inspection",
+          "manual_observation"
+        ],
+        "method_key": "navigation-and-focus",
+        "official_method_sources": [
+          "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+          "https://waic.jp/docs/jis2016/understanding/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "JIS-X-8341-3-2016-SC-2.4.6",
+        "success_criterion": "2.4.6",
+        "title_ja": "見出し及びラベル",
+        "level": "AA",
+        "wcag_2_0_equivalent": "WCAG-2.0-SC-2.4.6",
+        "web_modern_record_id": "WCAG-2.2-SC-2.4.6",
+        "checklist_source_url": "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+        "evidence_hints": [
+          "structure_inspection",
+          "manual_observation"
+        ],
+        "method_key": "navigation-and-focus",
+        "official_method_sources": [
+          "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+          "https://waic.jp/docs/jis2016/understanding/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "JIS-X-8341-3-2016-SC-2.4.7",
+        "success_criterion": "2.4.7",
+        "title_ja": "フォーカスの可視化",
+        "level": "AA",
+        "wcag_2_0_equivalent": "WCAG-2.0-SC-2.4.7",
+        "web_modern_record_id": "WCAG-2.2-SC-2.4.7",
+        "checklist_source_url": "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+        "evidence_hints": [
+          "keyboard_test",
+          "focus_inspection",
+          "manual_observation"
+        ],
+        "method_key": "navigation-and-focus",
+        "official_method_sources": [
+          "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+          "https://waic.jp/docs/jis2016/understanding/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "JIS-X-8341-3-2016-SC-3.1.1",
+        "success_criterion": "3.1.1",
+        "title_ja": "ページの言語",
+        "level": "A",
+        "wcag_2_0_equivalent": "WCAG-2.0-SC-3.1.1",
+        "web_modern_record_id": "WCAG-2.2-SC-3.1.1",
+        "checklist_source_url": "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+        "evidence_hints": [
+          "structure_inspection",
+          "manual_observation"
+        ],
+        "method_key": "readable-language",
+        "official_method_sources": [
+          "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+          "https://waic.jp/docs/jis2016/understanding/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "JIS-X-8341-3-2016-SC-3.1.2",
+        "success_criterion": "3.1.2",
+        "title_ja": "一部分の言語",
+        "level": "AA",
+        "wcag_2_0_equivalent": "WCAG-2.0-SC-3.1.2",
+        "web_modern_record_id": "WCAG-2.2-SC-3.1.2",
+        "checklist_source_url": "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+        "evidence_hints": [
+          "structure_inspection",
+          "manual_observation"
+        ],
+        "method_key": "readable-language",
+        "official_method_sources": [
+          "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+          "https://waic.jp/docs/jis2016/understanding/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "JIS-X-8341-3-2016-SC-3.2.1",
+        "success_criterion": "3.2.1",
+        "title_ja": "フォーカス時",
+        "level": "A",
+        "wcag_2_0_equivalent": "WCAG-2.0-SC-3.2.1",
+        "web_modern_record_id": "WCAG-2.2-SC-3.2.1",
+        "checklist_source_url": "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+        "evidence_hints": [
+          "structure_inspection",
+          "manual_observation"
+        ],
+        "method_key": "predictable-behavior",
+        "official_method_sources": [
+          "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+          "https://waic.jp/docs/jis2016/understanding/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "JIS-X-8341-3-2016-SC-3.2.2",
+        "success_criterion": "3.2.2",
+        "title_ja": "入力時",
+        "level": "A",
+        "wcag_2_0_equivalent": "WCAG-2.0-SC-3.2.2",
+        "web_modern_record_id": "WCAG-2.2-SC-3.2.2",
+        "checklist_source_url": "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+        "evidence_hints": [
+          "structure_inspection",
+          "manual_observation"
+        ],
+        "method_key": "predictable-behavior",
+        "official_method_sources": [
+          "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+          "https://waic.jp/docs/jis2016/understanding/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "JIS-X-8341-3-2016-SC-3.2.3",
+        "success_criterion": "3.2.3",
+        "title_ja": "一貫したナビゲーション",
+        "level": "AA",
+        "wcag_2_0_equivalent": "WCAG-2.0-SC-3.2.3",
+        "web_modern_record_id": "WCAG-2.2-SC-3.2.3",
+        "checklist_source_url": "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+        "evidence_hints": [
+          "structure_inspection",
+          "manual_observation"
+        ],
+        "method_key": "predictable-behavior",
+        "official_method_sources": [
+          "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+          "https://waic.jp/docs/jis2016/understanding/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "JIS-X-8341-3-2016-SC-3.2.4",
+        "success_criterion": "3.2.4",
+        "title_ja": "一貫した識別性",
+        "level": "AA",
+        "wcag_2_0_equivalent": "WCAG-2.0-SC-3.2.4",
+        "web_modern_record_id": "WCAG-2.2-SC-3.2.4",
+        "checklist_source_url": "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+        "evidence_hints": [
+          "structure_inspection",
+          "manual_observation"
+        ],
+        "method_key": "predictable-behavior",
+        "official_method_sources": [
+          "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+          "https://waic.jp/docs/jis2016/understanding/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "JIS-X-8341-3-2016-SC-3.3.1",
+        "success_criterion": "3.3.1",
+        "title_ja": "エラーの特定",
+        "level": "A",
+        "wcag_2_0_equivalent": "WCAG-2.0-SC-3.3.1",
+        "web_modern_record_id": "WCAG-2.2-SC-3.3.1",
+        "checklist_source_url": "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+        "evidence_hints": [
+          "form_or_process_review",
+          "error_recovery_test",
+          "manual_observation"
+        ],
+        "method_key": "input-assistance",
+        "official_method_sources": [
+          "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+          "https://waic.jp/docs/jis2016/understanding/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "JIS-X-8341-3-2016-SC-3.3.2",
+        "success_criterion": "3.3.2",
+        "title_ja": "ラベル又は説明",
+        "level": "A",
+        "wcag_2_0_equivalent": "WCAG-2.0-SC-3.3.2",
+        "web_modern_record_id": "WCAG-2.2-SC-3.3.2",
+        "checklist_source_url": "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+        "evidence_hints": [
+          "form_or_process_review",
+          "error_recovery_test",
+          "manual_observation"
+        ],
+        "method_key": "input-assistance",
+        "official_method_sources": [
+          "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+          "https://waic.jp/docs/jis2016/understanding/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "JIS-X-8341-3-2016-SC-3.3.3",
+        "success_criterion": "3.3.3",
+        "title_ja": "エラー修正の提案",
+        "level": "AA",
+        "wcag_2_0_equivalent": "WCAG-2.0-SC-3.3.3",
+        "web_modern_record_id": "WCAG-2.2-SC-3.3.3",
+        "checklist_source_url": "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+        "evidence_hints": [
+          "form_or_process_review",
+          "error_recovery_test",
+          "manual_observation"
+        ],
+        "method_key": "input-assistance",
+        "official_method_sources": [
+          "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+          "https://waic.jp/docs/jis2016/understanding/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "JIS-X-8341-3-2016-SC-3.3.4",
+        "success_criterion": "3.3.4",
+        "title_ja": "エラー回避（法的，金融及びデータ）",
+        "level": "AA",
+        "wcag_2_0_equivalent": "WCAG-2.0-SC-3.3.4",
+        "web_modern_record_id": "WCAG-2.2-SC-3.3.4",
+        "checklist_source_url": "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+        "evidence_hints": [
+          "form_or_process_review",
+          "error_recovery_test",
+          "manual_observation"
+        ],
+        "method_key": "input-assistance",
+        "official_method_sources": [
+          "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+          "https://waic.jp/docs/jis2016/understanding/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "JIS-X-8341-3-2016-SC-4.1.1",
+        "success_criterion": "4.1.1",
+        "title_ja": "構文解析",
+        "level": "A",
+        "wcag_2_0_equivalent": "WCAG-2.0-SC-4.1.1",
+        "web_modern_record_id": null,
+        "checklist_source_url": "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+        "evidence_hints": [
+          "dom_semantics",
+          "accessibility_tree",
+          "assistive_technology_test"
+        ],
+        "method_key": "parsing-legacy",
+        "official_method_sources": [
+          "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+          "https://waic.jp/docs/jis2016/understanding/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "JIS-X-8341-3-2016-SC-4.1.2",
+        "success_criterion": "4.1.2",
+        "title_ja": "名前（name），役割（role）及び値（value）",
+        "level": "A",
+        "wcag_2_0_equivalent": "WCAG-2.0-SC-4.1.2",
+        "web_modern_record_id": "WCAG-2.2-SC-4.1.2",
+        "checklist_source_url": "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+        "evidence_hints": [
+          "dom_semantics",
+          "accessibility_tree",
+          "assistive_technology_test"
+        ],
+        "method_key": "compatible-semantics",
+        "official_method_sources": [
+          "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+          "https://waic.jp/docs/jis2016/understanding/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      }
+    ],
+    "jp_wcag_2_2_additional": [
+      {
+        "id": "WCAG-2.2-ADDITIONAL-SC-1.3.4",
+        "success_criterion": "1.3.4",
+        "title_ja": "表示の向き",
+        "title_en": "Orientation",
+        "level": "AA",
+        "wcag_record_id": "WCAG-2.2-SC-1.3.4",
+        "profile_source_url": "https://www.digital.go.jp/accessibility-statement",
+        "normative_url": "https://www.w3.org/TR/WCAG22/#orientation",
+        "evidence_hints": [
+          "structure_inspection",
+          "manual_observation"
+        ],
+        "method_key": "adaptable-structure",
+        "official_method_sources": [
+          "https://www.w3.org/WAI/WCAG22/Understanding/orientation.html",
+          "https://www.w3.org/WAI/standards-guidelines/act/rules/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "WCAG-2.2-ADDITIONAL-SC-1.3.5",
+        "success_criterion": "1.3.5",
+        "title_ja": "入力目的の特定",
+        "title_en": "Identify Input Purpose",
+        "level": "AA",
+        "wcag_record_id": "WCAG-2.2-SC-1.3.5",
+        "profile_source_url": "https://www.digital.go.jp/accessibility-statement",
+        "normative_url": "https://www.w3.org/TR/WCAG22/#identify-input-purpose",
+        "evidence_hints": [
+          "form_or_process_review",
+          "error_recovery_test",
+          "manual_observation"
+        ],
+        "method_key": "adaptable-structure",
+        "official_method_sources": [
+          "https://www.w3.org/WAI/WCAG22/Understanding/identify-input-purpose.html",
+          "https://www.w3.org/WAI/standards-guidelines/act/rules/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "WCAG-2.2-ADDITIONAL-SC-1.4.10",
+        "success_criterion": "1.4.10",
+        "title_ja": "リフロー",
+        "title_en": "Reflow",
+        "level": "AA",
+        "wcag_record_id": "WCAG-2.2-SC-1.4.10",
+        "profile_source_url": "https://www.digital.go.jp/accessibility-statement",
+        "normative_url": "https://www.w3.org/TR/WCAG22/#reflow",
+        "evidence_hints": [
+          "visual_inspection",
+          "computed_style_or_rendering",
+          "zoom_or_reflow_test"
+        ],
+        "method_key": "distinguishable-presentation",
+        "official_method_sources": [
+          "https://www.w3.org/WAI/WCAG22/Understanding/reflow.html",
+          "https://www.w3.org/WAI/standards-guidelines/act/rules/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "WCAG-2.2-ADDITIONAL-SC-1.4.11",
+        "success_criterion": "1.4.11",
+        "title_ja": "非テキストのコントラスト",
+        "title_en": "Non-text Contrast",
+        "level": "AA",
+        "wcag_record_id": "WCAG-2.2-SC-1.4.11",
+        "profile_source_url": "https://www.digital.go.jp/accessibility-statement",
+        "normative_url": "https://www.w3.org/TR/WCAG22/#non-text-contrast",
+        "evidence_hints": [
+          "visual_inspection",
+          "computed_style_or_rendering",
+          "zoom_or_reflow_test"
+        ],
+        "method_key": "distinguishable-presentation",
+        "official_method_sources": [
+          "https://www.w3.org/WAI/WCAG22/Understanding/non-text-contrast.html",
+          "https://www.w3.org/WAI/standards-guidelines/act/rules/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "WCAG-2.2-ADDITIONAL-SC-1.4.12",
+        "success_criterion": "1.4.12",
+        "title_ja": "テキストの間隔",
+        "title_en": "Text Spacing",
+        "level": "AA",
+        "wcag_record_id": "WCAG-2.2-SC-1.4.12",
+        "profile_source_url": "https://www.digital.go.jp/accessibility-statement",
+        "normative_url": "https://www.w3.org/TR/WCAG22/#text-spacing",
+        "evidence_hints": [
+          "visual_inspection",
+          "computed_style_or_rendering",
+          "zoom_or_reflow_test"
+        ],
+        "method_key": "distinguishable-presentation",
+        "official_method_sources": [
+          "https://www.w3.org/WAI/WCAG22/Understanding/text-spacing.html",
+          "https://www.w3.org/WAI/standards-guidelines/act/rules/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "WCAG-2.2-ADDITIONAL-SC-1.4.13",
+        "success_criterion": "1.4.13",
+        "title_ja": "ホバー又はフォーカスで表示されるコンテンツ",
+        "title_en": "Content on Hover or Focus",
+        "level": "AA",
+        "wcag_record_id": "WCAG-2.2-SC-1.4.13",
+        "profile_source_url": "https://www.digital.go.jp/accessibility-statement",
+        "normative_url": "https://www.w3.org/TR/WCAG22/#content-on-hover-or-focus",
+        "evidence_hints": [
+          "visual_inspection",
+          "computed_style_or_rendering",
+          "zoom_or_reflow_test"
+        ],
+        "method_key": "distinguishable-presentation",
+        "official_method_sources": [
+          "https://www.w3.org/WAI/WCAG22/Understanding/content-on-hover-or-focus.html",
+          "https://www.w3.org/WAI/standards-guidelines/act/rules/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "WCAG-2.2-ADDITIONAL-SC-2.1.4",
+        "success_criterion": "2.1.4",
+        "title_ja": "文字キーのショートカット",
+        "title_en": "Character Key Shortcuts",
+        "level": "A",
+        "wcag_record_id": "WCAG-2.2-SC-2.1.4",
+        "profile_source_url": "https://www.digital.go.jp/accessibility-statement",
+        "normative_url": "https://www.w3.org/TR/WCAG22/#character-key-shortcuts",
+        "evidence_hints": [
+          "structure_inspection",
+          "manual_observation"
+        ],
+        "method_key": "keyboard-operation",
+        "official_method_sources": [
+          "https://www.w3.org/WAI/WCAG22/Understanding/character-key-shortcuts.html",
+          "https://www.w3.org/WAI/standards-guidelines/act/rules/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "WCAG-2.2-ADDITIONAL-SC-2.4.11",
+        "success_criterion": "2.4.11",
+        "title_ja": "隠されないフォーカス (最低限)",
+        "title_en": "Focus Not Obscured (Minimum)",
+        "level": "AA",
+        "wcag_record_id": "WCAG-2.2-SC-2.4.11",
+        "profile_source_url": "https://www.digital.go.jp/accessibility-statement",
+        "normative_url": "https://www.w3.org/TR/WCAG22/#focus-not-obscured-minimum",
+        "evidence_hints": [
+          "keyboard_test",
+          "focus_inspection",
+          "manual_observation"
+        ],
+        "method_key": "navigation-and-focus",
+        "official_method_sources": [
+          "https://www.w3.org/WAI/WCAG22/Understanding/focus-not-obscured-minimum.html",
+          "https://www.w3.org/WAI/standards-guidelines/act/rules/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "WCAG-2.2-ADDITIONAL-SC-2.5.1",
+        "success_criterion": "2.5.1",
+        "title_ja": "ポインタのジェスチャ",
+        "title_en": "Pointer Gestures",
+        "level": "A",
+        "wcag_record_id": "WCAG-2.2-SC-2.5.1",
+        "profile_source_url": "https://www.digital.go.jp/accessibility-statement",
+        "normative_url": "https://www.w3.org/TR/WCAG22/#pointer-gestures",
+        "evidence_hints": [
+          "pointer_or_touch_test",
+          "manual_observation"
+        ],
+        "method_key": "input-modalities",
+        "official_method_sources": [
+          "https://www.w3.org/WAI/WCAG22/Understanding/pointer-gestures.html",
+          "https://www.w3.org/WAI/standards-guidelines/act/rules/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "WCAG-2.2-ADDITIONAL-SC-2.5.2",
+        "success_criterion": "2.5.2",
+        "title_ja": "ポインタのキャンセル",
+        "title_en": "Pointer Cancellation",
+        "level": "A",
+        "wcag_record_id": "WCAG-2.2-SC-2.5.2",
+        "profile_source_url": "https://www.digital.go.jp/accessibility-statement",
+        "normative_url": "https://www.w3.org/TR/WCAG22/#pointer-cancellation",
+        "evidence_hints": [
+          "pointer_or_touch_test",
+          "manual_observation"
+        ],
+        "method_key": "input-modalities",
+        "official_method_sources": [
+          "https://www.w3.org/WAI/WCAG22/Understanding/pointer-cancellation.html",
+          "https://www.w3.org/WAI/standards-guidelines/act/rules/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "WCAG-2.2-ADDITIONAL-SC-2.5.3",
+        "success_criterion": "2.5.3",
+        "title_ja": "ラベルを含む名前 (name)",
+        "title_en": "Label in Name",
+        "level": "A",
+        "wcag_record_id": "WCAG-2.2-SC-2.5.3",
+        "profile_source_url": "https://www.digital.go.jp/accessibility-statement",
+        "normative_url": "https://www.w3.org/TR/WCAG22/#label-in-name",
+        "evidence_hints": [
+          "pointer_or_touch_test",
+          "manual_observation"
+        ],
+        "method_key": "input-modalities",
+        "official_method_sources": [
+          "https://www.w3.org/WAI/WCAG22/Understanding/label-in-name.html",
+          "https://www.w3.org/WAI/standards-guidelines/act/rules/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "WCAG-2.2-ADDITIONAL-SC-2.5.4",
+        "success_criterion": "2.5.4",
+        "title_ja": "動きによる起動",
+        "title_en": "Motion Actuation",
+        "level": "A",
+        "wcag_record_id": "WCAG-2.2-SC-2.5.4",
+        "profile_source_url": "https://www.digital.go.jp/accessibility-statement",
+        "normative_url": "https://www.w3.org/TR/WCAG22/#motion-actuation",
+        "evidence_hints": [
+          "pointer_or_touch_test",
+          "manual_observation"
+        ],
+        "method_key": "input-modalities",
+        "official_method_sources": [
+          "https://www.w3.org/WAI/WCAG22/Understanding/motion-actuation.html",
+          "https://www.w3.org/WAI/standards-guidelines/act/rules/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "WCAG-2.2-ADDITIONAL-SC-2.5.7",
+        "success_criterion": "2.5.7",
+        "title_ja": "ドラッグ動作",
+        "title_en": "Dragging Movements",
+        "level": "AA",
+        "wcag_record_id": "WCAG-2.2-SC-2.5.7",
+        "profile_source_url": "https://www.digital.go.jp/accessibility-statement",
+        "normative_url": "https://www.w3.org/TR/WCAG22/#dragging-movements",
+        "evidence_hints": [
+          "pointer_or_touch_test",
+          "manual_observation"
+        ],
+        "method_key": "input-modalities",
+        "official_method_sources": [
+          "https://www.w3.org/WAI/WCAG22/Understanding/dragging-movements.html",
+          "https://www.w3.org/WAI/standards-guidelines/act/rules/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "WCAG-2.2-ADDITIONAL-SC-2.5.8",
+        "success_criterion": "2.5.8",
+        "title_ja": "ターゲットのサイズ (最低限)",
+        "title_en": "Target Size (Minimum)",
+        "level": "AA",
+        "wcag_record_id": "WCAG-2.2-SC-2.5.8",
+        "profile_source_url": "https://www.digital.go.jp/accessibility-statement",
+        "normative_url": "https://www.w3.org/TR/WCAG22/#target-size-minimum",
+        "evidence_hints": [
+          "pointer_or_touch_test",
+          "manual_observation"
+        ],
+        "method_key": "input-modalities",
+        "official_method_sources": [
+          "https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html",
+          "https://www.w3.org/WAI/standards-guidelines/act/rules/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "WCAG-2.2-ADDITIONAL-SC-3.2.6",
+        "success_criterion": "3.2.6",
+        "title_ja": "一貫したヘルプ",
+        "title_en": "Consistent Help",
+        "level": "A",
+        "wcag_record_id": "WCAG-2.2-SC-3.2.6",
+        "profile_source_url": "https://www.digital.go.jp/accessibility-statement",
+        "normative_url": "https://www.w3.org/TR/WCAG22/#consistent-help",
+        "evidence_hints": [
+          "form_or_process_review",
+          "error_recovery_test",
+          "manual_observation"
+        ],
+        "method_key": "predictable-behavior",
+        "official_method_sources": [
+          "https://www.w3.org/WAI/WCAG22/Understanding/consistent-help.html",
+          "https://www.w3.org/WAI/standards-guidelines/act/rules/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "WCAG-2.2-ADDITIONAL-SC-3.3.7",
+        "success_criterion": "3.3.7",
+        "title_ja": "冗長な入力項目",
+        "title_en": "Redundant Entry",
+        "level": "A",
+        "wcag_record_id": "WCAG-2.2-SC-3.3.7",
+        "profile_source_url": "https://www.digital.go.jp/accessibility-statement",
+        "normative_url": "https://www.w3.org/TR/WCAG22/#redundant-entry",
+        "evidence_hints": [
+          "form_or_process_review",
+          "error_recovery_test",
+          "manual_observation"
+        ],
+        "method_key": "input-assistance",
+        "official_method_sources": [
+          "https://www.w3.org/WAI/WCAG22/Understanding/redundant-entry.html",
+          "https://www.w3.org/WAI/standards-guidelines/act/rules/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "WCAG-2.2-ADDITIONAL-SC-3.3.8",
+        "success_criterion": "3.3.8",
+        "title_ja": "アクセシブルな認証 (最低限)",
+        "title_en": "Accessible Authentication (Minimum)",
+        "level": "AA",
+        "wcag_record_id": "WCAG-2.2-SC-3.3.8",
+        "profile_source_url": "https://www.digital.go.jp/accessibility-statement",
+        "normative_url": "https://www.w3.org/TR/WCAG22/#accessible-authentication-minimum",
+        "evidence_hints": [
+          "form_or_process_review",
+          "error_recovery_test",
+          "manual_observation"
+        ],
+        "method_key": "input-assistance",
+        "official_method_sources": [
+          "https://www.w3.org/WAI/WCAG22/Understanding/accessible-authentication-minimum.html",
+          "https://www.w3.org/WAI/standards-guidelines/act/rules/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      },
+      {
+        "id": "WCAG-2.2-ADDITIONAL-SC-4.1.3",
+        "success_criterion": "4.1.3",
+        "title_ja": "ステータスメッセージ",
+        "title_en": "Status Messages",
+        "level": "AA",
+        "wcag_record_id": "WCAG-2.2-SC-4.1.3",
+        "profile_source_url": "https://www.digital.go.jp/accessibility-statement",
+        "normative_url": "https://www.w3.org/TR/WCAG22/#status-messages",
+        "evidence_hints": [
+          "dom_semantics",
+          "accessibility_tree",
+          "assistive_technology_test"
+        ],
+        "method_key": "compatible-semantics",
+        "official_method_sources": [
+          "https://www.w3.org/WAI/WCAG22/Understanding/status-messages.html",
+          "https://www.w3.org/WAI/standards-guidelines/act/rules/"
+        ],
+        "applicability_instruction": "Determine applicability from the normative source and the scoped target; record the rationale.",
+        "expectation_instruction": "Evaluate the applicable requirement against the normative source; do not infer a result from the title or an automated check alone.",
+        "method_status": "profile_review_scaffold",
+        "method_requirement": "manual_or_hybrid",
+        "automation_role": "supporting_only",
+        "normative_text_included": false
+      }
+    ]
+  }
+}

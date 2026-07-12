@@ -1,11 +1,18 @@
 ---
 name: information-accessibility-practice
-description: Use when reviewing, designing, or creating information accessibility for software/UI development, websites, apps, documents, slides, announcement graphics, videos, events, meetings, SNS posts, support workflows, public information, community onboarding, or participation flows. Trigger for information accessibility, accessibility review, accessibility checklist, UI review, web review, document accessibility, slide accessibility, screen reader, captions, subtitles, sign-language support, speech-to-text, easy language, ruby/furigana, color accessibility, venue guidance, participant support, support request flow, or accessibility planning.
+description: Use when reviewing, designing, creating, or recording evidence for information accessibility across software/UI, websites, apps, documents, slides, announcement graphics, videos, events, meetings, SNS, support workflows, public information, community onboarding, or participation flows. Trigger for information accessibility, accessibility review, accessibility checklist, WCAG 2.2, JIS X 8341-3, ATAG 2.0, standards profile, conformance claim, evidence level, assessment record, UI/web/document/slide accessibility, screen reader, captions, sign-language support, speech-to-text, easy language, ruby/furigana, color accessibility, venue guidance, participant support, support request flow, or accessibility planning.
 ---
 
 # Information Accessibility Practice
 
 Apply information accessibility as a participation workflow, not only as a disability checklist. Help people find information, decide whether they can participate, receive it through multiple modes, understand it, ask for support safely, and review it later.
+
+Keep two layers separate:
+
+- **Participation review**: use the five gates for practical coverage across artifacts, events, and workflows.
+- **Standards assessment**: select an explicit profile, record requirement outcomes and evidence, and apply the claim guard. Never infer formal conformance from the five gates or a spot check.
+
+This release is a reusable accessibility-audit workflow. It can initialize every registered Web requirement, preserve target-specific evidence, calculate catalog and evaluation coverage, and produce a guarded report. The bundled Web profiles have complete A/AA criterion metadata but not criterion-complete test procedures, so the claim ceiling remains `evaluated_subset`; it cannot determine WCAG/JIS conformance or ATAG process-component conformance.
 
 ## Core Model
 
@@ -26,16 +33,23 @@ Choose the target before reviewing. Load only the relevant reference when detail
 - **Software, UI, web app, app, form, dashboard, workflow, or repository work**: read `references/development-accessibility.md`.
 - **Documents, PDFs, reports, Word files, slide decks, lecture materials, handouts, announcement graphics, or presentation scripts**: read `references/document-slide-accessibility.md`.
 - **Events, meetings, seminars, community operations, community onboarding, public participation, or civic information**: read `references/event-community-accessibility.md`.
+- **WCAG, JIS, ATAG, standards-based assessment, procurement evidence, or any conformance wording**: read `references/standards-assessment.md`, `references/standards-registry.json`, `references/web-audit-methods.json`, and the selected records in `references/criteria-catalog.json`.
+- **HTML that uses ARIA**: also read `references/aria-html-review.md` and `references/aria-review-rules.json`. Record these only as `SCREEN-ARIA-*` supporting checks until a person maps evidence to a profile requirement.
+- **Source provenance or maintenance from new research**: read `references/source-basis.md`.
 Do not split the five gates into separate workflows. They are shared evaluation axes. Route by target surface because concrete checks, evidence, and fixes differ by target.
 
 ## Workflow
 
-1. Define the object under review:
+1. Choose the review mode:
+   - Use participation review by default.
+   - Use standards assessment only when the target, profile, scope, and available evidence are explicit.
+
+2. Define the object under review:
    - Artifact: event plan, announcement, venue page, form, slide, PDF, video, transcript, website, SNS flow, support portal, or onboarding path.
    - Audience: first-time participant, returning participant, blind or low-vision user, deaf or hard-of-hearing user, wheelchair or mobility user, child-care participant, older adult, foreign-language or easy-language reader, neurodivergent/cognitive-load-sensitive user, temporary injury/illness, or low-digital-literacy user.
    - Context: online, offline, hybrid, public-facing content, organizational workflow, archive, or regulated/public context.
 
-2. Map the participation journey:
+3. Map the participation journey:
    - Notice the opportunity.
    - Decide whether participation is possible.
    - Arrive at the place or open the content.
@@ -44,14 +58,27 @@ Do not split the five gates into separate workflows. They are shared evaluation 
    - Leave with next actions.
    - Catch up later if absent.
 
-3. Review the five gates. Prefer concrete tests over generic advice:
+4. Review the five gates. Prefer concrete tests over generic advice:
    - Inspect headings, labels, links, alt text, PDF text, reading order, focus order, and screen-reader-facing names.
    - Check whether video/audio has captions, transcript, summary, and clear archive location.
    - Check whether the same information is not color-only, audio-only, image-only, hover-only, gesture-only, or insider-channel-only.
    - Check whether event support requests move from form to responsible staff with privacy boundaries.
    - Check whether legal constraints, interpreter/caption contracts, venue rules, recording permissions, or personal data sharing are named.
 
-4. Produce a concise review:
+5. If standards assessment is requested, initialize a complete profile record instead of hand-building an empty checklist:
+   - Resolve `skill_root` as the directory containing this `SKILL.md`; never resolve scripts from the audited target's working directory.
+   - Run `node <skill_root>/scripts/generate-assessment.mjs --profile web-modern --output <assessment.json>` for WCAG 2.2 A/AA (55 requirements).
+   - Run `node <skill_root>/scripts/generate-assessment.mjs --profile jp-public-web --output <assessment.json>` for JIS X 8341-3:2016 A/AA plus the separately identified 18 added WCAG 2.2 requirements (56 total).
+   - Use `assets/assessment-record.template.json` only for profiles without a generated catalog.
+   - Record each applicable requirement as `pass`, `fail`, `not_applicable`, `not_tested`, or `cant_tell`.
+   - For each row, follow its `method_key` in `web-audit-methods.json` and open its exact `normative_url` and `official_method_sources`; do not evaluate from the title alone.
+   - Attach evidence to the exact page, element, screen, file, process step, environment, or test.
+   - Record the evidence level from E0 to E5 and keep `participation_coverage` separate from standards results.
+   - Run `node scripts/validate-assessment.mjs <assessment.json>` before proposing claim wording.
+
+6. Run `node <skill_root>/scripts/validate-assessment.mjs <assessment.json>` and inspect both `catalog_coverage` and `evaluation_coverage`. A complete catalog row set does not mean a completed audit.
+
+7. Produce a concise review or fill `assets/audit-report.template.md`:
    - `P0`: blocks participation or excludes a group from the core information.
    - `P1`: creates avoidable friction, anxiety, or staff confusion.
    - `P2`: improves quality, comfort, recovery, or long-term maintainability.
@@ -115,9 +142,15 @@ For planning:
 | After |  |  |  |  |
 ```
 
+For standards assessment, return the validated JSON record plus a short human-readable summary. Lead with failed, untested, and indeterminate requirements; do not replace requirement outcomes with a percentage score.
+
 ## Guardrails
 
-- Legal compliance, WCAG conformance, JIS conformance, and election-law safety require qualified evidence.
+- Do not call the skill, agent, or an unchecked artifact "WCAG compliant", "JIS certified", or "ATAG conformant". Standards apply only to explicitly scoped targets and applicable requirements.
+- Keep `not_tested` and `cant_tell` visible. Never convert uncertainty into `pass`.
+- Formal WCAG or JIS wording requires complete scope, complete-process review, criterion-level results, suitable interaction evidence, and human sign-off. JIS wording must also follow the applicable WAIC publication and testing conditions.
+- ATAG evaluation of this skill is limited to the named authoring process component; do not imply that the host UI or Part A was evaluated.
+- Legal compliance, procurement suitability, WCAG/JIS conformance, and election-law safety require qualified responsibility and evidence.
 - Automated accessibility tools are supporting evidence; combine them with structure checks, real-device checks, and user/staff workflow checks.
 - Treat accessibility broadly: include permanent, temporary, situational, language, age, digital literacy, cognitive load, and care-giving contexts.
 - Prefer practical first steps over perfection. Name what can be improved now, what needs staff/venue/legal confirmation, and what should become a future standard.
@@ -125,4 +158,15 @@ For planning:
 ## Verification
 
 When using the skill, verify claims with actual artifacts whenever possible: inspect document/page structure, check caption/transcript/archive availability, test or review screen-reader-facing labels, confirm event support handoff paths, and mark legal/privacy/staffing items as unverified unless qualified evidence is present.
+
+When maintaining or packaging the skill:
+
+```powershell
+node <skill-folder>\scripts\validate-assessment.mjs <assessment.json>
+node <skill-folder>\scripts\generate-assessment.mjs --profile web-modern --output <new-assessment.json>
+```
+
+## Source Basis
+
+This reusable audit workflow is target- and organization-independent. Read `references/source-basis.md` for the public primary sources, included metadata, copyright boundary, and profiles that are not yet implemented.
 

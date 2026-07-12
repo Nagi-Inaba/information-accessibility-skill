@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:information-accessibility:web-audit-methods:1.0.0",
+  "title": "Web Accessibility Manual Audit Playbooks",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "status", "verified_at", "usage_rule", "automation_role", "methods"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "status": {"const": "manual_audit_playbooks"},
+    "verified_at": {"type": "string", "format": "date"},
+    "usage_rule": {"type": "string", "minLength": 1},
+    "automation_role": {"const": "supporting_only"},
+    "methods": {
+      "type": "array",
+      "minItems": 14,
+      "maxItems": 14,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "guideline", "applicability_gate", "procedure_steps", "required_evidence_types", "cant_tell_when"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^[a-z0-9-]+$"},
+          "guideline": {"type": "string", "pattern": "^[1-4]\\.\\d+(?:\\.\\d+)?$"},
+          "applicability_gate": {"type": "string", "minLength": 1},
+          "procedure_steps": {"type": "array", "minItems": 3, "items": {"type": "string", "minLength": 1}},
+          "required_evidence_types": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+          "cant_tell_when": {"type": "string", "minLength": 1}
+        }
+      }
+    }
+  }
+}

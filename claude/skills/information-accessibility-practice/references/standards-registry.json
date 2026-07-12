@@ -1,0 +1,271 @@
+{
+  "schema_version": "1.0.0",
+  "last_verified_at": "2026-07-12",
+  "outcomes": [
+    "pass",
+    "fail",
+    "not_applicable",
+    "not_tested",
+    "cant_tell"
+  ],
+  "claim_tiers": [
+    "reference_only",
+    "screened",
+    "evaluated_subset",
+    "evaluated_complete",
+    "conformance_candidate",
+    "human_signoff_required"
+  ],
+  "claim_templates": {
+    "reference_only": [
+      "Profile-informed guidance only; the target was not reviewed against the full requirement set.",
+      "規格プロファイルを参照した助言のみです。対象は全条項について評価していません。"
+    ],
+    "screened": [
+      "Limited accessibility screening was performed; the full requirement set was not reviewed.",
+      "限定的なアクセシビリティ・スクリーニングのみを実施しました。全条項は評価していません。"
+    ],
+    "evaluated_subset": [
+      "Selected requirements were manually reviewed; the full requirement set was not reviewed.",
+      "選択した一部の条項を人手で評価しました。全条項は評価していません。"
+    ]
+  },
+  "evidence_levels": {
+    "E0": "Guidance only",
+    "E1": "Automated, static, or limited screening",
+    "E2": "Criterion review with recorded evidence",
+    "E3": "Complete-process and interaction verification",
+    "E4": "Independent audit",
+    "E5": "Legal or procurement dossier"
+  },
+  "global_prohibited_claims": [
+    "WCAG certified",
+    "WCAG認証",
+    "W3C certified",
+    "W3C認証",
+    "JIS certified",
+    "JIS認証",
+    "JISマーク",
+    "Section 508 certified",
+    "the agent conforms to WCAG 2.2 AA",
+    "エージェント自体がWCAG 2.2 AA準拠"
+  ],
+  "profiles": [
+    {
+      "id": "participation-practice",
+      "display_name": "Five-gate participation coverage",
+      "implementation_status": "active",
+      "criteria_catalog_status": "practice_model",
+      "target_scope": "Artifacts, events, workflows, and participation journeys",
+      "formal_conformance_target": false,
+      "standards": [],
+      "claim_rules": {
+        "blocking_outcomes": [],
+        "candidate_min_evidence": null,
+        "formal_min_evidence": null,
+        "human_signoff_required": true,
+        "claim_ceiling": "reference_only"
+      },
+      "copyright_boundary": "Original practice model; do not present it as a standards conformance profile."
+    },
+    {
+      "id": "web-modern",
+      "display_name": "Modern Web accessibility review",
+      "implementation_status": "active",
+      "criteria_catalog_status": "metadata_complete",
+      "criteria_catalog_file": "criteria-catalog.json",
+      "target_scope": "Full web pages, web applications, and complete web processes",
+      "formal_conformance_target": true,
+      "standards": [
+        {
+          "id": "WCAG-2.2-A-AA",
+          "title": "Web Content Accessibility Guidelines (WCAG) 2.2",
+          "version": "2.2",
+          "publisher": "W3C",
+          "normative_status": "W3C Recommendation, 2024-12-12",
+          "primary_url": "https://www.w3.org/TR/WCAG22/",
+          "last_verified_at": "2026-07-12"
+        },
+        {
+          "id": "WAI-ARIA-1.2-WHEN-USED",
+          "title": "Accessible Rich Internet Applications (WAI-ARIA) 1.2",
+          "version": "1.2",
+          "publisher": "W3C",
+          "normative_status": "W3C Recommendation",
+          "primary_url": "https://www.w3.org/TR/wai-aria-1.2/",
+          "last_verified_at": "2026-07-12"
+        },
+        {
+          "id": "ARIA-IN-HTML-2026-04-15-WHEN-USED",
+          "title": "ARIA in HTML",
+          "version": "2026-04-15",
+          "publisher": "W3C",
+          "normative_status": "W3C Recommendation, 2026-04-15",
+          "primary_url": "https://www.w3.org/TR/html-aria/",
+          "last_verified_at": "2026-07-12"
+        }
+      ],
+      "evaluation_methods": [
+        {
+          "id": "WCAG-EM-1.0",
+          "primary_url": "https://www.w3.org/TR/WCAG-EM/"
+        },
+        {
+          "id": "ACT-RULES-FORMAT-1.1",
+          "primary_url": "https://www.w3.org/TR/act-rules-format/"
+        }
+      ],
+      "requirement_ids": [
+        "WCAG-2.2-SC-1.1.1",
+        "WCAG-2.2-SC-1.2.1", "WCAG-2.2-SC-1.2.2", "WCAG-2.2-SC-1.2.3", "WCAG-2.2-SC-1.2.4", "WCAG-2.2-SC-1.2.5",
+        "WCAG-2.2-SC-1.3.1", "WCAG-2.2-SC-1.3.2", "WCAG-2.2-SC-1.3.3", "WCAG-2.2-SC-1.3.4", "WCAG-2.2-SC-1.3.5",
+        "WCAG-2.2-SC-1.4.1", "WCAG-2.2-SC-1.4.2", "WCAG-2.2-SC-1.4.3", "WCAG-2.2-SC-1.4.4", "WCAG-2.2-SC-1.4.5", "WCAG-2.2-SC-1.4.10", "WCAG-2.2-SC-1.4.11", "WCAG-2.2-SC-1.4.12", "WCAG-2.2-SC-1.4.13",
+        "WCAG-2.2-SC-2.1.1", "WCAG-2.2-SC-2.1.2", "WCAG-2.2-SC-2.1.4",
+        "WCAG-2.2-SC-2.2.1", "WCAG-2.2-SC-2.2.2",
+        "WCAG-2.2-SC-2.3.1",
+        "WCAG-2.2-SC-2.4.1", "WCAG-2.2-SC-2.4.2", "WCAG-2.2-SC-2.4.3", "WCAG-2.2-SC-2.4.4", "WCAG-2.2-SC-2.4.5", "WCAG-2.2-SC-2.4.6", "WCAG-2.2-SC-2.4.7", "WCAG-2.2-SC-2.4.11",
+        "WCAG-2.2-SC-2.5.1", "WCAG-2.2-SC-2.5.2", "WCAG-2.2-SC-2.5.3", "WCAG-2.2-SC-2.5.4", "WCAG-2.2-SC-2.5.7", "WCAG-2.2-SC-2.5.8",
+        "WCAG-2.2-SC-3.1.1", "WCAG-2.2-SC-3.1.2",
+        "WCAG-2.2-SC-3.2.1", "WCAG-2.2-SC-3.2.2", "WCAG-2.2-SC-3.2.3", "WCAG-2.2-SC-3.2.4", "WCAG-2.2-SC-3.2.6",
+        "WCAG-2.2-SC-3.3.1", "WCAG-2.2-SC-3.3.2", "WCAG-2.2-SC-3.3.3", "WCAG-2.2-SC-3.3.4", "WCAG-2.2-SC-3.3.7", "WCAG-2.2-SC-3.3.8",
+        "WCAG-2.2-SC-4.1.2", "WCAG-2.2-SC-4.1.3"
+      ],
+      "requirement_sources": [
+        {
+          "id_prefix": "WCAG-2.2-SC-",
+          "url_prefixes": ["https://www.w3.org/TR/WCAG22/"]
+        }
+      ],
+      "claim_rules": {
+        "blocking_outcomes": [
+          "fail",
+          "not_tested",
+          "cant_tell"
+        ],
+        "candidate_min_evidence": "E3",
+        "formal_min_evidence": "E4",
+        "human_signoff_required": true,
+        "claim_ceiling": "evaluated_subset"
+      },
+      "copyright_boundary": "Store requirement identifiers, public URLs, results, and original summaries; do not copy standards text."
+    },
+    {
+      "id": "jp-public-web",
+      "display_name": "Japanese public Web review",
+      "implementation_status": "active",
+      "criteria_catalog_status": "metadata_complete",
+      "criteria_catalog_file": "criteria-catalog.json",
+      "target_scope": "Japanese public-facing web pages and complete web processes",
+      "formal_conformance_target": true,
+      "standards": [
+        {
+          "id": "JIS-X-8341-3-2016-A-AA",
+          "title": "JIS X 8341-3:2016",
+          "version": "2016",
+          "publisher": "Japan (Japanese Industrial Standard); public implementation guidance by WAIC",
+          "normative_status": "Current Japanese Industrial Standard profile based on WCAG 2.0",
+          "primary_url": "https://waic.jp/docs/jis2016/understanding/",
+          "last_verified_at": "2026-07-12"
+        },
+        {
+          "id": "WCAG-2.2-ADDITIONAL-A-AA-18",
+          "title": "WCAG 2.2 A and AA criteria not included in JIS X 8341-3:2016",
+          "version": "2.2",
+          "publisher": "W3C; profile pattern published by Japan Digital Agency",
+          "normative_status": "Additional target; keep separate from the JIS result",
+          "primary_url": "https://www.digital.go.jp/accessibility-statement",
+          "last_verified_at": "2026-07-12"
+        }
+      ],
+      "evaluation_methods": [
+        {
+          "id": "WAIC-COMPLIANCE-WORDING-2021-04",
+          "primary_url": "https://waic.jp/docs/jis2016/compliance-guidelines/202104/"
+        },
+        {
+          "id": "WAIC-TEST-GUIDELINES",
+          "primary_url": "https://waic.jp/docs/jis2016/test-guidelines/"
+        }
+      ],
+      "requirement_ids": [
+        "JIS-X-8341-3-2016-SC-1.1.1",
+        "JIS-X-8341-3-2016-SC-1.2.1", "JIS-X-8341-3-2016-SC-1.2.2", "JIS-X-8341-3-2016-SC-1.2.3", "JIS-X-8341-3-2016-SC-1.2.4", "JIS-X-8341-3-2016-SC-1.2.5",
+        "JIS-X-8341-3-2016-SC-1.3.1", "JIS-X-8341-3-2016-SC-1.3.2", "JIS-X-8341-3-2016-SC-1.3.3",
+        "JIS-X-8341-3-2016-SC-1.4.1", "JIS-X-8341-3-2016-SC-1.4.2", "JIS-X-8341-3-2016-SC-1.4.3", "JIS-X-8341-3-2016-SC-1.4.4", "JIS-X-8341-3-2016-SC-1.4.5",
+        "JIS-X-8341-3-2016-SC-2.1.1", "JIS-X-8341-3-2016-SC-2.1.2",
+        "JIS-X-8341-3-2016-SC-2.2.1", "JIS-X-8341-3-2016-SC-2.2.2",
+        "JIS-X-8341-3-2016-SC-2.3.1",
+        "JIS-X-8341-3-2016-SC-2.4.1", "JIS-X-8341-3-2016-SC-2.4.2", "JIS-X-8341-3-2016-SC-2.4.3", "JIS-X-8341-3-2016-SC-2.4.4", "JIS-X-8341-3-2016-SC-2.4.5", "JIS-X-8341-3-2016-SC-2.4.6", "JIS-X-8341-3-2016-SC-2.4.7",
+        "JIS-X-8341-3-2016-SC-3.1.1", "JIS-X-8341-3-2016-SC-3.1.2",
+        "JIS-X-8341-3-2016-SC-3.2.1", "JIS-X-8341-3-2016-SC-3.2.2", "JIS-X-8341-3-2016-SC-3.2.3", "JIS-X-8341-3-2016-SC-3.2.4",
+        "JIS-X-8341-3-2016-SC-3.3.1", "JIS-X-8341-3-2016-SC-3.3.2", "JIS-X-8341-3-2016-SC-3.3.3", "JIS-X-8341-3-2016-SC-3.3.4",
+        "JIS-X-8341-3-2016-SC-4.1.1", "JIS-X-8341-3-2016-SC-4.1.2",
+        "WCAG-2.2-ADDITIONAL-SC-1.3.4", "WCAG-2.2-ADDITIONAL-SC-1.3.5",
+        "WCAG-2.2-ADDITIONAL-SC-1.4.10", "WCAG-2.2-ADDITIONAL-SC-1.4.11", "WCAG-2.2-ADDITIONAL-SC-1.4.12", "WCAG-2.2-ADDITIONAL-SC-1.4.13",
+        "WCAG-2.2-ADDITIONAL-SC-2.1.4", "WCAG-2.2-ADDITIONAL-SC-2.4.11",
+        "WCAG-2.2-ADDITIONAL-SC-2.5.1", "WCAG-2.2-ADDITIONAL-SC-2.5.2", "WCAG-2.2-ADDITIONAL-SC-2.5.3", "WCAG-2.2-ADDITIONAL-SC-2.5.4", "WCAG-2.2-ADDITIONAL-SC-2.5.7", "WCAG-2.2-ADDITIONAL-SC-2.5.8",
+        "WCAG-2.2-ADDITIONAL-SC-3.2.6", "WCAG-2.2-ADDITIONAL-SC-3.3.7", "WCAG-2.2-ADDITIONAL-SC-3.3.8", "WCAG-2.2-ADDITIONAL-SC-4.1.3"
+      ],
+      "requirement_sources": [
+        {
+          "id_prefix": "JIS-X-8341-3-2016-SC-",
+          "url_prefixes": ["https://waic.jp/docs/jis2016/"]
+        },
+        {
+          "id_prefix": "WCAG-2.2-ADDITIONAL-SC-",
+          "url_prefixes": ["https://www.digital.go.jp/accessibility-statement", "https://www.w3.org/TR/WCAG22/"]
+        }
+      ],
+      "claim_rules": {
+        "blocking_outcomes": [
+          "fail",
+          "not_tested",
+          "cant_tell"
+        ],
+        "candidate_min_evidence": "E3",
+        "formal_min_evidence": "E4",
+        "human_signoff_required": true,
+        "claim_ceiling": "evaluated_subset"
+      },
+      "copyright_boundary": "Do not reproduce JIS text. Keep JIS results and the 18 added WCAG 2.2 results distinct."
+    },
+    {
+      "id": "authoring-agent",
+      "display_name": "Authoring process component review",
+      "implementation_status": "planned",
+      "criteria_catalog_status": "metadata_only",
+      "target_scope": "Named AI or software authoring process component and the technologies it produces",
+      "formal_conformance_target": true,
+      "standards": [
+        {
+          "id": "ATAG-2.0-PART-B-A-AA",
+          "title": "Authoring Tool Accessibility Guidelines (ATAG) 2.0 Part B",
+          "version": "2.0",
+          "publisher": "W3C",
+          "normative_status": "W3C Recommendation; partial process-component option available",
+          "primary_url": "https://www.w3.org/TR/ATAG20/",
+          "last_verified_at": "2026-07-12"
+        }
+      ],
+      "claim_rules": {
+        "blocking_outcomes": [
+          "fail",
+          "not_tested",
+          "cant_tell"
+        ],
+        "candidate_min_evidence": "E3",
+        "formal_min_evidence": "E4",
+        "human_signoff_required": true,
+        "claim_ceiling": "reference_only"
+      },
+      "copyright_boundary": "Store applicable criterion identifiers and original mappings only. Do not imply host UI or Part A coverage."
+    }
+  ],
+  "planned_profiles": [
+    "eu-ict",
+    "us-federal-ict",
+    "pdf",
+    "epub",
+    "organization"
+  ]
+}

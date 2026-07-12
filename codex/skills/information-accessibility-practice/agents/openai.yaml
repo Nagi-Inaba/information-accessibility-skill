@@ -1,5 +1,4 @@
 interface:
-  display_name: "Information Accessibility Practice"
-  short_description: "開発・資料・イベントの情報アクセシビリティレビュー"
-  default_prompt: "Use $information-accessibility-practice to review development work, a document/slide deck, an event, or a support workflow for information accessibility."
-
+  display_name: "Information Accessibility Auditor"
+  short_description: "対象・範囲・証拠・未検証を固定して汎用アクセシビリティ監査を実行"
+  default_prompt: "Use $information-accessibility-practice to audit the named target. Fix the scope, select the applicable profile, inspect real artifacts, generate and validate a complete checklist where supported, and return evidence-backed findings, limitations, remediation, and retest steps without overclaiming conformance."

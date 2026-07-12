@@ -32,6 +32,10 @@ Treat accessibility as whether users can complete the information journey:
 - Automated lint/a11y tools as supporting evidence only; do not treat them as sufficient.
 - Screenshots or reproduction notes for P0/P1 findings.
 
+## ARIA Review
+
+When HTML uses explicit roles or `aria-*` attributes, apply `aria-html-review.md` and `aria-review-rules.json`. Record each result as a `screening_check` with its `SCREEN-ARIA-*` identifier. These checks can expose likely semantic defects, but they remain supporting evidence: do not automatically convert them into a pass or fail for WCAG 4.1.2 or any other profile requirement. Confirm the element's native semantics, computed accessibility tree, keyboard behavior, state changes, and accessible name before a person maps evidence to a criterion.
+
 ## Output For Code Work
 
 For implementation or code review, report findings like this:

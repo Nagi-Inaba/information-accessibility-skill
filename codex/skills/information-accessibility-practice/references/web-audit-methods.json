@@ -1,0 +1,121 @@
+{
+  "schema_version": "1.0.0",
+  "status": "manual_audit_playbooks",
+  "verified_at": "2026-07-12",
+  "usage_rule": "For each criterion, open the record's normative_url and official_method_sources, confirm applicability, then apply the routed playbook. The playbook does not replace the normative requirement or criterion-specific Understanding material.",
+  "automation_role": "supporting_only",
+  "methods": [
+    {
+      "id": "non-text-content",
+      "guideline": "1.1",
+      "applicability_gate": "Inventory informative, functional, sensory, CAPTCHA, test, and decorative non-text content in the scoped target.",
+      "procedure_steps": ["Classify each non-text item by purpose.", "Inspect the programmatic text alternative or intentional null alternative.", "Compare the alternative with visible context and the action or information users need.", "Exercise functional controls and record exceptions separately."],
+      "required_evidence_types": ["browser_inspection", "manual_observation"],
+      "cant_tell_when": "Purpose, context, or computed alternative cannot be observed."
+    },
+    {
+      "id": "time-based-media",
+      "guideline": "1.2",
+      "applicability_gate": "Inventory prerecorded or live audio/video and determine whether it is synchronized media, media alternative, or audio/video-only.",
+      "procedure_steps": ["Classify media and criterion applicability.", "Inspect captions, transcript, audio description, sign-language or media-alternative mechanisms required by the selected criterion.", "Play representative beginning, middle, and end segments.", "Compare timing, speaker identification, meaningful sound, and visual information with the source."],
+      "required_evidence_types": ["manual_observation", "assistive_technology_test"],
+      "cant_tell_when": "The media, alternative track, or representative playback environment is unavailable."
+    },
+    {
+      "id": "adaptable-structure",
+      "guideline": "1.3",
+      "applicability_gate": "Identify visual structure, sequence, sensory instructions, orientation constraints, and fields collecting user information.",
+      "procedure_steps": ["Compare visual relationships with DOM or document semantics.", "Inspect reading and focus-independent sequence.", "Check instructions without relying only on sensory characteristics.", "Rotate/reflow where applicable and inspect input-purpose metadata."],
+      "required_evidence_types": ["browser_inspection", "manual_observation"],
+      "cant_tell_when": "Programmatic structure or the target device orientation cannot be inspected."
+    },
+    {
+      "id": "distinguishable-presentation",
+      "guideline": "1.4",
+      "applicability_gate": "Identify color-coded meaning, audio, text and image-of-text presentation, contrast boundaries, zoom/reflow, spacing, hover/focus content, and non-text UI graphics.",
+      "procedure_steps": ["Inspect non-color cues and audio controls.", "Measure applicable text, UI, and graphical contrast.", "Test text resize, zoom, narrow reflow, and text spacing without loss.", "Trigger hover/focus content and test dismissibility, hoverability, and persistence."],
+      "required_evidence_types": ["browser_inspection", "manual_observation"],
+      "cant_tell_when": "Rendered styles, contrast samples, responsive state, or interactive content cannot be reproduced."
+    },
+    {
+      "id": "keyboard-operation",
+      "guideline": "2.1",
+      "applicability_gate": "Identify every interactive function, shortcut, embedded widget, and focusable region.",
+      "procedure_steps": ["Complete each applicable function with keyboard only.", "Check entry, operation, escape, and return from components.", "Test character-key shortcuts and their disable/remap/focus behavior.", "Record focus location and any trap or pointer-only dependency."],
+      "required_evidence_types": ["keyboard_test"],
+      "cant_tell_when": "The interactive runtime or required keyboard input path is unavailable."
+    },
+    {
+      "id": "timing-and-motion",
+      "guideline": "2.2",
+      "applicability_gate": "Identify time limits and moving, blinking, scrolling, auto-updating, or auto-starting content.",
+      "procedure_steps": ["Measure and trigger each time limit.", "Test extend, adjust, pause, stop, hide, or exempt behavior as applicable.", "Observe whether controls remain operable before timeout.", "Record essential exceptions and user consequences."],
+      "required_evidence_types": ["manual_observation", "keyboard_test"],
+      "cant_tell_when": "Timed or moving behavior cannot be triggered under representative conditions."
+    },
+    {
+      "id": "seizure-and-physical-reaction",
+      "guideline": "2.3",
+      "applicability_gate": "Identify flashing or rapidly changing visual content in all reachable states.",
+      "procedure_steps": ["Capture the relevant interval.", "Measure flashes with an appropriate analysis tool when threshold risk exists.", "Confirm viewport area and exception assumptions.", "Record the tool, version, interval, and result."],
+      "required_evidence_types": ["automated_scan", "manual_observation"],
+      "cant_tell_when": "The animation cannot be captured or threshold analysis is unavailable."
+    },
+    {
+      "id": "navigation-and-focus",
+      "guideline": "2.4",
+      "applicability_gate": "Identify repeated blocks, page titles, focus order, link purposes, navigation routes, headings, labels, and focused-component visibility.",
+      "procedure_steps": ["Navigate complete pages and processes by keyboard.", "Inspect bypass mechanisms, title, headings, labels, and link context.", "Compare focus order with meaning and operation.", "Check visible focus and whether focused components remain unobscured."],
+      "required_evidence_types": ["keyboard_test", "browser_inspection"],
+      "cant_tell_when": "A complete page/process or visual focus state cannot be exercised."
+    },
+    {
+      "id": "input-modalities",
+      "guideline": "2.5",
+      "applicability_gate": "Identify multipoint/path gestures, pointer actions, visible labels, motion input, drag operations, and pointer targets.",
+      "procedure_steps": ["Exercise pointer, touch, and motion alternatives as applicable.", "Check cancellation and completion timing.", "Compare accessible names with visible labels.", "Measure targets and spacing, and test a non-drag alternative."],
+      "required_evidence_types": ["manual_observation", "browser_inspection"],
+      "cant_tell_when": "The required pointer, touch, motion, or viewport environment is unavailable."
+    },
+    {
+      "id": "readable-language",
+      "guideline": "3.1",
+      "applicability_gate": "Identify the default human language and passages whose language differs.",
+      "procedure_steps": ["Inspect programmatically determined page language.", "Inspect language changes for phrases and passages.", "Check computed accessibility information where browser handling is material.", "Record proper-name, technical-term, and indeterminate-language exceptions."],
+      "required_evidence_types": ["browser_inspection", "assistive_technology_test"],
+      "cant_tell_when": "Programmatic language or pronunciation behavior cannot be inspected."
+    },
+    {
+      "id": "predictable-behavior",
+      "guideline": "3.2",
+      "applicability_gate": "Identify focus/input-triggered changes, repeated navigation/components, and help mechanisms.",
+      "procedure_steps": ["Focus and change each applicable control without premature activation.", "Compare repeated navigation and component identification across pages.", "Locate help mechanisms across the scoped page set.", "Record user-initiated context changes and exceptions."],
+      "required_evidence_types": ["keyboard_test", "manual_observation"],
+      "cant_tell_when": "Repeated pages or state-changing controls cannot be exercised."
+    },
+    {
+      "id": "input-assistance",
+      "guideline": "3.3",
+      "applicability_gate": "Identify user input, validation, legal/financial/data submissions, authentication, repeated entry, and error recovery.",
+      "procedure_steps": ["Trigger each validation and submission error.", "Inspect error identification, labels/instructions, suggestions, prevention and review mechanisms.", "Complete a representative process through recovery.", "Test redundant-entry and accessible-authentication behavior."],
+      "required_evidence_types": ["keyboard_test", "assistive_technology_test", "manual_observation"],
+      "cant_tell_when": "The complete form/process, validation state, or authentication route is unavailable."
+    },
+    {
+      "id": "parsing-legacy",
+      "guideline": "4.1.1",
+      "applicability_gate": "Apply only when the selected profile still contains the legacy parsing requirement, such as JIS X 8341-3:2016.",
+      "procedure_steps": ["Parse the delivered markup with an appropriate conformance checker.", "Inspect duplicate identifiers and malformed start/end tags or attributes.", "Inspect element nesting and document-tree recovery where errors are reported.", "Record the exact document, tool/version, error locations, and whether the defect affects programmatic interpretation."],
+      "required_evidence_types": ["automated_scan", "document_structure_inspection"],
+      "cant_tell_when": "The delivered markup or a suitable parser/conformance checker is unavailable."
+    },
+    {
+      "id": "compatible-semantics",
+      "guideline": "4.1",
+      "applicability_gate": "Identify UI components, explicit ARIA, names, roles, values, relationships, and status messages.",
+      "procedure_steps": ["Inspect native semantics and rendered accessibility tree.", "Apply the SCREEN-ARIA playbook where ARIA is used.", "Operate components and compare current name, role, value, state, and relationships.", "Trigger status messages and observe assistive-technology exposure without moving focus."],
+      "required_evidence_types": ["browser_inspection", "assistive_technology_test"],
+      "cant_tell_when": "The accessibility tree, component behavior, or assistive-technology announcement cannot be observed."
+    }
+  ]
+}

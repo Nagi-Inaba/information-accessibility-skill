@@ -1,0 +1,59 @@
+{
+  "schema_version": "1.0.0",
+  "assessment": {
+    "target": {
+      "name": "REPLACE_ME",
+      "version_or_commit": "REPLACE_ME",
+      "urls_or_files": []
+    },
+    "profile": {
+      "id": "web-modern",
+      "registry_version": "1.0.0"
+    },
+    "scope": {
+      "included": [],
+      "excluded": [],
+      "complete_processes": [],
+      "third_party_content": [],
+      "full_pages_reviewed": false
+    },
+    "environment": {
+      "os": [],
+      "browsers": [],
+      "assistive_technologies": [],
+      "input_modes": []
+    },
+    "results": [],
+    "participation_coverage": {
+      "find": "not_tested",
+      "receive": "not_tested",
+      "understand": "not_tested",
+      "participate": "not_tested",
+      "continue": "not_tested"
+    },
+    "evidence_level": "E0",
+    "assurance": {
+      "independent_audit": {
+        "performed": false,
+        "evaluator_independent": false,
+        "scope_method": "",
+        "report_location": ""
+      },
+      "legal_or_procurement_dossier": {
+        "prepared": false,
+        "responsible_owner": "",
+        "artifacts": []
+      }
+    },
+    "claim": {
+      "requested_tier": "reference_only",
+      "proposed_wording": "Profile-informed guidance only; the target was not reviewed against the full requirement set."
+    },
+    "evaluator": "REPLACE_ME",
+    "evaluated_at": "YYYY-MM-DD",
+    "limitations": [
+      "No criterion-level evaluation has been recorded."
+    ],
+    "next_review_at": null
+  }
+}

@@ -1,0 +1,144 @@
+{
+  "schema_version": "1.0.0",
+  "verified_at": "2026-07-12",
+  "status": "review_checks",
+  "claim_effect": "supporting_only",
+  "sources": [
+    "https://www.w3.org/TR/html-aria/",
+    "https://www.w3.org/TR/wai-aria-1.2/"
+  ],
+  "rules": [
+    {
+      "id": "SCREEN-ARIA-ROLE-PERMITTED",
+      "title": "Explicit role is permitted on the HTML element",
+      "kind": "normative_review",
+      "source_url": "https://www.w3.org/TR/html-aria/#docconformance",
+      "applicability": "HTML element has an explicit role",
+      "expectation": "The role is allowed for that element and context.",
+      "method_kinds": ["automated", "manual"],
+      "evidence_types": ["automated_scan", "browser_inspection"],
+      "human_review_required": true
+    },
+    {
+      "id": "SCREEN-ARIA-ATTRIBUTE-PERMITTED",
+      "title": "ARIA state or property is permitted",
+      "kind": "normative_review",
+      "source_url": "https://www.w3.org/TR/html-aria/#docconformance",
+      "applicability": "HTML element has an aria-* attribute",
+      "expectation": "Each state or property is allowed for the element and computed role.",
+      "method_kinds": ["automated", "manual"],
+      "evidence_types": ["automated_scan", "browser_inspection"],
+      "human_review_required": true
+    },
+    {
+      "id": "SCREEN-ARIA-NO-NATIVE-CONFLICT",
+      "title": "ARIA does not conflict with strong native semantics",
+      "kind": "normative_review",
+      "source_url": "https://www.w3.org/TR/html-aria/#author-requirements-for-use-of-aria-in-html",
+      "applicability": "ARIA changes or supplements native HTML semantics",
+      "expectation": "The exposed semantics remain consistent with the actual element behavior.",
+      "method_kinds": ["manual"],
+      "evidence_types": ["browser_inspection", "manual_observation"],
+      "human_review_required": true
+    },
+    {
+      "id": "SCREEN-ARIA-REQUIRED-STATE-PRESENT",
+      "title": "Role-required states and properties are present",
+      "kind": "normative_review",
+      "source_url": "https://www.w3.org/TR/wai-aria-1.2/#roles_categorization",
+      "applicability": "An ARIA role has required states or properties",
+      "expectation": "All required states and properties are present and current.",
+      "method_kinds": ["automated", "manual"],
+      "evidence_types": ["automated_scan", "browser_inspection"],
+      "human_review_required": true
+    },
+    {
+      "id": "SCREEN-ARIA-VALUE-VALID",
+      "title": "ARIA values use the required datatype and token",
+      "kind": "normative_review",
+      "source_url": "https://www.w3.org/TR/wai-aria-1.2/#states_and_properties",
+      "applicability": "Element has an ARIA state or property",
+      "expectation": "The value is valid for the attribute and reflects the current UI state.",
+      "method_kinds": ["automated", "manual"],
+      "evidence_types": ["automated_scan", "browser_inspection"],
+      "human_review_required": true
+    },
+    {
+      "id": "SCREEN-ARIA-IDREF-RESOLVES",
+      "title": "ARIA ID references resolve to intended targets",
+      "kind": "normative_review",
+      "source_url": "https://www.w3.org/TR/wai-aria-1.2/#valuetype_idref",
+      "applicability": "ARIA attribute contains an ID reference or ID reference list",
+      "expectation": "Every required reference resolves and expresses the intended relationship.",
+      "method_kinds": ["automated", "manual"],
+      "evidence_types": ["automated_scan", "browser_inspection"],
+      "human_review_required": true
+    },
+    {
+      "id": "SCREEN-ARIA-NAME-VALID",
+      "title": "Accessible name is permitted, present, and appropriate",
+      "kind": "normative_review",
+      "source_url": "https://www.w3.org/TR/html-aria/#requirements-for-use-of-aria-attributes-to-name-elements",
+      "applicability": "Element is named through content, HTML, or ARIA",
+      "expectation": "Naming is permitted and the computed name identifies the visible purpose.",
+      "method_kinds": ["automated", "manual"],
+      "evidence_types": ["automated_scan", "browser_inspection", "assistive_technology_test"],
+      "human_review_required": true
+    },
+    {
+      "id": "SCREEN-ARIA-DEPRECATED-FEATURE-ABSENT",
+      "title": "Deprecated ARIA features are not introduced",
+      "kind": "normative_review",
+      "source_url": "https://www.w3.org/TR/html-aria/#requirements-for-deprecated-aria-role-state-and-property-and-attributes",
+      "applicability": "Element uses an explicit role or aria-* attribute",
+      "expectation": "No deprecated role, state, property, or attribute is introduced.",
+      "method_kinds": ["automated", "manual"],
+      "evidence_types": ["automated_scan", "browser_inspection"],
+      "human_review_required": true
+    },
+    {
+      "id": "SCREEN-ARIA-CASE-VALID",
+      "title": "Role, state, property, and token case is valid",
+      "kind": "normative_review",
+      "source_url": "https://www.w3.org/TR/html-aria/#case-requirements-for-aria-role-state-and-property-attributes",
+      "applicability": "Element uses an explicit role or aria-* attribute",
+      "expectation": "Names and values follow the applicable case requirements.",
+      "method_kinds": ["automated", "manual"],
+      "evidence_types": ["automated_scan", "browser_inspection"],
+      "human_review_required": true
+    },
+    {
+      "id": "SCREEN-ARIA-OWNED-DESCENDANTS-VALID",
+      "title": "Owned descendants and required context roles are valid",
+      "kind": "normative_review",
+      "source_url": "https://www.w3.org/TR/html-aria/#allowed-descendants-of-aria-roles",
+      "applicability": "Role constrains owned descendants or required context",
+      "expectation": "The accessibility-tree hierarchy satisfies role ownership and context requirements.",
+      "method_kinds": ["automated", "manual"],
+      "evidence_types": ["automated_scan", "browser_inspection", "assistive_technology_test"],
+      "human_review_required": true
+    },
+    {
+      "id": "SCREEN-ARIA-NATIVE-HTML-PREFERRED",
+      "title": "Native HTML is preferred when it provides the required behavior",
+      "kind": "advisory_review",
+      "source_url": "https://www.w3.org/TR/html-aria/#author-guidance-to-avoid-incorrect-use-of-aria",
+      "applicability": "Custom role or ARIA reproduces a native HTML control",
+      "expectation": "The implementation documents why native HTML is insufficient or uses the native element.",
+      "method_kinds": ["manual"],
+      "evidence_types": ["manual_observation", "browser_inspection"],
+      "human_review_required": true
+    },
+    {
+      "id": "SCREEN-ARIA-REDUNDANT-ROLE-AVOIDED",
+      "title": "Redundant explicit roles are avoided",
+      "kind": "advisory_review",
+      "source_url": "https://www.w3.org/TR/html-aria/#avoid-specifying-redundant-roles",
+      "applicability": "Explicit role duplicates the implicit HTML role",
+      "expectation": "Redundant role markup is removed unless a documented compatibility need exists.",
+      "method_kinds": ["automated", "manual"],
+      "evidence_types": ["automated_scan", "manual_observation"],
+      "human_review_required": true
+    }
+  ]
+}
