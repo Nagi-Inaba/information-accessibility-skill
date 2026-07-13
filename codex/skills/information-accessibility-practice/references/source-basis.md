@@ -24,6 +24,7 @@ The five-gate participation model organizes practical accessibility review acros
 
 - Included as original metadata: complete WCAG 2.2 A/AA identifiers (55), JIS X 8341-3:2016 A/AA identifiers (38), and the separately identified 18 added WCAG criteria used by the Japanese public-Web profile.
 - Source HTML hashes are stored in `criteria-catalog.json`; normative standards text is not reproduced.
-- Not yet implemented: criterion-complete executable test procedures, the ATAG 2.0 Part B criterion catalog and feature map, and formal PDF/UA, EPUB, EN 301 549, Section 508, and organization profiles.
+- Partially implemented: original human-review procedures for WCAG 2.2 SC 1.1.1 and SC 1.3.1 in `criterion-procedures.json`, each linked to W3C primary and Understanding sources. They do not supply a result without target-specific human evidence.
+- Not yet implemented: criterion-complete executable test procedures for every active profile requirement, the ATAG 2.0 Part B criterion catalog and feature map, and formal PDF/UA, EPUB, EN 301 549, Section 508, and organization profiles.
 
 The current registry is metadata-complete for active Web profiles but method-incomplete. It supports full-profile audit initialization, structured evidence, coverage accounting, and claim blocking—not automated certification or complete conformance determination.

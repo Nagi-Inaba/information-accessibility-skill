@@ -12,7 +12,19 @@ Keep two layers separate:
 - **Participation review**: use the five gates for practical coverage across artifacts, events, and workflows.
 - **Standards assessment**: select an explicit profile, record requirement outcomes and evidence, and apply the claim guard. Never infer formal conformance from the five gates or a spot check.
 
-This release is a reusable accessibility-audit workflow. It can initialize every registered Web requirement, preserve target-specific evidence, calculate catalog and evaluation coverage, and produce a guarded report. The bundled Web profiles have complete A/AA criterion metadata but not criterion-complete test procedures, so the claim ceiling remains `evaluated_subset`; it cannot determine WCAG/JIS conformance or ATAG process-component conformance.
+This release is a reusable accessibility-audit workflow. It can initialize every registered Web requirement, preserve target-specific evidence, calculate catalog and evaluation coverage, and produce a guarded report. The bundled Web profiles have complete A/AA criterion metadata. SC 1.1.1 and SC 1.3.1 additionally have partial criterion-specific human review procedures, but the profiles do not yet have criterion-complete test procedures, so the claim ceiling remains `evaluated_subset`; it cannot determine WCAG/JIS conformance or ATAG process-component conformance.
+
+## AI-to-Human Evidence Boundary
+
+When an AI agent performs a review with this package:
+
+- The AI agent is not the human reviewer. Records created by the AI agent must remain at evidence level `E0` or `E1`.
+- Profile rows created by the AI agent must retain `mapping_status: "unverified"` and `outcome: "not_tested"`.
+- Record AI observations only as `SCREEN-*` screening evidence or unverified draft evidence for a human handoff.
+- The AI agent must not record `pass`, `fail`, or `not_applicable` on profile rows.
+- The AI agent must not set or change `human_verified`, `E2` or higher evidence levels, or represent its work as human review.
+- Only a separate external human review workflow may record profile requirement outcomes or E2/evaluated_subset after the named criterion procedure and target-specific manual or hybrid evidence, plus a human mapping of the registered requirement.
+- The schema and validator cannot prove a reviewer's human identity; they only check record consistency.
 
 ## Core Model
 
@@ -33,7 +45,7 @@ Choose the target before reviewing. Load only the relevant reference when detail
 - **Software, UI, web app, app, form, dashboard, workflow, or repository work**: read `references/development-accessibility.md`.
 - **Documents, PDFs, reports, Word files, slide decks, lecture materials, handouts, announcement graphics, or presentation scripts**: read `references/document-slide-accessibility.md`.
 - **Events, meetings, seminars, community operations, community onboarding, public participation, or civic information**: read `references/event-community-accessibility.md`.
-- **WCAG, JIS, ATAG, standards-based assessment, procurement evidence, or any conformance wording**: read `references/standards-assessment.md` and `references/standards-registry.json`. For a specific registered requirement, run `node <skill_root>/scripts/show-requirement.mjs --profile <profile-id> --id <requirement-id>`; do not load the full criteria and method catalogs into context.
+- **WCAG, JIS, ATAG, standards-based assessment, procurement evidence, or any conformance wording**: read `references/standards-assessment.md` and `references/standards-registry.json`. For a specific registered requirement, run `node <skill_root>/scripts/show-requirement.mjs --profile <profile-id> --id <requirement-id>`; when it returns a criterion-specific procedure, use it as the human-review procedure. When it reports `not_available`, retain the generic playbook and primary-source boundary. Do not load the full criteria and method catalogs into context.
 - **HTML that uses ARIA**: also read `references/aria-html-review.md` and `references/aria-review-rules.json`. Record these only as `SCREEN-ARIA-*` supporting checks until a person maps evidence to a profile requirement.
 - **Source provenance or maintenance from new research**: read `references/source-basis.md`.
 Do not split the five gates into separate workflows. They are shared evaluation axes. Route by target surface because concrete checks, evidence, and fixes differ by target.
@@ -70,10 +82,10 @@ Do not split the five gates into separate workflows. They are shared evaluation 
    - Run `node <skill_root>/scripts/generate-assessment.mjs --profile web-modern --output <assessment.json>` for WCAG 2.2 A/AA (55 requirements).
    - Run `node <skill_root>/scripts/generate-assessment.mjs --profile jp-public-web --output <assessment.json>` for JIS X 8341-3:2016 A/AA plus the separately identified 18 added WCAG 2.2 requirements (56 total).
    - Use `assets/assessment-record.template.json` only for profiles without a generated catalog.
-   - Record each applicable requirement as `pass`, `fail`, `not_applicable`, `not_tested`, or `cant_tell`.
-   - Before evaluating each row, run `show-requirement.mjs` for that exact profile and requirement. Follow the returned method and open its primary sources; do not evaluate from the title alone.
+   - After an available named criterion procedure, or the returned generic playbook plus primary sources when no criterion procedure is available, and target-specific manual or hybrid evidence, a separate external human review workflow may record profile requirement outcomes as `pass`, `fail`, `not_applicable`, `not_tested`, or `cant_tell`.
+   - Before evaluating each row, run `show-requirement.mjs` for that exact profile and requirement. Follow the returned method and any available criterion procedure, open its primary sources, and do not evaluate from the title alone.
    - Attach evidence to the exact page, element, screen, file, process step, environment, or test.
-   - For every `fail`, add a structured finding with `P0`/`P1`/`P2`, the related requirement ID, location, affected users, observation, remediation, and retest method. Do not leave a failed result without an actionable finding.
+   - For every human-recorded `fail`, add a structured finding with `P0`/`P1`/`P2`, the related requirement ID, location, affected users, observation, remediation, and retest method. Do not leave a failed result without an actionable finding.
    - Record the evidence level from E0 to E5 and keep `participation_coverage` separate from standards results.
    - Run `node <skill_root>/scripts/validate-assessment.mjs <assessment.json>` before proposing claim wording.
 

@@ -38,7 +38,7 @@ node <skill_root>/scripts/generate-assessment.mjs --profile jp-public-web --outp
 
 The generator refuses to overwrite an existing file and initializes every requirement as `not_tested`, with E0 evidence and `reference_only` wording.
 
-Before changing a row from `not_tested`, follow its `method_key` in `web-audit-methods.json`, open the row's exact primary and official method sources, determine applicability, and record target-specific evidence. The family playbook is a reproducibility floor; the normative criterion and criterion-specific Understanding material control the evaluation.
+Before changing a row from `not_tested`, follow its `method_key` in `web-audit-methods.json`, open the row's exact primary and official method sources, determine applicability, and record target-specific evidence. When `show-requirement.mjs` reports `criterion_procedure_status: "available"`, follow that criterion-specific human procedure as well. When it reports `not_available`, the family playbook is only a reproducibility floor; the normative criterion and criterion-specific Understanding material control the evaluation. A partial procedure catalog never makes an unlisted criterion complete.
 
 Use exactly one outcome for each requirement:
 

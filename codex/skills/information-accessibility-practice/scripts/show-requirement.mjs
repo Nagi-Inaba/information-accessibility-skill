@@ -14,6 +14,7 @@ export function lookupRequirement(profileId, requirementId, root = skillRoot) {
   const registry = readJson(root, "references/standards-registry.json");
   const catalog = readJson(root, "references/criteria-catalog.json");
   const methods = readJson(root, "references/web-audit-methods.json");
+  const criterionProcedures = readJson(root, "references/criterion-procedures.json");
   const profile = registry.profiles.find((item) => item.id === profileId);
 
   if (!profile) throw new Error(`Unknown profile: ${profileId}`);
@@ -28,6 +29,7 @@ export function lookupRequirement(profileId, requirementId, root = skillRoot) {
   if (!criterion) throw new Error(`Requirement is missing from criteria-catalog.json: ${requirementId}`);
   const method = methods.methods.find((item) => item.id === criterion.method_key);
   if (!method) throw new Error(`Audit method is missing for ${requirementId}: ${criterion.method_key}`);
+  const criterionProcedure = criterionProcedures.procedures.find((item) => item.requirement_id === requirementId);
 
   return {
     lookup_version: "1.0.0",
@@ -39,6 +41,9 @@ export function lookupRequirement(profileId, requirementId, root = skillRoot) {
     },
     criterion,
     audit_method: method,
+    criterion_procedure_catalog_status: criterionProcedures.catalog_status,
+    criterion_procedure_status: criterionProcedure ? "available" : "not_available",
+    ...(criterionProcedure ? { criterion_procedure: criterionProcedure } : {}),
     catalog_verified_at: catalog.verified_at,
     method_catalog_verified_at: methods.verified_at,
     usage_boundary: "Open the criterion's primary sources before evaluating it. This lookup is a reproducibility aid, not a conformance determination."
@@ -48,6 +53,7 @@ export function lookupRequirement(profileId, requirementId, root = skillRoot) {
 function toMarkdown(result) {
   const criterion = result.criterion;
   const method = result.audit_method;
+  const procedure = result.criterion_procedure;
   const sources = [
     criterion.normative_url,
     criterion.checklist_source_url,
@@ -76,6 +82,27 @@ function toMarkdown(result) {
     ...method.required_evidence_types.map((type) => `- ${type}`),
     "",
     `Record \`cant_tell\` when: ${method.cant_tell_when}`,
+    ...(procedure ? [
+      "",
+      "## Criterion-specific human procedure",
+      "",
+      ...procedure.procedure_steps.map((step, index) => `${index + 1}. ${step}`),
+      "",
+      "## Expected results",
+      "",
+      ...procedure.expected_results.map((item) => `- ${item}`),
+      "",
+      "## Criterion-specific cannot tell",
+      "",
+      ...procedure.cant_tell_when.map((item) => `- ${item}`),
+      "",
+      "## AI boundary",
+      "",
+      procedure.ai_boundary
+    ] : [
+      "",
+      "> No criterion-specific procedure is bundled for this requirement. Use the routed generic playbook and primary sources; do not infer that this partial procedure catalog covers the requirement."
+    ]),
     "",
     "## Primary Sources",
     "",

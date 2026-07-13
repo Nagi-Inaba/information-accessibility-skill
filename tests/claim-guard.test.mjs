@@ -277,8 +277,9 @@ test("registered requirement ID catalogs have expected unique counts", () => {
   assert.equal(new Set(jp.requirement_ids).size, 56);
 });
 
-test("a manually mapped subset record can reach evaluated_subset with bounded wording", () => {
+test("an external human reviewer with target-specific manual evidence can reach evaluated_subset with bounded wording", () => {
   const value = record();
+  value.assessment.evaluator = "External human accessibility reviewer";
   value.assessment.evidence_level = "E2";
   value.assessment.claim.requested_tier = "evaluated_subset";
   value.assessment.claim.proposed_wording = registry.claim_templates.evaluated_subset[0];

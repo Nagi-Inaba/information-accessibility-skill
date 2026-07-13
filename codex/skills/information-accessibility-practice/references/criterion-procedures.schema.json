@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:information-accessibility:criterion-procedures:1.0.0",
+  "title": "Partial Criterion-specific Human Review Procedures",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "catalog_status", "verified_at", "copyright_boundary", "usage_rule", "automation_role", "procedures"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "catalog_status": {"const": "partial"},
+    "verified_at": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$"},
+    "copyright_boundary": {"type": "string", "minLength": 1},
+    "usage_rule": {"type": "string", "minLength": 1},
+    "automation_role": {"const": "supporting_only"},
+    "procedures": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/procedure"}
+    }
+  },
+  "$defs": {
+    "procedure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "requirement_id", "procedure_version", "procedure_kind", "automation_role", "primary_sources", "applicability_steps", "procedure_steps", "expected_results", "required_evidence_types", "cant_tell_when", "counterexamples", "ai_boundary"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[a-z0-9-]+$"},
+        "requirement_id": {"type": "string", "minLength": 1},
+        "procedure_version": {"const": "1.0.0"},
+        "procedure_kind": {"const": "human_manual_or_hybrid"},
+        "automation_role": {"const": "supporting_only"},
+        "primary_sources": {"type": "array", "minItems": 2, "items": {"type": "string", "pattern": "^https://"}},
+        "applicability_steps": {"type": "array", "minItems": 2, "items": {"type": "string", "minLength": 1}},
+        "procedure_steps": {"type": "array", "minItems": 3, "items": {"type": "string", "minLength": 1}},
+        "expected_results": {"type": "array", "minItems": 2, "items": {"type": "string", "minLength": 1}},
+        "required_evidence_types": {"type": "array", "minItems": 2, "items": {"type": "string", "enum": ["browser_inspection", "manual_observation", "document_structure_inspection", "assistive_technology_test"]}},
+        "cant_tell_when": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+        "counterexamples": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["pass", "fail", "cant_tell"],
+          "properties": {
+            "pass": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+            "fail": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+            "cant_tell": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}}
+          }
+        },
+        "ai_boundary": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}

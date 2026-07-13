@@ -28,13 +28,25 @@ When the request names WCAG, JIS, ATAG, a conformance claim, or procurement evid
 
 1. Select a profile and identify the exact target, version, scope, complete processes, exclusions, third-party content, and environment.
 2. Resolve the installed `information-accessibility-practice` skill root from its `SKILL.md`, not from the audited target's working directory. Run `<skill_root>/scripts/generate-assessment.mjs`: 55 requirements for `web-modern`, or 38 JIS plus 18 separately identified WCAG requirements for `jp-public-web`.
-3. Inspect the real target. For each row being evaluated, run `<skill_root>/scripts/show-requirement.mjs` with the exact profile and requirement ID, follow the returned method, and open the returned primary sources. Do not load the full catalogs into context. Record pass, fail, not_applicable, not_tested, or cant_tell with location-specific evidence and a reproducible method. For every fail, add a P0/P1/P2 finding that links the requirement to its location, affected users, remediation, and retest method.
+3. Inspect the real target. For each profile row being prepared, run `<skill_root>/scripts/show-requirement.mjs` with the exact profile and requirement ID, follow the returned method, and open the returned primary sources. Do not load the full catalogs into context. Record target observations only as `SCREEN-*` supporting evidence or unverified drafts, and keep profile rows unverified and not_tested. For every draft observation that indicates a potential barrier, add an unverified P0/P1/P2 finding with its location, affected users, remediation, and retest method.
 4. Keep automated and ARIA checks as `SCREEN-*` supporting evidence until a person verifies a mapping to a registered requirement.
 5. Keep the five-gate participation coverage separate from standards results.
 6. Run `<skill_root>/scripts/validate-assessment.mjs`; report profile outcomes, screening outcomes, catalog coverage, and evaluation coverage separately.
 7. Run `<skill_root>/scripts/render-audit-report.mjs --input <assessment.json> --output <report.md>` after validation. Lead with barriers, missing evidence, remediation, and retest steps; do not render an invalid record or overwrite an existing report.
 
 This release bundles complete A/AA criterion metadata for the two active Web profiles, but not complete executable procedures for every criterion. Its maximum claim tier is evaluated_subset. Do not infer conformance from P0/P1/P2 findings, catalog completeness, automated checks, or a subset of evaluated requirements.
+
+## AI-to-Human Evidence Boundary
+
+When an AI agent performs a review with this package:
+
+- The AI agent is not the human reviewer. Records created by the AI agent must remain at evidence level `E0` or `E1`.
+- Profile rows created by the AI agent must retain `mapping_status: "unverified"` and `outcome: "not_tested"`.
+- Record AI observations only as `SCREEN-*` screening evidence or unverified draft evidence for a human handoff.
+- The AI agent must not record `pass`, `fail`, or `not_applicable` on profile rows.
+- The AI agent must not set or change `human_verified`, `E2` or higher evidence levels, or represent its work as human review.
+- Only a separate external human review workflow may record profile requirement outcomes or E2/evaluated_subset after the named criterion procedure and target-specific manual or hybrid evidence, plus a human mapping of the registered requirement.
+- The schema and validator cannot prove a reviewer's human identity; they only check record consistency.
 
 ## Output
 
