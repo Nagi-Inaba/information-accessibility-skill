@@ -74,6 +74,7 @@ export function generateAssessment(profileId, options = {}) {
         input_modes: []
       },
       results,
+      findings: [],
       participation_coverage: {
         find: "not_tested",
         receive: "not_tested",

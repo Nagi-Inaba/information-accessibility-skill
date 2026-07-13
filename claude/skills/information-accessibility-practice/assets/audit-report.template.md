@@ -59,6 +59,8 @@ Describe sampling, full-page boundaries, complete-process coverage, manual check
 
 ## 6. Findings
 
+For each failed result, create a structured record in `assessment.findings` before rendering. It must include the priority, related requirement ID, location, affected users, observation, remediation, and verification method.
+
 | ID | Priority | Requirement / check | Location | Affected users | Observation | Remediation | Verification |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 |  |  |  |  |  |  |  |  |

@@ -90,6 +90,7 @@ test("audit generators initialize complete catalogs without claiming evaluation"
       evaluatedAt: "2026-07-12"
     });
     assert.equal(record.assessment.results.length, expected);
+    assert.deepEqual(record.assessment.findings, []);
     assert.ok(record.assessment.results.every((result) => result.outcome === "not_tested" && result.mapping_status === "unverified" && result.evidence.length === 0));
     const result = validate(record);
     assert.equal(result.valid, true);

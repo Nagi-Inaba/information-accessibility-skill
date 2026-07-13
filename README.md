@@ -21,6 +21,7 @@ codex/
     assets/assessment-record.template.json
     assets/waic-publication.template.md
     scripts/generate-assessment.mjs
+    scripts/render-audit-report.mjs
     scripts/show-requirement.mjs
     scripts/validate-assessment.mjs
     references/
@@ -29,6 +30,7 @@ claude/
   skills/information-accessibility-practice/
     assets/assessment-record.template.json
     scripts/generate-assessment.mjs
+    scripts/render-audit-report.mjs
     scripts/show-requirement.mjs
     scripts/validate-assessment.mjs
     references/
@@ -38,6 +40,7 @@ scripts/verify-package.mjs
 scripts/install-codex.ps1
 tests/claim-guard.test.mjs
 tests/audit-workflow.test.mjs
+tests/audit-report.test.mjs
 tests/install-codex.test.mjs
 ```
 
@@ -81,9 +84,9 @@ references/
 
 `aria-html-review.md` と `aria-review-rules.json` は、ARIA in HTMLとWAI-ARIAに基づく12件の補助検査です。結果は必ず `SCREEN-ARIA-*` として記録し、WCAG 4.1.2等の合否へ自動変換しません。
 
-`assessment-record.schema.json` と `assessment-record.template.json` は、対象、スコープ、環境、条項別結果、5ゲート、証拠、主張要求を分離して記録します。
+`assessment-record.schema.json` と `assessment-record.template.json` は、対象、スコープ、環境、条項別結果、構造化されたP0/P1/P2所見、5ゲート、証拠、主張要求を分離して記録します。失敗した条項には、場所、影響を受ける利用者、観察、改善、再検査方法を持つ所見を必ず紐付けます。
 
-`audit-report.template.md` は、任意の監査対象で使える、監査同定、スコープ、環境、所見、条項被覆、制約、改善、再検査の報告ひな形です。
+`render-audit-report.mjs` は、検証済みの評価レコードから、未評価・不明・失敗・主張上限を明示した単独配布可能なMarkdown監査報告を生成します。無効なレコードや既存の出力ファイルは受け付けません。`audit-report.template.md` は手作業で追記する場合のひな形です。
 
 `source-basis.md` は、監査方法が参照する公開一次資料、収録範囲、著作権上の境界を示します。
 
@@ -95,14 +98,15 @@ references/
 
 1. 対象名、版、URL／ファイル、含む範囲、除外、完全な利用プロセス、第三者コンテンツ、検査環境を固定する。
 2. 完全な検査票を生成する。
-3. 実物を検査し、各行を `pass / fail / not_applicable / not_tested / cant_tell` のいずれかにし、場所・観察・日時を証拠として残す。
+3. 実物を検査し、各行を `pass / fail / not_applicable / not_tested / cant_tell` のいずれかにし、場所・観察・日時を証拠として残す。`fail` にはP0/P1/P2、影響を受ける利用者、改善、再検査方法を持つ所見を紐付ける。
 4. バリデータでカタログ被覆と実評価被覆を別々に確認する。
-5. 所見、影響を受ける利用者、改善、再検査方法、未検証、使える主張上限を報告する。
+5. 検証済みのレコードから、所見、未検証、使える主張上限を含むMarkdown監査報告を生成する。
 
 ```powershell
 node .\codex\skills\information-accessibility-practice\scripts\generate-assessment.mjs --profile web-modern --output .\audit.json
 node .\codex\skills\information-accessibility-practice\scripts\show-requirement.mjs --profile web-modern --id WCAG-2.2-SC-2.1.1 --format markdown
 node .\codex\skills\information-accessibility-practice\scripts\validate-assessment.mjs .\audit.json
+node .\codex\skills\information-accessibility-practice\scripts\render-audit-report.mjs --input .\audit.json --output .\audit-report.md
 ```
 
 上記はこの配布パッケージのルートから実行するコマンドです。スキルを配置した後は、配置先の `information-accessibility-practice` フォルダーを基準に `scripts` を解決してください。日本向けWeb監査では `--profile jp-public-web` を使います。既存ファイルは上書きしません。
@@ -113,6 +117,7 @@ macOS / Linuxではパス区切りを `/` にします。
 node ./codex/skills/information-accessibility-practice/scripts/generate-assessment.mjs --profile web-modern --output ./audit.json
 node ./codex/skills/information-accessibility-practice/scripts/show-requirement.mjs --profile web-modern --id WCAG-2.2-SC-2.1.1 --format markdown
 node ./codex/skills/information-accessibility-practice/scripts/validate-assessment.mjs ./audit.json
+node ./codex/skills/information-accessibility-practice/scripts/render-audit-report.mjs --input ./audit.json --output ./audit-report.md
 ```
 
 Codex で使う場合:
@@ -225,6 +230,7 @@ powershell -ExecutionPolicy Bypass -File ".\scripts\verify-package.ps1"
 node ".\scripts\verify-package.mjs"
 node --test ".\tests\claim-guard.test.mjs"
 node --test ".\tests\audit-workflow.test.mjs"
+node --test ".\tests\audit-report.test.mjs"
 node --test ".\tests\install-codex.test.mjs"
 node ".\scripts\build-criteria-catalog.mjs" --verified-at 2026-07-12 --check
 ```

@@ -73,10 +73,11 @@ Do not split the five gates into separate workflows. They are shared evaluation 
    - Record each applicable requirement as `pass`, `fail`, `not_applicable`, `not_tested`, or `cant_tell`.
    - Before evaluating each row, run `show-requirement.mjs` for that exact profile and requirement. Follow the returned method and open its primary sources; do not evaluate from the title alone.
    - Attach evidence to the exact page, element, screen, file, process step, environment, or test.
+   - For every `fail`, add a structured finding with `P0`/`P1`/`P2`, the related requirement ID, location, affected users, observation, remediation, and retest method. Do not leave a failed result without an actionable finding.
    - Record the evidence level from E0 to E5 and keep `participation_coverage` separate from standards results.
    - Run `node <skill_root>/scripts/validate-assessment.mjs <assessment.json>` before proposing claim wording.
 
-6. Run `node <skill_root>/scripts/validate-assessment.mjs <assessment.json>` and inspect both `catalog_coverage` and `evaluation_coverage`. A complete catalog row set does not mean a completed audit.
+6. Run `node <skill_root>/scripts/validate-assessment.mjs <assessment.json>` and inspect both `catalog_coverage` and `evaluation_coverage`. A complete catalog row set does not mean a completed audit. Then run `node <skill_root>/scripts/render-audit-report.mjs --input <assessment.json> --output <report.md>` to create the standalone report; it refuses invalid records and existing output files.
 
 7. Produce a concise review or fill `assets/audit-report.template.md`:
    - `P0`: blocks participation or excludes a group from the core information.
@@ -164,6 +165,7 @@ When maintaining or packaging the skill:
 ```powershell
 node <skill-folder>\scripts\validate-assessment.mjs <assessment.json>
 node <skill-folder>\scripts\generate-assessment.mjs --profile web-modern --output <new-assessment.json>
+node <skill-folder>\scripts\render-audit-report.mjs --input <assessment.json> --output <report.md>
 ```
 
 ## Source Basis

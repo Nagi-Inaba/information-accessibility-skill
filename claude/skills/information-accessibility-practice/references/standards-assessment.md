@@ -50,6 +50,8 @@ Use exactly one outcome for each requirement:
 
 Never infer `pass` from absence of an automated finding. Never hide `not_tested` or `cant_tell` in an average score.
 
+For every `fail`, add an `assessment.findings` record. Use `P0`, `P1`, or `P2`; reference the failed requirement ID; and record the exact location, affected users, observation, remediation, and retest method. The validator rejects a new-style record that contains a failed result without a linked finding. A finding may omit requirement IDs only when it documents a participation issue that has no corresponding standards result.
+
 Classify every result:
 
 - Use `screening_check` with a `SCREEN-` identifier for automated, static, or exploratory checks. Keep `mapping_status` as `unverified` and set `method_kind` to `automated`, `manual`, or `hybrid` explicitly.
@@ -105,7 +107,13 @@ node <skill_root>/scripts/validate-assessment.mjs <assessment.json>
 
 4. Report validation errors before making any claim proposal.
 5. Confirm `catalog_coverage.complete`, then separately inspect `evaluation_coverage`; never describe catalog completeness as audit completeness. Use `profile_outcome_counts` for registered requirements, `screening_outcome_counts` for supporting checks, and `profile_group_outcome_counts` for profile subgroups. `outcome_counts` is a legacy aggregate across all result kinds.
-6. Return the JSON record and a report based on `assets/audit-report.template.md`, headed by failures, untested items, `cant_tell` items, claim eligibility, and required human decisions.
+6. Generate the standalone report only after validation:
+
+```powershell
+node <skill_root>/scripts/render-audit-report.mjs --input <assessment.json> --output <report.md>
+```
+
+The renderer refuses invalid input and existing output files. It reports failures, untested items, `cant_tell` items, claim eligibility, structured findings, and required retests without inferring conformance.
 
 ## Non-Goals
 

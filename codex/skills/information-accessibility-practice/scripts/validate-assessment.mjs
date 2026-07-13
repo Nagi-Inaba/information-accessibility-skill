@@ -226,6 +226,46 @@ export function validateAssessment(record, registry, schema, criteriaCatalog, au
     }
   });
 
+  const findingsProvided = Object.hasOwn(assessment, "findings");
+  const findings = Array.isArray(assessment.findings) ? assessment.findings : [];
+  if (findingsProvided && !Array.isArray(assessment.findings)) errors.push("findings must be an array");
+  const findingIds = new Set();
+  const resultsByRequirementId = new Map(results.filter((result) => hasText(result.requirement_id)).map((result) => [result.requirement_id, result]));
+  const findingRequirementIds = new Set();
+  findings.forEach((finding, index) => {
+    const prefix = `findings[${index}]`;
+    for (const key of ["id", "location", "observation", "remediation", "verification"]) {
+      if (!hasText(finding?.[key])) errors.push(`${prefix}.${key} is required`);
+    }
+    if (hasText(finding?.id)) {
+      if (findingIds.has(finding.id)) errors.push(`${prefix}.id is duplicated: ${finding.id}`);
+      else findingIds.add(finding.id);
+    }
+    if (!["P0", "P1", "P2"].includes(finding?.priority)) errors.push(`${prefix}.priority must be P0, P1, or P2`);
+    if (!Array.isArray(finding?.affected_users) || finding.affected_users.length === 0 || !finding.affected_users.every(hasText)) {
+      errors.push(`${prefix}.affected_users must name at least one affected user group`);
+    }
+    if (!Array.isArray(finding?.requirement_ids) || !finding.requirement_ids.every(hasText)) {
+      errors.push(`${prefix}.requirement_ids must be an array of non-empty identifiers`);
+    } else {
+      for (const requirementId of finding.requirement_ids) {
+        const result = resultsByRequirementId.get(requirementId);
+        if (!result) errors.push(`${prefix}.requirement_ids contains no recorded result: ${requirementId}`);
+        else if (result.outcome !== "fail") errors.push(`${prefix}.requirement_ids must reference a failed result: ${requirementId}`);
+        else findingRequirementIds.add(requirementId);
+      }
+    }
+  });
+  if (findingsProvided) {
+    for (const result of results.filter((item) => item.outcome === "fail")) {
+      if (!findingRequirementIds.has(result.requirement_id)) {
+        errors.push(`A finding must reference failed requirement: ${result.requirement_id}`);
+      }
+    }
+  } else if (results.some((result) => result.outcome === "fail")) {
+    warnings.push("Legacy assessment record has failed results but no structured findings; use findings to make remediation and retest traceable.");
+  }
+
   const coverage = assessment.participation_coverage;
   for (const key of ["find", "receive", "understand", "participate", "continue"]) {
     if (!registry.outcomes.includes(coverage?.[key])) {
