@@ -33,7 +33,7 @@ Choose the target before reviewing. Load only the relevant reference when detail
 - **Software, UI, web app, app, form, dashboard, workflow, or repository work**: read `references/development-accessibility.md`.
 - **Documents, PDFs, reports, Word files, slide decks, lecture materials, handouts, announcement graphics, or presentation scripts**: read `references/document-slide-accessibility.md`.
 - **Events, meetings, seminars, community operations, community onboarding, public participation, or civic information**: read `references/event-community-accessibility.md`.
-- **WCAG, JIS, ATAG, standards-based assessment, procurement evidence, or any conformance wording**: read `references/standards-assessment.md`, `references/standards-registry.json`, `references/web-audit-methods.json`, and the selected records in `references/criteria-catalog.json`.
+- **WCAG, JIS, ATAG, standards-based assessment, procurement evidence, or any conformance wording**: read `references/standards-assessment.md` and `references/standards-registry.json`. For a specific registered requirement, run `node <skill_root>/scripts/show-requirement.mjs --profile <profile-id> --id <requirement-id>`; do not load the full criteria and method catalogs into context.
 - **HTML that uses ARIA**: also read `references/aria-html-review.md` and `references/aria-review-rules.json`. Record these only as `SCREEN-ARIA-*` supporting checks until a person maps evidence to a profile requirement.
 - **Source provenance or maintenance from new research**: read `references/source-basis.md`.
 Do not split the five gates into separate workflows. They are shared evaluation axes. Route by target surface because concrete checks, evidence, and fixes differ by target.
@@ -71,10 +71,10 @@ Do not split the five gates into separate workflows. They are shared evaluation 
    - Run `node <skill_root>/scripts/generate-assessment.mjs --profile jp-public-web --output <assessment.json>` for JIS X 8341-3:2016 A/AA plus the separately identified 18 added WCAG 2.2 requirements (56 total).
    - Use `assets/assessment-record.template.json` only for profiles without a generated catalog.
    - Record each applicable requirement as `pass`, `fail`, `not_applicable`, `not_tested`, or `cant_tell`.
-   - For each row, follow its `method_key` in `web-audit-methods.json` and open its exact `normative_url` and `official_method_sources`; do not evaluate from the title alone.
+   - Before evaluating each row, run `show-requirement.mjs` for that exact profile and requirement. Follow the returned method and open its primary sources; do not evaluate from the title alone.
    - Attach evidence to the exact page, element, screen, file, process step, environment, or test.
    - Record the evidence level from E0 to E5 and keep `participation_coverage` separate from standards results.
-   - Run `node scripts/validate-assessment.mjs <assessment.json>` before proposing claim wording.
+   - Run `node <skill_root>/scripts/validate-assessment.mjs <assessment.json>` before proposing claim wording.
 
 6. Run `node <skill_root>/scripts/validate-assessment.mjs <assessment.json>` and inspect both `catalog_coverage` and `evaluation_coverage`. A complete catalog row set does not mean a completed audit.
 

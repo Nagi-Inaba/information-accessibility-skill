@@ -6,6 +6,7 @@ import { spawnSync } from "node:child_process";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { generateAssessment } from "../codex/skills/information-accessibility-practice/scripts/generate-assessment.mjs";
+import { lookupRequirement } from "../codex/skills/information-accessibility-practice/scripts/show-requirement.mjs";
 import { validateAssessment } from "../codex/skills/information-accessibility-practice/scripts/validate-assessment.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -275,4 +276,38 @@ test("criterion pass must include evidence required by its routed playbook", () 
   const result = validate(record);
   assert.equal(result.valid, false);
   assert.ok(result.errors.some((error) => error.includes("playbook keyboard-operation")));
+});
+
+test("requirement lookup returns only the selected criterion and its method", () => {
+  const result = lookupRequirement("web-modern", "WCAG-2.2-SC-2.1.1", skill);
+  assert.equal(result.criterion.id, "WCAG-2.2-SC-2.1.1");
+  assert.equal(result.audit_method.id, "keyboard-operation");
+  assert.deepEqual(result.audit_method.required_evidence_types, ["keyboard_test"]);
+  const serialized = JSON.stringify(result);
+  assert.equal(serialized.includes("WCAG-2.2-SC-1.1.1"), false);
+  assert.ok(Buffer.byteLength(serialized, "utf8") < 8000);
+});
+
+test("Japanese legacy parsing lookup uses the dedicated playbook", () => {
+  const result = lookupRequirement("jp-public-web", "JIS-X-8341-3-2016-SC-4.1.1", skill);
+  assert.equal(result.audit_method.id, "parsing-legacy");
+  assert.ok(result.audit_method.required_evidence_types.includes("document_structure_inspection"));
+});
+
+test("every active registered requirement resolves and profile mismatches are rejected", () => {
+  for (const profile of registry.profiles.filter((item) => item.implementation_status === "active" && item.requirement_ids?.length)) {
+    for (const requirementId of profile.requirement_ids) {
+      const result = lookupRequirement(profile.id, requirementId, skill);
+      assert.equal(result.criterion.id, requirementId);
+      assert.equal(result.audit_method.id, result.criterion.method_key);
+    }
+  }
+  assert.throws(
+    () => lookupRequirement("web-modern", "JIS-X-8341-3-2016-SC-4.1.1", skill),
+    /not registered for profile/
+  );
+  assert.throws(
+    () => lookupRequirement("authoring-agent", "ATAG-2.0-B.1.1.1", skill),
+    /does not have an active requirement catalog/
+  );
 });

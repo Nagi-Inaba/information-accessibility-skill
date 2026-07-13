@@ -21,19 +21,24 @@ codex/
     assets/assessment-record.template.json
     assets/waic-publication.template.md
     scripts/generate-assessment.mjs
+    scripts/show-requirement.mjs
     scripts/validate-assessment.mjs
     references/
   agents/information-accessibility-reviewer.toml
 claude/
   skills/information-accessibility-practice/
     assets/assessment-record.template.json
+    scripts/generate-assessment.mjs
+    scripts/show-requirement.mjs
     scripts/validate-assessment.mjs
     references/
   agents/information-accessibility-reviewer.md
 scripts/verify-package.ps1
 scripts/verify-package.mjs
+scripts/install-codex.ps1
 tests/claim-guard.test.mjs
 tests/audit-workflow.test.mjs
+tests/install-codex.test.mjs
 ```
 
 各 skill には、実行時に読む参照ファイルが入っています。
@@ -72,6 +77,8 @@ references/
 
 `web-audit-methods.json` は、55／56件の各行を、適用判断、再現可能な手順、必要証拠、`cant_tell` 条件を持つ14種類の監査プレイブックへルーティングします。旧JIS固有の4.1.1「構文解析」は専用手順へ分離しています。各行の一次資料・Understanding資料を開くことを必須とし、タイトルだけから合否を推測しません。
 
+`show-requirement.mjs` は、指定した1条項と対応する1監査方法だけを返します。個別条項の評価時はこのスクリプトを使い、全カタログをモデルのコンテキストへ読み込みません。
+
 `aria-html-review.md` と `aria-review-rules.json` は、ARIA in HTMLとWAI-ARIAに基づく12件の補助検査です。結果は必ず `SCREEN-ARIA-*` として記録し、WCAG 4.1.2等の合否へ自動変換しません。
 
 `assessment-record.schema.json` と `assessment-record.template.json` は、対象、スコープ、環境、条項別結果、5ゲート、証拠、主張要求を分離して記録します。
@@ -94,6 +101,7 @@ references/
 
 ```powershell
 node .\codex\skills\information-accessibility-practice\scripts\generate-assessment.mjs --profile web-modern --output .\audit.json
+node .\codex\skills\information-accessibility-practice\scripts\show-requirement.mjs --profile web-modern --id WCAG-2.2-SC-2.1.1 --format markdown
 node .\codex\skills\information-accessibility-practice\scripts\validate-assessment.mjs .\audit.json
 ```
 
@@ -103,6 +111,7 @@ macOS / Linuxではパス区切りを `/` にします。
 
 ```sh
 node ./codex/skills/information-accessibility-practice/scripts/generate-assessment.mjs --profile web-modern --output ./audit.json
+node ./codex/skills/information-accessibility-practice/scripts/show-requirement.mjs --profile web-modern --id WCAG-2.2-SC-2.1.1 --format markdown
 node ./codex/skills/information-accessibility-practice/scripts/validate-assessment.mjs ./audit.json
 ```
 
@@ -111,6 +120,15 @@ Codex で使う場合:
 1. `codex/skills/information-accessibility-practice/` を Codex の `skills/` 配下に配置する。
 2. `codex/agents/information-accessibility-reviewer.toml` を Codex の `agents/` 配下に配置する。
 3. 情報アクセシビリティを確認したい資料、Webページ、UI、イベント案内などに対して `information-accessibility-practice` を使う。
+
+Windowsでは、バックアップ付きインストーラーを利用できます。`-WhatIf` は配置先を変更しません。
+
+```powershell
+powershell -ExecutionPolicy Bypass -File ".\scripts\install-codex.ps1" -WhatIf
+powershell -ExecutionPolicy Bypass -File ".\scripts\install-codex.ps1"
+```
+
+`CODEX_HOME` が設定されていればその場所を使用し、未設定の場合は `~/.codex` へ配置します。既存のスキルとエージェントは、配置前に `backups/information-accessibility-practice/<timestamp>/` へ退避されます。
 
 Claude で使う場合:
 
@@ -207,6 +225,7 @@ powershell -ExecutionPolicy Bypass -File ".\scripts\verify-package.ps1"
 node ".\scripts\verify-package.mjs"
 node --test ".\tests\claim-guard.test.mjs"
 node --test ".\tests\audit-workflow.test.mjs"
+node --test ".\tests\install-codex.test.mjs"
 node ".\scripts\build-criteria-catalog.mjs" --verified-at 2026-07-12 --check
 ```
 
