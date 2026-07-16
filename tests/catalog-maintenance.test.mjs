@@ -100,7 +100,9 @@ test("catalog comparison separates source, requirement, and routing changes", as
     }
   };
 
-  assert.deepEqual(compareCatalogs(current, candidate), {
+  const comparison = compareCatalogs(current, candidate);
+  const { structural_changes: structuralChanges, ...categorizedChanges } = comparison;
+  assert.deepEqual(categorizedChanges, {
     source_hash_changes: [{
       source_id: "SOURCE",
       current_sha256: "a".repeat(64),
@@ -119,6 +121,73 @@ test("catalog comparison separates source, requirement, and routing changes", as
     },
     routing_changes: [{ id: "A", current_method_key: "old-route", candidate_method_key: "new-route" }]
   });
+  assert.deepEqual(structuralChanges?.map((change) => change.path), [
+    "/catalogs/web_modern/A/level",
+    "/catalogs/web_modern/A/method_key",
+    "/catalogs/web_modern/A/title_en",
+    "/catalogs/web_modern/ADDED",
+    "/catalogs/web_modern/REMOVED"
+  ]);
+});
+
+test("catalog comparison reports every nonvolatile structural change", async () => {
+  const { compareCatalogs } = await import("../scripts/compare-criteria-catalog.mjs");
+  const requirement = {
+    id: "A",
+    title_en: "Stable title",
+    level: "A",
+    method_key: "stable-route",
+    evidence_hints: ["one"]
+  };
+  const current = {
+    schema_version: "1.0.0",
+    catalog_status: "metadata_complete",
+    verified_at: "2026-07-14",
+    copyright_boundary: "Current boundary",
+    sources: [{
+      id: "SOURCE",
+      url: "https://current.example.test",
+      role: "current role",
+      source_sha256: "a".repeat(64)
+    }],
+    catalogs: { web_modern: [requirement], jp_public: [] }
+  };
+  const candidate = {
+    schema_version: "1.1.0",
+    catalog_status: "candidate_review",
+    verified_at: "2026-07-17",
+    copyright_boundary: "Candidate boundary",
+    sources: [{
+      id: "SOURCE",
+      url: "https://candidate.example.test",
+      role: "candidate role",
+      source_sha256: "b".repeat(64)
+    }],
+    catalogs: { web_modern: [], jp_public: [requirement] }
+  };
+
+  const comparison = compareCatalogs(current, candidate);
+  assert.deepEqual(comparison.structural_changes?.map((change) => change.path), [
+    "/catalog_status",
+    "/catalogs/jp_public/A",
+    "/catalogs/web_modern/A",
+    "/copyright_boundary",
+    "/schema_version",
+    "/sources/SOURCE/role",
+    "/sources/SOURCE/url"
+  ]);
+  assert.deepEqual(comparison.structural_changes?.find((change) => change.path === "/catalogs/jp_public/A"), {
+    path: "/catalogs/jp_public/A",
+    current: { present: false },
+    candidate: { present: true, value: requirement }
+  });
+  assert.deepEqual(comparison.source_hash_changes, [{
+    source_id: "SOURCE",
+    current_sha256: "a".repeat(64),
+    candidate_sha256: "b".repeat(64)
+  }]);
+  assert.deepEqual(comparison.requirement_changes, { added: [], removed: [], changed: [] });
+  assert.deepEqual(comparison.routing_changes, []);
 });
 
 test("catalog comparison CLI is read-only", () => {

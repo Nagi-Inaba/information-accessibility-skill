@@ -15,6 +15,10 @@ function valuesEqual(left, right) {
   return JSON.stringify(canonicalize(left)) === JSON.stringify(canonicalize(right));
 }
 
+function compareIds(left, right) {
+  return left < right ? -1 : left > right ? 1 : 0;
+}
+
 function recordsById(catalog) {
   const records = Object.values(catalog.catalogs ?? {}).flat();
   const byId = new Map();
@@ -34,6 +38,78 @@ function sourcesById(catalog) {
     byId.set(source.id, source);
   }
   return byId;
+}
+
+function structuralCatalog(catalog) {
+  const structural = {};
+  for (const key of Object.keys(catalog)) {
+    if (key === "verified_at") continue;
+    if (key === "sources") {
+      structural.sources = Object.fromEntries(
+        [...sourcesById(catalog).entries()].sort(([left], [right]) => compareIds(left, right)).map(([id, source]) => {
+          const stableSource = Object.fromEntries(
+            Object.entries(source).filter(([field]) => field !== "source_sha256")
+          );
+          return [id, stableSource];
+        })
+      );
+      continue;
+    }
+    if (key === "catalogs") {
+      structural.catalogs = Object.fromEntries(
+        Object.keys(catalog.catalogs).sort().map((catalogId) => [
+          catalogId,
+          Object.fromEntries(
+            [...catalog.catalogs[catalogId]]
+              .sort((left, right) => compareIds(left.id, right.id))
+              .map((record) => [record.id, record])
+          )
+        ])
+      );
+      continue;
+    }
+    structural[key] = catalog[key];
+  }
+  return structural;
+}
+
+function pointerSegment(value) {
+  return String(value).replaceAll("~", "~0").replaceAll("/", "~1");
+}
+
+function structuralState(present, value) {
+  return present ? { present: true, value: canonicalize(value) } : { present: false };
+}
+
+function compareStructuralValues(current, candidate, pathPrefix = "", changes = []) {
+  if (valuesEqual(current, candidate)) return changes;
+  const currentIsObject = current !== null && typeof current === "object" && !Array.isArray(current);
+  const candidateIsObject = candidate !== null && typeof candidate === "object" && !Array.isArray(candidate);
+  if (currentIsObject && candidateIsObject) {
+    const fields = [...new Set([...Object.keys(current), ...Object.keys(candidate)])].sort();
+    for (const field of fields) {
+      const currentPresent = Object.hasOwn(current, field);
+      const candidatePresent = Object.hasOwn(candidate, field);
+      const path = `${pathPrefix}/${pointerSegment(field)}`;
+      if (!currentPresent || !candidatePresent) {
+        changes.push({
+          path,
+          current: structuralState(currentPresent, current[field]),
+          candidate: structuralState(candidatePresent, candidate[field])
+        });
+      } else {
+        compareStructuralValues(current[field], candidate[field], path, changes);
+      }
+    }
+    return changes;
+  }
+
+  changes.push({
+    path: pathPrefix || "/",
+    current: structuralState(true, current),
+    candidate: structuralState(true, candidate)
+  });
+  return changes;
 }
 
 export function compareCatalogs(current, candidate) {
@@ -85,7 +161,8 @@ export function compareCatalogs(current, candidate) {
   return {
     source_hash_changes: sourceHashChanges,
     requirement_changes: { added, removed, changed },
-    routing_changes: routingChanges
+    routing_changes: routingChanges,
+    structural_changes: compareStructuralValues(structuralCatalog(current), structuralCatalog(candidate))
   };
 }
 
