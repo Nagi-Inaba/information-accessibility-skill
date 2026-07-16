@@ -122,7 +122,8 @@
             "properties": {
               "id": {
                 "type": "string",
-                "minLength": 1
+                "minLength": 1,
+                "pattern": "^(?!(?:__proto__|prototype|constructor)$)[a-z][a-z0-9]*(?:_[a-z0-9]+)*$"
               },
               "label": {
                 "type": "string",

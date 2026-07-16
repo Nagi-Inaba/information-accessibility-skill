@@ -150,7 +150,7 @@ export function validateAssessment(record, registry, schema, criteriaCatalog, au
   const outcomeCounts = Object.fromEntries(registry.outcomes.map((outcome) => [outcome, 0]));
   const profileOutcomeCounts = Object.fromEntries(registry.outcomes.map((outcome) => [outcome, 0]));
   const screeningOutcomeCounts = Object.fromEntries(registry.outcomes.map((outcome) => [outcome, 0]));
-  const profileGroupOutcomeCounts = {};
+  const profileGroupOutcomeCounts = new Map();
   let manuallyMappedRequirementCount = 0;
   const humanVerifiedRequirementIds = new Set();
 
@@ -212,8 +212,10 @@ export function validateAssessment(record, registry, schema, criteriaCatalog, au
         profileOutcomeCounts[result.outcome] += 1;
         try {
           const group = groupForRequirement(profile, result.requirement_id);
-          profileGroupOutcomeCounts[group] ??= Object.fromEntries(registry.outcomes.map((outcome) => [outcome, 0]));
-          profileGroupOutcomeCounts[group][result.outcome] += 1;
+          if (!profileGroupOutcomeCounts.has(group)) {
+            profileGroupOutcomeCounts.set(group, Object.fromEntries(registry.outcomes.map((outcome) => [outcome, 0])));
+          }
+          profileGroupOutcomeCounts.get(group)[result.outcome] += 1;
         } catch (error) {
           errors.push(`${prefix}.requirement_id cannot be assigned to a report group: ${error instanceof Error ? error.message : String(error)}`);
         }
@@ -412,7 +414,7 @@ export function validateAssessment(record, registry, schema, criteriaCatalog, au
       outcome_counts: outcomeCounts,
       outcome_counts_scope: "all_results_legacy_aggregate",
       profile_outcome_counts: profileOutcomeCounts,
-      profile_group_outcome_counts: profileGroupOutcomeCounts,
+      profile_group_outcome_counts: Object.fromEntries(profileGroupOutcomeCounts),
       report_groups: configuredReportGroups.map(({ id, label }) => ({ id, label })),
       screening_outcome_counts: screeningOutcomeCounts,
       catalog_coverage: {
