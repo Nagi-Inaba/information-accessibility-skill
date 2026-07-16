@@ -89,6 +89,55 @@ function normalizeBody(text) {
   return text.replace(/(?:\r\n|\r|\n)$/u, "").replace(/\r\n?/gu, "\n");
 }
 
+function findPythonTomllib() {
+  const attempts = [];
+  for (const candidate of [
+    { command: "python", prefix: [] },
+    { command: "python3", prefix: [] },
+    { command: "py", prefix: ["-3"] }
+  ]) {
+    const probe = spawnSync(candidate.command, [...candidate.prefix, "-c", "import tomllib"], { encoding: "utf8" });
+    if (!probe.error && probe.status === 0) return candidate;
+    attempts.push(`${candidate.command}: ${probe.error?.code ?? `exit ${probe.status}`}`);
+  }
+  return { unavailable: attempts.join(", ") };
+}
+
+function walkFiles(directory, base = directory) {
+  return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const full = path.join(directory, entry.name);
+    return entry.isDirectory() ? walkFiles(full, base) : [path.relative(base, full)];
+  });
+}
+
+function managedOutputPaths(target) {
+  const manifest = fixtureManifest(target);
+  const paths = manifest.agents.flatMap((agent) => [
+    `codex/agents/${agent.id}.toml`,
+    `claude/agents/${agent.id}.md`
+  ]);
+  const claudeSkill = path.join(target, "claude/skills/information-accessibility-practice");
+  paths.push(...walkFiles(claudeSkill).map((relative) => `claude/skills/information-accessibility-practice/${relative.split(path.sep).join("/")}`));
+  return paths.sort();
+}
+
+function snapshotManagedOutputs(target) {
+  return new Map(managedOutputPaths(target).map((relative) => [relative, fs.readFileSync(path.join(target, relative))]));
+}
+
+function assertManagedOutputsEqual(target, snapshot, context = "") {
+  for (const [relative, expected] of snapshot) {
+    assert.equal(fs.readFileSync(path.join(target, relative)).equals(expected), true, `${relative} changed${context ? `: ${context}` : ""}`);
+  }
+}
+
+function stageArtifacts(target) {
+  return [
+    ...fs.readdirSync(target).filter((name) => name.startsWith(".distribution-stage-")).map((name) => path.join(target, name)),
+    ...fs.readdirSync(path.dirname(target)).filter((name) => name.startsWith(".distribution-stage-")).map((name) => path.join(path.dirname(target), name))
+  ];
+}
+
 function runFixtureVerifier(target) {
   return spawnSync(process.execPath, [path.join(target, "scripts/verify-package.mjs")], {
     cwd: target,
@@ -145,6 +194,30 @@ test("Codex serialization round-trips every accepted reviewer body", () => {
   });
 });
 
+test("generated Codex TOML round-trips through a real tomllib parser", (t) => {
+  const python = findPythonTomllib();
+  if (python.unavailable) {
+    t.skip(`Python tomllib unavailable: ${python.unavailable}`);
+    return;
+  }
+
+  withFixture((target) => {
+    const written = buildDistribution(target, { write: true });
+    assert.equal(written.status, "PASS", written.errors.join("\n"));
+    const codex = path.join(target, "codex/agents/information-accessibility-reviewer.toml");
+    const script = [
+      "import base64, sys, tomllib",
+      "with open(sys.argv[1], 'rb') as handle:",
+      "    document = tomllib.load(handle)",
+      "sys.stdout.write(base64.b64encode(document['developer_instructions'].encode('utf-8')).decode('ascii'))"
+    ].join("\n");
+    const parsed = spawnSync(python.command, [...python.prefix, "-c", script, codex], { encoding: "utf8" });
+    assert.equal(parsed.status, 0, parsed.stderr || parsed.stdout);
+    const body = fs.readFileSync(path.join(target, "shared/agents/information-accessibility-reviewer.md"), "utf8");
+    assert.equal(normalizeBody(Buffer.from(parsed.stdout, "base64").toString("utf8")), normalizeBody(body));
+  });
+});
+
 test("Claude frontmatter serializes every metadata value as a string", () => {
   withFixture((target) => {
     const manifest = fixtureManifest(target);
@@ -163,6 +236,164 @@ test("Claude frontmatter serializes every metadata value as a string", () => {
     assert.equal(parsed.values.model, "true");
     assert.equal(parsed.values.effort, "medium");
     assert.equal(/[\u007F-\u009F]/u.test(claude.slice(0, claude.indexOf("---", 3))), false, "raw control characters must not enter YAML frontmatter");
+  });
+});
+
+test("manifest rendering rejects unpaired UTF-16 surrogates recursively", async (t) => {
+  const cases = [
+    {
+      name: "description \"\\uD800\"",
+      mutate(manifest) { manifest.agents[0].description = "\uD800"; }
+    },
+    {
+      name: "Claude tools rendered surface \"\\uDC00\"",
+      mutate(manifest) { manifest.agents[0].claude.tools[0] = "\uDC00"; }
+    }
+  ];
+
+  for (const entry of cases) {
+    await t.test(entry.name, () => withFixture((target) => {
+      const before = snapshotManagedOutputs(target);
+      const manifest = fixtureManifest(target);
+      entry.mutate(manifest);
+      writeFixtureManifest(target, manifest);
+
+      const result = buildDistribution(target, { write: true });
+      assert.equal(result.status, "FAIL");
+      assert.match(result.errors.join("\n"), /unpaired UTF-16 surrogate/iu);
+      assertManagedOutputsEqual(target, before);
+      assert.deepEqual(stageArtifacts(target), []);
+    }));
+  }
+});
+
+test("parent identity changes after staging cannot redirect generated writes", (t) => {
+  const outside = fs.mkdtempSync(path.join(os.tmpdir(), "a11y-distribution-transaction-outside-"));
+  const linkType = process.platform === "win32" ? "junction" : "dir";
+  try {
+    withFixture((target) => {
+      const codexFile = path.join(target, "codex/agents/information-accessibility-reviewer.toml");
+      fs.appendFileSync(codexFile, "STALE\n", "utf8");
+      const before = snapshotManagedOutputs(target);
+      const parent = path.dirname(codexFile);
+      const originalParent = `${parent}-original`;
+      let swapped = false;
+
+      const result = buildDistribution(target, {
+        write: true,
+        hooks: {
+          afterStage() {
+            fs.renameSync(parent, originalParent);
+            if (!createLinkOrSkip(t, outside, parent, linkType)) {
+              fs.renameSync(originalParent, parent);
+              return;
+            }
+            swapped = true;
+          }
+        }
+      });
+
+      if (swapped) {
+        fs.unlinkSync(parent);
+        fs.renameSync(originalParent, parent);
+      }
+      if (t.skipped) return;
+      assert.equal(swapped, true, "pre-write hook must execute");
+      assert.equal(result.status, "FAIL");
+      assert.match(result.errors.join("\n"), /identity changed|symbolic link|reparse/iu);
+      assert.deepEqual(fs.readdirSync(outside), []);
+      assertManagedOutputsEqual(target, before);
+      assert.deepEqual(stageArtifacts(target), []);
+    });
+  } finally {
+    fs.rmSync(outside, { recursive: true, force: true });
+  }
+});
+
+test("target identity changes immediately before replacement are rejected", () => {
+  withFixture((target) => {
+    const codexFile = path.join(target, "codex/agents/information-accessibility-reviewer.toml");
+    fs.appendFileSync(codexFile, "STALE\n", "utf8");
+    const before = snapshotManagedOutputs(target);
+    let changedIdentity = false;
+    const result = buildDistribution(target, {
+      write: true,
+      hooks: {
+        beforeReplace({ index, target: generatedTarget }) {
+          if (index !== 0) return;
+          const replacement = `${generatedTarget}.identity-change`;
+          fs.writeFileSync(replacement, fs.readFileSync(generatedTarget), { flag: "wx" });
+          fs.renameSync(replacement, generatedTarget);
+          changedIdentity = true;
+        }
+      }
+    });
+
+    assert.equal(changedIdentity, true, "pre-replacement hook must execute");
+    assert.equal(result.status, "FAIL");
+    assert.match(result.errors.join("\n"), /identity changed/iu);
+    assertManagedOutputsEqual(target, before, result.errors.join(" | "));
+    assert.deepEqual(stageArtifacts(target), []);
+  });
+});
+
+test("package-root identity changes cannot strand staged files", () => {
+  withFixture((target) => {
+    const codexFile = path.join(target, "codex/agents/information-accessibility-reviewer.toml");
+    fs.appendFileSync(codexFile, "STALE\n", "utf8");
+    const before = snapshotManagedOutputs(target);
+    const renamedRoot = `${target}-renamed`;
+    let swapped = false;
+
+    const result = buildDistribution(target, {
+      write: true,
+      hooks: {
+        afterStage() {
+          fs.renameSync(target, renamedRoot);
+          fs.mkdirSync(target);
+          swapped = true;
+        }
+      }
+    });
+
+    if (swapped) {
+      assert.deepEqual(fs.readdirSync(target), [], "replacement package root must remain untouched");
+      fs.rmdirSync(target);
+      fs.renameSync(renamedRoot, target);
+    }
+    assert.equal(swapped, true, "post-stage package-root swap must execute");
+    assert.equal(result.status, "FAIL");
+    assert.match(result.errors.join("\n"), /identity changed|Missing generated parent/iu);
+    assertManagedOutputsEqual(target, before);
+    assert.deepEqual(stageArtifacts(target), []);
+  });
+});
+
+test("late multi-output replacement failure rolls back every prior output", () => {
+  withFixture((target) => {
+    for (const relative of [
+      "codex/agents/information-accessibility-reviewer.toml",
+      "claude/agents/information-accessibility-reviewer.md"
+    ]) {
+      fs.appendFileSync(path.join(target, relative), "STALE\n", "utf8");
+    }
+    const before = snapshotManagedOutputs(target);
+    const visited = [];
+    const result = buildDistribution(target, {
+      write: true,
+      hooks: {
+        beforeReplace({ index }) {
+          visited.push(index);
+          if (index === 1) throw new Error("injected late write failure");
+        }
+      }
+    });
+
+    assert.deepEqual(visited, [0, 1], "failure must occur after one replacement");
+    assert.equal(result.status, "FAIL");
+    assert.match(result.errors.join("\n"), /injected late write failure/u);
+    assertManagedOutputsEqual(target, before);
+    assert.deepEqual(stageArtifacts(target), []);
   });
 });
 
@@ -311,6 +542,7 @@ test("stale skill mirrors are repaired once and subsequent writes are idempotent
     const repaired = buildDistribution(target, { write: true });
     assert.equal(repaired.status, "PASS", repaired.errors.join("\n"));
     assert.equal(repaired.changed.includes(relative), true);
+    assert.deepEqual(stageArtifacts(target), [], "successful writes must remove staging artifacts");
 
     const firstCheck = buildDistribution(target, { write: false });
     const secondWrite = buildDistribution(target, { write: true });

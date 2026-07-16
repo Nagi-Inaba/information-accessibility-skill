@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { randomUUID } from "node:crypto";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
@@ -98,27 +99,6 @@ function walkConfined(declaredRoot, current = declaredRoot) {
   }).sort();
 }
 
-function ensureConfinedDirectory(declaredRoot, directory) {
-  const inspected = inspectConfinedPath(declaredRoot, directory, { label: "generated directory" });
-  if (inspected.exists) {
-    if (!inspected.stats.isDirectory()) throw new Error(`Expected generated directory: ${directory}`);
-    return;
-  }
-  const parent = path.dirname(directory);
-  if (pathKey(parent) === pathKey(directory)) throw new Error(`Cannot create generated directory outside ${declaredRoot}`);
-  ensureConfinedDirectory(declaredRoot, parent);
-  inspectConfinedPath(declaredRoot, directory, { label: "generated directory" });
-  fs.mkdirSync(directory);
-  inspectConfinedPath(declaredRoot, directory, { mustExist: true, expectedType: "directory", label: "generated directory" });
-}
-
-function writeConfinedFile(declaredRoot, file, data) {
-  ensureConfinedDirectory(declaredRoot, path.dirname(file));
-  inspectConfinedPath(declaredRoot, file, { label: "generated file" });
-  fs.writeFileSync(file, data);
-  inspectConfinedPath(declaredRoot, file, { mustExist: true, expectedType: "file", label: "generated file" });
-}
-
 function readJsonConfined(declaredRoot, file, label) {
   return JSON.parse(readConfinedFile(declaredRoot, file, "utf8", label).replace(/^\uFEFF/u, ""));
 }
@@ -132,6 +112,34 @@ function jsonType(value) {
 
 function isPlainObject(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function hasUnpairedUtf16Surrogate(value) {
+  for (let index = 0; index < value.length; index += 1) {
+    const codeUnit = value.charCodeAt(index);
+    if (codeUnit >= 0xD800 && codeUnit <= 0xDBFF) {
+      const next = value.charCodeAt(index + 1);
+      if (!(next >= 0xDC00 && next <= 0xDFFF)) return true;
+      index += 1;
+    } else if (codeUnit >= 0xDC00 && codeUnit <= 0xDFFF) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function validateUnicodeScalars(value, location, errors) {
+  if (typeof value === "string") {
+    if (hasUnpairedUtf16Surrogate(value)) errors.push(`${location} contains an unpaired UTF-16 surrogate.`);
+    return;
+  }
+  if (Array.isArray(value)) {
+    value.forEach((item, index) => validateUnicodeScalars(item, `${location}[${index}]`, errors));
+    return;
+  }
+  if (isPlainObject(value)) {
+    for (const [key, item] of Object.entries(value)) validateUnicodeScalars(item, `${location}.${key}`, errors);
+  }
 }
 
 function validateSchemaDefinition(schema, location, errors) {
@@ -388,6 +396,7 @@ export function validateDistribution(root) {
   validateManifestSchemaContract(schema, schemaErrors);
   errors.push(...schemaErrors);
   if (!schemaErrors.length) validateAgainstSchema(manifest, schema, "$", errors);
+  validateUnicodeScalars(manifest, "$", errors);
 
   const agents = Array.isArray(manifest?.agents) ? manifest.agents : [];
   if (agents.length === 0) errors.push("Manifest must contain at least 1 agent.");
@@ -414,6 +423,7 @@ export function validateDistribution(root) {
     try {
       const body = readConfinedFile(roots.sharedAgents, bodyPath, "utf8", `agent body ${agent.body_file}`);
       if (body.startsWith("\uFEFF")) errors.push(`Agent body must be UTF-8 without a BOM: ${agent.body_file}`);
+      if (hasUnpairedUtf16Surrogate(body)) errors.push(`Agent body ${agent.body_file} contains an unpaired UTF-16 surrogate.`);
       bodies.set(agent.id, body);
     } catch (error) {
       errors.push(error.message.startsWith("Missing ") ? `Missing agent body: ${agent.body_file}` : error.message);
@@ -484,7 +494,290 @@ function buildFailure(validation, errors = validation.errors) {
   };
 }
 
-export function buildDistribution(root, { write = false } = {}) {
+function capturePathIdentity(target, label, expectedType) {
+  const stats = fs.lstatSync(target, { bigint: true });
+  if (stats.isSymbolicLink()) throw new Error(`Unsafe ${label}: symbolic link or reparse point at ${target}`);
+  if (expectedType === "file" && !stats.isFile()) throw new Error(`Expected file for ${label}: ${target}`);
+  if (expectedType === "directory" && !stats.isDirectory()) throw new Error(`Expected directory for ${label}: ${target}`);
+  const real = fs.realpathSync.native(target);
+  if (pathKey(real) !== pathKey(target)) throw new Error(`Unsafe ${label}: reparse traversal from ${target} to ${real}`);
+  return {
+    real: pathKey(real),
+    device: stats.dev.toString(),
+    inode: stats.ino.toString(),
+    type: stats.isDirectory() ? "directory" : stats.isFile() ? "file" : "other"
+  };
+}
+
+function identitiesEqual(left, right) {
+  return left.real === right.real
+    && left.device === right.device
+    && left.inode === right.inode
+    && left.type === right.type;
+}
+
+function assertPathIdentity(target, expected, label, expectedType) {
+  let actual;
+  try {
+    actual = capturePathIdentity(target, label, expectedType);
+  } catch (error) {
+    throw new Error(`${label} identity changed: ${error.message}`);
+  }
+  if (!identitiesEqual(actual, expected)) throw new Error(`${label} identity changed: ${target}`);
+  return actual;
+}
+
+function ensureTransactionParent(item, createdDirectories, createdKeys) {
+  const parent = path.dirname(item.target);
+  const relative = path.relative(item.declaredRoot, parent);
+  if (relative === "") return;
+  if (path.isAbsolute(relative) || relative === ".." || relative.startsWith(`..${path.sep}`)) {
+    throw new Error(`Generated parent escapes declared root: ${parent}`);
+  }
+
+  let current = item.declaredRoot;
+  inspectConfinedPath(item.declaredRoot, current, { mustExist: true, expectedType: "directory", label: "generated root" });
+  for (const part of relative.split(path.sep).filter(Boolean)) {
+    const currentIdentity = capturePathIdentity(current, "generated parent", "directory");
+    const child = path.join(current, part);
+    const inspected = inspectConfinedPath(item.declaredRoot, child, { label: "generated parent" });
+    if (!inspected.exists) {
+      assertPathIdentity(current, currentIdentity, "generated parent", "directory");
+      fs.mkdirSync(child);
+      assertPathIdentity(current, currentIdentity, "generated parent", "directory");
+      inspectConfinedPath(item.declaredRoot, child, { mustExist: true, expectedType: "directory", label: "generated parent" });
+      const key = pathKey(child);
+      if (!createdKeys.has(key)) {
+        createdKeys.add(key);
+        createdDirectories.push({ path: child, identity: capturePathIdentity(child, "created generated parent", "directory") });
+      }
+    } else if (!inspected.stats.isDirectory()) {
+      throw new Error(`Expected generated parent directory: ${child}`);
+    }
+    current = child;
+  }
+}
+
+function captureTransactionEntry(relative, item) {
+  const parent = path.dirname(item.target);
+  inspectConfinedPath(item.declaredRoot, parent, { mustExist: true, expectedType: "directory", label: `generated parent ${relative}` });
+  const parentIdentity = capturePathIdentity(parent, `generated parent ${relative}`, "directory");
+  const inspected = inspectConfinedPath(item.declaredRoot, item.target, { label: `generated target ${relative}` });
+  if (!inspected.exists) {
+    return { relative, ...item, parent, parentIdentity, originalExists: false, original: undefined, targetIdentity: undefined };
+  }
+  const targetIdentity = capturePathIdentity(item.target, `generated target ${relative}`, "file");
+  const original = readConfinedFile(item.declaredRoot, item.target, undefined, `generated target ${relative}`);
+  assertPathIdentity(item.target, targetIdentity, `generated target ${relative}`, "file");
+  return { relative, ...item, parent, parentIdentity, originalExists: true, original, targetIdentity };
+}
+
+function assertOriginalTransactionState(entry) {
+  inspectConfinedPath(entry.declaredRoot, entry.parent, { mustExist: true, expectedType: "directory", label: `generated parent ${entry.relative}` });
+  assertPathIdentity(entry.parent, entry.parentIdentity, `generated parent ${entry.relative}`, "directory");
+  const inspected = inspectConfinedPath(entry.declaredRoot, entry.target, { label: `generated target ${entry.relative}` });
+  if (!entry.originalExists) {
+    if (inspected.exists) throw new Error(`Generated target identity changed from absent to present: ${entry.relative}`);
+    return;
+  }
+  if (!inspected.exists) throw new Error(`Generated target identity changed from present to absent: ${entry.relative}`);
+  assertPathIdentity(entry.target, entry.targetIdentity, `generated target ${entry.relative}`, "file");
+  const content = readConfinedFile(entry.declaredRoot, entry.target, undefined, `generated target ${entry.relative}`);
+  assertPathIdentity(entry.target, entry.targetIdentity, `generated target ${entry.relative}`, "file");
+  if (!content.equals(entry.original)) throw new Error(`Generated target content changed before replacement: ${entry.relative}`);
+}
+
+function verifyExpectedTransactionState(entry, expectedIdentity) {
+  inspectConfinedPath(entry.declaredRoot, entry.parent, { mustExist: true, expectedType: "directory", label: `generated parent ${entry.relative}` });
+  assertPathIdentity(entry.parent, entry.parentIdentity, `generated parent ${entry.relative}`, "directory");
+  inspectConfinedPath(entry.declaredRoot, entry.target, { mustExist: true, expectedType: "file", label: `generated target ${entry.relative}` });
+  const before = expectedIdentity
+    ? assertPathIdentity(entry.target, expectedIdentity, `generated target ${entry.relative}`, "file")
+    : capturePathIdentity(entry.target, `generated target ${entry.relative}`, "file");
+  const content = readConfinedFile(entry.declaredRoot, entry.target, undefined, `generated target ${entry.relative}`);
+  assertPathIdentity(entry.target, before, `generated target ${entry.relative}`, "file");
+  if (!content.equals(entry.expected)) throw new Error(`Generated write verification failed: ${entry.relative}`);
+  return before;
+}
+
+function verifyRestoredTransactionState(entry) {
+  inspectConfinedPath(entry.declaredRoot, entry.parent, { mustExist: true, expectedType: "directory", label: `rollback parent ${entry.relative}` });
+  assertPathIdentity(entry.parent, entry.parentIdentity, `rollback parent ${entry.relative}`, "directory");
+  const inspected = inspectConfinedPath(entry.declaredRoot, entry.target, { label: `rollback target ${entry.relative}` });
+  if (!entry.originalExists) {
+    if (inspected.exists) throw new Error(`Rollback left a generated target that was originally absent: ${entry.relative}`);
+    return;
+  }
+  if (!inspected.exists) throw new Error(`Rollback removed an originally present target: ${entry.relative}`);
+  const identity = capturePathIdentity(entry.target, `rollback target ${entry.relative}`, "file");
+  const content = readConfinedFile(entry.declaredRoot, entry.target, undefined, `rollback target ${entry.relative}`);
+  assertPathIdentity(entry.target, identity, `rollback target ${entry.relative}`, "file");
+  if (!content.equals(entry.original)) throw new Error(`Rollback byte verification failed: ${entry.relative}`);
+}
+
+function createStageDirectory(packageRoot) {
+  const stageParent = path.dirname(packageRoot);
+  const stageParentIdentity = capturePathIdentity(stageParent, "distribution stage parent", "directory");
+  const packageIdentity = capturePathIdentity(packageRoot, "package root", "directory");
+  const stageRoot = path.join(stageParent, `.distribution-stage-${process.pid}-${randomUUID()}`);
+  if (lstatIfPresent(stageRoot)) throw new Error(`Distribution stage already exists: ${stageRoot}`);
+  assertPathIdentity(stageParent, stageParentIdentity, "distribution stage parent", "directory");
+  assertPathIdentity(packageRoot, packageIdentity, "package root", "directory");
+  fs.mkdirSync(stageRoot, { mode: 0o700 });
+  assertPathIdentity(stageParent, stageParentIdentity, "distribution stage parent", "directory");
+  assertPathIdentity(packageRoot, packageIdentity, "package root", "directory");
+  return {
+    path: stageRoot,
+    identity: capturePathIdentity(stageRoot, "distribution stage", "directory"),
+    parent: stageParent,
+    parentIdentity: stageParentIdentity
+  };
+}
+
+function writeExclusiveStageFile(stage, name, data) {
+  assertPathIdentity(stage.parent, stage.parentIdentity, "distribution stage parent", "directory");
+  assertPathIdentity(stage.path, stage.identity, "distribution stage", "directory");
+  const target = path.join(stage.path, name);
+  if (path.basename(target) !== name || pathKey(path.dirname(target)) !== pathKey(stage.path)) throw new Error(`Unsafe stage file name: ${name}`);
+  if (lstatIfPresent(target)) throw new Error(`Stage file already exists: ${target}`);
+  const noFollow = process.platform === "win32" ? 0 : (fs.constants.O_NOFOLLOW ?? 0);
+  const descriptor = fs.openSync(target, fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_EXCL | noFollow, 0o600);
+  try {
+    fs.writeFileSync(descriptor, data);
+    fs.fsyncSync(descriptor);
+  } finally {
+    fs.closeSync(descriptor);
+  }
+  assertPathIdentity(stage.path, stage.identity, "distribution stage", "directory");
+  const identity = capturePathIdentity(target, "distribution stage file", "file");
+  const written = fs.readFileSync(target);
+  assertPathIdentity(target, identity, "distribution stage file", "file");
+  if (!written.equals(data)) throw new Error(`Stage write verification failed: ${name}`);
+  return { path: target, identity };
+}
+
+function verifyStageFile(stage, staged, expected) {
+  assertPathIdentity(stage.parent, stage.parentIdentity, "distribution stage parent", "directory");
+  assertPathIdentity(stage.path, stage.identity, "distribution stage", "directory");
+  assertPathIdentity(staged.path, staged.identity, "distribution stage file", "file");
+  const content = fs.readFileSync(staged.path);
+  assertPathIdentity(staged.path, staged.identity, "distribution stage file", "file");
+  if (!content.equals(expected)) throw new Error(`Staged content changed before replacement: ${staged.path}`);
+}
+
+function cleanupStageDirectory(stage) {
+  if (!stage) return;
+  if (!lstatIfPresent(stage.path)) throw new Error(`Distribution stage identity changed or disappeared: ${stage.path}`);
+  assertPathIdentity(stage.parent, stage.parentIdentity, "distribution stage parent", "directory");
+  assertPathIdentity(stage.path, stage.identity, "distribution stage", "directory");
+  for (const entry of fs.readdirSync(stage.path, { withFileTypes: true })) {
+    const target = path.join(stage.path, entry.name);
+    const identity = capturePathIdentity(target, "distribution stage cleanup", "file");
+    if (entry.isDirectory()) throw new Error(`Unexpected directory in distribution stage: ${target}`);
+    assertPathIdentity(stage.path, stage.identity, "distribution stage", "directory");
+    assertPathIdentity(target, identity, "distribution stage cleanup", "file");
+    fs.unlinkSync(target);
+  }
+  assertPathIdentity(stage.path, stage.identity, "distribution stage", "directory");
+  fs.rmdirSync(stage.path);
+}
+
+function cleanupCreatedDirectories(createdDirectories, errors) {
+  for (const created of [...createdDirectories].reverse()) {
+    try {
+      if (!lstatIfPresent(created.path)) continue;
+      assertPathIdentity(created.path, created.identity, "created generated parent", "directory");
+      if (fs.readdirSync(created.path).length !== 0) throw new Error(`Created generated parent is not empty after rollback: ${created.path}`);
+      fs.rmdirSync(created.path);
+    } catch (error) {
+      errors.push(`Created directory cleanup failed: ${error.message}`);
+    }
+  }
+}
+
+function rollbackTransaction(entries, replaced, stage, errors) {
+  for (const entry of [...replaced].reverse()) {
+    try {
+      verifyExpectedTransactionState(entry, entry.replacementIdentity);
+      if (entry.originalExists) {
+        const rollbackStage = writeExclusiveStageFile(stage, `rollback-${entry.transactionIndex}`, entry.original);
+        verifyStageFile(stage, rollbackStage, entry.original);
+        verifyExpectedTransactionState(entry, entry.replacementIdentity);
+        fs.renameSync(rollbackStage.path, entry.target);
+      } else {
+        verifyExpectedTransactionState(entry, entry.replacementIdentity);
+        fs.unlinkSync(entry.target);
+      }
+      verifyRestoredTransactionState(entry);
+      entry.restored = true;
+    } catch (error) {
+      errors.push(`Rollback failed for ${entry.relative}: ${error.message}`);
+    }
+  }
+
+  for (const entry of entries) {
+    try {
+      if (entry.wasReplaced) verifyRestoredTransactionState(entry);
+      else assertOriginalTransactionState(entry);
+    } catch (error) {
+      errors.push(`Post-rollback verification failed for ${entry.relative}: ${error.message}`);
+    }
+  }
+}
+
+function writeTransaction(packageRoot, changed, generated, hooks = {}) {
+  const errors = [];
+  const createdDirectories = [];
+  const createdKeys = new Set();
+  const entries = changed.map((relative) => ({ relative, ...generated.get(relative) }));
+  const replaced = [];
+  let stage;
+  let capturedEntries = [];
+
+  try {
+    for (const entry of entries) ensureTransactionParent(entry, createdDirectories, createdKeys);
+    capturedEntries = entries.map((entry, transactionIndex) => ({
+      ...captureTransactionEntry(entry.relative, entry),
+      transactionIndex
+    }));
+    stage = createStageDirectory(packageRoot);
+    for (const entry of capturedEntries) {
+      entry.staged = writeExclusiveStageFile(stage, `output-${entry.transactionIndex}`, entry.expected);
+    }
+
+    hooks.afterStage?.({ entries: capturedEntries.map((entry) => ({ relative: entry.relative, target: entry.target })) });
+    for (const entry of capturedEntries) assertOriginalTransactionState(entry);
+
+    for (const [index, entry] of capturedEntries.entries()) {
+      hooks.beforeReplace?.({ index, relative: entry.relative, target: entry.target });
+      assertOriginalTransactionState(entry);
+      verifyStageFile(stage, entry.staged, entry.expected);
+      fs.renameSync(entry.staged.path, entry.target);
+      entry.wasReplaced = true;
+      replaced.push(entry);
+      entry.replacementIdentity = verifyExpectedTransactionState(entry);
+    }
+    for (const entry of capturedEntries) verifyExpectedTransactionState(entry, entry.replacementIdentity);
+    cleanupStageDirectory(stage);
+    stage = undefined;
+  } catch (error) {
+    errors.push(error.message);
+    if (stage) {
+      rollbackTransaction(capturedEntries, replaced, stage, errors);
+    }
+    try {
+      cleanupStageDirectory(stage);
+      stage = undefined;
+    } catch (cleanupError) {
+      errors.push(`Stage cleanup failed: ${cleanupError.message}`);
+    }
+    cleanupCreatedDirectories(createdDirectories, errors);
+  }
+
+  return { errors, entries: capturedEntries };
+}
+
+export function buildDistribution(root, { write = false, hooks = {} } = {}) {
   const validation = validateDistribution(root);
   if (validation.status !== "PASS") return buildFailure(validation);
 
@@ -537,17 +830,15 @@ export function buildDistribution(root, { write = false } = {}) {
   }
   if (errors.length) return buildFailure(validation, errors);
 
-  if (write) {
-    for (const relative of changed) {
-      const item = generated.get(relative);
-      try {
-        writeConfinedFile(item.declaredRoot, item.target, item.expected);
-        const written = readConfinedFile(item.declaredRoot, item.target, undefined, `generated write ${relative}`);
-        if (!written.equals(item.expected)) throw new Error(`Generated write verification failed: ${relative}`);
-        actual.set(relative, written);
-      } catch (error) {
-        errors.push(error.message);
-        break;
+  if (write && changed.length) {
+    const transaction = writeTransaction(validation.roots.packageRoot, changed, generated, hooks);
+    errors.push(...transaction.errors);
+    if (!transaction.errors.length) {
+      for (const relative of changed) actual.set(relative, generated.get(relative).expected);
+    } else {
+      for (const entry of transaction.entries) {
+        if (entry.originalExists) actual.set(entry.relative, entry.original);
+        else actual.delete(entry.relative);
       }
     }
   } else {
