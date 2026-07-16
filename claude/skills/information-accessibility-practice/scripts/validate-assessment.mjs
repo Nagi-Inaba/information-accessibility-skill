@@ -8,6 +8,7 @@ import {
   recordsForProfile,
   reportGroups
 } from "./lib/profile-registry.mjs";
+import { validateJsonSchema } from "./lib/json-schema.mjs";
 
 const tierOrder = [
   "reference_only",
@@ -48,41 +49,6 @@ function urlEqualsCatalogSource(source, expected) {
   } catch {
     return false;
   }
-}
-
-function matchesSchemaType(value, expected) {
-  if (expected === "null") return value === null;
-  if (expected === "array") return Array.isArray(value);
-  if (expected === "object") return value !== null && typeof value === "object" && !Array.isArray(value);
-  return typeof value === expected;
-}
-
-function validateJsonSchema(value, schema, location = "$", errors = []) {
-  const expectedTypes = Array.isArray(schema.type) ? schema.type : schema.type ? [schema.type] : [];
-  if (expectedTypes.length && !expectedTypes.some((type) => matchesSchemaType(value, type))) {
-    errors.push(`${location} must have type ${expectedTypes.join(" or ")}`);
-    return errors;
-  }
-  if (Object.hasOwn(schema, "const") && value !== schema.const) errors.push(`${location} must equal ${JSON.stringify(schema.const)}`);
-  if (schema.enum && !schema.enum.includes(value)) errors.push(`${location} must be one of ${schema.enum.join(", ")}`);
-  if (typeof value === "string" && schema.minLength && value.length < schema.minLength) errors.push(`${location} must not be empty`);
-  if (Array.isArray(value) && schema.items) {
-    value.forEach((item, index) => validateJsonSchema(item, schema.items, `${location}[${index}]`, errors));
-  }
-  if (value !== null && typeof value === "object" && !Array.isArray(value) && schema.properties) {
-    for (const required of schema.required ?? []) {
-      if (!Object.hasOwn(value, required)) errors.push(`${location}.${required} is required by schema`);
-    }
-    if (schema.additionalProperties === false) {
-      for (const key of Object.keys(value)) {
-        if (!Object.hasOwn(schema.properties, key)) errors.push(`${location}.${key} is not allowed by schema`);
-      }
-    }
-    for (const [key, childSchema] of Object.entries(schema.properties)) {
-      if (Object.hasOwn(value, key)) validateJsonSchema(value[key], childSchema, `${location}.${key}`, errors);
-    }
-  }
-  return errors;
 }
 
 export function validateAssessment(record, registry, schema, criteriaCatalog, auditMethods) {

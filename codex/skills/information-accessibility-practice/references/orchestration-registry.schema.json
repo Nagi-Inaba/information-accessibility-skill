@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:information-accessibility:orchestration-registry:1.0.0",
+  "title": "Information Accessibility Audit Orchestration Registry",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "schema_version", "roles", "artifact_types", "transitions"],
+  "properties": {
+    "$schema": { "const": "./orchestration-registry.schema.json" },
+    "schema_version": { "const": "1.0.0" },
+    "roles": {
+      "type": "array",
+      "minItems": 7,
+      "maxItems": 7,
+      "items": { "$ref": "#/$defs/role" }
+    },
+    "artifact_types": {
+      "type": "array",
+      "minItems": 7,
+      "maxItems": 7,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          { "id": "audit-run", "schema_file": "audit-run.schema.json" },
+          { "id": "screening-observations", "schema_file": "screening-observations.schema.json" },
+          { "id": "human-review-queue", "schema_file": "human-review-queue.schema.json" },
+          { "id": "declared-human-review", "schema_file": "declared-human-review.schema.json" },
+          { "id": "remediation-plan", "schema_file": "remediation-plan.schema.json" },
+          { "id": "fix-authorization", "schema_file": "fix-authorization.schema.json" },
+          { "id": "change-record", "schema_file": "change-record.schema.json" }
+        ]
+      }
+    },
+    "transitions": {
+      "type": "array",
+      "minItems": 7,
+      "maxItems": 7,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          { "from": "initialized", "to": "screened", "required_artifact_types": ["screening-observations"] },
+          { "from": "screened", "to": "human_queue_ready", "required_artifact_types": ["human-review-queue"] },
+          { "from": "human_queue_ready", "to": "human_review_recorded", "required_artifact_types": ["declared-human-review"] },
+          { "from": "human_queue_ready", "to": "remediation_ready", "required_artifact_types": ["remediation-plan"] },
+          { "from": "human_review_recorded", "to": "remediation_ready", "required_artifact_types": ["remediation-plan"] },
+          { "from": "remediation_ready", "to": "fix_authorized", "required_artifact_types": ["fix-authorization"] },
+          { "from": "fix_authorized", "to": "retest_required", "required_artifact_types": ["change-record"] }
+        ]
+      }
+    }
+  },
+  "$defs": {
+    "role": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "agent_id", "producer_kind", "input_types", "output_type", "max_ai_evidence_level", "can_record_profile_outcome", "can_write_target", "install_by_default"],
+      "properties": {
+        "id": { "enum": ["orchestrator", "e1_inspector", "human_queue_planner", "declared_external_human", "remediation_planner", "declared_authorizer", "authorized_fixer"] },
+        "agent_id": { "type": ["string", "null"], "minLength": 1 },
+        "producer_kind": { "enum": ["ai_agent", "external_human", "external_requester"] },
+        "input_types": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "enum": ["screening-observations", "human-review-queue", "declared-human-review", "remediation-plan", "fix-authorization", "change-record"] }
+        },
+        "output_type": { "enum": ["audit-run", "screening-observations", "human-review-queue", "declared-human-review", "remediation-plan", "fix-authorization", "change-record"] },
+        "max_ai_evidence_level": { "enum": ["E0", "E1", null] },
+        "can_record_profile_outcome": { "type": "boolean" },
+        "can_write_target": { "type": "boolean" },
+        "install_by_default": { "type": "boolean" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "producer_kind": { "const": "ai_agent" } }, "required": ["producer_kind"] },
+          "then": { "properties": { "max_ai_evidence_level": { "enum": ["E0", "E1"] }, "can_record_profile_outcome": { "const": false } } }
+        },
+        {
+          "if": { "properties": { "can_record_profile_outcome": { "const": true } }, "required": ["can_record_profile_outcome"] },
+          "then": { "properties": { "id": { "const": "declared_external_human" }, "producer_kind": { "const": "external_human" } } }
+        },
+        {
+          "if": { "properties": { "can_write_target": { "const": true } }, "required": ["can_write_target"] },
+          "then": { "properties": { "id": { "const": "authorized_fixer" }, "output_type": { "const": "change-record" }, "install_by_default": { "const": false } } }
+        },
+        {
+          "if": { "properties": { "output_type": { "const": "fix-authorization" } }, "required": ["output_type"] },
+          "then": { "properties": { "id": { "const": "declared_authorizer" }, "agent_id": { "const": null }, "producer_kind": { "const": "external_requester" }, "can_write_target": { "const": false }, "install_by_default": { "const": false } } }
+        },
+        {
+          "if": { "properties": { "id": { "const": "authorized_fixer" } }, "required": ["id"] },
+          "then": { "properties": { "producer_kind": { "const": "ai_agent" }, "output_type": { "const": "change-record" }, "can_write_target": { "const": true }, "install_by_default": { "const": false } } }
+        },
+        {
+          "if": { "properties": { "id": { "const": "declared_authorizer" } }, "required": ["id"] },
+          "then": { "properties": { "agent_id": { "const": null }, "producer_kind": { "const": "external_requester" }, "output_type": { "const": "fix-authorization" }, "can_record_profile_outcome": { "const": false }, "can_write_target": { "const": false }, "install_by_default": { "const": false } } }
+        }
+      ]
+    }
+  }
+}

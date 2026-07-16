@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:information-accessibility:human-review-queue:1.0.0",
+  "title": "Declared Human Review Queue",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "items", "procedure_coverage"],
+  "properties": {
+    "schema_version": { "const": "1.0.0" },
+    "items": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/item" }
+    },
+    "procedure_coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["total_requirements", "available_procedures", "unavailable_procedures"],
+      "properties": {
+        "total_requirements": { "type": "integer", "minimum": 0 },
+        "available_procedures": { "type": "integer", "minimum": 0 },
+        "unavailable_procedures": { "type": "integer", "minimum": 0 }
+      }
+    }
+  },
+  "$defs": {
+    "item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["requirement_id", "procedure_availability", "procedure_ref", "human_actions", "required_evidence_types", "cant_tell_conditions"],
+      "properties": {
+        "requirement_id": { "type": "string", "minLength": 1 },
+        "procedure_availability": { "enum": ["available", "unavailable"] },
+        "procedure_ref": { "type": ["string", "null"], "pattern": "^criterion-procedures:[0-9]+\\.[0-9]+\\.[0-9]+#[a-z0-9-]+$" },
+        "human_actions": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+        "required_evidence_types": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
+        "cant_tell_conditions": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } }
+      },
+      "allOf": [
+        { "if": { "properties": { "procedure_availability": { "const": "available" } }, "required": ["procedure_availability"] }, "then": { "properties": { "procedure_ref": { "type": "string", "pattern": "^criterion-procedures:[0-9]+\\.[0-9]+\\.[0-9]+#[a-z0-9-]+$" } } } },
+        { "if": { "properties": { "procedure_availability": { "const": "unavailable" } }, "required": ["procedure_availability"] }, "then": { "properties": { "procedure_ref": { "const": null } } } }
+      ]
+    }
+  }
+}

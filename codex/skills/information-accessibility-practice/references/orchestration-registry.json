@@ -1,0 +1,101 @@
+{
+  "$schema": "./orchestration-registry.schema.json",
+  "schema_version": "1.0.0",
+  "roles": [
+    {
+      "id": "orchestrator",
+      "agent_id": "information-accessibility-reviewer",
+      "producer_kind": "ai_agent",
+      "input_types": ["screening-observations", "human-review-queue", "declared-human-review", "remediation-plan", "fix-authorization", "change-record"],
+      "output_type": "audit-run",
+      "max_ai_evidence_level": "E1",
+      "can_record_profile_outcome": false,
+      "can_write_target": false,
+      "install_by_default": true
+    },
+    {
+      "id": "e1_inspector",
+      "agent_id": "information-accessibility-e1-inspector",
+      "producer_kind": "ai_agent",
+      "input_types": [],
+      "output_type": "screening-observations",
+      "max_ai_evidence_level": "E1",
+      "can_record_profile_outcome": false,
+      "can_write_target": false,
+      "install_by_default": true
+    },
+    {
+      "id": "human_queue_planner",
+      "agent_id": "information-accessibility-human-queue-planner",
+      "producer_kind": "ai_agent",
+      "input_types": ["screening-observations"],
+      "output_type": "human-review-queue",
+      "max_ai_evidence_level": "E1",
+      "can_record_profile_outcome": false,
+      "can_write_target": false,
+      "install_by_default": true
+    },
+    {
+      "id": "declared_external_human",
+      "agent_id": null,
+      "producer_kind": "external_human",
+      "input_types": ["human-review-queue"],
+      "output_type": "declared-human-review",
+      "max_ai_evidence_level": null,
+      "can_record_profile_outcome": true,
+      "can_write_target": false,
+      "install_by_default": false
+    },
+    {
+      "id": "remediation_planner",
+      "agent_id": "information-accessibility-remediation-planner",
+      "producer_kind": "ai_agent",
+      "input_types": ["screening-observations", "declared-human-review"],
+      "output_type": "remediation-plan",
+      "max_ai_evidence_level": "E1",
+      "can_record_profile_outcome": false,
+      "can_write_target": false,
+      "install_by_default": true
+    },
+    {
+      "id": "declared_authorizer",
+      "agent_id": null,
+      "producer_kind": "external_requester",
+      "input_types": ["remediation-plan"],
+      "output_type": "fix-authorization",
+      "max_ai_evidence_level": null,
+      "can_record_profile_outcome": false,
+      "can_write_target": false,
+      "install_by_default": false
+    },
+    {
+      "id": "authorized_fixer",
+      "agent_id": "information-accessibility-authorized-fixer",
+      "producer_kind": "ai_agent",
+      "input_types": ["remediation-plan", "fix-authorization"],
+      "output_type": "change-record",
+      "max_ai_evidence_level": "E1",
+      "can_record_profile_outcome": false,
+      "can_write_target": true,
+      "install_by_default": false
+    }
+  ],
+  "artifact_types": [
+    { "id": "audit-run", "schema_file": "audit-run.schema.json" },
+    { "id": "screening-observations", "schema_file": "screening-observations.schema.json" },
+    { "id": "human-review-queue", "schema_file": "human-review-queue.schema.json" },
+    { "id": "declared-human-review", "schema_file": "declared-human-review.schema.json" },
+    { "id": "remediation-plan", "schema_file": "remediation-plan.schema.json" },
+    { "id": "fix-authorization", "schema_file": "fix-authorization.schema.json" },
+    { "id": "change-record", "schema_file": "change-record.schema.json" }
+  ],
+  "transitions": [
+    { "from": "initialized", "to": "screened", "required_artifact_types": ["screening-observations"] },
+    { "from": "screened", "to": "human_queue_ready", "required_artifact_types": ["human-review-queue"] },
+    { "from": "human_queue_ready", "to": "human_review_recorded", "required_artifact_types": ["declared-human-review"] },
+    { "from": "human_queue_ready", "to": "remediation_ready", "required_artifact_types": ["remediation-plan"] },
+    { "from": "human_review_recorded", "to": "remediation_ready", "required_artifact_types": ["remediation-plan"] },
+    { "from": "remediation_ready", "to": "fix_authorized", "required_artifact_types": ["fix-authorization"] },
+    { "from": "fix_authorized", "to": "retest_required", "required_artifact_types": ["change-record"] }
+  ]
+}

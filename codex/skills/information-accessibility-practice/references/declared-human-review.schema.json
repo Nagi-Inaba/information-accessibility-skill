@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:information-accessibility:declared-human-review:1.0.0",
+  "title": "Declared External Human Review",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "declaration", "reviewer_name", "review_date", "identity_authenticated", "reviews"],
+  "properties": {
+    "schema_version": { "const": "1.0.0" },
+    "declaration": { "type": "string", "minLength": 1 },
+    "reviewer_name": { "type": "string", "minLength": 1 },
+    "review_date": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" },
+    "identity_authenticated": { "const": false },
+    "reviews": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/review" } }
+  },
+  "$defs": {
+    "review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["requirement_id", "procedure_availability", "criterion_procedure_ref", "generic_method_ref", "official_sources", "target_specific_evidence", "profile_outcome", "rationale"],
+      "properties": {
+        "requirement_id": { "type": "string", "minLength": 1 },
+        "procedure_availability": { "enum": ["available", "unavailable"] },
+        "criterion_procedure_ref": { "type": ["string", "null"], "pattern": "^criterion-procedures:[0-9]+\\.[0-9]+\\.[0-9]+#[a-z0-9-]+$" },
+        "generic_method_ref": { "type": ["string", "null"], "pattern": "^web-audit-methods:[0-9]+\\.[0-9]+\\.[0-9]+#[a-z0-9-]+$" },
+        "official_sources": { "type": "array", "uniqueItems": true, "items": { "type": "string", "pattern": "^https://" } },
+        "target_specific_evidence": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/evidence" } },
+        "profile_outcome": { "enum": ["pass", "fail", "not_applicable", "not_tested", "cant_tell"] },
+        "rationale": { "type": "string", "minLength": 1 }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "procedure_availability": { "const": "available" } }, "required": ["procedure_availability"] },
+          "then": { "properties": { "criterion_procedure_ref": { "type": "string", "pattern": "^criterion-procedures:[0-9]+\\.[0-9]+\\.[0-9]+#[a-z0-9-]+$" }, "generic_method_ref": { "const": null } } }
+        },
+        {
+          "if": { "properties": { "procedure_availability": { "const": "unavailable" } }, "required": ["procedure_availability"] },
+          "then": { "properties": { "criterion_procedure_ref": { "const": null }, "generic_method_ref": { "type": "string", "pattern": "^web-audit-methods:[0-9]+\\.[0-9]+\\.[0-9]+#[a-z0-9-]+$" }, "official_sources": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "pattern": "^https://" } } } }
+        }
+      ]
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "location", "observation", "captured_at"],
+      "properties": {
+        "type": { "enum": ["manual_observation", "browser_inspection", "keyboard_test", "assistive_technology_test", "document_structure_inspection", "screenshot", "log", "report", "other"] },
+        "location": { "type": "string", "minLength": 1 },
+        "observation": { "type": "string", "minLength": 1 },
+        "captured_at": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$" }
+      }
+    }
+  }
+}

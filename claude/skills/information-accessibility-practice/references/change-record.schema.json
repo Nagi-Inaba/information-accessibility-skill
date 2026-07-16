@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:information-accessibility:change-record:1.0.0",
+  "title": "Authorized Target Change Record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "change_id", "run_id", "authorization_id", "authorization_artifact", "changed_files", "verification", "next_status"],
+  "properties": {
+    "schema_version": { "const": "1.0.0" },
+    "change_id": { "type": "string", "pattern": "^CHANGE-[0-9]{8}-[A-Z0-9]{8}$" },
+    "run_id": { "$ref": "#/$defs/run_id" },
+    "authorization_id": { "type": "string", "pattern": "^AUTH-[0-9]{8}-[A-Z0-9]{8}$" },
+    "authorization_artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifact_id", "sha256"],
+      "properties": {
+        "artifact_id": { "$ref": "#/$defs/artifact_id" },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "changed_files": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "before_sha256", "after_sha256", "description"],
+        "properties": {
+          "path": { "$ref": "#/$defs/relative_path" },
+          "before_sha256": { "type": ["string", "null"], "pattern": "^[a-f0-9]{64}$" },
+          "after_sha256": { "$ref": "#/$defs/sha256" },
+          "description": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "verification": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+    "next_status": { "const": "retest_required" }
+  },
+  "$defs": {
+    "run_id": { "type": "string", "pattern": "^RUN-[0-9]{8}T[0-9]{6}Z-[A-Z0-9]{8}$" },
+    "artifact_id": { "type": "string", "pattern": "^ART-[A-Z0-9][A-Z0-9-]{2,63}$" },
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "relative_path": { "type": "string", "pattern": "^(?![A-Za-z][A-Za-z0-9+.-]*:)(?![\\\\/])(?!.*(?:^|[\\\\/])\\.\\.(?:[\\\\/]|$))[^\\u0000-\\u001F]+$" }
+  }
+}
