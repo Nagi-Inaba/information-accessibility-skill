@@ -237,10 +237,26 @@ node --test ".\tests\audit-workflow.test.mjs"
 node --test ".\tests\criterion-procedures.test.mjs"
 node --test ".\tests\audit-report.test.mjs"
 node --test ".\tests\install-codex.test.mjs"
-node ".\scripts\build-criteria-catalog.mjs" --verified-at 2026-07-14 --check
+node ".\scripts\build-criteria-catalog.mjs" --check
 ```
 
 `verify-package.ps1` とクロスプラットフォーム版の `verify-package.mjs` は、Codex/Claude両スキルの相対パス、SHA-256、JSONパース、エージェント指示本文の一致を確認します。
+
+### 条項カタログの保守
+
+通常の検証には `--check` を使います。
+このコマンドはネットワークへ接続せず、保存済みのCodex版とClaude版について、バイト一致、件数、レジストリIDとの一致を検証します。
+
+一次資料から候補を更新する保守作業では、既存カタログとは別の出力先を指定します。
+`--refresh` は3件の一次資料へ接続し、既存ファイルへの上書きを拒否します。
+
+```powershell
+node ".\scripts\build-criteria-catalog.mjs" --refresh --verified-at YYYY-MM-DD --output ".\criteria-catalog.candidate.json"
+node ".\scripts\compare-criteria-catalog.mjs" --current ".\codex\skills\information-accessibility-practice\references\criteria-catalog.json" --candidate ".\criteria-catalog.candidate.json"
+```
+
+比較結果は、一次資料のハッシュ変更、条項の追加、削除、名称またはレベルの変更、監査手順へのルーティング変更を分けて表示します。
+候補を正本へ反映する前に、比較結果と一次資料を人が確認してください。
 
 ## 主張と制限
 

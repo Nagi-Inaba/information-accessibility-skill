@@ -36,6 +36,9 @@ function cleanText(value) {
 }
 
 async function fetchText(url) {
+  if (process.env.A11Y_TEST_FAIL_ON_FETCH === "1") {
+    throw new Error("Network access attempted during offline verification");
+  }
   const response = await fetch(url, { headers: { "user-agent": "information-accessibility-skill-catalog-builder/1.0" } });
   if (!response.ok) throw new Error(`Failed to fetch ${url}: ${response.status}`);
   return response.text();
@@ -169,31 +172,19 @@ function sha256(value) {
   return crypto.createHash("sha256").update(value, "utf8").digest("hex");
 }
 
-async function buildCatalog(verifiedAt, root) {
-  const [wcagHtml, jisHtml, japanHtml] = await Promise.all([
-    fetchText(sourceUrls.wcag),
-    fetchText(sourceUrls.jisChecklist),
-    fetchText(sourceUrls.japanProfile)
-  ]);
-  const wcag = parseWcag(wcagHtml);
-  const wcagIds = new Set(wcag.map((record) => record.id));
-  const wcagBySc = new Map(wcag.map((record) => [record.success_criterion, record]));
-  const jis = parseJisChecklist(jisHtml, wcagIds);
-  const japanAdditional = parseJapanAdditional(japanHtml, wcagBySc);
-
+function assertCatalogIntegrity({ wcag, jis, japanAdditional, registry }) {
   assertCount("WCAG 2.2 A/AA", wcag, 55);
   assertCount("JIS X 8341-3:2016 A/AA", jis, 38);
   assertCount("Japan additional WCAG 2.2 A/AA", japanAdditional, 18);
-
-  const registryPath = path.join(root, "codex", "skills", "information-accessibility-practice", "references", "standards-registry.json");
-  const registry = JSON.parse(fs.readFileSync(registryPath, "utf8"));
   assertSameIds("web-modern", wcag, registry.profiles.find((profile) => profile.id === "web-modern").requirement_ids);
   assertSameIds(
     "jp-public-web",
     [...jis, ...japanAdditional],
     registry.profiles.find((profile) => profile.id === "jp-public-web").requirement_ids
   );
+}
 
+function createCatalog({ wcag, jis, japanAdditional, verifiedAt, wcagHtml, jisHtml, japanHtml }) {
   return {
     schema_version: "1.0.0",
     catalog_status: "metadata_complete",
@@ -212,26 +203,98 @@ async function buildCatalog(verifiedAt, root) {
   };
 }
 
-const scriptDir = path.dirname(fileURLToPath(import.meta.url));
-const root = path.dirname(scriptDir);
-const verifiedAtIndex = process.argv.indexOf("--verified-at");
-const verifiedAt = verifiedAtIndex >= 0 ? process.argv[verifiedAtIndex + 1] : new Date().toISOString().slice(0, 10);
-const checkOnly = process.argv.includes("--check");
-if (!/^\d{4}-\d{2}-\d{2}$/.test(verifiedAt)) throw new Error("--verified-at must be YYYY-MM-DD");
+export function buildCatalogFromSources({ wcagHtml, jisHtml, japanHtml, verifiedAt, registry }) {
+  const wcag = parseWcag(wcagHtml);
+  const wcagIds = new Set(wcag.map((record) => record.id));
+  const wcagBySc = new Map(wcag.map((record) => [record.success_criterion, record]));
+  const jis = parseJisChecklist(jisHtml, wcagIds);
+  const japanAdditional = parseJapanAdditional(japanHtml, wcagBySc);
+  assertCatalogIntegrity({ wcag, jis, japanAdditional, registry });
+  return createCatalog({ wcag, jis, japanAdditional, verifiedAt, wcagHtml, jisHtml, japanHtml });
+}
 
-const catalog = await buildCatalog(verifiedAt, root);
-const serialized = `${JSON.stringify(catalog, null, 2)}\n`;
-const outputs = [
-  path.join(root, "codex", "skills", "information-accessibility-practice", "references", "criteria-catalog.json"),
-  path.join(root, "claude", "skills", "information-accessibility-practice", "references", "criteria-catalog.json")
-];
+function catalogPaths(root) {
+  return {
+    codex: path.join(root, "codex", "skills", "information-accessibility-practice", "references", "criteria-catalog.json"),
+    claude: path.join(root, "claude", "skills", "information-accessibility-practice", "references", "criteria-catalog.json"),
+    registry: path.join(root, "codex", "skills", "information-accessibility-practice", "references", "standards-registry.json")
+  };
+}
 
-if (checkOnly) {
-  for (const output of outputs) {
-    if (!fs.existsSync(output) || fs.readFileSync(output, "utf8") !== serialized) throw new Error(`Generated catalog is stale: ${output}`);
+function catalogRecords(catalog) {
+  return {
+    wcag: catalog.catalogs.web_modern,
+    jis: catalog.catalogs.jis_x_8341_3_2016,
+    japanAdditional: catalog.catalogs.jp_wcag_2_2_additional
+  };
+}
+
+export function verifyStoredCatalog(root) {
+  const paths = catalogPaths(root);
+  const codexBytes = fs.readFileSync(paths.codex);
+  const claudeBytes = fs.readFileSync(paths.claude);
+  if (!codexBytes.equals(claudeBytes)) throw new Error("Stored Codex and Claude catalogs differ");
+
+  const registry = JSON.parse(fs.readFileSync(paths.registry, "utf8"));
+  for (const [label, bytes] of [["Codex", codexBytes], ["Claude", claudeBytes]]) {
+    const catalog = JSON.parse(bytes.toString("utf8"));
+    try {
+      assertCatalogIntegrity({ ...catalogRecords(catalog), registry });
+    } catch (error) {
+      throw new Error(`${label} stored catalog is invalid: ${error.message}`);
+    }
   }
-  console.log(JSON.stringify({ status: "PASS", mode: "check", counts: { wcag: 55, jis: 38, japan_additional: 18 } }));
-} else {
-  for (const output of outputs) fs.writeFileSync(output, serialized, "utf8");
-  console.log(JSON.stringify({ status: "PASS", mode: "write", outputs, counts: { wcag: 55, jis: 38, japan_additional: 18 } }, null, 2));
+
+  return {
+    status: "PASS",
+    counts: { wcag: 55, jis: 38, japan_additional: 18 },
+    mirrors_equal: true
+  };
+}
+
+function argumentValue(name) {
+  const index = process.argv.indexOf(name);
+  return index >= 0 ? process.argv[index + 1] : undefined;
+}
+
+async function refreshCatalog(root) {
+  const outputArgument = argumentValue("--output");
+  if (!outputArgument) throw new Error("--output is required with --refresh");
+  const output = path.resolve(process.cwd(), outputArgument);
+  if (fs.existsSync(output)) throw new Error(`Refusing to overwrite existing output: ${output}`);
+
+  const verifiedAt = argumentValue("--verified-at");
+  if (!verifiedAt) throw new Error("--verified-at is required with --refresh");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(verifiedAt)) throw new Error("--verified-at must be YYYY-MM-DD");
+
+  const paths = catalogPaths(root);
+  const registry = JSON.parse(fs.readFileSync(paths.registry, "utf8"));
+  const [wcagHtml, jisHtml, japanHtml] = await Promise.all([
+    fetchText(sourceUrls.wcag),
+    fetchText(sourceUrls.jisChecklist),
+    fetchText(sourceUrls.japanProfile)
+  ]);
+  const catalog = buildCatalogFromSources({ wcagHtml, jisHtml, japanHtml, verifiedAt, registry });
+  fs.mkdirSync(path.dirname(output), { recursive: true });
+  fs.writeFileSync(output, `${JSON.stringify(catalog, null, 2)}\n`, { encoding: "utf8", flag: "wx" });
+  return { status: "PASS", mode: "refresh", output, counts: { wcag: 55, jis: 38, japan_additional: 18 } };
+}
+
+async function main() {
+  const scriptDir = path.dirname(fileURLToPath(import.meta.url));
+  const root = path.dirname(scriptDir);
+  const checkOnly = process.argv.includes("--check");
+  const refresh = process.argv.includes("--refresh");
+  if (checkOnly === refresh) throw new Error("Specify exactly one of --check or --refresh");
+
+  if (checkOnly) {
+    console.log(JSON.stringify({ ...verifyStoredCatalog(root), mode: "check" }));
+    return;
+  }
+  console.log(JSON.stringify(await refreshCatalog(root), null, 2));
+}
+
+const isDirectExecution = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (isDirectExecution) {
+  await main();
 }
