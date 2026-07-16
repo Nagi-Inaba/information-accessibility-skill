@@ -41,8 +41,8 @@ function outcomeRows(profileCounts, screeningCounts) {
   return outcomes.map((outcome) => `| ${cell(outcome)} | ${count(profileCounts, outcome)} | ${count(screeningCounts, outcome)} |`).join("\n");
 }
 
-function groupRows(groupCounts) {
-  return outcomes.map((outcome) => `| ${cell(outcome)} | ${count(groupCounts?.jis_x_8341_3_2016, outcome)} | ${count(groupCounts?.jp_wcag_2_2_additional, outcome)} |`).join("\n");
+function groupRows(groups, groupCounts) {
+  return outcomes.map((outcome) => `| ${cell(outcome)} | ${groups.map((group) => count(groupCounts?.[group.id], outcome)).join(" | ")} |`).join("\n");
 }
 
 function findingTable(findings) {
@@ -156,13 +156,14 @@ export function renderAuditReport(record, validation) {
     ""
   );
 
-  if (assessment.profile.id === "jp-public-web") {
+  const reportGroups = guard.report_groups ?? [];
+  if (reportGroups.length > 1) {
     lines.push(
-      "### Japanese Public Web Profile Groups",
+      "### Profile Requirement Groups",
       "",
-      "| Result | JIS X 8341-3:2016 A/AA (38) | Added WCAG 2.2 A/AA (18) |",
-      "| --- | ---: | ---: |",
-      groupRows(guard.profile_group_outcome_counts),
+      `| Result | ${reportGroups.map((group) => cell(group.label)).join(" | ")} |`,
+      `| --- | ${reportGroups.map(() => "---:").join(" | ")} |`,
+      groupRows(reportGroups, guard.profile_group_outcome_counts),
       ""
     );
   }

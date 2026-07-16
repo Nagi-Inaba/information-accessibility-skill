@@ -58,6 +58,9 @@
       "criteria_catalog_status": "practice_model",
       "target_scope": "Artifacts, events, workflows, and participation journeys",
       "formal_conformance_target": false,
+      "assessment_configuration": {
+        "active": false
+      },
       "standards": [],
       "claim_rules": {
         "blocking_outcomes": [],
@@ -76,6 +79,22 @@
       "criteria_catalog_file": "criteria-catalog.json",
       "target_scope": "Full web pages, web applications, and complete web processes",
       "formal_conformance_target": true,
+      "assessment_configuration": {
+        "active": true,
+        "requires_web_interaction_evidence": true,
+        "catalog_keys": [
+          "web_modern"
+        ],
+        "groups": [
+          {
+            "id": "wcag_2_2",
+            "label": "WCAG 2.2 A/AA",
+            "requirement_id_prefixes": [
+              "WCAG-2.2-SC-"
+            ]
+          }
+        ]
+      },
       "standards": [
         {
           "id": "WCAG-2.2-A-AA",
@@ -157,6 +176,30 @@
       "criteria_catalog_file": "criteria-catalog.json",
       "target_scope": "Japanese public-facing web pages and complete web processes",
       "formal_conformance_target": true,
+      "assessment_configuration": {
+        "active": true,
+        "requires_web_interaction_evidence": true,
+        "catalog_keys": [
+          "jis_x_8341_3_2016",
+          "jp_wcag_2_2_additional"
+        ],
+        "groups": [
+          {
+            "id": "jis_x_8341_3_2016",
+            "label": "JIS X 8341-3:2016 A/AA (38)",
+            "requirement_id_prefixes": [
+              "JIS-X-8341-3-2016-SC-"
+            ]
+          },
+          {
+            "id": "jp_wcag_2_2_additional",
+            "label": "Added WCAG 2.2 A/AA (18)",
+            "requirement_id_prefixes": [
+              "WCAG-2.2-ADDITIONAL-SC-"
+            ]
+          }
+        ]
+      },
       "standards": [
         {
           "id": "JIS-X-8341-3-2016-A-AA",
@@ -236,6 +279,9 @@
       "criteria_catalog_status": "metadata_only",
       "target_scope": "Named AI or software authoring process component and the technologies it produces",
       "formal_conformance_target": true,
+      "assessment_configuration": {
+        "active": false
+      },
       "standards": [
         {
           "id": "ATAG-2.0-PART-B-A-AA",

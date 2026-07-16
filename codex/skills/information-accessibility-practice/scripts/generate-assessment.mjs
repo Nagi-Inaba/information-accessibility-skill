@@ -2,20 +2,13 @@ import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { profileConfiguration, recordsForProfile } from "./lib/profile-registry.mjs";
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.dirname(scriptDir);
 
 function readJson(relativePath) {
   return JSON.parse(fs.readFileSync(path.join(skillRoot, relativePath), "utf8"));
-}
-
-function recordsForProfile(profileId, catalog) {
-  if (profileId === "web-modern") return catalog.catalogs.web_modern;
-  if (profileId === "jp-public-web") {
-    return [...catalog.catalogs.jis_x_8341_3_2016, ...catalog.catalogs.jp_wcag_2_2_additional];
-  }
-  throw new Error(`Profile does not have a generated audit catalog: ${profileId}`);
 }
 
 function requirementSource(record) {
@@ -26,11 +19,14 @@ export function generateAssessment(profileId, options = {}) {
   const registry = readJson("references/standards-registry.json");
   const catalog = readJson("references/criteria-catalog.json");
   const profile = registry.profiles.find((item) => item.id === profileId);
-  if (!profile || !["web-modern", "jp-public-web"].includes(profileId)) {
-    throw new Error(`Supported profiles: web-modern, jp-public-web. Received: ${profileId}`);
+  const supportedProfiles = registry.profiles
+    .filter((item) => item.assessment_configuration?.active)
+    .map((item) => item.id);
+  if (!profile || !profileConfiguration(registry, profileId).active) {
+    throw new Error(`Supported profiles: ${supportedProfiles.join(", ")}. Received: ${profileId}`);
   }
 
-  const records = recordsForProfile(profileId, catalog);
+  const records = recordsForProfile({ profile, catalog });
   const results = records.map((record) => ({
     requirement_id: record.id,
     requirement_kind: "profile_requirement",

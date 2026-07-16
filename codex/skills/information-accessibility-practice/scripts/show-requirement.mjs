@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { profileConfiguration, recordsForProfile } from "./lib/profile-registry.mjs";
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.dirname(scriptDir);
@@ -18,14 +19,14 @@ export function lookupRequirement(profileId, requirementId, root = skillRoot) {
   const profile = registry.profiles.find((item) => item.id === profileId);
 
   if (!profile) throw new Error(`Unknown profile: ${profileId}`);
-  if (profile.implementation_status !== "active" || !profile.requirement_ids?.length) {
+  if (!profileConfiguration(registry, profileId).active || !profile.requirement_ids?.length) {
     throw new Error(`Profile does not have an active requirement catalog: ${profileId}`);
   }
   if (!profile.requirement_ids.includes(requirementId)) {
     throw new Error(`Requirement is not registered for profile ${profileId}: ${requirementId}`);
   }
 
-  const criterion = Object.values(catalog.catalogs).flat().find((item) => item.id === requirementId);
+  const criterion = recordsForProfile({ profile, catalog }).find((item) => item.id === requirementId);
   if (!criterion) throw new Error(`Requirement is missing from criteria-catalog.json: ${requirementId}`);
   const method = methods.methods.find((item) => item.id === criterion.method_key);
   if (!method) throw new Error(`Audit method is missing for ${requirementId}: ${criterion.method_key}`);

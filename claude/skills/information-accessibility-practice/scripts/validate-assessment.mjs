@@ -2,6 +2,12 @@ import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import {
+  groupForRequirement,
+  profileConfiguration,
+  recordsForProfile,
+  reportGroups
+} from "./lib/profile-registry.mjs";
 
 const tierOrder = [
   "reference_only",
@@ -42,14 +48,6 @@ function urlEqualsCatalogSource(source, expected) {
   } catch {
     return false;
   }
-}
-
-function requirementGroup(profileId, requirementId) {
-  if (profileId === "jp-public-web") {
-    if (requirementId?.startsWith("JIS-X-8341-3-2016-SC-")) return "jis_x_8341_3_2016";
-    if (requirementId?.startsWith("WCAG-2.2-ADDITIONAL-SC-")) return "jp_wcag_2_2_additional";
-  }
-  return profileId ?? "unknown";
 }
 
 function matchesSchemaType(value, expected) {
@@ -113,7 +111,20 @@ export function validateAssessment(record, registry, schema, criteriaCatalog, au
   if (assessment.profile?.registry_version !== registry.schema_version) {
     errors.push(`profile.registry_version must be ${registry.schema_version}`);
   }
-  const catalogRecords = Object.values(criteriaCatalog?.catalogs ?? {}).flat();
+  let configuration;
+  let catalogRecords = [];
+  let configuredReportGroups = [];
+  if (profile) {
+    try {
+      configuration = profileConfiguration(registry, profileId);
+      if (configuration.active) {
+        catalogRecords = recordsForProfile({ profile, catalog: criteriaCatalog });
+        configuredReportGroups = reportGroups(profile);
+      }
+    } catch (error) {
+      errors.push(error instanceof Error ? error.message : String(error));
+    }
+  }
   const methodRecords = auditMethods?.methods ?? [];
   if (profile?.requirement_ids?.length && catalogRecords.length === 0) errors.push("criteria catalog is required for a standards profile");
   if (profile?.requirement_ids?.length && methodRecords.length === 0) errors.push("audit methods catalog is required for a standards profile");
@@ -199,9 +210,13 @@ export function validateAssessment(record, registry, schema, criteriaCatalog, au
       outcomeCounts[result.outcome] += 1;
       if (result.requirement_kind === "profile_requirement") {
         profileOutcomeCounts[result.outcome] += 1;
-        const group = requirementGroup(profileId, result.requirement_id);
-        profileGroupOutcomeCounts[group] ??= Object.fromEntries(registry.outcomes.map((outcome) => [outcome, 0]));
-        profileGroupOutcomeCounts[group][result.outcome] += 1;
+        try {
+          const group = groupForRequirement(profile, result.requirement_id);
+          profileGroupOutcomeCounts[group] ??= Object.fromEntries(registry.outcomes.map((outcome) => [outcome, 0]));
+          profileGroupOutcomeCounts[group][result.outcome] += 1;
+        } catch (error) {
+          errors.push(`${prefix}.requirement_id cannot be assigned to a report group: ${error instanceof Error ? error.message : String(error)}`);
+        }
       }
       if (result.requirement_kind === "screening_check") screeningOutcomeCounts[result.outcome] += 1;
     }
@@ -323,8 +338,8 @@ export function validateAssessment(record, registry, schema, criteriaCatalog, au
     if (!assessment.target?.urls_or_files?.length) errors.push("E2+ requires at least one target URL or file");
     if (!scope?.included?.length) errors.push("E2+ requires a non-empty included scope");
   }
-  const isWebProfile = ["web-modern", "jp-public-web"].includes(profileId);
-  if (isWebProfile && evidenceOrder.indexOf(evidenceLevel) >= evidenceOrder.indexOf("E3")) {
+  const requiresWebInteractionEvidence = configuration?.requires_web_interaction_evidence === true;
+  if (requiresWebInteractionEvidence && evidenceOrder.indexOf(evidenceLevel) >= evidenceOrder.indexOf("E3")) {
     if (!scope?.full_pages_reviewed) errors.push("E3+ requires scope.full_pages_reviewed=true for Web profiles");
     if (!Array.isArray(scope?.complete_processes) || scope.complete_processes.length === 0) {
       errors.push("E3+ requires at least one complete process");
@@ -398,6 +413,7 @@ export function validateAssessment(record, registry, schema, criteriaCatalog, au
       outcome_counts_scope: "all_results_legacy_aggregate",
       profile_outcome_counts: profileOutcomeCounts,
       profile_group_outcome_counts: profileGroupOutcomeCounts,
+      report_groups: configuredReportGroups.map(({ id, label }) => ({ id, label })),
       screening_outcome_counts: screeningOutcomeCounts,
       catalog_coverage: {
         expected: expectedRequirementIds.length,
