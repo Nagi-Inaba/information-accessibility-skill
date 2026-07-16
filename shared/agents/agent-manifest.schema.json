@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Accessibility agent distribution manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "agents"],
+  "properties": {
+    "$schema": { "type": "string", "minLength": 1 },
+    "schema_version": { "const": "1.0.0" },
+    "agents": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "description", "install_by_default", "body_file", "codex", "claude"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+          },
+          "description": { "type": "string", "minLength": 1 },
+          "install_by_default": { "type": "boolean" },
+          "body_file": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*\\.md$"
+          },
+          "codex": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["model_reasoning_effort"],
+            "properties": {
+              "model_reasoning_effort": {
+                "type": "string",
+                "enum": ["low", "medium", "high"]
+              }
+            }
+          },
+          "claude": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["tools", "model", "effort"],
+            "properties": {
+              "tools": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": { "type": "string", "minLength": 1 }
+              },
+              "model": { "type": "string", "minLength": 1 },
+              "effort": {
+                "type": "string",
+                "enum": ["low", "medium", "high"]
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

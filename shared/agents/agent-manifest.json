@@ -1,0 +1,13 @@
+{
+  "schema_version": "1.0.0",
+  "agents": [
+    {
+      "id": "information-accessibility-reviewer",
+      "description": "Executes reusable, evidence-based accessibility audits across websites, applications, documents, media, events, and participation workflows, with guarded WCAG/JIS records where a formal profile applies.",
+      "install_by_default": true,
+      "body_file": "information-accessibility-reviewer.md",
+      "codex": { "model_reasoning_effort": "medium" },
+      "claude": { "tools": ["Read", "Grep", "Glob", "Bash", "Write", "Edit"], "model": "sonnet", "effort": "medium" }
+    }
+  ]
+}
