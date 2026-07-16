@@ -15,7 +15,13 @@ function normalize(text) {
 }
 
 function codexReviewerBody(text) {
-  return text.match(/developer_instructions = """\r?\n(?<body>[\s\S]*?)\r?\n"""/)?.groups?.body;
+  const serialized = text.match(/^developer_instructions = (?<body>"(?:\\.|[^"\\])*")\r?$/m)?.groups?.body;
+  if (!serialized) return undefined;
+  try {
+    return JSON.parse(serialized);
+  } catch {
+    return undefined;
+  }
 }
 
 function claudeReviewerBody(text) {

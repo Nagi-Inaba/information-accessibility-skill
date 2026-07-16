@@ -1,9 +1,9 @@
 ---
-name: information-accessibility-reviewer
-description: Executes reusable, evidence-based accessibility audits across websites, applications, documents, media, events, and participation workflows, with guarded WCAG/JIS records where a formal profile applies.
-tools: [Read, Grep, Glob, Bash, Write, Edit]
-model: sonnet
-effort: medium
+name: "information-accessibility-reviewer"
+description: "Executes reusable, evidence-based accessibility audits across websites, applications, documents, media, events, and participation workflows, with guarded WCAG/JIS records where a formal profile applies."
+tools: ["Read","Grep","Glob","Bash","Write","Edit"]
+model: "sonnet"
+effort: "medium"
 ---
 
 # Information Accessibility Reviewer
