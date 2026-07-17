@@ -63,6 +63,22 @@ function stageResidues() {
   return fs.readdirSync(os.tmpdir()).filter((name) => name.startsWith("information-accessibility-install-")).sort();
 }
 
+function transactionResidues(codexHome) {
+  if (!fs.existsSync(codexHome)) return [];
+  const residues = [];
+  const visit = (current) => {
+    for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
+      const full = path.join(current, entry.name);
+      if (/^\..+\.(?:install|restore|rollback)-/u.test(entry.name)) {
+        residues.push(path.relative(codexHome, full));
+      }
+      if (entry.isDirectory()) visit(full);
+    }
+  };
+  visit(codexHome);
+  return residues.sort();
+}
+
 function createJunctionOrSkip(t, target, link) {
   try {
     fs.symlinkSync(target, link, "junction");
@@ -111,6 +127,70 @@ try {
 `;
   fs.writeFileSync(file, script, "utf8");
 }
+
+function writePartialCopyFaultWrapper(file) {
+  const script = `
+[CmdletBinding()]
+param(
+    [Parameter(Mandatory = $true)][string]$Installer,
+    [Parameter(Mandatory = $true)][string]$CodexHomePath,
+    [Parameter(Mandatory = $true)][string]$BackupRootPath,
+    [Parameter(Mandatory = $true)][string]$FailAgentId
+)
+$ErrorActionPreference = 'Stop'
+$script:InjectedCopyFailure = $false
+function global:Copy-Item {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)][string[]]$LiteralPath,
+        [Parameter(Mandatory = $true)][string]$Destination,
+        [switch]$Recurse,
+        [switch]$Force
+    )
+    $leaf = [IO.Path]::GetFileName([IO.Path]::GetFullPath($Destination))
+    if (-not $script:InjectedCopyFailure -and $leaf -match ('^\\.' + [regex]::Escape($FailAgentId) + '\\.install-[0-9a-f]{32}$')) {
+        $script:InjectedCopyFailure = $true
+        [IO.File]::WriteAllText([IO.Path]::GetFullPath($Destination), "partial test bytes\`n")
+        throw 'Injected test-only partial incoming Copy-Item failure.'
+    }
+    Microsoft.PowerShell.Management\\Copy-Item @PSBoundParameters
+}
+try {
+    & $Installer -CodexHome $CodexHomePath -BackupRoot $BackupRootPath
+    exit $LASTEXITCODE
+} catch {
+    [Console]::Error.WriteLine($_.Exception.Message)
+    exit 29
+}
+`;
+  fs.writeFileSync(file, script, "utf8");
+}
+
+test("Codex installer creates a fresh Codex home and omits an unnecessary backup root", { skip: process.platform !== "win32" }, () => {
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), "a11y-codex-install-fresh-"));
+  try {
+    const codexHome = path.join(temp, "new-parent", "codex-home");
+    const backupRoot = path.join(temp, "new-backups", "unused-backup");
+    const beforeStages = stageResidues();
+    assert.equal(fs.existsSync(codexHome), false);
+    assert.equal(fs.existsSync(backupRoot), false);
+
+    const installed = run("powershell", [
+      "-ExecutionPolicy", "Bypass", "-File", installer,
+      "-CodexHome", codexHome,
+      "-BackupRoot", backupRoot
+    ]);
+
+    assert.equal(installed.status, 0, installed.stderr || installed.stdout);
+    assertMirror(sourceSkill, path.join(codexHome, "skills/information-accessibility-practice"));
+    assertDefaultAgentsInstalled(codexHome);
+    assert.equal(fs.existsSync(backupRoot), false);
+    assert.deepEqual(transactionResidues(codexHome), []);
+    assert.deepEqual(stageResidues(), beforeStages);
+  } finally {
+    fs.rmSync(temp, { recursive: true, force: true });
+  }
+});
 
 test("Codex installer installs manifest defaults, preserves unrelated agents, and records per-agent backups", { skip: process.platform !== "win32" }, () => {
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), "a11y-codex-install-"));
@@ -346,6 +426,58 @@ test("Codex installer restores selected agents and the skill after a late replac
       assert.equal(fs.existsSync(backup), true, agent);
       assert.deepEqual(fs.readFileSync(backup), previousAgents.get(agent), agent);
     }
+  } finally {
+    fs.rmSync(temp, { recursive: true, force: true });
+  }
+});
+
+test("Codex installer removes a partially copied incoming agent and restores exact prior bytes", { skip: process.platform !== "win32" }, () => {
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), "a11y-codex-install-partial-copy-"));
+  try {
+    const codexHome = path.join(temp, "codex-home");
+    const installedSkill = path.join(codexHome, "skills/information-accessibility-practice");
+    const unrelatedAgent = path.join(codexHome, "agents/user-owned.toml");
+    fs.mkdirSync(installedSkill, { recursive: true });
+    fs.writeFileSync(path.join(installedSkill, "SKILL.md"), "old skill\n", "utf8");
+    fs.writeFileSync(path.join(installedSkill, "preserve.txt"), "old skill evidence\n", "utf8");
+    fs.mkdirSync(path.dirname(unrelatedAgent), { recursive: true });
+    fs.writeFileSync(unrelatedAgent, "user-owned\n", "utf8");
+
+    const previousAgents = new Map();
+    for (const agent of defaultAgents) {
+      const bytes = Buffer.from(`old ${agent.id}\n`, "utf8");
+      previousAgents.set(agent.id, bytes);
+      fs.writeFileSync(agentPath(codexHome, agent), bytes);
+    }
+    const previousSkill = new Map(relativeFiles(installedSkill).map((relative) => [
+      relative,
+      fs.readFileSync(path.join(installedSkill, relative))
+    ]));
+    const backupRoot = path.join(temp, "rollback-backup");
+    const wrapper = path.join(temp, "partial-copy-fault-wrapper.ps1");
+    const beforeStages = stageResidues();
+    writePartialCopyFaultWrapper(wrapper);
+
+    const failed = run("powershell", [
+      "-ExecutionPolicy", "Bypass", "-File", wrapper,
+      "-Installer", installer,
+      "-CodexHomePath", codexHome,
+      "-BackupRootPath", backupRoot,
+      "-FailAgentId", defaultAgents[2].id
+    ]);
+
+    assert.notEqual(failed.status, 0, failed.stderr || failed.stdout);
+    assert.match(failed.stderr || failed.stdout, /injected|rollback|failure/i);
+    assert.deepEqual(relativeFiles(installedSkill), [...previousSkill.keys()].sort());
+    for (const [relative, bytes] of previousSkill) {
+      assert.deepEqual(fs.readFileSync(path.join(installedSkill, relative)), bytes, relative);
+    }
+    for (const agent of defaultAgents) {
+      assert.deepEqual(fs.readFileSync(agentPath(codexHome, agent)), previousAgents.get(agent.id), agent.id);
+    }
+    assert.equal(fs.readFileSync(unrelatedAgent, "utf8"), "user-owned\n");
+    assert.deepEqual(transactionResidues(codexHome), []);
+    assert.deepEqual(stageResidues(), beforeStages);
   } finally {
     fs.rmSync(temp, { recursive: true, force: true });
   }

@@ -146,7 +146,7 @@ powershell -ExecutionPolicy Bypass -File ".\scripts\install-codex.ps1" -WhatIf
 powershell -ExecutionPolicy Bypass -File ".\scripts\install-codex.ps1"
 ```
 
-`CODEX_HOME` が設定されていればその場所を使用し、未設定の場合は `~/.codex` へ配置します。既定のバックアップ先は、`CodexHome` と重ならない兄弟領域の `codex-backups/information-accessibility-practice/<timestamp>/` です。既存のスキルはその `skill/` へ、既存のマニフェスト管理エージェントは `agents/<agent-id>.toml` へ退避されます。配置の途中で失敗した場合は、置換済みのスキルと選択済みエージェントだけをバックアップと照合して復元し、無関係なユーザーエージェントには触れません。
+`CODEX_HOME` が設定されていればその場所を使用し、未設定の場合は `~/.codex` へ配置します。既定のバックアップ先は、`CodexHome` と重ならない兄弟領域の `codex-backups/information-accessibility-practice/<timestamp>/` です。既存のスキルはその `skill/` へ、既存のマニフェスト管理エージェントは `agents/<agent-id>.toml` へ退避されます。退避対象が一つもない初回導入では、バックアップ先を作成しません。配置の途中で失敗した場合は、置換済みのスキルと選択済みエージェントだけをバックアップと照合して復元し、無関係なユーザーエージェントには触れません。
 
 インストーラーは既存パスの最終パスとファイルIDを置換直前まで再検査し、同じ親ディレクトリ内の rename で切り替えます。ただし、別プロセスが同じファイル内容を同時に書き換える競合をOSレベルでロックするものではありません。インストール中は、別のインストーラーや手作業で同じスキルとエージェントを変更しないでください。
 

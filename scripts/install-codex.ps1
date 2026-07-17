@@ -230,7 +230,12 @@ function Get-ExistingAncestorState {
 }
 
 function Ensure-VerifiedDirectory {
-    param([string]$Path, [psobject]$AncestorState, [string]$Label)
+    param(
+        [string]$Path,
+        [psobject]$AncestorState,
+        [string]$Label,
+        [Collections.IList]$CreatedDirectories
+    )
     $target = Get-FullPath $Path
     $null = Assert-PathState -Expected $AncestorState -Label "$Label ancestor"
     $existing = Get-PathState -Path $target -ExpectedType 'Any' -Label $Label
@@ -251,9 +256,13 @@ function Ensure-VerifiedDirectory {
         $null = Assert-PathState -Expected $parentState -Label "$Label parent"
         $absent = Get-PathState -Path $child -ExpectedType 'Any' -Label $Label
         if ($absent.Exists) { throw "$Label appeared before creation: $child" }
+        $verifiedParentState = $parentState
         [IO.Directory]::CreateDirectory($child) | Out-Null
         $null = Assert-PathState -Expected $parentState -Label "$Label parent after creation"
         $parentState = Get-PathState -Path $child -ExpectedType 'Directory' -Label $Label
+        if ($null -ne $CreatedDirectories) {
+            $null = $CreatedDirectories.Add([pscustomobject]@{ State = $parentState; ParentState = $verifiedParentState })
+        }
     }
     return $parentState
 }
@@ -327,6 +336,30 @@ function Remove-VerifiedItem {
     if ($after.Exists) { throw "$Label still exists after removal: $($State.Path)" }
 }
 
+function Remove-RegisteredPaths {
+    param([Collections.IList]$Records, [string]$Label)
+    for ($index = $Records.Count - 1; $index -ge 0; $index--) {
+        $record = $Records[$index]
+        $state = Get-PathState -Path $record.Path -ExpectedType 'Any' -Label $Label
+        if ($state.Exists) {
+            Remove-VerifiedItem -State $state -ParentState $record.ParentState -Recurse:$record.Recurse -Label $Label
+        }
+    }
+}
+
+function Remove-CreatedEmptyDirectories {
+    param([Collections.IList]$Records, [string]$Label)
+    for ($index = $Records.Count - 1; $index -ge 0; $index--) {
+        $record = $Records[$index]
+        $state = Get-PathState -Path $record.State.Path -ExpectedType 'Directory' -Label $Label
+        if (-not $state.Exists) { continue }
+        $null = Assert-PathState -Expected $record.State -Label $Label
+        if (@(Get-ChildItem -LiteralPath $state.Path -Force).Count -eq 0) {
+            Remove-VerifiedItem -State $state -ParentState $record.ParentState -Label $Label
+        }
+    }
+}
+
 foreach ($required in @($packageRoot, $sourceSkill, $sourceAgentsRoot, $manifestPath, $verifyScript)) {
     if ($null -eq (Get-ItemIfPresent $required)) { throw "Required package path is missing: $required" }
 }
@@ -382,13 +415,29 @@ $installAgents = foreach ($agent in $selectedAgents) {
     $destination = Get-SafeChildPath -Parent $destinationAgentsRoot -BaseName "$id.toml" -Label "Agent destination for $id"
     if (-not $sourcePaths.Add($source)) { throw "Duplicate selected agent source path: $source" }
     if (-not $destinationPaths.Add($destination)) { throw "Duplicate selected agent destination path: $destination" }
-    [pscustomobject]@{ Agent = $agent; Id = $id; Source = $source; SourceState = $sourceState; Destination = $destination }
+    [pscustomobject]@{
+        Agent = $agent
+        Id = $id
+        Source = $source
+        SourceState = $sourceState
+        Destination = $destination
+        OriginalState = $null
+        Staged = $null
+        StagedState = $null
+        Backup = $null
+        BackupState = $null
+        Incoming = $null
+        Old = $null
+        OldState = $null
+        InstalledState = $null
+    }
 }
 
 $skillOriginalState = Get-PathState -Path $destinationSkill -ExpectedType 'Directory' -Label 'Skill destination'
 foreach ($entry in $installAgents) {
-    $entry | Add-Member -NotePropertyName OriginalState -NotePropertyValue (Get-PathState -Path $entry.Destination -ExpectedType 'File' -Label "Agent destination for $($entry.Id)")
+    $entry.OriginalState = Get-PathState -Path $entry.Destination -ExpectedType 'File' -Label "Agent destination for $($entry.Id)"
 }
+$needsBackup = $skillOriginalState.Exists -or (@($installAgents | Where-Object { $_.OriginalState.Exists }).Count -gt 0)
 
 $timestamp = Get-Date -Format 'yyyyMMdd-HHmmssfff'
 if ([string]::IsNullOrWhiteSpace($BackupRoot)) {
@@ -428,6 +477,10 @@ $stageSkill = Join-Path $stageRoot 'skill'
 $stageAgentsRoot = Join-Path $stageRoot 'agents'
 $backupSkill = Join-Path $BackupRoot 'skill'
 $backupAgentsRoot = Join-Path $BackupRoot 'agents'
+$createdDestinationDirectories = [Collections.Generic.List[object]]::new()
+$createdBackupDirectories = [Collections.Generic.List[object]]::new()
+$backupArtifacts = [Collections.Generic.List[object]]::new()
+$copyMutationRecords = [Collections.Generic.List[object]]::new()
 $skillRecord = $null
 $transactionStarted = $false
 $transactionSucceeded = $false
@@ -460,8 +513,8 @@ try {
         $null = Assert-PathState -Expected $stageAgentsRootState -Label "Staged agents root after copying $($entry.Id)"
         $stagedState = Get-PathState -Path $staged -ExpectedType 'File' -Label "Staged agent $($entry.Id)"
         Assert-FileHash -Expected $entry.Source -Actual $staged -Label "Staged agent $($entry.Id)"
-        $entry | Add-Member -NotePropertyName Staged -NotePropertyValue $staged
-        $entry | Add-Member -NotePropertyName StagedState -NotePropertyValue $stagedState
+        $entry.Staged = $staged
+        $entry.StagedState = $stagedState
     }
     $null = Assert-PathState -Expected $stageSkillState -Label 'Staged skill after staging'
     $null = Assert-PathState -Expected $stageAgentsRootState -Label 'Staged agents root after staging'
@@ -471,40 +524,52 @@ try {
     $null = Assert-PathState -Expected $packageState -Label 'Package root before backup'
     $null = Assert-PathState -Expected $sourceSkillState -Label 'Package skill source before backup'
     $null = Assert-PathState -Expected $codexAncestorState -Label 'Codex home ancestor before backup'
+    $codexHomeState = Ensure-VerifiedDirectory -Path $CodexHome -AncestorState $codexAncestorState -Label 'Codex home' -CreatedDirectories $createdDestinationDirectories
     $null = Assert-PathState -Expected $skillOriginalState -Label 'Skill destination before backup'
     foreach ($entry in $installAgents) { $null = Assert-PathState -Expected $entry.OriginalState -Label "Agent destination for $($entry.Id) before backup" }
-    $backupState = Ensure-VerifiedDirectory -Path $BackupRoot -AncestorState $backupAncestorState -Label 'Backup root'
-    if ($skillOriginalState.Exists) {
-        $null = Assert-PathState -Expected $skillOriginalState -Label 'Skill destination during backup'
-        $null = Assert-PathState -Expected $backupState -Label 'Backup root before skill backup'
-        Copy-Item -LiteralPath $destinationSkill -Destination $backupSkill -Recurse
-        $null = Assert-PathState -Expected $skillOriginalState -Label 'Skill destination after backup copy'
-        $null = Assert-PathState -Expected $backupState -Label 'Backup root after skill backup'
-        $backupSkillState = Get-PathState -Path $backupSkill -ExpectedType 'Directory' -Label 'Skill backup'
-        $null = Assert-DirectoryMirror -Expected $destinationSkill -Actual $backupSkill
-    }
+    $backupState = $null
     $backupAgentsState = $null
-    foreach ($entry in $installAgents) {
-        if (-not $entry.OriginalState.Exists) { continue }
-        if ($null -eq $backupAgentsState) { $backupAgentsState = Ensure-VerifiedDirectory -Path $backupAgentsRoot -AncestorState $backupState -Label 'Agent backup root' }
-        $backup = Join-Path $backupAgentsRoot "$($entry.Id).toml"
-        $null = Assert-PathState -Expected $entry.OriginalState -Label "Agent destination for $($entry.Id) during backup"
-        $null = Assert-PathState -Expected $backupAgentsState -Label "Agent backup root before copying $($entry.Id)"
-        Copy-Item -LiteralPath $entry.Destination -Destination $backup
-        $null = Assert-PathState -Expected $entry.OriginalState -Label "Agent destination for $($entry.Id) after backup copy"
-        $null = Assert-PathState -Expected $backupAgentsState -Label "Agent backup root after copying $($entry.Id)"
-        $backupFileState = Get-PathState -Path $backup -ExpectedType 'File' -Label "Agent backup for $($entry.Id)"
-        Assert-FileHash -Expected $entry.Destination -Actual $backup -Label "Agent backup for $($entry.Id)"
-        $entry | Add-Member -NotePropertyName Backup -NotePropertyValue $backup
-        $entry | Add-Member -NotePropertyName BackupState -NotePropertyValue $backupFileState
+    if ($needsBackup) {
+        $backupState = Ensure-VerifiedDirectory -Path $BackupRoot -AncestorState $backupAncestorState -Label 'Backup root' -CreatedDirectories $createdBackupDirectories
+        if ($skillOriginalState.Exists) {
+            $null = Assert-PathState -Expected $skillOriginalState -Label 'Skill destination during backup'
+            $null = Assert-PathState -Expected $backupState -Label 'Backup root before skill backup'
+            $backupSkillAbsent = Get-PathState -Path $backupSkill -ExpectedType 'Any' -Label 'Skill backup destination'
+            if ($backupSkillAbsent.Exists) { throw "Skill backup destination appeared before copy: $backupSkill" }
+            $null = $backupArtifacts.Add([pscustomobject]@{ Path = $backupSkill; ParentState = $backupState; Recurse = $true })
+            Copy-Item -LiteralPath $destinationSkill -Destination $backupSkill -Recurse
+            $null = Assert-PathState -Expected $skillOriginalState -Label 'Skill destination after backup copy'
+            $null = Assert-PathState -Expected $backupState -Label 'Backup root after skill backup'
+            $backupSkillState = Get-PathState -Path $backupSkill -ExpectedType 'Directory' -Label 'Skill backup'
+            $null = Assert-DirectoryMirror -Expected $destinationSkill -Actual $backupSkill
+        }
+        foreach ($entry in $installAgents) {
+            if (-not $entry.OriginalState.Exists) { continue }
+            if ($null -eq $backupAgentsState) {
+                $backupAgentsState = Ensure-VerifiedDirectory -Path $backupAgentsRoot -AncestorState $backupState -Label 'Agent backup root' -CreatedDirectories $createdBackupDirectories
+            }
+            $backup = Join-Path $backupAgentsRoot "$($entry.Id).toml"
+            $null = Assert-PathState -Expected $entry.OriginalState -Label "Agent destination for $($entry.Id) during backup"
+            $null = Assert-PathState -Expected $backupAgentsState -Label "Agent backup root before copying $($entry.Id)"
+            $backupAbsent = Get-PathState -Path $backup -ExpectedType 'Any' -Label "Agent backup destination for $($entry.Id)"
+            if ($backupAbsent.Exists) { throw "Agent backup destination appeared before copy: $backup" }
+            $null = $backupArtifacts.Add([pscustomobject]@{ Path = $backup; ParentState = $backupAgentsState; Recurse = $false })
+            Copy-Item -LiteralPath $entry.Destination -Destination $backup
+            $null = Assert-PathState -Expected $entry.OriginalState -Label "Agent destination for $($entry.Id) after backup copy"
+            $null = Assert-PathState -Expected $backupAgentsState -Label "Agent backup root after copying $($entry.Id)"
+            $backupFileState = Get-PathState -Path $backup -ExpectedType 'File' -Label "Agent backup for $($entry.Id)"
+            Assert-FileHash -Expected $entry.Destination -Actual $backup -Label "Agent backup for $($entry.Id)"
+            $entry.Backup = $backup
+            $entry.BackupState = $backupFileState
+        }
     }
     if ($skillOriginalState.Exists) { $null = Assert-DirectoryMirror -Expected $destinationSkill -Actual $backupSkill }
     foreach ($entry in $installAgents) {
         if ($entry.OriginalState.Exists) { Assert-FileHash -Expected $entry.Destination -Actual $entry.Backup -Label "Verified backup for $($entry.Id)" }
     }
 
-    $skillsRootState = Ensure-VerifiedDirectory -Path $destinationSkillsRoot -AncestorState $codexAncestorState -Label 'Codex skills root'
-    $agentsRootState = Ensure-VerifiedDirectory -Path $destinationAgentsRoot -AncestorState $codexAncestorState -Label 'Codex agents root'
+    $skillsRootState = Ensure-VerifiedDirectory -Path $destinationSkillsRoot -AncestorState $codexHomeState -Label 'Codex skills root' -CreatedDirectories $createdDestinationDirectories
+    $agentsRootState = Ensure-VerifiedDirectory -Path $destinationAgentsRoot -AncestorState $codexHomeState -Label 'Codex agents root' -CreatedDirectories $createdDestinationDirectories
     $null = Assert-PathState -Expected $skillOriginalState -Label 'Skill destination immediately before transaction'
     foreach ($entry in $installAgents) { $null = Assert-PathState -Expected $entry.OriginalState -Label "Agent destination for $($entry.Id) immediately before transaction" }
     $transactionStarted = $true
@@ -518,6 +583,8 @@ try {
     }
     $skillIncomingAbsent = Get-PathState -Path $skillIncoming -ExpectedType 'Any' -Label 'Skill incoming path'
     $skillOldAbsent = Get-PathState -Path $skillOld -ExpectedType 'Any' -Label 'Skill rollback path'
+    $skillRecord = [pscustomobject]@{ Incoming = $skillIncoming; Old = $skillOld; OldState = $null; ParentState = $skillsRootState }
+    $null = $copyMutationRecords.Add([pscustomobject]@{ Path = $skillIncoming; ParentState = $skillsRootState; Recurse = $true })
     $null = Assert-PathState -Expected $stageSkillState -Label 'Staged skill before incoming copy'
     $null = Assert-PathState -Expected $skillsRootState -Label 'Codex skills root before incoming copy'
     $null = Assert-PathState -Expected $skillIncomingAbsent -Label 'Skill incoming path before copy'
@@ -526,7 +593,6 @@ try {
     $null = Assert-PathState -Expected $skillsRootState -Label 'Codex skills root after incoming copy'
     $skillIncomingState = Get-PathState -Path $skillIncoming -ExpectedType 'Directory' -Label 'Skill incoming path'
     $null = Assert-DirectoryMirror -Expected $stageSkill -Actual $skillIncoming
-    $skillRecord = [pscustomobject]@{ Incoming = $skillIncoming; Old = $skillOld; OldState = $null; ParentState = $skillsRootState }
     if ($skillOriginalState.Exists) {
         $null = Assert-DirectoryMirror -Expected $backupSkill -Actual $destinationSkill
         $skillOldState = Move-VerifiedItem -SourceState $skillOriginalState -DestinationState $skillOldAbsent -ParentState $skillsRootState -Label 'Preserve old skill'
@@ -546,6 +612,10 @@ try {
         }
         $incomingAbsent = Get-PathState -Path $incoming -ExpectedType 'Any' -Label "Agent incoming path for $($entry.Id)"
         $oldAbsent = Get-PathState -Path $old -ExpectedType 'Any' -Label "Agent rollback path for $($entry.Id)"
+        $entry.Incoming = $incoming
+        $entry.Old = $old
+        $entry.OldState = $null
+        $null = $copyMutationRecords.Add([pscustomobject]@{ Path = $incoming; ParentState = $agentsRootState; Recurse = $false })
         $null = Assert-PathState -Expected $entry.StagedState -Label "Staged agent $($entry.Id) before incoming copy"
         $null = Assert-PathState -Expected $agentsRootState -Label "Codex agents root before incoming copy for $($entry.Id)"
         $null = Assert-PathState -Expected $incomingAbsent -Label "Agent incoming path for $($entry.Id) before copy"
@@ -554,9 +624,6 @@ try {
         $null = Assert-PathState -Expected $agentsRootState -Label "Codex agents root after incoming copy for $($entry.Id)"
         $incomingState = Get-PathState -Path $incoming -ExpectedType 'File' -Label "Agent incoming path for $($entry.Id)"
         Assert-FileHash -Expected $entry.Staged -Actual $incoming -Label "Agent incoming path for $($entry.Id)"
-        $entry | Add-Member -NotePropertyName Incoming -NotePropertyValue $incoming
-        $entry | Add-Member -NotePropertyName Old -NotePropertyValue $old
-        $entry | Add-Member -NotePropertyName OldState -NotePropertyValue $null
         if ($entry.OriginalState.Exists) {
             Assert-FileHash -Expected $entry.Backup -Actual $entry.Destination -Label "Agent prestate for $($entry.Id)"
             $oldState = Move-VerifiedItem -SourceState $entry.OriginalState -DestinationState $oldAbsent -ParentState $agentsRootState -Label "Preserve old agent $($entry.Id)"
@@ -564,7 +631,7 @@ try {
         }
         $destinationAbsent = Get-PathState -Path $entry.Destination -ExpectedType 'Any' -Label "Agent destination for $($entry.Id) before activation"
         $installedState = Move-VerifiedItem -SourceState $incomingState -DestinationState $destinationAbsent -ParentState $agentsRootState -Label "Activate staged agent $($entry.Id)"
-        $entry | Add-Member -NotePropertyName InstalledState -NotePropertyValue $installedState
+        $entry.InstalledState = $installedState
         Assert-FileHash -Expected $entry.Source -Actual $entry.Destination -Label "Installed agent $($entry.Id)"
     }
 
@@ -611,6 +678,7 @@ try {
                             Assert-Disjoint -First $restoreIncoming -Second $packageRoot -Label 'Skill restore path and package root'
                             Assert-Disjoint -First $restoreIncoming -Second $BackupRoot -Label 'Skill restore path and backup root'
                             $restoreAbsent = Get-PathState -Path $restoreIncoming -ExpectedType 'Any' -Label 'Skill restore incoming path'
+                            $null = $copyMutationRecords.Add([pscustomobject]@{ Path = $restoreIncoming; ParentState = $skillsRootState; Recurse = $true })
                             $null = Assert-PathState -Expected $backupSkillState -Label 'Skill backup before restore copy'
                             $null = Assert-PathState -Expected $skillsRootState -Label 'Codex skills root before restore copy'
                             Copy-Item -LiteralPath $backupSkill -Destination $restoreIncoming -Recurse
@@ -647,6 +715,7 @@ try {
                             Assert-Disjoint -First $restoreIncoming -Second $packageRoot -Label "Agent restore path and package root for $($entry.Id)"
                             Assert-Disjoint -First $restoreIncoming -Second $BackupRoot -Label "Agent restore path and backup root for $($entry.Id)"
                             $restoreAbsent = Get-PathState -Path $restoreIncoming -ExpectedType 'Any' -Label "Agent restore incoming path for $($entry.Id)"
+                            $null = $copyMutationRecords.Add([pscustomobject]@{ Path = $restoreIncoming; ParentState = $agentsRootState; Recurse = $false })
                             $null = Assert-PathState -Expected $entry.BackupState -Label "Agent backup before restore copy for $($entry.Id)"
                             $null = Assert-PathState -Expected $agentsRootState -Label "Codex agents root before restore copy for $($entry.Id)"
                             Copy-Item -LiteralPath $entry.Backup -Destination $restoreIncoming
@@ -680,16 +749,30 @@ try {
         $currentStage = Get-PathState -Path $stageRoot -ExpectedType 'Directory' -Label 'Installer staging cleanup'
         if ($currentStage.Exists) { Remove-VerifiedItem -State $currentStage -ParentState $stageParentState -Recurse -Label 'Installer staging cleanup' }
     }
+    if ($copyMutationRecords.Count -gt 0) {
+        Remove-RegisteredPaths -Records $copyMutationRecords -Label 'Installer copy mutation cleanup'
+    }
+    if (-not $transactionStarted -and -not $transactionSucceeded) {
+        if ($backupArtifacts.Count -gt 0) {
+            Remove-RegisteredPaths -Records $backupArtifacts -Label 'Pre-transaction backup cleanup'
+        }
+        if ($createdBackupDirectories.Count -gt 0) {
+            Remove-CreatedEmptyDirectories -Records $createdBackupDirectories -Label 'Pre-transaction backup directory cleanup'
+        }
+        if ($createdDestinationDirectories.Count -gt 0) {
+            Remove-CreatedEmptyDirectories -Records $createdDestinationDirectories -Label 'Pre-transaction destination directory cleanup'
+        }
+    }
     if ($rollbackSucceeded) {
         if ($null -ne $skillRecord) {
-            foreach ($path in @($skillRecord.Incoming, $skillRecord.Old)) {
+            foreach ($path in @($skillRecord.Old)) {
                 if ([string]::IsNullOrWhiteSpace($path)) { continue }
                 $state = Get-PathState -Path $path -ExpectedType 'Any' -Label 'Skill transaction cleanup'
                 if ($state.Exists) { Remove-VerifiedItem -State $state -ParentState $skillsRootState -Recurse -Label 'Skill transaction cleanup' }
             }
         }
         foreach ($entry in $installAgents) {
-            foreach ($path in @($entry.Incoming, $entry.Old)) {
+            foreach ($path in @($entry.Old)) {
                 if ([string]::IsNullOrWhiteSpace($path)) { continue }
                 $state = Get-PathState -Path $path -ExpectedType 'Any' -Label "Agent transaction cleanup for $($entry.Id)"
                 if ($state.Exists) { Remove-VerifiedItem -State $state -ParentState $agentsRootState -Label "Agent transaction cleanup for $($entry.Id)" }
