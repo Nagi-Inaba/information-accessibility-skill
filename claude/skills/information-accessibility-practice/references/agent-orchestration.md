@@ -6,6 +6,8 @@
 
 The orchestration registry is authoritative for role output types and allowed state transitions. A transition is accepted only when its required artifact type is present, the artifact envelope names the role registered to produce that type, and the payload passes that type's schema. No AI role can record a profile outcome or produce `fix-authorization`. Only the non-default `authorized_fixer` role can write an audited target, and only after a validated `fix-authorization` produced by the declared external requester.
 
+The `input_types` array order is part of the canonical serialized role contract so registry artifacts remain deterministic. Task 5 must treat those values as an allowed-input set, not as semantic priority or execution order.
+
 An initial run uses `supersedes_run_id: null`. A new run that follows an authorized source change names the predecessor whose terminal state was `retest_required`; that predecessor relationship requires orchestration-level validation against the stored run, not merely string-shape validation.
 
 Before an input is registered, an orchestration validator must confirm that it belongs to the same run, that its exact SHA-256 matches, and that it names a registered artifact. JSON Schema fixes the required fields and their shapes but cannot compare values across stored records. Schema validation does not authenticate identity or grant authorization. `declared-human-review` and `fix-authorization` therefore record declarations and explicitly keep `identity_authenticated: false`.

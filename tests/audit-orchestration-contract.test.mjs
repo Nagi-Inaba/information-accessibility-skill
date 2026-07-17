@@ -331,6 +331,88 @@ test("boolean and malformed schema branches fail closed without throwing", async
   assert.ok(malformedErrors.some((error) => error.includes("allOf must be an array")));
 });
 
+test("schema preflight rejects empty, duplicate, unknown, and malformed type declarations", async () => {
+  const { validateJsonSchema } = await import(validatorUrl);
+  for (const [label, schema] of [
+    ["empty union", { type: [] }],
+    ["duplicate union member", { type: ["string", "string"] }],
+    ["unknown scalar type", { type: "mystery" }],
+    ["unknown union type", { type: ["string", "mystery"] }],
+    ["non-string union member", { type: ["string", 42] }]
+  ]) {
+    const errors = validateJsonSchema("value", schema);
+    assert.ok(errors.some((error) => error.startsWith("$schema")), `${label}: ${errors.join("; ")}`);
+  }
+
+  assert.deepEqual(validateJsonSchema("value", { type: ["string", "null"] }), []);
+});
+
+test("schema preflight validates every supported keyword shape before instance evaluation", async () => {
+  const { validateJsonSchema } = await import(validatorUrl);
+  const malformed = [
+    ["schema-valued additionalProperties", {}, { type: "object", additionalProperties: { type: "string" } }],
+    ["negative minItems", [], { type: "array", minItems: -1 }],
+    ["fractional minItems", [], { type: "array", minItems: 1.5 }],
+    ["negative maxItems", [], { type: "array", maxItems: -1 }],
+    ["fractional maxItems", [], { type: "array", maxItems: 1.5 }],
+    ["inverted item bounds", [], { type: "array", minItems: 2, maxItems: 1 }],
+    ["non-boolean uniqueItems", [], { type: "array", uniqueItems: "true" }],
+    ["malformed required", {}, { type: "object", required: "id" }],
+    ["non-string required entry", {}, { type: "object", required: [42] }],
+    ["duplicate required entry", { id: "x" }, { type: "object", required: ["id", "id"], properties: { id: { type: "string" } } }],
+    ["malformed properties", {}, { type: "object", properties: [] }],
+    ["malformed items", [], { type: "array", items: 42 }],
+    ["malformed allOf", "value", { allOf: { type: "string" } }],
+    ["empty allOf", "value", { allOf: [] }],
+    ["malformed if", "value", { if: 42, then: true }],
+    ["malformed then", "value", { if: true, then: 42 }],
+    ["malformed else", "value", { if: false, else: 42 }],
+    ["then without if", "value", { then: { const: "value" } }],
+    ["else without if", "value", { else: { const: "value" } }],
+    ["if without branch", "value", { if: { const: "value" } }],
+    ["non-string pattern", "42", { type: "string", pattern: 42 }],
+    ["negative minLength", "", { type: "string", minLength: -1 }],
+    ["fractional minLength", "", { type: "string", minLength: 1.5 }],
+    ["non-number minimum", 1, { type: "number", minimum: "0" }],
+    ["non-number maximum", 1, { type: "number", maximum: "2" }],
+    ["inverted numeric bounds", 1, { type: "number", minimum: 2, maximum: 1 }]
+  ];
+
+  for (const [label, value, schema] of malformed) {
+    const errors = validateJsonSchema(value, schema);
+    assert.ok(errors.some((error) => error.startsWith("$schema")), `${label}: ${errors.join("; ")}`);
+  }
+});
+
+test("schema preflight resolves local refs in conditionals and definitions without false cycles", async () => {
+  const { validateJsonSchema } = await import(validatorUrl);
+  for (const [label, schema] of [
+    ["conditional ref", {
+      if: { $ref: "#/$defs/missing" },
+      then: { const: "value" },
+      $defs: {}
+    }],
+    ["unused definition ref", {
+      type: "string",
+      $defs: { unused: { $ref: "#/$defs/missing" } }
+    }]
+  ]) {
+    const errors = validateJsonSchema("value", schema);
+    assert.ok(errors.some((error) => error.includes("unresolved local schema reference")), `${label}: ${errors.join("; ")}`);
+  }
+
+  const reusedRef = {
+    type: "object",
+    required: ["left", "right"],
+    properties: {
+      left: { $ref: "#/$defs/text" },
+      right: { $ref: "#/$defs/text" }
+    },
+    $defs: { text: { type: "string", minLength: 1 } }
+  };
+  assert.deepEqual(validateJsonSchema({ left: "one", right: "two" }, reusedRef), []);
+});
+
 test("the orchestration registry fixes the complete role, artifact, and transition contract", async () => {
   const registry = readReferenceJson("orchestration-registry.json");
   const expectedRoles = [
@@ -405,6 +487,69 @@ test("the registry schema rejects AI elevation, unauthorized writers, and unauth
     mutate(value);
     assert.notDeepEqual(await schemaErrors(value, "orchestration-registry.schema.json"), [], label);
   }
+});
+
+test("the registry schema rejects duplicate, missing, and replaced canonical roles", async () => {
+  const registry = readReferenceJson("orchestration-registry.json");
+
+  const duplicateAndMissing = structuredClone(registry);
+  duplicateAndMissing.roles[6] = structuredClone(duplicateAndMissing.roles[0]);
+  assert.notDeepEqual(await schemaErrors(duplicateAndMissing, "orchestration-registry.schema.json"), [], "duplicate orchestrator and missing authorized_fixer");
+
+  const replacement = structuredClone(registry);
+  const index = replacement.roles.findIndex((role) => role.id === "e1_inspector");
+  replacement.roles[index] = {
+    ...replacement.roles[index],
+    agent_id: "unrelated-agent",
+    input_types: ["change-record"],
+    output_type: "audit-run"
+  };
+  assert.notDeepEqual(await schemaErrors(replacement, "orchestration-registry.schema.json"), [], "same-length role replacement");
+});
+
+test("the registry schema pins each role agent and input contract", async () => {
+  const registry = readReferenceJson("orchestration-registry.json");
+  const acceptedAgentMutations = [];
+  const acceptedInputMutations = [];
+
+  for (let index = 0; index < registry.roles.length; index += 1) {
+    const role = registry.roles[index];
+
+    const wrongAgent = structuredClone(registry);
+    wrongAgent.roles[index].agent_id = role.agent_id === null ? "unrelated-agent" : `${role.agent_id}-unrelated`;
+    if ((await schemaErrors(wrongAgent, "orchestration-registry.schema.json")).length === 0) acceptedAgentMutations.push(role.id);
+
+    const wrongInputs = structuredClone(registry);
+    wrongInputs.roles[index].input_types = role.input_types.length === 0 ? ["screening-observations"] : [];
+    if ((await schemaErrors(wrongInputs, "orchestration-registry.schema.json")).length === 0) acceptedInputMutations.push(role.id);
+  }
+
+  assert.deepEqual(acceptedAgentMutations, [], `accepted unrelated agent IDs for: ${acceptedAgentMutations.join(", ")}`);
+  assert.deepEqual(acceptedInputMutations, [], `accepted wrong input types for: ${acceptedInputMutations.join(", ")}`);
+
+  const reorderedInputs = structuredClone(registry);
+  const orchestrator = reorderedInputs.roles.find((role) => role.id === "orchestrator");
+  orchestrator.input_types.reverse();
+  assert.notDeepEqual(
+    await schemaErrors(reorderedInputs, "orchestration-registry.schema.json"),
+    [],
+    "input_types order is part of the canonical serialized role contract"
+  );
+});
+
+test("the registry schema pins the output type for every canonical role", async () => {
+  const registry = readReferenceJson("orchestration-registry.json");
+  const outputs = registry.artifact_types.map((item) => item.id);
+  const acceptedOutputMutations = [];
+
+  for (let index = 0; index < registry.roles.length; index += 1) {
+    const role = registry.roles[index];
+    const value = structuredClone(registry);
+    value.roles[index].output_type = outputs.find((output) => output !== role.output_type);
+    if ((await schemaErrors(value, "orchestration-registry.schema.json")).length === 0) acceptedOutputMutations.push(role.id);
+  }
+
+  assert.deepEqual(acceptedOutputMutations, [], `accepted wrong output types for: ${acceptedOutputMutations.join(", ")}`);
 });
 
 test("the immutable audit-run schema accepts a bounded initial run", async () => {
@@ -652,6 +797,7 @@ test("the internal/public boundary prohibits orchestration metadata leakage", ()
   assert.match(boundary, /schema validation does not authenticate identity or grant authorization/i);
   assert.match(boundary, /does not execute commands or write the audited target/i);
   assert.match(boundary, /same run[^.]*exact SHA-256[^.]*registered artifact/i);
+  assert.match(boundary, /`input_types` array order is part of the canonical serialized role contract/i);
 
   const currentRenderer = read("codex/skills/information-accessibility-practice/scripts/render-audit-report.mjs");
   assert.doesNotMatch(currentRenderer, /orchestration-registry|audit-run\.schema|artifact_id|transition history/i);

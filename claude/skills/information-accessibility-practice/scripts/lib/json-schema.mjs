@@ -29,6 +29,8 @@ const supportedKeywords = new Set([
   "format"
 ]);
 
+const supportedTypes = new Set(["null", "array", "object", "integer", "number", "string", "boolean"]);
+
 function matchesSchemaType(value, expected) {
   if (expected === "null") return value === null;
   if (expected === "array") return Array.isArray(value);
@@ -53,62 +55,159 @@ function jsonEquals(left, right) {
     && leftKeys.every((key, index) => key === rightKeys[index] && jsonEquals(left[key], right[key]));
 }
 
-function inspectSchema(schema, location, errors, seen = new Set()) {
+function isSchemaObject(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function hasJsonDuplicates(values) {
+  return values.some((item, index) => values.slice(0, index).some((prior) => jsonEquals(prior, item)));
+}
+
+function inspectSchema(schema, location, errors, state) {
+  const context = state ?? {
+    rootSchema: schema,
+    active: new Set(),
+    visited: new Set()
+  };
   if (typeof schema === "boolean") return;
-  if (schema === null || typeof schema !== "object" || Array.isArray(schema)) {
+  if (!isSchemaObject(schema)) {
     errors.push(`${location} must be a schema object or boolean`);
     return;
   }
-  if (seen.has(schema)) return;
-  seen.add(schema);
+  if (context.visited.has(schema)) return;
+  context.active.add(schema);
 
   for (const keyword of Object.keys(schema)) {
     if (!supportedKeywords.has(keyword)) errors.push(`${location}.${keyword} is an unsupported schema keyword`);
   }
-  if (Object.hasOwn(schema, "$ref")) {
-    if (typeof schema.$ref !== "string" || !schema.$ref.startsWith("#/")) {
-      errors.push(`${location} contains an unsupported external schema reference`);
-    }
-  }
-  if (Object.hasOwn(schema, "pattern")) {
-    try {
-      new RegExp(schema.pattern, "u");
-    } catch (error) {
-      errors.push(`${location}.pattern is an invalid regular expression: ${error.message}`);
+
+  for (const keyword of ["$schema", "$id", "title", "description", "format"]) {
+    if (Object.hasOwn(schema, keyword) && typeof schema[keyword] !== "string") {
+      errors.push(`${location}.${keyword} must be a string`);
     }
   }
 
+  if (Object.hasOwn(schema, "$ref")) {
+    if (typeof schema.$ref !== "string" || !schema.$ref.startsWith("#/")) {
+      errors.push(`${location} contains an unsupported external schema reference`);
+    } else {
+      const resolved = resolveLocalReference(context.rootSchema, schema.$ref);
+      if (resolved === undefined) {
+        errors.push(`${location} contains an unresolved local schema reference: ${schema.$ref}`);
+      } else if (context.active.has(resolved)) {
+        errors.push(`${location} contains a cyclic schema reference: ${schema.$ref}`);
+      } else {
+        inspectSchema(resolved, `${location}.$ref(${schema.$ref})`, errors, context);
+      }
+    }
+  }
+
+  if (Object.hasOwn(schema, "type")) {
+    const declaredTypes = Array.isArray(schema.type) ? schema.type : [schema.type];
+    if (declaredTypes.length === 0) errors.push(`${location}.type must contain at least one schema type`);
+    if (declaredTypes.some((type) => typeof type !== "string" || !supportedTypes.has(type))) {
+      errors.push(`${location}.type contains an invalid schema type`);
+    }
+    if (new Set(declaredTypes).size !== declaredTypes.length) errors.push(`${location}.type must contain unique schema types`);
+  }
+
+  if (Object.hasOwn(schema, "enum")) {
+    if (!Array.isArray(schema.enum) || schema.enum.length === 0) {
+      errors.push(`${location}.enum must be a non-empty array`);
+    } else if (hasJsonDuplicates(schema.enum)) {
+      errors.push(`${location}.enum must contain unique values`);
+    }
+  }
+
+  if (Object.hasOwn(schema, "minLength") && (!Number.isInteger(schema.minLength) || schema.minLength < 0)) {
+    errors.push(`${location}.minLength must be a non-negative integer`);
+  }
+  if (Object.hasOwn(schema, "pattern")) {
+    if (typeof schema.pattern !== "string") {
+      errors.push(`${location}.pattern must be a string`);
+    } else {
+      try {
+        new RegExp(schema.pattern, "u");
+      } catch (error) {
+        errors.push(`${location}.pattern is an invalid regular expression: ${error.message}`);
+      }
+    }
+  }
+
+  for (const keyword of ["minimum", "maximum"]) {
+    if (Object.hasOwn(schema, keyword) && (typeof schema[keyword] !== "number" || !Number.isFinite(schema[keyword]))) {
+      errors.push(`${location}.${keyword} must be a finite number`);
+    }
+  }
+  if (typeof schema.minimum === "number" && typeof schema.maximum === "number" && schema.minimum > schema.maximum) {
+    errors.push(`${location}.minimum must not exceed maximum`);
+  }
+
+  for (const keyword of ["minItems", "maxItems"]) {
+    if (Object.hasOwn(schema, keyword) && (!Number.isInteger(schema[keyword]) || schema[keyword] < 0)) {
+      errors.push(`${location}.${keyword} must be a non-negative integer`);
+    }
+  }
+  if (Number.isInteger(schema.minItems) && Number.isInteger(schema.maxItems) && schema.minItems > schema.maxItems) {
+    errors.push(`${location}.minItems must not exceed maxItems`);
+  }
+  if (Object.hasOwn(schema, "uniqueItems") && typeof schema.uniqueItems !== "boolean") {
+    errors.push(`${location}.uniqueItems must be boolean`);
+  }
+
+  if (Object.hasOwn(schema, "required")) {
+    if (!Array.isArray(schema.required)) {
+      errors.push(`${location}.required must be an array`);
+    } else {
+      if (schema.required.some((item) => typeof item !== "string")) errors.push(`${location}.required must contain only strings`);
+      if (new Set(schema.required).size !== schema.required.length) errors.push(`${location}.required must contain unique names`);
+    }
+  }
+
+  if (Object.hasOwn(schema, "additionalProperties") && typeof schema.additionalProperties !== "boolean") {
+    errors.push(`${location}.additionalProperties must be boolean; schema-valued additionalProperties is unsupported`);
+  }
+
   const propertiesAreObject = schema.properties === undefined
-    || (schema.properties !== null && typeof schema.properties === "object" && !Array.isArray(schema.properties));
+    || isSchemaObject(schema.properties);
   if (!propertiesAreObject) {
     errors.push(`${location}.properties must be an object`);
   } else {
     for (const [key, childSchema] of Object.entries(schema.properties ?? {})) {
-      inspectSchema(childSchema, `${location}.properties.${key}`, errors, seen);
+      inspectSchema(childSchema, `${location}.properties.${key}`, errors, context);
     }
   }
   const definitionsAreObject = schema.$defs === undefined
-    || (schema.$defs !== null && typeof schema.$defs === "object" && !Array.isArray(schema.$defs));
+    || isSchemaObject(schema.$defs);
   if (!definitionsAreObject) {
     errors.push(`${location}.$defs must be an object`);
   } else {
     for (const [key, childSchema] of Object.entries(schema.$defs ?? {})) {
-      inspectSchema(childSchema, `${location}.$defs.${key}`, errors, seen);
+      inspectSchema(childSchema, `${location}.$defs.${key}`, errors, context);
     }
   }
-  if (Object.hasOwn(schema, "items")) inspectSchema(schema.items, `${location}.items`, errors, seen);
-  if (schema.allOf !== undefined && !Array.isArray(schema.allOf)) {
+  if (Object.hasOwn(schema, "items")) inspectSchema(schema.items, `${location}.items`, errors, context);
+  if (Object.hasOwn(schema, "allOf") && !Array.isArray(schema.allOf)) {
     errors.push(`${location}.allOf must be an array`);
+  } else if (Array.isArray(schema.allOf) && schema.allOf.length === 0) {
+    errors.push(`${location}.allOf must be a non-empty array`);
   } else {
     for (const [index, childSchema] of (schema.allOf ?? []).entries()) {
-      inspectSchema(childSchema, `${location}.allOf[${index}]`, errors, seen);
+      inspectSchema(childSchema, `${location}.allOf[${index}]`, errors, context);
     }
   }
-  if (schema.required !== undefined && !Array.isArray(schema.required)) errors.push(`${location}.required must be an array`);
-  if (schema.enum !== undefined && !Array.isArray(schema.enum)) errors.push(`${location}.enum must be an array`);
   for (const keyword of ["if", "then", "else"]) {
-    if (Object.hasOwn(schema, keyword)) inspectSchema(schema[keyword], `${location}.${keyword}`, errors, seen);
+    if (Object.hasOwn(schema, keyword)) inspectSchema(schema[keyword], `${location}.${keyword}`, errors, context);
   }
+  if (!Object.hasOwn(schema, "if") && (Object.hasOwn(schema, "then") || Object.hasOwn(schema, "else"))) {
+    errors.push(`${location}.then and else require if in the supported schema subset`);
+  }
+  if (Object.hasOwn(schema, "if") && !Object.hasOwn(schema, "then") && !Object.hasOwn(schema, "else")) {
+    errors.push(`${location}.if requires then or else in the supported schema subset`);
+  }
+
+  context.active.delete(schema);
+  context.visited.add(schema);
 }
 
 function resolveLocalReference(rootSchema, reference) {

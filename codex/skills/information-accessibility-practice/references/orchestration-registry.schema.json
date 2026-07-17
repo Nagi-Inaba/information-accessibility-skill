@@ -12,7 +12,89 @@
       "type": "array",
       "minItems": 7,
       "maxItems": 7,
-      "items": { "$ref": "#/$defs/role" }
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/role",
+        "enum": [
+          {
+            "id": "orchestrator",
+            "agent_id": "information-accessibility-reviewer",
+            "producer_kind": "ai_agent",
+            "input_types": ["screening-observations", "human-review-queue", "declared-human-review", "remediation-plan", "fix-authorization", "change-record"],
+            "output_type": "audit-run",
+            "max_ai_evidence_level": "E1",
+            "can_record_profile_outcome": false,
+            "can_write_target": false,
+            "install_by_default": true
+          },
+          {
+            "id": "e1_inspector",
+            "agent_id": "information-accessibility-e1-inspector",
+            "producer_kind": "ai_agent",
+            "input_types": [],
+            "output_type": "screening-observations",
+            "max_ai_evidence_level": "E1",
+            "can_record_profile_outcome": false,
+            "can_write_target": false,
+            "install_by_default": true
+          },
+          {
+            "id": "human_queue_planner",
+            "agent_id": "information-accessibility-human-queue-planner",
+            "producer_kind": "ai_agent",
+            "input_types": ["screening-observations"],
+            "output_type": "human-review-queue",
+            "max_ai_evidence_level": "E1",
+            "can_record_profile_outcome": false,
+            "can_write_target": false,
+            "install_by_default": true
+          },
+          {
+            "id": "declared_external_human",
+            "agent_id": null,
+            "producer_kind": "external_human",
+            "input_types": ["human-review-queue"],
+            "output_type": "declared-human-review",
+            "max_ai_evidence_level": null,
+            "can_record_profile_outcome": true,
+            "can_write_target": false,
+            "install_by_default": false
+          },
+          {
+            "id": "remediation_planner",
+            "agent_id": "information-accessibility-remediation-planner",
+            "producer_kind": "ai_agent",
+            "input_types": ["screening-observations", "declared-human-review"],
+            "output_type": "remediation-plan",
+            "max_ai_evidence_level": "E1",
+            "can_record_profile_outcome": false,
+            "can_write_target": false,
+            "install_by_default": true
+          },
+          {
+            "id": "declared_authorizer",
+            "agent_id": null,
+            "producer_kind": "external_requester",
+            "input_types": ["remediation-plan"],
+            "output_type": "fix-authorization",
+            "max_ai_evidence_level": null,
+            "can_record_profile_outcome": false,
+            "can_write_target": false,
+            "install_by_default": false
+          },
+          {
+            "id": "authorized_fixer",
+            "agent_id": "information-accessibility-authorized-fixer",
+            "producer_kind": "ai_agent",
+            "input_types": ["remediation-plan", "fix-authorization"],
+            "output_type": "change-record",
+            "max_ai_evidence_level": "E1",
+            "can_record_profile_outcome": false,
+            "can_write_target": true,
+            "install_by_default": false
+          }
+        ]
+      }
     },
     "artifact_types": {
       "type": "array",
