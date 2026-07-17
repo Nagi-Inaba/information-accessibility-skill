@@ -69,6 +69,7 @@ function validAuditRun() {
     resource_versions: {
       standards_registry_version: "1.0.0",
       orchestration_registry_version: "1.0.0",
+      orchestration_registry_sha256: "75485a0c4c616261963f1cdc92f39841ac6d31a668e789431eb0b5a35fa90fe5",
       criteria_catalog_sha256: sha256,
       criterion_procedures_sha256: sha256,
       audit_methods_sha256: sha256

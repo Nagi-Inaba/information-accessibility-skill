@@ -67,10 +67,11 @@
     "resource_versions": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["standards_registry_version", "orchestration_registry_version", "criteria_catalog_sha256", "criterion_procedures_sha256", "audit_methods_sha256"],
+      "required": ["standards_registry_version", "orchestration_registry_version", "orchestration_registry_sha256", "criteria_catalog_sha256", "criterion_procedures_sha256", "audit_methods_sha256"],
       "properties": {
         "standards_registry_version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
         "orchestration_registry_version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
+        "orchestration_registry_sha256": { "$ref": "#/$defs/sha256" },
         "criteria_catalog_sha256": { "$ref": "#/$defs/sha256" },
         "criterion_procedures_sha256": { "$ref": "#/$defs/sha256" },
         "audit_methods_sha256": { "$ref": "#/$defs/sha256" }
