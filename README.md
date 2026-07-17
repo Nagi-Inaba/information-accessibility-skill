@@ -25,7 +25,11 @@ codex/
     scripts/show-requirement.mjs
     scripts/validate-assessment.mjs
     references/
-  agents/information-accessibility-reviewer.toml
+  agents/
+    information-accessibility-reviewer.toml
+    information-accessibility-e1-inspector.toml
+    information-accessibility-human-queue-planner.toml
+    information-accessibility-remediation-planner.toml
 claude/
   skills/information-accessibility-practice/
     assets/assessment-record.template.json
@@ -34,7 +38,11 @@ claude/
     scripts/show-requirement.mjs
     scripts/validate-assessment.mjs
     references/
-  agents/information-accessibility-reviewer.md
+  agents/
+    information-accessibility-reviewer.md
+    information-accessibility-e1-inspector.md
+    information-accessibility-human-queue-planner.md
+    information-accessibility-remediation-planner.md
 scripts/verify-package.ps1
 scripts/verify-package.mjs
 scripts/install-codex.ps1
@@ -127,17 +135,20 @@ node ./codex/skills/information-accessibility-practice/scripts/render-audit-repo
 Codex で使う場合:
 
 1. `codex/skills/information-accessibility-practice/` を Codex の `skills/` 配下に配置する。
-2. `codex/agents/information-accessibility-reviewer.toml` を Codex の `agents/` 配下に配置する。
-3. 情報アクセシビリティを確認したい資料、Webページ、UI、イベント案内などに対して `information-accessibility-practice` を使う。
+2. `shared/agents/agent-manifest.json` の `install_by_default: true` である4件の `.toml` を、Codex の `agents/` 配下へ配置する。
+3. 既定の4件は、`information-accessibility-reviewer`、`information-accessibility-e1-inspector`、`information-accessibility-human-queue-planner`、`information-accessibility-remediation-planner` である。
+4. 情報アクセシビリティを確認したい資料、Webページ、UI、イベント案内などに対して `information-accessibility-practice` を使う。
 
-Windowsでは、バックアップ付きインストーラーを利用できます。`-WhatIf` は配置先を変更しません。
+Windowsでは、マニフェストを読み取るバックアップ付きインストーラーを利用できます。`-WhatIf` は選択したエージェントIDと全配置先を表示するだけで、`CodexHome` と `BackupRoot` を作成または変更しません。
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File ".\scripts\install-codex.ps1" -WhatIf
 powershell -ExecutionPolicy Bypass -File ".\scripts\install-codex.ps1"
 ```
 
-`CODEX_HOME` が設定されていればその場所を使用し、未設定の場合は `~/.codex` へ配置します。既存のスキルとエージェントは、配置前に `backups/information-accessibility-practice/<timestamp>/` へ退避されます。
+`CODEX_HOME` が設定されていればその場所を使用し、未設定の場合は `~/.codex` へ配置します。既存のスキルは `backups/information-accessibility-practice/<timestamp>/skill/` へ、既存のマニフェスト管理エージェントは `agents/<agent-id>.toml` へ退避されます。配置の途中で失敗した場合は、置換済みのスキルと選択済みエージェントだけをバックアップから復元し、無関係なユーザーエージェントには触れません。
+
+`information-accessibility-authorized-fixer` は既定では導入されません。Task 8でマニフェストへ追加された後だけ、`-IncludeAuthorizedFixer` を明示して導入できます。現行パッケージでこのスイッチを指定すると、fixerが未収録であるためインストーラーは拒否します。
 
 Claude で使う場合:
 

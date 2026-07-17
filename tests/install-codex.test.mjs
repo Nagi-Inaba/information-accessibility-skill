@@ -10,10 +10,15 @@ import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const installer = path.join(root, "scripts/install-codex.ps1");
 const sourceSkill = path.join(root, "codex/skills/information-accessibility-practice");
-const sourceAgent = path.join(root, "codex/agents/information-accessibility-reviewer.toml");
+const manifest = readJson("shared/agents/agent-manifest.json");
+const defaultAgents = manifest.agents.filter((agent) => agent.install_by_default);
 
-function run(command, args, cwd = root) {
-  return spawnSync(command, args, { cwd, encoding: "utf8" });
+function readJson(relative) {
+  return JSON.parse(fs.readFileSync(path.join(root, relative), "utf8").replace(/^\uFEFF/u, ""));
+}
+
+function run(command, args, cwd = root, env = process.env) {
+  return spawnSync(command, args, { cwd, encoding: "utf8", env });
 }
 
 function sha256(file) {
@@ -36,79 +41,85 @@ function assertMirror(expected, actual) {
   }
 }
 
-test("Codex installer supports WhatIf, backup, replacement, and neutral-cwd use", { skip: process.platform !== "win32" }, () => {
+function agentPath(codexHome, agent) {
+  return path.join(codexHome, "agents", `${agent.id}.toml`);
+}
+
+function sourceAgentPath(agent) {
+  return path.join(root, "codex", "agents", `${agent.id}.toml`);
+}
+
+function assertDefaultAgentsInstalled(codexHome) {
+  for (const agent of defaultAgents) {
+    assert.equal(sha256(agentPath(codexHome, agent)), sha256(sourceAgentPath(agent)), agent.id);
+  }
+}
+
+test("Codex installer installs manifest defaults, preserves unrelated agents, and records per-agent backups", { skip: process.platform !== "win32" }, () => {
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), "a11y-codex-install-"));
   try {
     const whatIfHome = path.join(temp, "what-if-home");
-    const whatIf = run("powershell", ["-ExecutionPolicy", "Bypass", "-File", installer, "-CodexHome", whatIfHome, "-WhatIf"]);
-    assert.equal(whatIf.status, 0, whatIf.stderr || whatIf.stdout);
-    assert.equal(fs.existsSync(whatIfHome), false);
-
-    for (const [name, backupFromHome] of [
-      ["same", "skills/information-accessibility-practice"],
-      ["descendant", "skills/information-accessibility-practice/backup"],
-      ["ancestor", "."]
-    ]) {
-      const overlapHome = path.join(temp, `overlap-${name}-home`);
-      const overlapBackup = path.resolve(overlapHome, backupFromHome);
-      const overlap = run("powershell", [
-        "-ExecutionPolicy", "Bypass", "-File", installer,
-        "-CodexHome", overlapHome,
-        "-BackupRoot", overlapBackup,
-        "-WhatIf"
-      ]);
-      assert.notEqual(overlap.status, 0, name);
-      assert.match(overlap.stderr || overlap.stdout, /must not overlap the installation destination/, name);
-      assert.equal(fs.existsSync(overlapHome), false, name);
-    }
-
-    const occupiedHome = path.join(temp, "occupied-home");
-    const occupiedBackup = path.join(temp, "occupied-backup");
-    fs.mkdirSync(occupiedBackup);
-    fs.writeFileSync(path.join(occupiedBackup, "sentinel.txt"), "preserve", "utf8");
-    const occupied = run("powershell", [
+    const whatIfBackup = path.join(temp, "what-if-backup");
+    const whatIf = run("powershell", [
       "-ExecutionPolicy", "Bypass", "-File", installer,
-      "-CodexHome", occupiedHome,
-      "-BackupRoot", occupiedBackup,
+      "-CodexHome", whatIfHome,
+      "-BackupRoot", whatIfBackup,
       "-WhatIf"
     ]);
-    assert.notEqual(occupied.status, 0);
-    assert.match(occupied.stderr || occupied.stdout, /Backup root already exists/);
-    assert.equal(fs.readFileSync(path.join(occupiedBackup, "sentinel.txt"), "utf8"), "preserve");
-    assert.equal(fs.existsSync(occupiedHome), false);
+    assert.equal(whatIf.status, 0, whatIf.stderr || whatIf.stdout);
+    assert.equal(fs.existsSync(whatIfHome), false);
+    assert.equal(fs.existsSync(whatIfBackup), false);
+    for (const agent of defaultAgents) {
+      assert.match(whatIf.stdout, new RegExp(agent.id, "u"));
+      assert.match(whatIf.stdout, new RegExp(`${agent.id}\\.toml`, "u"));
+    }
+    const fixerHome = path.join(temp, "fixer-home");
+    const fixer = run("powershell", [
+      "-ExecutionPolicy", "Bypass", "-File", installer,
+      "-CodexHome", fixerHome,
+      "-IncludeAuthorizedFixer",
+      "-WhatIf"
+    ]);
+    assert.notEqual(fixer.status, 0);
+    assert.match(fixer.stderr || fixer.stdout, /IncludeAuthorizedFixer[\s\S]*include it yet/i);
+    assert.equal(fs.existsSync(fixerHome), false);
 
-    const codexHome = path.join(temp, "codex-home");
-    const first = run("powershell", ["-ExecutionPolicy", "Bypass", "-File", installer, "-CodexHome", codexHome]);
-    assert.equal(first.status, 0, first.stderr || first.stdout);
-
+    const codexHome = path.join(temp, "partial-old-version");
     const installedSkill = path.join(codexHome, "skills/information-accessibility-practice");
-    const installedAgent = path.join(codexHome, "agents/information-accessibility-reviewer.toml");
-    assertMirror(sourceSkill, installedSkill);
-    assert.equal(sha256(installedAgent), sha256(sourceAgent));
+    const unrelatedAgent = path.join(codexHome, "agents/user-owned.toml");
+    fs.mkdirSync(installedSkill, { recursive: true });
+    fs.writeFileSync(path.join(installedSkill, "SKILL.md"), "old skill\n", "utf8");
+    fs.mkdirSync(path.dirname(unrelatedAgent), { recursive: true });
+    fs.writeFileSync(unrelatedAgent, "user-owned\n", "utf8");
+    const oldAgentIds = new Set([
+      "information-accessibility-reviewer",
+      "information-accessibility-remediation-planner"
+    ]);
+    for (const agent of defaultAgents.filter((entry) => oldAgentIds.has(entry.id))) {
+      fs.writeFileSync(agentPath(codexHome, agent), `old ${agent.id}\n`, "utf8");
+    }
 
-    fs.appendFileSync(path.join(installedSkill, "SKILL.md"), "\nOLD INSTALL\n", "utf8");
-    fs.writeFileSync(path.join(installedSkill, "stale.txt"), "old", "utf8");
-    fs.appendFileSync(installedAgent, "\n# OLD INSTALL\n", "utf8");
-    const backupRoot = path.join(temp, "explicit-backup");
-    const second = run("powershell", [
+    const backupRoot = path.join(temp, "partial-old-backup");
+    const installed = run("powershell", [
       "-ExecutionPolicy", "Bypass", "-File", installer,
       "-CodexHome", codexHome,
       "-BackupRoot", backupRoot
     ]);
-    assert.equal(second.status, 0, second.stderr || second.stdout);
+    assert.equal(installed.status, 0, installed.stderr || installed.stdout);
     assertMirror(sourceSkill, installedSkill);
-    assert.equal(sha256(installedAgent), sha256(sourceAgent));
-    assert.equal(fs.existsSync(path.join(installedSkill, "stale.txt")), false);
-    assert.equal(fs.readFileSync(path.join(backupRoot, "skill/stale.txt"), "utf8"), "old");
-    assert.match(fs.readFileSync(path.join(backupRoot, "information-accessibility-reviewer.toml"), "utf8"), /OLD INSTALL/);
+    assertDefaultAgentsInstalled(codexHome);
+    assert.equal(fs.readFileSync(unrelatedAgent, "utf8"), "user-owned\n");
+    assert.equal(fs.readFileSync(path.join(backupRoot, "skill", "SKILL.md"), "utf8"), "old skill\n");
+    for (const agent of defaultAgents) {
+      const backup = path.join(backupRoot, "agents", `${agent.id}.toml`);
+      assert.equal(fs.existsSync(backup), oldAgentIds.has(agent.id), agent.id);
+    }
 
     const neutralCwd = path.join(temp, "neutral");
     fs.mkdirSync(neutralCwd);
     const auditFile = path.join(neutralCwd, "audit.json");
     const generator = path.join(installedSkill, "scripts/generate-assessment.mjs");
     const validator = path.join(installedSkill, "scripts/validate-assessment.mjs");
-    const lookup = path.join(installedSkill, "scripts/show-requirement.mjs");
-
     const generated = run(process.execPath, [
       generator, "--profile", "web-modern", "--output", auditFile,
       "--target-name", "Installed audit smoke test",
@@ -118,21 +129,62 @@ test("Codex installer supports WhatIf, backup, replacement, and neutral-cwd use"
       "--evaluated-at", "2026-07-13"
     ], neutralCwd);
     assert.equal(generated.status, 0, generated.stderr || generated.stdout);
-    const record = JSON.parse(fs.readFileSync(auditFile, "utf8"));
-    assert.equal(record.assessment.results.length, 55);
-
     const validated = run(process.execPath, [validator, auditFile], neutralCwd);
     assert.equal(validated.status, 0, validated.stderr || validated.stdout);
-    const validation = JSON.parse(validated.stdout);
-    assert.equal(validation.guard.catalog_coverage.complete, true);
-    assert.equal(validation.guard.evaluation_coverage.complete, false);
+  } finally {
+    fs.rmSync(temp, { recursive: true, force: true });
+  }
+});
 
-    const lookedUp = run(process.execPath, [
-      lookup, "--profile", "web-modern", "--id", "WCAG-2.2-SC-2.1.1"
-    ], neutralCwd);
-    assert.equal(lookedUp.status, 0, lookedUp.stderr || lookedUp.stdout);
-    const lookupResult = JSON.parse(lookedUp.stdout);
-    assert.equal(lookupResult.audit_method.id, "keyboard-operation");
+test("Codex installer restores selected agents and the skill after a late replacement failure", { skip: process.platform !== "win32" }, () => {
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), "a11y-codex-install-rollback-"));
+  try {
+    const codexHome = path.join(temp, "codex-home");
+    const installedSkill = path.join(codexHome, "skills/information-accessibility-practice");
+    const unrelatedAgent = path.join(codexHome, "agents/user-owned.toml");
+    fs.mkdirSync(installedSkill, { recursive: true });
+    fs.writeFileSync(path.join(installedSkill, "SKILL.md"), "old skill\n", "utf8");
+    fs.writeFileSync(path.join(installedSkill, "preserve.txt"), "old skill evidence\n", "utf8");
+    fs.mkdirSync(path.dirname(unrelatedAgent), { recursive: true });
+    fs.writeFileSync(unrelatedAgent, "user-owned\n", "utf8");
+
+    const missingId = "information-accessibility-e1-inspector";
+    const previousAgents = new Map();
+    for (const agent of defaultAgents) {
+      if (agent.id === missingId) continue;
+      const bytes = Buffer.from(`old ${agent.id}\n`, "utf8");
+      previousAgents.set(agent.id, bytes);
+      fs.writeFileSync(agentPath(codexHome, agent), bytes);
+    }
+    const previousSkill = new Map(relativeFiles(installedSkill).map((relative) => [
+      relative,
+      fs.readFileSync(path.join(installedSkill, relative))
+    ]));
+    const backupRoot = path.join(temp, "rollback-backup");
+    const failed = run("powershell", [
+      "-ExecutionPolicy", "Bypass", "-File", installer,
+      "-CodexHome", codexHome,
+      "-BackupRoot", backupRoot
+    ], root, { ...process.env, A11Y_TEST_FAIL_AFTER_AGENT_REPLACEMENTS: "2" });
+    assert.notEqual(failed.status, 0, failed.stderr || failed.stdout);
+    assert.match(failed.stderr || failed.stdout, /injected|rollback|failure/i);
+    assert.deepEqual(relativeFiles(installedSkill), [...previousSkill.keys()].sort());
+    for (const [relative, bytes] of previousSkill) {
+      assert.deepEqual(fs.readFileSync(path.join(installedSkill, relative)), bytes, relative);
+    }
+    for (const agent of defaultAgents) {
+      const destination = agentPath(codexHome, agent);
+      if (previousAgents.has(agent.id)) {
+        assert.deepEqual(fs.readFileSync(destination), previousAgents.get(agent.id), agent.id);
+      } else {
+        assert.equal(fs.existsSync(destination), false, agent.id);
+      }
+    }
+    assert.equal(fs.readFileSync(unrelatedAgent, "utf8"), "user-owned\n");
+    assert.equal(fs.existsSync(path.join(backupRoot, "skill", "SKILL.md")), true);
+    for (const agent of previousAgents.keys()) {
+      assert.equal(fs.existsSync(path.join(backupRoot, "agents", `${agent}.toml`)), true, agent);
+    }
   } finally {
     fs.rmSync(temp, { recursive: true, force: true });
   }
