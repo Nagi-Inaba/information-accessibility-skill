@@ -1,6 +1,6 @@
 ---
 name: "information-accessibility-e1-inspector"
-description: "Inspects an exact accessibility-audit target without changing state and returns validated E0/E1 screening observations for human review."
+description: "Inspects an exact accessibility-audit target without changing state and returns candidate E0/E1 screening observations for human review."
 tools: ["Read","Grep","Glob","Bash"]
 model: "sonnet"
 effort: "medium"

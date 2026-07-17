@@ -266,6 +266,158 @@ function expectedRunBackedLimitations(evidence) {
   return limitations;
 }
 
+function addString(values, value) {
+  if (typeof value === "string" && value.length > 0) values.add(value);
+}
+
+function collectSchemaEnumValues(schema, propertyNames, values) {
+  if (!schema || typeof schema !== "object") return;
+  if (Array.isArray(schema)) {
+    for (const item of schema) collectSchemaEnumValues(item, propertyNames, values);
+    return;
+  }
+  for (const [name, value] of Object.entries(schema)) {
+    if (propertyNames.has(name) && value && typeof value === "object") {
+      for (const item of value.enum ?? []) addString(values, item);
+      addString(values, value.const);
+    }
+    collectSchemaEnumValues(value, propertyNames, values);
+  }
+}
+
+function collectSchemaIdPatterns(schema, patterns) {
+  if (!schema || typeof schema !== "object") return;
+  if (Array.isArray(schema)) {
+    for (const item of schema) collectSchemaIdPatterns(item, patterns);
+    return;
+  }
+  if (typeof schema.pattern === "string" && /(?:RUN|ART)-/u.test(schema.pattern)) {
+    patterns.add(schema.pattern.replace(/^\^/u, "").replace(/\$$/u, ""));
+  }
+  for (const value of Object.values(schema)) collectSchemaIdPatterns(value, patterns);
+}
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+}
+
+function containsIdentifierToken(value, token) {
+  return new RegExp(`(?:^|[^A-Za-z0-9_-])${escapeRegExp(token)}(?=$|[^A-Za-z0-9_-])`, "u").test(value);
+}
+
+function visitStrings(value, location, visit) {
+  if (typeof value === "string") {
+    visit(value, location);
+    return;
+  }
+  if (Array.isArray(value)) {
+    value.forEach((item, index) => visitStrings(item, `${location}[${index}]`, visit));
+    return;
+  }
+  if (value && typeof value === "object") {
+    for (const [key, item] of Object.entries(value)) visitStrings(item, `${location}.${key}`, visit);
+  }
+}
+
+function internalControlTerms({ run, envelopesById, resources }) {
+  const terms = new Set();
+  addString(terms, run.run_id);
+  addString(terms, run.supersedes_run_id);
+  addString(terms, run.status);
+  for (const artifact of run.artifacts ?? []) {
+    addString(terms, artifact.artifact_id);
+    addString(terms, artifact.artifact_type);
+    addString(terms, artifact.producer_role);
+  }
+  for (const entry of run.history ?? []) {
+    addString(terms, entry.from);
+    addString(terms, entry.to);
+    addString(terms, entry.actor_role);
+    for (const artifactId of entry.artifact_ids ?? []) addString(terms, artifactId);
+  }
+  for (const record of envelopesById.values()) {
+    const envelope = envelopeFromRecord(record);
+    addString(terms, envelope?.artifact_id);
+    addString(terms, envelope?.artifact_type);
+    addString(terms, envelope?.run_id);
+    addString(terms, envelope?.producer?.role_id);
+    addString(terms, envelope?.producer?.producer_kind);
+    for (const input of envelope?.inputs ?? []) {
+      addString(terms, input?.artifact_id);
+      addString(terms, input?.run_id);
+    }
+  }
+  for (const role of resources?.orchestrationRegistry?.roles ?? []) {
+    addString(terms, role.id);
+    addString(terms, role.agent_id);
+  }
+  for (const transition of resources?.orchestrationRegistry?.transitions ?? []) {
+    addString(terms, transition.from);
+    addString(terms, transition.to);
+    for (const type of transition.required_artifact_types ?? []) addString(terms, type);
+  }
+  const schemaPropertyNames = new Set(["basis", "mapping_status", "requested_tier"]);
+  collectSchemaEnumValues(resources?.assessmentSchema, schemaPropertyNames, terms);
+  for (const schemas of resources?.payloadSchemas?.values?.() ?? []) {
+    for (const schema of schemas.values()) collectSchemaEnumValues(schema, schemaPropertyNames, terms);
+  }
+  return new Set([...terms].filter((term) => /[_-]/u.test(term)));
+}
+
+function internalIdPatterns(resources) {
+  const patterns = new Set();
+  collectSchemaIdPatterns(resources?.auditRunSchema, patterns);
+  collectSchemaIdPatterns(resources?.envelopeSchema, patterns);
+  return [...patterns].map((source) => new RegExp(source, "u"));
+}
+
+function assertPublicReportModelHasNoInternalControlMetadata(model, context) {
+  const terms = internalControlTerms(context);
+  const idPatterns = internalIdPatterns(context.resources);
+  visitStrings(model, "public_model", (value, location) => {
+    for (const term of terms) {
+      if (containsIdentifierToken(value, term)) {
+        throw new Error(`Run-backed public report contains internal control metadata at ${location}.`);
+      }
+    }
+    for (const pattern of idPatterns) {
+      if (pattern.test(value)) {
+        throw new Error(`Run-backed public report contains internal control metadata at ${location}.`);
+      }
+    }
+  });
+}
+
+function publicFinding(finding) {
+  if (!finding) return null;
+  return {
+    priority: finding.priority,
+    location: finding.location,
+    affected_users: structuredClone(finding.affected_users),
+    observation: finding.observation,
+    remediation: finding.remediation,
+    verification: finding.verification
+  };
+}
+
+function publicRemediationReference(item) {
+  if (!item) return null;
+  return {
+    proposed_change: item.proposed_change,
+    verification: item.verification,
+    owner: item.owner ?? null,
+    residual_limitation: item.residual_limitation
+  };
+}
+
+function publicClaimTier(requestedTier) {
+  return ({
+    reference_only: "Reference only",
+    evaluated_subset: "Evaluated subset",
+    organization_ready: "Organization-ready evidence"
+  })[requestedTier] ?? "Not recorded";
+}
+
 export function validateRunBackedAssessment({ run, assessment, envelopesById, resources }) {
   const record = assessment?.assessment;
   if (!record) throw new Error("Run-backed report requires an assessment record.");
@@ -387,7 +539,7 @@ export function validateRunBackedAssessment({ run, assessment, envelopesById, re
   return evidence;
 }
 
-export function buildPublicReportModel({ run, assessment, envelopesById }) {
+export function buildPublicReportModel({ run, assessment, envelopesById, resources }) {
   const evidence = collectRunEvidence(envelopesById);
   const reviewedIds = new Set(evidence.humanReviews.map((review) => review.requirement_id));
   const resultByRequirement = new Map(assessment.assessment.results.map((result) => [result.requirement_id, result]));
@@ -416,11 +568,11 @@ export function buildPublicReportModel({ run, assessment, envelopesById }) {
       .map((remediation) => ({
         requirement_id: review.requirement_id,
         rationale: review.rationale,
-        finding: findingById.get(remediation.remediation_id) ?? null,
-        remediation: remediationById.get(remediation.remediation_id)
+        finding: publicFinding(findingById.get(remediation.remediation_id)),
+        remediation: publicRemediationReference(remediationById.get(remediation.remediation_id))
       })))
     .sort((left, right) => String(left.requirement_id).localeCompare(String(right.requirement_id), "en")
-      || left.remediation.remediation_id.localeCompare(right.remediation.remediation_id, "en"));
+      || String(left.remediation?.proposed_change ?? "").localeCompare(String(right.remediation?.proposed_change ?? ""), "en"));
   const screeningCandidates = evidence.screeningObservations
     .flatMap((observation) => {
       const remediations = evidence.remediationItems
@@ -428,12 +580,12 @@ export function buildPublicReportModel({ run, assessment, envelopesById }) {
         .sort((left, right) => left.remediation_id.localeCompare(right.remediation_id, "en"));
       return (remediations.length ? remediations : [null]).map((remediation) => ({
         ...observation,
-        remediation,
+        remediation: publicRemediationReference(remediation),
         assessment_outcome: resultByRequirement.get(observation.requirement_id)?.outcome
       }));
     })
     .sort((left, right) => String(left.requirement_id).localeCompare(String(right.requirement_id), "en")
-      || String(left.remediation?.remediation_id ?? "").localeCompare(String(right.remediation?.remediation_id ?? ""), "en"));
+      || String(left.remediation?.proposed_change ?? "").localeCompare(String(right.remediation?.proposed_change ?? ""), "en"));
   const remediation = [...evidence.remediationItems]
     .sort((left, right) => left.remediation_id.localeCompare(right.remediation_id, "en"))
     .map((item) => ({
@@ -448,7 +600,7 @@ export function buildPublicReportModel({ run, assessment, envelopesById }) {
       verification: item.verification,
       residual_limitation: item.residual_limitation
     }));
-  return {
+  const model = {
     target: structuredClone(run.target),
     profile: structuredClone(run.profile),
     scope: structuredClone(run.scope),
@@ -460,11 +612,16 @@ export function buildPublicReportModel({ run, assessment, envelopesById }) {
     screeningCandidates,
     remediation,
     limitations: structuredClone(assessment.assessment.limitations),
-    claim: structuredClone(assessment.assessment.claim),
+    claim: {
+      tier: publicClaimTier(assessment.assessment.claim.requested_tier),
+      wording: assessment.assessment.claim.proposed_wording
+    },
     evidenceLevel: assessment.assessment.evidence_level,
     reviewedCount: evidence.humanReviews.length,
     screeningCount: evidence.screeningObservations.length
   };
+  assertPublicReportModelHasNoInternalControlMetadata(model, { run, envelopesById, resources });
+  return model;
 }
 
 function publicTable(headers, rows, emptyMessage) {
@@ -484,11 +641,6 @@ export function renderRunBackedReport(model) {
     not_tested: "Not tested",
     cant_tell: "Could not determine"
   }[outcome] ?? "Not recorded");
-  const claimTierLabel = ({
-    reference_only: "Reference only",
-    evaluated_subset: "Evaluated subset",
-    organization_ready: "Organization-ready evidence"
-  })[model.claim.requested_tier] ?? "Not recorded";
   const lines = [
     "# Accessibility Audit Report",
     "",
@@ -601,8 +753,8 @@ export function renderRunBackedReport(model) {
     `- Recorded human checks: ${model.reviewedCount}`,
     `- Recorded screening observations: ${model.screeningCount}`,
     `- Evidence level: ${cell(model.evidenceLevel)}`,
-    `- Claim tier: ${cell(claimTierLabel)}`,
-    `- Claim wording: ${cell(model.claim.proposed_wording)}`,
+    `- Claim tier: ${cell(model.claim.tier)}`,
+    `- Claim wording: ${cell(model.claim.wording)}`,
     "- Screening observations and candidates do not determine requirement outcomes.",
     "- Results do not extend beyond the recorded target version, scope, environment, and evidence.",
     ...model.limitations.map((limitation) => `- ${cell(limitation)}`)
@@ -674,7 +826,8 @@ function main() {
     const report = renderRunBackedReport(buildPublicReportModel({
       run,
       assessment,
-      envelopesById: runValidation.envelopesById
+      envelopesById: runValidation.envelopesById,
+      resources: runValidation.resources
     }));
     const artifactSnapshots = [...runValidation.envelopesById.values()].map((record) => record.snapshot).filter(Boolean);
     const output = writeNewText(path.resolve(options.output), report, {

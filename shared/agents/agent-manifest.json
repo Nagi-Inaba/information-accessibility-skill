@@ -11,7 +11,7 @@
     },
     {
       "id": "information-accessibility-e1-inspector",
-      "description": "Inspects an exact accessibility-audit target without changing state and returns validated E0/E1 screening observations for human review.",
+      "description": "Inspects an exact accessibility-audit target without changing state and returns candidate E0/E1 screening observations for human review.",
       "install_by_default": true,
       "body_file": "information-accessibility-e1-inspector.md",
       "codex": { "model_reasoning_effort": "medium" },
@@ -19,7 +19,7 @@
     },
     {
       "id": "information-accessibility-human-queue-planner",
-      "description": "Builds a validated human-review queue from registered requirements, procedures, methods, and official-source boundaries without evaluating profile rows.",
+      "description": "Builds a candidate human-review queue from registered requirements, procedures, methods, and official-source boundaries without evaluating profile rows.",
       "install_by_default": true,
       "body_file": "information-accessibility-human-queue-planner.md",
       "codex": { "model_reasoning_effort": "medium" },
@@ -27,7 +27,7 @@
     },
     {
       "id": "information-accessibility-remediation-planner",
-      "description": "Turns validated accessibility findings and screening candidates into a validated remediation plan without editing the audited target.",
+      "description": "Turns registered accessibility evidence and screening candidates into a candidate remediation plan without editing the audited target.",
       "install_by_default": true,
       "body_file": "information-accessibility-remediation-planner.md",
       "codex": { "model_reasoning_effort": "medium" },

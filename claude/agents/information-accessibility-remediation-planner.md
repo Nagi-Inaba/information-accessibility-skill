@@ -1,6 +1,6 @@
 ---
 name: "information-accessibility-remediation-planner"
-description: "Turns validated accessibility findings and screening candidates into a validated remediation plan without editing the audited target."
+description: "Turns registered accessibility evidence and screening candidates into a candidate remediation plan without editing the audited target."
 tools: ["Read","Grep","Glob","Bash"]
 model: "sonnet"
 effort: "medium"

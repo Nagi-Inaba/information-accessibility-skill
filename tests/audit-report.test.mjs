@@ -404,6 +404,58 @@ test("run-backed renderer rejects extra limitations before they can leak interna
   }
 });
 
+test("run-backed renderer rejects internal control metadata embedded in registered remediation text", () => {
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), "a11y-run-backed-internal-metadata-"));
+  try {
+    const fixture = reportRunFixture(temp);
+    const renderer = path.join(skill, "scripts/render-audit-report.mjs");
+    const remediationFile = fixture.artifactFiles.get("ART-REMEDIATION-REPORT");
+    const remediation = JSON.parse(fs.readFileSync(remediationFile, "utf8"));
+    const item = remediation.payload.items[0];
+    item.issue = `Leak ${fixture.run.run_id} from ART-HUMAN-REPORT and ART-FOREIGN-LEAK.`;
+    item.proposed_change = "Do not expose e1_inspector or information-accessibility-e1-inspector.";
+    item.verification = "Do not publish remediation_ready, verified_failure, or human_verified.";
+    item.owner = "Avoid unverified_screening_candidate and reference_only.";
+    item.residual_limitation = "Internal mapping token retained for guard coverage.";
+    writeJson(remediationFile, remediation);
+    const remediationEntry = fixture.run.artifacts.find((entry) => entry.artifact_id === remediation.artifact_id);
+    remediationEntry.sha256 = resourcesSha256(remediationFile);
+    writeJson(fixture.runFile, fixture.run);
+
+    const resources = loadAuditResources(skill);
+    resources.artifact_snapshots_by_id = new Map([...fixture.artifactFiles].map(([artifactId, file]) => {
+      const bytes = fs.readFileSync(file);
+      return [artifactId, { bytes, sha256: resourcesSha256(file) }];
+    }));
+    const artifacts = [...fixture.artifactFiles.values()].map((file) => JSON.parse(fs.readFileSync(file, "utf8")));
+    const baseline = generateAssessment("web-modern", {
+      targetName: fixture.run.target.name,
+      targetVersion: fixture.run.target.version_or_commit,
+      targetRefs: fixture.run.target.urls_or_files,
+      evaluator: "Audit orchestrator",
+      evaluatedAt: "2026-07-17"
+    });
+    baseline.assessment.scope = structuredClone(fixture.run.scope);
+    baseline.assessment.environment = structuredClone(fixture.run.environment);
+    const assessment = mergeArtifacts({ run: fixture.run, assessment: baseline, artifacts, registries: resources });
+    writeJson(fixture.assessmentFile, assessment);
+
+    const output = path.join(temp, "internal-metadata.md");
+    const result = spawnSync(process.execPath, [
+      renderer,
+      "--run", fixture.runFile,
+      "--assessment", fixture.assessmentFile,
+      "--output", output
+    ], { encoding: "utf8" });
+
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr || result.stdout, /internal control metadata/i);
+    assert.equal(fs.existsSync(output), false);
+  } finally {
+    fs.rmSync(temp, { recursive: true, force: true });
+  }
+});
+
 test("run-backed renderer turns every newline sequence in target text into a safe line break", () => {
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), "a11y-run-backed-carriage-return-"));
   try {
@@ -463,9 +515,9 @@ test("public report keeps each remediation paired with its matching finding when
     const paired = model.verifiedFailures.filter((item) => item.requirement_id === second.requirement_id);
 
     assert.equal(paired.length, 2);
-    assert.deepEqual(paired.map((item) => [item.finding.id, item.remediation.remediation_id]), [
-      ["REM-REPORT01", "REM-REPORT01"],
-      ["REM-REPORT03", "REM-REPORT03"]
+    assert.deepEqual(paired.map((item) => [item.finding.remediation, item.remediation.proposed_change]), [
+      ["Provide a text alternative that communicates the same purpose.", "Provide a text alternative that communicates the same purpose."],
+      ["Use an equivalent text alternative in the adjacent label.", "Use an equivalent text alternative in the adjacent label."]
     ]);
     const report = renderRunBackedReport(model);
     assert.match(report, /Provide a text alternative that communicates the same purpose\./);

@@ -1,6 +1,6 @@
 ---
 name: "information-accessibility-human-queue-planner"
-description: "Builds a validated human-review queue from registered requirements, procedures, methods, and official-source boundaries without evaluating profile rows."
+description: "Builds a candidate human-review queue from registered requirements, procedures, methods, and official-source boundaries without evaluating profile rows."
 tools: ["Read","Grep","Glob","Bash"]
 model: "sonnet"
 effort: "medium"

@@ -63,6 +63,25 @@ test("manifest installs exactly the registry-declared read-only agent set", () =
   }
 });
 
+test("specialist metadata promises candidate output rather than validation", () => {
+  const manifest = readJson("shared/agents/agent-manifest.json");
+  for (const id of specialistIds) {
+    const agent = manifest.agents.find((entry) => entry.id === id);
+    const codex = read(path.join("codex", "agents", `${id}.toml`));
+    const claude = read(path.join("claude", "agents", `${id}.md`));
+
+    for (const [surface, description] of [
+      ["manifest", agent.description],
+      ["Codex generated metadata", /^description = (.+)$/mu.exec(codex)?.[1] ?? ""],
+      ["Claude generated metadata", /^description: (.+)$/mu.exec(claude)?.[1] ?? ""]
+    ]) {
+      assert.match(description, /candidate/i, `${id} ${surface} must describe a candidate output`);
+      assert.match(description, /(?:output|observations|queue|plan)/i, `${id} ${surface} must name its output`);
+      assert.doesNotMatch(description, /validated/i, `${id} ${surface} must not claim validation`);
+    }
+  }
+});
+
 test("public reviewer remains the broad entry and orchestrates the Task 5 runtime", () => {
   const manifest = readJson("shared/agents/agent-manifest.json");
   const reviewer = manifest.agents.find((agent) => agent.id === "information-accessibility-reviewer");
