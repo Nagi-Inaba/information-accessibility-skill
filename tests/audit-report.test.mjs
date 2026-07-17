@@ -195,7 +195,7 @@ function reportRunFixture(temp) {
       issue: "The heading structure may skip a level.",
       proposed_change: "Confirm the heading hierarchy before changing the markup.",
       verification: "Inspect the final heading outline and repeat the screening check.",
-      residual_limitation: "This remains an unverified screening candidate until human review."
+      residual_limitation: "A human reviewer has not yet confirmed this observation."
     }]
   }, created[3]);
   const remediationFile = path.join(artifactRoot, "remediation.json");
@@ -311,7 +311,7 @@ test("run-backed renderer reports verified, pending, and unverified work without
     assert.match(report, /WCAG-2\.2-SC-2\.1\.1/);
     assert.match(report, /Unverified screening candidates/i);
     assert.match(report, /SCREEN-FIRST/);
-    assert.match(report, /This remains an unverified screening candidate until human review\./);
+    assert.match(report, /A human reviewer has not yet confirmed this observation\./);
     assert.match(report, /Evidence and claim limits/i);
     for (const internal of [fixture.run.run_id, "ART-HUMAN-REPORT", "producer_role", "e1_inspector", "External Reviewer", "remediation_ready", "verified_failure", "unverified_screening_candidate", "human_verified", "reference_only"]) {
       assert.equal(report.includes(internal), false, `public report leaked internal term: ${internal}`);
@@ -441,6 +441,53 @@ test("run-backed renderer rejects internal control metadata embedded in register
     writeJson(fixture.assessmentFile, assessment);
 
     const output = path.join(temp, "internal-metadata.md");
+    const result = spawnSync(process.execPath, [
+      renderer,
+      "--run", fixture.runFile,
+      "--assessment", fixture.assessmentFile,
+      "--output", output
+    ], { encoding: "utf8" });
+
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr || result.stdout, /internal control metadata/i);
+    assert.equal(fs.existsSync(output), false);
+  } finally {
+    fs.rmSync(temp, { recursive: true, force: true });
+  }
+});
+
+test("run-backed renderer rejects bare registry and mapping identifiers embedded in registered remediation text", () => {
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), "a11y-run-backed-bare-internal-metadata-"));
+  try {
+    const fixture = reportRunFixture(temp);
+    const renderer = path.join(skill, "scripts/render-audit-report.mjs");
+    const remediationFile = fixture.artifactFiles.get("ART-REMEDIATION-REPORT");
+    const remediation = JSON.parse(fs.readFileSync(remediationFile, "utf8"));
+    remediation.payload.items[0].residual_limitation = "The item was screened by orchestrator after initialized input remained unverified.";
+    writeJson(remediationFile, remediation);
+    const remediationEntry = fixture.run.artifacts.find((entry) => entry.artifact_id === remediation.artifact_id);
+    remediationEntry.sha256 = resourcesSha256(remediationFile);
+    writeJson(fixture.runFile, fixture.run);
+
+    const resources = loadAuditResources(skill);
+    resources.artifact_snapshots_by_id = new Map([...fixture.artifactFiles].map(([artifactId, file]) => {
+      const bytes = fs.readFileSync(file);
+      return [artifactId, { bytes, sha256: resourcesSha256(file) }];
+    }));
+    const artifacts = [...fixture.artifactFiles.values()].map((file) => JSON.parse(fs.readFileSync(file, "utf8")));
+    const baseline = generateAssessment("web-modern", {
+      targetName: fixture.run.target.name,
+      targetVersion: fixture.run.target.version_or_commit,
+      targetRefs: fixture.run.target.urls_or_files,
+      evaluator: "Audit orchestrator",
+      evaluatedAt: "2026-07-17"
+    });
+    baseline.assessment.scope = structuredClone(fixture.run.scope);
+    baseline.assessment.environment = structuredClone(fixture.run.environment);
+    const assessment = mergeArtifacts({ run: fixture.run, assessment: baseline, artifacts, registries: resources });
+    writeJson(fixture.assessmentFile, assessment);
+
+    const output = path.join(temp, "bare-internal-metadata.md");
     const result = spawnSync(process.execPath, [
       renderer,
       "--run", fixture.runFile,

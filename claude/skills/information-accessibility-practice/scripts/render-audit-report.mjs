@@ -361,7 +361,7 @@ function internalControlTerms({ run, envelopesById, resources }) {
   for (const schemas of resources?.payloadSchemas?.values?.() ?? []) {
     for (const schema of schemas.values()) collectSchemaEnumValues(schema, schemaPropertyNames, terms);
   }
-  return new Set([...terms].filter((term) => /[_-]/u.test(term)));
+  return terms;
 }
 
 function internalIdPatterns(resources) {
@@ -408,6 +408,12 @@ function publicRemediationReference(item) {
     owner: item.owner ?? null,
     residual_limitation: item.residual_limitation
   };
+}
+
+function publicLimitations(limitations) {
+  return limitations.map((limitation) => limitation === "All profile requirements are initialized as not_tested; no accessibility conclusion has been made."
+    ? "All profile requirements begin without a recorded result; no accessibility conclusion has been made."
+    : limitation);
 }
 
 function publicClaimTier(requestedTier) {
@@ -611,7 +617,7 @@ export function buildPublicReportModel({ run, assessment, envelopesById, resourc
     pendingHumanChecks: sortedByRequirement([...pendingByRequirement.values()]),
     screeningCandidates,
     remediation,
-    limitations: structuredClone(assessment.assessment.limitations),
+    limitations: publicLimitations(assessment.assessment.limitations),
     claim: {
       tier: publicClaimTier(assessment.assessment.claim.requested_tier),
       wording: assessment.assessment.claim.proposed_wording
