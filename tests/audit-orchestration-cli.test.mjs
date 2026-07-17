@@ -11,6 +11,8 @@ import { generateAssessment } from "../codex/skills/information-accessibility-pr
 import {
   loadAuditResources,
   mergeArtifacts as mergeArtifactRecords,
+  registerArtifact as registerArtifactRecord,
+  validateAuditRun,
   writeNewJson
 } from "../codex/skills/information-accessibility-practice/scripts/lib/audit-run.mjs";
 
@@ -59,7 +61,7 @@ function resourceVersions() {
 
 function initialRun(artifactRoot) {
   return {
-    schema_version: "1.0.0",
+    schema_version: "2.0.0",
     run_id: runId,
     supersedes_run_id: null,
     status: "initialized",
@@ -158,11 +160,19 @@ function declaredHumanPayload(requirementId = "WCAG-2.2-SC-1.1.1", profileOutcom
       procedure_availability: "available",
       criterion_procedure_ref: "criterion-procedures:1.0.0#wcag22-sc-1-1-1-non-text-content",
       generic_method_ref: null,
-      official_sources: ["https://www.w3.org/TR/WCAG22/#non-text-content"],
+      official_sources: [
+        "https://www.w3.org/TR/WCAG22/#non-text-content",
+        "https://www.w3.org/WAI/WCAG22/Understanding/non-text-content.html"
+      ],
       target_specific_evidence: [{
         type: "browser_inspection",
         location: "main image",
         observation: "The computed alternative was inspected against the visible context.",
+        captured_at: "2026-07-17T12:00:04Z"
+      }, {
+        type: "manual_observation",
+        location: "main image",
+        observation: "The visible purpose was compared manually with the text alternative.",
         captured_at: "2026-07-17T12:00:04Z"
       }],
       profile_outcome: profileOutcome,
@@ -264,6 +274,39 @@ function assessmentFixture() {
   return assessment;
 }
 
+function applyLegacyRunContract(run) {
+  run.schema_version = "1.0.0";
+  delete run.resource_versions.orchestration_registry_sha256;
+  run.permissions.allowed_actions = ["read_target", "write_internal_artifacts"];
+  run.permissions.forbidden_actions = ["record_profile_outcome", "write_target", "authorize_fix"];
+  return run;
+}
+
+function legacyInitialRun(artifactRoot) {
+  return applyLegacyRunContract(initialRun(artifactRoot));
+}
+
+function injectHumanResult(assessment, requirementId = "WCAG-2.2-SC-1.1.1", outcome = "pass") {
+  const resources = loadAuditResources(skillRoot);
+  const catalog = Object.values(resources.criteriaCatalog.catalogs).flat().find((item) => item.id === requirementId);
+  const row = assessment.assessment.results.find((item) => item.requirement_id === requirementId);
+  row.mapping_status = "human_verified";
+  row.outcome = outcome;
+  row.method_kind = "manual";
+  row.method_ref = `web-audit-methods:${resources.auditMethods.schema_version}#${catalog.method_key}`;
+  row.method = "Pre-existing human result without current-run provenance.";
+  row.evidence = [{
+    type: "manual_observation",
+    location: "foreign assessment",
+    observation: "This evidence was not reconstructed from the current run artifacts.",
+    captured_at: "2026-07-17T11:00:00Z"
+  }];
+  row.notes = "Pre-existing human result without current-run provenance.";
+  assessment.assessment.evidence_level = "E2";
+  assessment.assessment.evaluator = "Foreign reviewer";
+  return assessment;
+}
+
 function screenedRun(artifactRoot, artifactFile, artifact) {
   const run = initialRun(artifactRoot);
   run.status = "screened";
@@ -295,6 +338,12 @@ function registerEntry(artifactRoot, file, artifact) {
   };
 }
 
+function pureMergeResources(run) {
+  const resources = loadAuditResources(skillRoot);
+  resources.artifact_sha256_by_id = new Map(run.artifacts.map((entry) => [entry.artifact_id, entry.sha256]));
+  return resources;
+}
+
 function withTemp(t, callback) {
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), "a11y-orchestration-"));
   t.after(() => fs.rmSync(temp, { recursive: true, force: true }));
@@ -319,6 +368,7 @@ test("run initialization creates a schema-valid immutable manifest with installe
   ]);
   assert.equal(result.status, 0, result.stderr || result.stdout);
   const run = readJson(output);
+  assert.equal(run.schema_version, "2.0.0");
   assert.equal(run.status, "initialized");
   assert.equal(run.artifact_root, "artifacts");
   assert.deepEqual(run.permissions, initialRun(artifactRoot).permissions);
@@ -333,6 +383,323 @@ test("run initialization creates a schema-valid immutable manifest with installe
   ]);
   assert.notEqual(overwrite.status, 0);
   assert.match(overwrite.stderr, /overwrite/i);
+}));
+
+test("audit-run schema dispatch emits 2.0.0, preserves valid 1.0.0 inputs, and rejects unknown versions", (t) => withTemp(t, ({ temp, artifactRoot }) => {
+  const currentSchema = readJson(path.join(references, "audit-run.schema.json"));
+  const legacySchemaFile = path.join(references, "audit-run-1.0.0.schema.json");
+  assert.equal(currentSchema.$id, "urn:information-accessibility:audit-run:2.0.0");
+  assert.equal(currentSchema.properties.schema_version.const, "2.0.0");
+  assert.equal(fs.existsSync(legacySchemaFile), true);
+  assert.equal(readJson(legacySchemaFile).properties.schema_version.const, "1.0.0");
+
+  const runFile = path.join(temp, "run.json");
+  const current = validateAuditRun(initialRun(artifactRoot), { skillRoot, runFile });
+  assert.equal(current.valid, true, current.errors.join("\n"));
+
+  const legacy = validateAuditRun(legacyInitialRun(artifactRoot), { skillRoot, runFile });
+  assert.equal(legacy.valid, true, legacy.errors.join("\n"));
+
+  const unknownRun = initialRun(artifactRoot);
+  unknownRun.schema_version = "9.9.9";
+  const unknown = validateAuditRun(unknownRun, { skillRoot, runFile });
+  assert.equal(unknown.valid, false);
+  assert.match(unknown.errors.join("\n"), /unsupported.*schema.version|schema.version.*9\.9\.9/i);
+}));
+
+test("run validation enforces canonical permissions and the installed profile registry version", (t) => withTemp(t, ({ temp, artifactRoot }) => {
+  const runFile = path.join(temp, "run.json");
+  const baseline = validateAuditRun(initialRun(artifactRoot), { skillRoot, runFile });
+  assert.equal(baseline.valid, true, baseline.errors.join("\n"));
+
+  const mutations = [
+    (run) => run.permissions.allowed_actions.push("execute_commands"),
+    (run) => run.permissions.forbidden_actions.splice(run.permissions.forbidden_actions.indexOf("write_target"), 1),
+    (run) => run.permissions.forbidden_actions.push("inspect_without_mutation"),
+    (run) => { run.profile.registry_version = "9.9.9"; }
+  ];
+  for (const mutate of mutations) {
+    const run = initialRun(artifactRoot);
+    mutate(run);
+    const result = validateAuditRun(run, { skillRoot, runFile });
+    assert.equal(result.valid, false);
+    assert.match(result.errors.join("\n"), /permissions.*canonical|allowed_actions|forbidden_actions|profile\.registry_version/i);
+  }
+}));
+
+test("validateAuditRun is total for null runs and null structural entries", (t) => withTemp(t, ({ temp, artifactRoot }) => {
+  const runFile = path.join(temp, "run.json");
+  const malformedRuns = [
+    null,
+    { ...initialRun(artifactRoot), history: [null] },
+    { ...initialRun(artifactRoot), artifacts: [null] }
+  ];
+  for (const run of malformedRuns) {
+    let result;
+    assert.doesNotThrow(() => { result = validateAuditRun(run, { skillRoot, runFile }); });
+    assert.equal(result.valid, false);
+    assert.equal(Array.isArray(result.errors), true);
+    assert.ok(result.errors.length > 0);
+  }
+}));
+
+test("latest-only operational gate rejects legacy runs in direct artifact registration while preserving read compatibility", (t) => withTemp(t, ({ temp, artifactRoot }) => {
+  const runFile = path.join(temp, "legacy-run.json");
+  const artifactFile = path.join(artifactRoot, "screening.json");
+  const artifact = screeningEnvelope({ artifactId: "ART-SCREEN-001", requirementId: "SCREEN-ARIA-NAME" });
+  const legacyRun = legacyInitialRun(artifactRoot);
+  writeJson(runFile, legacyRun);
+  writeJson(artifactFile, artifact);
+
+  const readable = validateAuditRun(legacyRun, { skillRoot, runFile });
+  assert.equal(readable.valid, true, readable.errors.join("\n"));
+  assert.throws(
+    () => registerArtifactRecord(legacyRun, artifact, { skillRoot, runFile, artifactFile }),
+    /latest.*audit-run.*2\.0\.0|legacy.*read.only|implicit upgrade/i
+  );
+}));
+
+test("legacy Task 4 declared-human runs remain readable without retroactive current binding eligibility", (t) => withTemp(t, ({ temp, artifactRoot }) => {
+  const fixture = makeHumanReviewRun(artifactRoot);
+  const human = readJson(fixture.humanFile);
+  human.payload.reviews[0].official_sources = [];
+  human.payload.reviews[0].target_specific_evidence = human.payload.reviews[0].target_specific_evidence
+    .filter((item) => item.type === "manual_observation");
+  writeJson(fixture.humanFile, human);
+  const run = applyLegacyRunContract(fixture.run);
+  run.artifacts.find((entry) => entry.artifact_type === "screening-observations").path = "./screen.json";
+  run.artifacts.find((entry) => entry.artifact_id === human.artifact_id).sha256 = sha256File(fixture.humanFile);
+  const runFile = path.join(temp, "legacy-human-run.json");
+
+  const readable = validateAuditRun(run, { skillRoot, runFile });
+  assert.equal(readable.valid, true, readable.errors.join("\n"));
+  assert.throws(
+    () => mergeArtifactRecords({
+      run,
+      assessment: assessmentFixture(),
+      artifacts: [readJson(fixture.screenFile), readJson(fixture.queueFile), human],
+      registries: pureMergeResources(run)
+    }),
+    /latest.*audit-run.*2\.0\.0|legacy.*read.only|implicit upgrade/i
+  );
+}));
+
+test("latest-only operational gate rejects legacy runs in the register CLI without creating output", (t) => withTemp(t, ({ temp, artifactRoot }) => {
+  const runFile = path.join(temp, "legacy-run.json");
+  const artifactFile = path.join(artifactRoot, "screening.json");
+  const output = path.join(temp, "registered.json");
+  const artifact = screeningEnvelope({ artifactId: "ART-SCREEN-001", requirementId: "SCREEN-ARIA-NAME" });
+  writeJson(runFile, legacyInitialRun(artifactRoot));
+  writeJson(artifactFile, artifact);
+
+  const result = runNode(registerArtifact, ["--run", runFile, "--artifact", artifactFile, "--output", output]);
+  assertRejected(result, /latest.*audit-run.*2\.0\.0|legacy.*read.only|implicit upgrade/i);
+  assert.equal(fs.existsSync(output), false);
+}));
+
+test("latest-only operational gate rejects legacy runs in pure merge while preserving read compatibility", (t) => withTemp(t, ({ temp, artifactRoot }) => {
+  const artifactFile = path.join(artifactRoot, "screening.json");
+  const artifact = screeningEnvelope({ artifactId: "ART-SCREEN-001", requirementId: "SCREEN-ARIA-NAME" });
+  writeJson(artifactFile, artifact);
+  const legacyRun = screenedRun(artifactRoot, artifactFile, artifact);
+  legacyRun.schema_version = "1.0.0";
+  delete legacyRun.resource_versions.orchestration_registry_sha256;
+  const runFile = path.join(temp, "legacy-run.json");
+  const readable = validateAuditRun(legacyRun, { skillRoot, runFile });
+  assert.equal(readable.valid, true, readable.errors.join("\n"));
+
+  const resources = loadAuditResources(skillRoot);
+  resources.artifact_sha256_by_id = new Map([[artifact.artifact_id, sha256File(artifactFile)]]);
+  assert.throws(
+    () => mergeArtifactRecords({ run: legacyRun, assessment: assessmentFixture(), artifacts: [artifact], registries: resources }),
+    /latest.*audit-run.*2\.0\.0|legacy.*read.only|implicit upgrade/i
+  );
+}));
+
+test("latest-only operational gate rejects legacy runs in the merge CLI without creating output", (t) => withTemp(t, ({ temp, artifactRoot }) => {
+  const artifactFile = path.join(artifactRoot, "screening.json");
+  const artifact = screeningEnvelope({ artifactId: "ART-SCREEN-001", requirementId: "SCREEN-ARIA-NAME" });
+  writeJson(artifactFile, artifact);
+  const legacyRun = screenedRun(artifactRoot, artifactFile, artifact);
+  legacyRun.schema_version = "1.0.0";
+  delete legacyRun.resource_versions.orchestration_registry_sha256;
+  const runFile = path.join(temp, "legacy-run.json");
+  const assessmentFile = path.join(temp, "assessment.json");
+  const output = path.join(temp, "merged.json");
+  writeJson(runFile, legacyRun);
+  writeJson(assessmentFile, assessmentFixture());
+
+  const result = runNode(mergeArtifactsCli, [
+    "--run", runFile, "--assessment", assessmentFile, "--artifact", artifactFile, "--output", output
+  ]);
+  assertRejected(result, /latest.*audit-run.*2\.0\.0|legacy.*read.only|implicit upgrade/i);
+  assert.equal(fs.existsSync(output), false);
+}));
+
+test("latest-only operational gate makes pure merge fail closed on exact current run bindings", (t) => withTemp(t, ({ artifactRoot }) => {
+  const artifactFile = path.join(artifactRoot, "screening.json");
+  const artifact = screeningEnvelope({ artifactId: "ART-SCREEN-001", requirementId: "SCREEN-ARIA-NAME" });
+  writeJson(artifactFile, artifact);
+  const currentRun = screenedRun(artifactRoot, artifactFile, artifact);
+  const mutations = [
+    ["schema_version", (run) => { run.schema_version = "9.9.9"; }],
+    ["resource_versions.orchestration_registry_sha256", (run) => { run.resource_versions.orchestration_registry_sha256 = "0".repeat(64); }],
+    ["profile.registry_version", (run) => { run.profile.registry_version = "9.9.9"; }],
+    ["permissions canonical", (run) => { run.permissions.allowed_actions.push("execute_commands"); }]
+  ];
+
+  for (const [binding, mutate] of mutations) {
+    const run = structuredClone(currentRun);
+    mutate(run);
+    const resources = loadAuditResources(skillRoot);
+    resources.artifact_sha256_by_id = new Map([[artifact.artifact_id, sha256File(artifactFile)]]);
+    assert.throws(
+      () => mergeArtifactRecords({ run, assessment: assessmentFixture(), artifacts: [artifact], registries: resources }),
+      /current operational run|latest.*audit-run|schema_version|resource_versions|profile\.registry_version|permissions.*canonical/i,
+      binding
+    );
+  }
+}));
+
+test("latest-only operational gate rejects inactive profiles in pure merge", (t) => withTemp(t, ({ artifactRoot }) => {
+  const run = initialRun(artifactRoot);
+  run.profile.id = "authoring-agent";
+  const assessment = assessmentFixture();
+  assessment.assessment.profile.id = "authoring-agent";
+  assessment.assessment.results = [];
+
+  assert.throws(
+    () => mergeArtifactRecords({ run, assessment, artifacts: [], registries: pureMergeResources(run) }),
+    /known active profile|unknown or inactive profile/i
+  );
+}));
+
+test("pure merge rejects filesystem-independent registration and history semantic corruption", (t) => withTemp(t, ({ artifactRoot }) => {
+  const firstFile = path.join(artifactRoot, "first.json");
+  const secondFile = path.join(artifactRoot, "second.json");
+  const first = screeningEnvelope({ artifactId: "ART-SCREEN-001", requirementId: "SCREEN-FIRST" });
+  const second = screeningEnvelope({ artifactId: "ART-SCREEN-002", requirementId: "SCREEN-SECOND", capturedAt: "2026-07-17T12:00:02Z" });
+  writeJson(firstFile, first);
+  writeJson(secondFile, second);
+  const baseRun = screenedRun(artifactRoot, firstFile, first);
+  baseRun.artifacts.push(registerEntry(artifactRoot, secondFile, second));
+  baseRun.artifacts.sort((left, right) => left.artifact_id.localeCompare(right.artifact_id));
+  const variants = [
+    ["status/history disagreement", () => {
+      const run = structuredClone(baseRun);
+      run.status = "initialized";
+      run.history = [];
+      return { run, artifacts: [first, second] };
+    }],
+    ["invalid registration status", () => {
+      const run = structuredClone(baseRun);
+      run.artifacts[0].validation_status = "invalid";
+      return { run, artifacts: [first, second] };
+    }],
+    ["duplicate artifact IDs", () => {
+      const run = screenedRun(artifactRoot, firstFile, first);
+      const duplicateId = registerEntry(artifactRoot, secondFile, second);
+      duplicateId.artifact_id = first.artifact_id;
+      duplicateId.created_at = first.created_at;
+      run.artifacts.push(duplicateId);
+      return { run, artifacts: [first] };
+    }],
+    ["duplicate normalized artifact paths", () => {
+      const run = structuredClone(baseRun);
+      run.artifacts[1].path = run.artifacts[0].path;
+      return { run, artifacts: [first, second] };
+    }],
+    ["non-normalized artifact path", () => {
+      const run = structuredClone(baseRun);
+      run.artifacts[0].path = `./${run.artifacts[0].path}`;
+      return { run, artifacts: [first, second] };
+    }],
+    ["unsorted artifact registrations", () => {
+      const run = structuredClone(baseRun);
+      run.artifacts.reverse();
+      return { run, artifacts: [first, second] };
+    }]
+  ];
+  const accepted = [];
+  for (const [name, build] of variants) {
+    const { run, artifacts } = build();
+    try {
+      mergeArtifactRecords({ run, assessment: assessmentFixture(), artifacts, registries: pureMergeResources(run) });
+      accepted.push(name);
+    } catch {}
+  }
+  assert.deepEqual(accepted, [], `Pure merge accepted corrupt run semantics: ${accepted.join(", ")}`);
+}));
+
+test("pure merge rejects filesystem-independent artifact input semantic corruption", (t) => withTemp(t, ({ artifactRoot }) => {
+  const fixture = makeHumanReviewRun(artifactRoot);
+  const baseArtifacts = [readJson(fixture.screenFile), readJson(fixture.queueFile), readJson(fixture.humanFile)];
+  const variants = [
+    ["cross-run input", (artifacts) => { artifacts[1].inputs[0].run_id = "RUN-20260717T120000Z-OTHER001"; }],
+    ["unregistered input", (artifacts) => { artifacts[1].inputs[0].artifact_id = "ART-MISSING-001"; }],
+    ["input SHA mismatch", (artifacts) => { artifacts[1].inputs[0].sha256 = "0".repeat(64); }],
+    ["disallowed future input type", (artifacts) => {
+      artifacts[1].inputs[0] = {
+        artifact_id: artifacts[2].artifact_id,
+        run_id: runId,
+        sha256: fixture.run.artifacts.find((entry) => entry.artifact_id === artifacts[2].artifact_id).sha256
+      };
+    }]
+  ];
+  const accepted = [];
+  for (const [name, mutate] of variants) {
+    const artifacts = structuredClone(baseArtifacts);
+    mutate(artifacts);
+    try {
+      mergeArtifactRecords({
+        run: structuredClone(fixture.run),
+        assessment: assessmentFixture(),
+        artifacts,
+        registries: pureMergeResources(fixture.run)
+      });
+      accepted.push(name);
+    } catch {}
+  }
+  assert.deepEqual(accepted, [], `Pure merge accepted corrupt artifact input semantics: ${accepted.join(", ")}`);
+}));
+
+test("merge baseline rejects current-run-unprovable participation assurance claim and review metadata", (t) => withTemp(t, ({ artifactRoot }) => {
+  const artifactFile = path.join(artifactRoot, "screening.json");
+  const artifact = screeningEnvelope({ artifactId: "ART-SCREEN-001", requirementId: "SCREEN-FIRST" });
+  writeJson(artifactFile, artifact);
+  const run = screenedRun(artifactRoot, artifactFile, artifact);
+  const resources = pureMergeResources(run);
+  const referenceTemplates = resources.standardsRegistry.claim_templates.reference_only;
+  const variants = [
+    ["participation pass", (assessment) => { assessment.assessment.participation_coverage.find = "pass"; }],
+    ["independent audit", (assessment) => {
+      assessment.assessment.assurance.independent_audit = {
+        performed: true,
+        evaluator_independent: true,
+        scope_method: "Injected prior audit scope",
+        report_location: "prior-audit.json"
+      };
+    }],
+    ["legal or procurement dossier", (assessment) => {
+      assessment.assessment.assurance.legal_or_procurement_dossier = {
+        prepared: true,
+        responsible_owner: "Injected owner",
+        artifacts: ["prior-dossier.json"]
+      };
+    }],
+    ["noncanonical reference claim", (assessment) => { assessment.assessment.claim.proposed_wording = referenceTemplates[1]; }],
+    ["next review date", (assessment) => { assessment.assessment.next_review_at = "2027-07-17"; }]
+  ];
+  const accepted = [];
+  for (const [name, mutate] of variants) {
+    const assessment = assessmentFixture();
+    mutate(assessment);
+    try {
+      mergeArtifactRecords({ run, assessment, artifacts: [artifact], registries: resources });
+      accepted.push(name);
+    } catch {}
+  }
+  assert.deepEqual(accepted, [], `Merge accepted unprovable E0 baseline data: ${accepted.join(", ")}`);
 }));
 
 test("artifact registration validates and versions the run without mutating v1", (t) => withTemp(t, ({ temp, artifactRoot }) => {
@@ -721,6 +1088,190 @@ test("declared external human review updates only the exact profile row and pass
   assert.equal(JSON.parse(result.stdout).assessment_valid, true);
 }));
 
+test("declared human review is bound to its registered queue, current procedure, sources, and required evidence", (t) => withTemp(t, ({ temp, artifactRoot }) => {
+  const fixture = makeHumanReviewRun(artifactRoot);
+  const runFile = path.join(temp, "run.json");
+  const baseline = validateAuditRun(fixture.run, { skillRoot, runFile });
+  assert.equal(baseline.valid, true, baseline.errors.join("\n"));
+  const humanEntry = fixture.run.artifacts.find((entry) => entry.artifact_id === fixture.human.artifact_id);
+
+  function validateMutation(mutate) {
+    const human = structuredClone(fixture.human);
+    mutate(human.payload.reviews[0]);
+    writeJson(fixture.humanFile, human);
+    humanEntry.sha256 = sha256File(fixture.humanFile);
+    return validateAuditRun(fixture.run, { skillRoot, runFile });
+  }
+
+  const outsideQueue = validateMutation((review) => {
+    review.requirement_id = "WCAG-2.2-SC-1.3.1";
+    review.criterion_procedure_ref = "criterion-procedures:1.0.0#wcag22-sc-1-3-1-info-and-relationships";
+    review.official_sources = [
+      "https://www.w3.org/TR/WCAG22/#info-and-relationships",
+      "https://www.w3.org/WAI/WCAG22/Understanding/info-and-relationships.html"
+    ];
+  });
+  assert.equal(outsideQueue.valid, false);
+  assert.match(outsideQueue.errors.join("\n"), /queue.*WCAG-2\.2-SC-1\.3\.1|not.*queued/i);
+
+  const wrongProcedure = validateMutation((review) => {
+    review.criterion_procedure_ref = "criterion-procedures:1.0.0#wcag22-sc-1-3-1-info-and-relationships";
+  });
+  assert.equal(wrongProcedure.valid, false);
+  assert.match(wrongProcedure.errors.join("\n"), /procedure.*queue|registered procedure|procedure_ref/i);
+
+  const wrongSources = validateMutation((review) => {
+    review.official_sources = ["https://www.w3.org/TR/WCAG22/#non-text-content"];
+  });
+  assert.equal(wrongSources.valid, false);
+  assert.match(wrongSources.errors.join("\n"), /official_sources|primary sources/i);
+
+  const missingEvidenceType = validateMutation((review) => {
+    review.target_specific_evidence = review.target_specific_evidence.filter((item) => item.type !== "manual_observation");
+  });
+  assert.equal(missingEvidenceType.valid, false);
+  assert.match(missingEvidenceType.errors.join("\n"), /required evidence|manual_observation/i);
+}));
+
+test("unavailable declared review uses the queued criterion's current generic method and catalog sources", (t) => withTemp(t, ({ temp, artifactRoot }) => {
+  const fixture = makeHumanReviewRun(artifactRoot);
+  const queue = readJson(fixture.queueFile);
+  queue.payload.items = [{
+    requirement_id: "WCAG-2.2-SC-1.2.1",
+    procedure_availability: "unavailable",
+    procedure_ref: null,
+    human_actions: ["Review the scoped prerecorded audio-only and video-only media."],
+    required_evidence_types: ["assistive_technology_test", "manual_observation"],
+    cant_tell_conditions: ["The media cannot be played in the scoped environment."]
+  }];
+  queue.payload.procedure_coverage = { total_requirements: 1, available_procedures: 0, unavailable_procedures: 1 };
+  writeJson(fixture.queueFile, queue);
+
+  const resources = loadAuditResources(skillRoot);
+  const catalog = Object.values(resources.criteriaCatalog.catalogs).flat().find((item) => item.id === "WCAG-2.2-SC-1.2.1");
+  const human = readJson(fixture.humanFile);
+  human.inputs[0].sha256 = sha256File(fixture.queueFile);
+  human.payload.reviews = [{
+    requirement_id: "WCAG-2.2-SC-1.2.1",
+    procedure_availability: "unavailable",
+    criterion_procedure_ref: null,
+    generic_method_ref: `web-audit-methods:${resources.auditMethods.schema_version}#${catalog.method_key}`,
+    official_sources: structuredClone(catalog.official_method_sources),
+    target_specific_evidence: [{
+      type: "manual_observation",
+      location: "media player",
+      observation: "The media alternative was reviewed manually.",
+      captured_at: "2026-07-17T12:00:04Z"
+    }, {
+      type: "assistive_technology_test",
+      location: "media player",
+      observation: "The media alternative was checked with assistive technology.",
+      captured_at: "2026-07-17T12:00:04Z"
+    }],
+    profile_outcome: "pass",
+    rationale: "The queued generic review was completed."
+  }];
+  writeJson(fixture.humanFile, human);
+  fixture.run.artifacts.find((entry) => entry.artifact_id === queue.artifact_id).sha256 = sha256File(fixture.queueFile);
+  fixture.run.artifacts.find((entry) => entry.artifact_id === human.artifact_id).sha256 = sha256File(fixture.humanFile);
+
+  const runFile = path.join(temp, "run.json");
+  const baseline = validateAuditRun(fixture.run, { skillRoot, runFile });
+  assert.equal(baseline.valid, true, baseline.errors.join("\n"));
+
+  human.payload.reviews[0].generic_method_ref = `web-audit-methods:${resources.auditMethods.schema_version}#adaptable-structure`;
+  writeJson(fixture.humanFile, human);
+  fixture.run.artifacts.find((entry) => entry.artifact_id === human.artifact_id).sha256 = sha256File(fixture.humanFile);
+  const wrongMethod = validateAuditRun(fixture.run, { skillRoot, runFile });
+  assert.equal(wrongMethod.valid, false);
+  assert.match(wrongMethod.errors.join("\n"), /generic_method_ref|current generic method/i);
+
+  human.payload.reviews[0].generic_method_ref = `web-audit-methods:${resources.auditMethods.schema_version}#${catalog.method_key}`;
+  human.payload.reviews[0].official_sources = [catalog.official_method_sources[0]];
+  writeJson(fixture.humanFile, human);
+  fixture.run.artifacts.find((entry) => entry.artifact_id === human.artifact_id).sha256 = sha256File(fixture.humanFile);
+  const wrongSources = validateAuditRun(fixture.run, { skillRoot, runFile });
+  assert.equal(wrongSources.valid, false);
+  assert.match(wrongSources.errors.join("\n"), /official_sources|catalog sources/i);
+}));
+
+test("merge reconstructs only from an E0 assessment baseline with no prior results, findings, or evidence", (t) => withTemp(t, ({ temp, artifactRoot }) => {
+  const screen = screeningEnvelope({ artifactId: "ART-SCREEN-001", requirementId: "SCREEN-CURRENT" });
+  const screenFile = path.join(artifactRoot, "screen.json");
+  writeJson(screenFile, screen);
+  const run = screenedRun(artifactRoot, screenFile, screen);
+  const runFile = path.join(temp, "run.json");
+  writeJson(runFile, run);
+
+  const cases = [
+    ["foreign-human", injectHumanResult(assessmentFixture())],
+    ["prior-screening", (() => {
+      const assessment = assessmentFixture();
+      assessment.assessment.evidence_level = "E1";
+      assessment.assessment.results.push({
+        requirement_id: "SCREEN-PRIOR",
+        requirement_kind: "screening_check",
+        requirement_source: "",
+        mapping_status: "unverified",
+        outcome: "cant_tell",
+        method_kind: "automated",
+        method: "Prior screening",
+        evidence: [{ type: "other", location: "prior", observation: "Prior evidence", captured_at: "2026-07-17T11:00:00Z" }],
+        notes: "Prior screening evidence."
+      });
+      return assessment;
+    })()],
+    ["prior-finding", (() => {
+      const assessment = assessmentFixture();
+      assessment.assessment.findings.push({
+        id: "FIND-PRIOR",
+        priority: "P2",
+        requirement_ids: [],
+        location: "prior",
+        affected_users: ["Prior users"],
+        observation: "Prior finding.",
+        remediation: "Prior remediation.",
+        verification: "Prior verification."
+      });
+      return assessment;
+    })()],
+    ["prior-profile-evidence", (() => {
+      const assessment = assessmentFixture();
+      assessment.assessment.results[0].evidence = [{
+        type: "other",
+        location: "prior",
+        observation: "Prior evidence on an unevaluated profile row.",
+        captured_at: "2026-07-17T11:00:00Z"
+      }];
+      return assessment;
+    })()]
+  ];
+
+  for (const [name, assessment] of cases) {
+    const assessmentFile = path.join(temp, `${name}.json`);
+    writeJson(assessmentFile, assessment);
+    const result = runNode(mergeArtifactsCli, [
+      "--run", runFile, "--assessment", assessmentFile, "--artifact", screenFile,
+      "--output", path.join(temp, `${name}-merged.json`)
+    ]);
+    assertRejected(result, /E0 assessment baseline|baseline.*unverified|prior.*screening|prior.*finding|prior.*evidence|current.run provenance/i);
+  }
+}));
+
+test("merge rejects human result injection that is not the current run's declared review set", (t) => withTemp(t, ({ temp, artifactRoot }) => {
+  const fixture = makeHumanReviewRun(artifactRoot);
+  const runFile = path.join(temp, "run.json");
+  const assessmentFile = path.join(temp, "assessment.json");
+  writeJson(runFile, fixture.run);
+  writeJson(assessmentFile, injectHumanResult(assessmentFixture(), "WCAG-2.2-SC-1.3.1"));
+  const result = runNode(mergeArtifactsCli, [
+    "--run", runFile, "--assessment", assessmentFile,
+    "--artifact", fixture.screenFile, "--artifact", fixture.queueFile, "--artifact", fixture.humanFile,
+    "--output", path.join(temp, "merged.json")
+  ]);
+  assertRejected(result, /E0 assessment baseline|current.run provenance|declared review set/i);
+}));
+
 test("merge rejects unregistered and duplicate declared-human profile rows", (t) => withTemp(t, ({ temp, artifactRoot }) => {
   const unregistered = makeHumanReviewRun(artifactRoot, "WCAG-9.9-SC-9.9.9");
   const unregisteredRunFile = path.join(temp, "unregistered-run.json");
@@ -732,7 +1283,7 @@ test("merge rejects unregistered and duplicate declared-human profile rows", (t)
     "--artifact", unregistered.screenFile, "--artifact", unregistered.queueFile, "--artifact", unregistered.humanFile,
     "--output", path.join(temp, "unregistered-merged.json")
   ]);
-  assertRejected(unregisteredResult, /not registered|exact profile row/i);
+  assertRejected(unregisteredResult, /not registered|exact profile row|not queued/i);
 
   fs.rmSync(artifactRoot, { recursive: true, force: true });
   fs.mkdirSync(artifactRoot);
@@ -947,5 +1498,23 @@ test("post-close output verification failure removes the newly created output", 
     () => writeNewJson(output, { status: "should-not-remain" }, { afterClose: () => { throw new Error("simulated post-close verification failure"); } }),
     /post-close verification failure/i
   );
+  assert.equal(fs.existsSync(output), false);
+}));
+
+test("partial write failure removes the O_EXCL-created file when its inode is unchanged", (t) => withTemp(t, ({ temp }) => {
+  const output = path.join(temp, "partial-write-failure.json");
+  const originalWriteFileSync = fs.writeFileSync;
+  fs.writeFileSync = (descriptor) => {
+    fs.writeSync(descriptor, Buffer.from("{\"partial\":"));
+    throw new Error("simulated partial write failure");
+  };
+  try {
+    assert.throws(
+      () => writeNewJson(output, { status: "should-not-remain" }),
+      /partial write failure/i
+    );
+  } finally {
+    fs.writeFileSync = originalWriteFileSync;
+  }
   assert.equal(fs.existsSync(output), false);
 }));

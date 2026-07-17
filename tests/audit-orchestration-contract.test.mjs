@@ -33,7 +33,7 @@ function schemaErrors(value, schemaName) {
 
 function validAuditRun() {
   return {
-    schema_version: "1.0.0",
+    schema_version: "2.0.0",
     run_id: runId,
     supersedes_run_id: null,
     status: "initialized",

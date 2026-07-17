@@ -96,24 +96,27 @@ export function canonicalJson(value) {
   return `${JSON.stringify(normalize(value), null, 2)}\n`;
 }
 
-function removeCreatedOutput(inspected, writtenIdentity) {
-  if (!writtenIdentity) return;
+function removeCreatedOutput(inspected, createdIdentity) {
+  if (!createdIdentity) return;
   const parentIdentity = directoryIdentity(fs.statSync(path.dirname(inspected.absolute), { bigint: true }));
   if (!sameIdentity(inspected.parentIdentity, parentIdentity)) throw new Error(`Output parent identity changed; refusing unsafe cleanup: ${path.dirname(inspected.absolute)}`);
   const stats = fs.lstatSync(inspected.absolute);
   if (stats.isSymbolicLink() || !stats.isFile()) throw new Error(`Output identity changed; refusing unsafe cleanup: ${inspected.absolute}`);
-  const currentIdentity = statIdentity(fs.statSync(inspected.absolute, { bigint: true }));
-  if (!sameIdentity(writtenIdentity, currentIdentity)) throw new Error(`Output file identity changed; refusing unsafe cleanup: ${inspected.absolute}`);
+  const currentIdentity = directoryIdentity(fs.statSync(inspected.absolute, { bigint: true }));
+  if (!sameIdentity(createdIdentity, currentIdentity)) throw new Error(`Output file identity changed; refusing unsafe cleanup: ${inspected.absolute}`);
   fs.unlinkSync(inspected.absolute);
 }
 
 export function writeNewJson(output, value, hooks = {}) {
   const inspected = inspectSafeOutput(output);
   let descriptor;
+  let createdIdentity;
   let writtenIdentity;
   try {
     descriptor = fs.openSync(inspected.absolute, fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_EXCL | noFollow, 0o600);
-    writtenIdentity = statIdentity(fs.fstatSync(descriptor, { bigint: true }));
+    const openedStats = fs.fstatSync(descriptor, { bigint: true });
+    createdIdentity = directoryIdentity(openedStats);
+    writtenIdentity = statIdentity(openedStats);
     const currentParent = directoryIdentity(fs.statSync(path.dirname(inspected.absolute), { bigint: true }));
     if (!sameIdentity(inspected.parentIdentity, currentParent)) throw new Error(`Unsafe output parent changed before write: ${path.dirname(inspected.absolute)}`);
     fs.writeFileSync(descriptor, canonicalJson(value), "utf8");
@@ -131,7 +134,7 @@ export function writeNewJson(output, value, hooks = {}) {
   } catch (error) {
     if (descriptor !== undefined) fs.closeSync(descriptor);
     try {
-      removeCreatedOutput(inspected, writtenIdentity);
+      removeCreatedOutput(inspected, createdIdentity);
     } catch (cleanupError) {
       throw new Error(`${error.message}; output cleanup failed: ${cleanupError.message}`);
     }
@@ -189,6 +192,7 @@ export function loadAuditResources(skillRoot = defaultSkillRoot) {
     orchestrationRegistry: "references/orchestration-registry.json",
     orchestrationSchema: "references/orchestration-registry.schema.json",
     auditRunSchema: "references/audit-run.schema.json",
+    auditRunLegacySchema: "references/audit-run-1.0.0.schema.json",
     envelopeSchema: "references/audit-artifact-envelope.schema.json",
     assessmentSchema: "references/assessment-record.schema.json",
     criteriaCatalog: "references/criteria-catalog.json",
@@ -209,6 +213,10 @@ export function loadAuditResources(skillRoot = defaultSkillRoot) {
     standardsRegistry: loaded.standardsRegistry.value,
     orchestrationRegistry: loaded.orchestrationRegistry.value,
     auditRunSchema: loaded.auditRunSchema.value,
+    auditRunSchemas: new Map([
+      [loaded.auditRunLegacySchema.value.properties.schema_version.const, loaded.auditRunLegacySchema.value],
+      [loaded.auditRunSchema.value.properties.schema_version.const, loaded.auditRunSchema.value]
+    ]),
     envelopeSchema: loaded.envelopeSchema.value,
     assessmentSchema: loaded.assessmentSchema.value,
     criteriaCatalog: loaded.criteriaCatalog.value,
@@ -291,20 +299,232 @@ function registeredArtifactPath(root, entry) {
   return resolveInside(root, path.join(root, ...entry.path.split("/")));
 }
 
+function canonicalPermissions(permissions) {
+  const network = permissions?.network;
+  const interaction = permissions?.interaction;
+  const sourceWrite = permissions?.source_write;
+  if (!["denied", "allowlisted"].includes(network)
+      || !["read_only", "human_supervised"].includes(interaction)
+      || !["denied", "authorized_only"].includes(sourceWrite)) return null;
+  const allowedActions = ["inspect_without_mutation"];
+  if (network === "allowlisted") allowedActions.push("read_allowlisted_resources");
+  if (interaction === "human_supervised") allowedActions.push("human_supervised_interaction");
+  if (sourceWrite === "authorized_only") allowedActions.push("write_authorized_files");
+  const forbiddenActions = ["execute_commands"];
+  if (network === "allowlisted") forbiddenActions.push("network_outside_allowlist");
+  else forbiddenActions.push("network_access");
+  if (sourceWrite === "denied") forbiddenActions.push("write_target");
+  return {
+    network,
+    interaction,
+    source_write: sourceWrite,
+    allowed_actions: allowedActions.sort(compareText),
+    forbidden_actions: forbiddenActions.sort(compareText)
+  };
+}
+
+function normalizedArtifactPath(value) {
+  if (typeof value !== "string") return String(value);
+  return path.posix.normalize(value.replace(/\\/gu, "/"));
+}
+
+function validateRegisteredArtifactEntries(run, errors, { requireNormalizedPaths = true } = {}) {
+  const artifacts = Array.isArray(run?.artifacts) ? run.artifacts : [];
+  const artifactIds = new Set();
+  const artifactPaths = new Set();
+  const artifactsById = new Map();
+  for (const [index, entry] of artifacts.entries()) {
+    const location = `artifacts[${index}]`;
+    if (entry?.validation_status !== "valid") errors.push(`${location}.validation_status must be valid for a registered artifact.`);
+    if (artifactIds.has(entry?.artifact_id)) errors.push(`Duplicate artifact ID: ${String(entry?.artifact_id)}.`);
+    artifactIds.add(entry?.artifact_id);
+    if (!artifactsById.has(entry?.artifact_id)) artifactsById.set(entry?.artifact_id, entry);
+    const normalizedPath = normalizedArtifactPath(entry?.path);
+    if (requireNormalizedPaths && entry?.path !== normalizedPath) errors.push(`${location}.path must be normalized with forward slashes and no redundant segments: ${String(entry?.path)}.`);
+    const normalizedPathKey = process.platform === "win32" ? normalizedPath.toLowerCase() : normalizedPath;
+    if (artifactPaths.has(normalizedPathKey)) errors.push(`Duplicate normalized artifact path: ${normalizedPath}.`);
+    artifactPaths.add(normalizedPathKey);
+  }
+  const sortedIds = [...artifacts]
+    .sort((left, right) => compareText(String(left?.artifact_id), String(right?.artifact_id)))
+    .map((entry) => entry?.artifact_id);
+  if (!isDeepStrictEqual(artifacts.map((entry) => entry?.artifact_id), sortedIds)) errors.push("Run artifacts must be sorted by artifact_id.");
+  return artifactsById;
+}
+
+function validateArtifactEnvelopeSemantics(run, resources, artifactsById, envelopesById, errors) {
+  for (const [artifactId, record] of envelopesById) {
+    const artifact = record?.envelope ?? record;
+    const entry = artifactsById.get(artifactId);
+    if (!entry) continue;
+    if (artifact?.artifact_id !== entry.artifact_id
+        || artifact?.artifact_type !== entry.artifact_type
+        || artifact?.producer?.role_id !== entry.producer_role
+        || artifact?.created_at !== entry.created_at) {
+      errors.push(`Registered artifact metadata does not match its envelope: ${String(artifactId)}.`);
+    }
+    if (artifact?.run_id !== run?.run_id) errors.push(`Registered artifact belongs to another run: ${String(artifactId)}.`);
+    const role = roleFor(resources, artifact?.producer?.role_id);
+    const allowedInputTypes = new Set(role?.input_types ?? []);
+    for (const input of Array.isArray(artifact?.inputs) ? artifact.inputs : []) {
+      if (input?.run_id !== run?.run_id) errors.push(`Artifact input must belong to the same run: ${artifactId} -> ${String(input?.artifact_id)}.`);
+      const registered = artifactsById.get(input?.artifact_id);
+      if (!registered) {
+        errors.push(`Artifact input is missing or not registered: ${artifactId} -> ${String(input?.artifact_id)}.`);
+        continue;
+      }
+      if (registered.sha256 !== input?.sha256) errors.push(`Artifact input SHA-256 hash mismatch: ${artifactId} -> ${String(input?.artifact_id)}.`);
+      if (!allowedInputTypes.has(registered.artifact_type)) errors.push(`Producer role ${String(role?.id)} does not allow input type ${registered.artifact_type}.`);
+      if (registered.created_at > artifact?.created_at) errors.push(`Artifact input was created after its consumer: ${artifactId} -> ${String(input?.artifact_id)}.`);
+    }
+  }
+}
+
+function assertCurrentOperationalRun(run, resources, operation) {
+  const errors = [];
+  const runRecord = run !== null && typeof run === "object" && !Array.isArray(run) ? run : {};
+  const latestSchemaVersion = resources?.auditRunSchema?.properties?.schema_version?.const;
+  if (typeof latestSchemaVersion !== "string") {
+    errors.push("The installed latest audit-run schema_version is unavailable.");
+  } else if (runRecord.schema_version !== latestSchemaVersion) {
+    errors.push(`schema_version must be the installed latest version ${latestSchemaVersion}; received ${String(runRecord.schema_version)}.`);
+  }
+  if (!resources?.auditRunSchema || typeof resources.auditRunSchema !== "object") {
+    errors.push("The installed latest audit-run schema is unavailable.");
+  } else {
+    validateJsonSchema(run, resources.auditRunSchema, "$", errors);
+  }
+  if (!resources?.resourceVersions || !isDeepStrictEqual(runRecord.resource_versions, resources.resourceVersions)) {
+    errors.push("resource_versions must exactly match every installed current resource version and SHA-256 hash, including orchestration_registry_sha256.");
+  }
+  const profile = resources?.standardsRegistry?.profiles?.find((item) => item.id === runRecord.profile?.id);
+  if (!profile?.assessment_configuration?.active) {
+    errors.push(`Run profile must be a known active profile: ${String(runRecord.profile?.id)}.`);
+  }
+  if (runRecord.profile?.registry_version !== resources?.standardsRegistry?.schema_version) {
+    errors.push(`profile.registry_version must match the installed standards registry version ${String(resources?.standardsRegistry?.schema_version)}.`);
+  }
+  const expectedPermissions = canonicalPermissions(runRecord.permissions);
+  if (!expectedPermissions || !isDeepStrictEqual(runRecord.permissions, expectedPermissions)) {
+    errors.push("permissions must exactly match the canonical allowed_actions and forbidden_actions for network, interaction, and source_write.");
+  }
+  if (errors.length) {
+    throw new Error(`${operation} requires the latest audit-run schema_version ${String(latestSchemaVersion)}. Legacy and other non-latest audit runs are read-only; no implicit upgrade is performed.\n- ${errors.join("\n- ")}`);
+  }
+}
+
+function normalizedStrings(values) {
+  return Array.isArray(values) ? [...values].sort(compareText) : [];
+}
+
+function exactStringSet(actual, expected) {
+  return Array.isArray(actual) && Array.isArray(expected)
+    && isDeepStrictEqual(normalizedStrings(actual), normalizedStrings(expected));
+}
+
+function profileCatalogRecord(requirementId, profileId, resources) {
+  const profile = resources.standardsRegistry.profiles.find((item) => item.id === profileId);
+  for (const key of profile?.assessment_configuration?.catalog_keys ?? []) {
+    const record = resources.criteriaCatalog.catalogs[key]?.find((item) => item.id === requirementId);
+    if (record) return record;
+  }
+  return null;
+}
+
+function validateDeclaredHumanBindings(envelopesById, profileId, resources, errors) {
+  for (const [artifactId, record] of envelopesById) {
+    const artifact = record?.envelope ?? record;
+    if (artifact?.artifact_type !== "declared-human-review") continue;
+    const queuedItems = new Map();
+    for (const input of Array.isArray(artifact.inputs) ? artifact.inputs : []) {
+      const queueRecord = envelopesById.get(input?.artifact_id);
+      const queue = queueRecord?.envelope ?? queueRecord;
+      if (queue?.artifact_type !== "human-review-queue") {
+        errors.push(`Declared human review ${artifactId} must reference a registered human-review-queue input: ${String(input?.artifact_id)}.`);
+        continue;
+      }
+      for (const item of Array.isArray(queue.payload?.items) ? queue.payload.items : []) {
+        if (queuedItems.has(item?.requirement_id)) {
+          errors.push(`Declared human review ${artifactId} has an ambiguous duplicate queued requirement: ${String(item?.requirement_id)}.`);
+        } else {
+          queuedItems.set(item?.requirement_id, item);
+        }
+      }
+    }
+    const reviewed = new Set();
+    for (const review of Array.isArray(artifact.payload?.reviews) ? artifact.payload.reviews : []) {
+      const requirementId = review?.requirement_id;
+      if (reviewed.has(requirementId)) errors.push(`Declared human review ${artifactId} repeats queued requirement ${String(requirementId)}.`);
+      reviewed.add(requirementId);
+      const queueItem = queuedItems.get(requirementId);
+      if (!queueItem) {
+        errors.push(`Declared human review ${artifactId} requirement was not queued by its registered inputs: ${String(requirementId)}.`);
+        continue;
+      }
+      if (review.procedure_availability !== queueItem.procedure_availability) {
+        errors.push(`Declared human review ${artifactId} procedure_availability does not match its queue for ${requirementId}.`);
+      }
+      if (review.criterion_procedure_ref !== queueItem.procedure_ref) {
+        errors.push(`Declared human review ${artifactId} criterion_procedure_ref does not match its queue procedure_ref for ${requirementId}.`);
+      }
+      const catalog = profileCatalogRecord(requirementId, profileId, resources);
+      if (!catalog) {
+        errors.push(`Declared human review ${artifactId} requirement is not registered in profile ${String(profileId)}: ${String(requirementId)}.`);
+        continue;
+      }
+      const procedure = resources.criterionProcedures.procedures.find((item) => item.requirement_id === requirementId);
+      const requiredEvidenceTypes = new Set(queueItem.required_evidence_types ?? []);
+      if (procedure) {
+        const expectedProcedureRef = `criterion-procedures:${resources.criterionProcedures.schema_version}#${procedure.id}`;
+        if (queueItem.procedure_availability !== "available" || queueItem.procedure_ref !== expectedProcedureRef
+            || review.procedure_availability !== "available" || review.criterion_procedure_ref !== expectedProcedureRef) {
+          errors.push(`Declared human review ${artifactId} must use the current registered procedure ${expectedProcedureRef} for ${requirementId}.`);
+        }
+        if (review.generic_method_ref !== null) errors.push(`Declared human review ${artifactId} generic_method_ref must be null when a criterion procedure is available for ${requirementId}.`);
+        if (!exactStringSet(review.official_sources, procedure.primary_sources)) {
+          errors.push(`Declared human review ${artifactId} official_sources must exactly match the registered procedure primary sources for ${requirementId}.`);
+        }
+        for (const evidenceType of procedure.required_evidence_types ?? []) requiredEvidenceTypes.add(evidenceType);
+      } else {
+        if (queueItem.procedure_availability !== "unavailable" || queueItem.procedure_ref !== null
+            || review.procedure_availability !== "unavailable" || review.criterion_procedure_ref !== null) {
+          errors.push(`Declared human review ${artifactId} must preserve unavailable procedure status from its queue for ${requirementId}.`);
+        }
+        const expectedGenericMethod = expectedMethodRef(requirementId, resources, profileId);
+        if (review.generic_method_ref !== expectedGenericMethod) {
+          errors.push(`Declared human review ${artifactId} generic_method_ref must use the current generic method ${expectedGenericMethod} for ${requirementId}.`);
+        }
+        if (!exactStringSet(review.official_sources, catalog.official_method_sources)) {
+          errors.push(`Declared human review ${artifactId} official_sources must exactly match the current catalog sources for ${requirementId}.`);
+        }
+      }
+      const evidenceTypes = new Set((review.target_specific_evidence ?? []).map((item) => item?.type));
+      for (const requiredType of requiredEvidenceTypes) {
+        if (!evidenceTypes.has(requiredType)) {
+          errors.push(`Declared human review ${artifactId} is missing required evidence type ${requiredType} for ${requirementId}.`);
+        }
+      }
+    }
+  }
+}
+
 function validateHistory(run, resources, artifactsById, errors) {
   let current = "initialized";
   let previousAt = "";
   const representedTypes = new Set();
-  for (const [index, entry] of (run.history ?? []).entries()) {
+  const history = Array.isArray(run?.history) ? run.history : [];
+  for (const [index, rawEntry] of history.entries()) {
+    const entry = rawEntry !== null && typeof rawEntry === "object" ? rawEntry : {};
     const location = `history[${index}]`;
     if (entry.from !== current) errors.push(`${location} continuity error: expected from ${current}, received ${String(entry.from)}.`);
     const transition = resources.orchestrationRegistry.transitions.find((item) => item.from === entry.from && item.to === entry.to);
     if (!transition) errors.push(`${location} contains an invalid transition ${String(entry.from)} -> ${String(entry.to)}.`);
     if (previousAt && entry.at < previousAt) errors.push(`${location}.at is earlier than the preceding history entry.`);
     previousAt = entry.at ?? previousAt;
-    const referenced = (entry.artifact_ids ?? []).map((id) => artifactsById.get(id));
+    const artifactIds = Array.isArray(entry.artifact_ids) ? entry.artifact_ids : [];
+    const referenced = artifactIds.map((id) => artifactsById.get(id));
     for (const [artifactIndex, artifact] of referenced.entries()) {
-      if (!artifact) errors.push(`${location}.artifact_ids[${artifactIndex}] is not a registered artifact: ${entry.artifact_ids[artifactIndex]}.`);
+      if (!artifact) errors.push(`${location}.artifact_ids[${artifactIndex}] is not a registered artifact: ${artifactIds[artifactIndex]}.`);
     }
     if (transition) {
       const actualTypes = new Set(referenced.filter(Boolean).map((artifact) => artifact.artifact_type));
@@ -322,9 +542,9 @@ function validateHistory(run, resources, artifactsById, errors) {
     }
     current = entry.to ?? current;
   }
-  if (run.status !== current) errors.push(`Run status/history continuity error: status is ${String(run.status)} but history ends at ${current}.`);
-  for (const artifact of run.artifacts ?? []) {
-    if (!representedTypes.has(artifact.artifact_type)) errors.push(`Registered artifact type is not represented by run history: ${artifact.artifact_type} (${artifact.artifact_id}).`);
+  if (run?.status !== current) errors.push(`Run status/history continuity error: status is ${String(run?.status)} but history ends at ${current}.`);
+  for (const artifact of Array.isArray(run?.artifacts) ? run.artifacts : []) {
+    if (!representedTypes.has(artifact?.artifact_type)) errors.push(`Registered artifact type is not represented by run history: ${String(artifact?.artifact_type)} (${String(artifact?.artifact_id)}).`);
   }
 }
 
@@ -336,71 +556,59 @@ export function validateAuditRun(run, { skillRoot = defaultSkillRoot, runFile } 
   } catch (error) {
     return { valid: false, errors: [error.message] };
   }
-  validateJsonSchema(run, resources.auditRunSchema, "$", errors);
-  for (const [key, expected] of Object.entries(resources.resourceVersions)) {
-    if (run?.resource_versions?.[key] !== expected) errors.push(`resource_versions.${key} must match the exact installed resource hash or version ${expected}.`);
+  const runRecord = run !== null && typeof run === "object" && !Array.isArray(run) ? run : {};
+  const schema = resources.auditRunSchemas.get(runRecord.schema_version);
+  if (!schema) errors.push(`Unsupported audit-run schema_version: ${String(runRecord.schema_version)}.`);
+  else validateJsonSchema(run, schema, "$", errors);
+  const expectedResourceVersions = { ...resources.resourceVersions };
+  if (runRecord.schema_version === "1.0.0") delete expectedResourceVersions.orchestration_registry_sha256;
+  for (const [key, expected] of Object.entries(expectedResourceVersions)) {
+    if (runRecord.resource_versions?.[key] !== expected) errors.push(`resource_versions.${key} must match the exact installed resource hash or version ${expected}.`);
   }
-  const profile = resources.standardsRegistry.profiles.find((item) => item.id === run?.profile?.id);
-  if (!profile?.assessment_configuration?.active) errors.push(`Run profile must be a known active profile: ${String(run?.profile?.id)}.`);
+  const currentSchemaVersion = resources.auditRunSchema.properties.schema_version.const;
+  const usesCurrentPolicy = runRecord.schema_version === currentSchemaVersion;
+  if (usesCurrentPolicy) {
+    const profile = resources.standardsRegistry.profiles.find((item) => item.id === runRecord.profile?.id);
+    if (!profile?.assessment_configuration?.active) errors.push(`Run profile must be a known active profile: ${String(runRecord.profile?.id)}.`);
+    if (runRecord.profile?.registry_version !== resources.standardsRegistry.schema_version) {
+      errors.push(`profile.registry_version must match the installed standards registry version ${resources.standardsRegistry.schema_version}.`);
+    }
+    const expectedPermissions = canonicalPermissions(runRecord.permissions);
+    if (expectedPermissions && !isDeepStrictEqual(runRecord.permissions, expectedPermissions)) {
+      errors.push("permissions must exactly match the canonical allowed_actions and forbidden_actions for network, interaction, and source_write.");
+    }
+  }
   let artifactRoot;
   try {
-    artifactRoot = artifactRootFor(run, runFile);
+    artifactRoot = artifactRootFor(runRecord, runFile);
   } catch (error) {
     errors.push(error.message);
   }
-  const artifacts = Array.isArray(run?.artifacts) ? run.artifacts : [];
-  const artifactIds = new Set();
-  const artifactPaths = new Set();
+  const artifacts = Array.isArray(runRecord.artifacts) ? runRecord.artifacts : [];
+  const artifactsById = validateRegisteredArtifactEntries(runRecord, errors, { requireNormalizedPaths: usesCurrentPolicy });
   const canonicalArtifactPaths = new Set();
-  const artifactsById = new Map();
   const envelopesById = new Map();
   for (const [index, entry] of artifacts.entries()) {
     const location = `artifacts[${index}]`;
-    if (entry.validation_status !== "valid") errors.push(`${location}.validation_status must be valid for a registered artifact.`);
-    if (artifactIds.has(entry.artifact_id)) errors.push(`Duplicate artifact ID: ${entry.artifact_id}.`);
-    artifactIds.add(entry.artifact_id);
-    const normalizedPath = typeof entry.path === "string" ? entry.path.replace(/\\/gu, "/") : String(entry.path);
-    if (artifactPaths.has(normalizedPath)) errors.push(`Duplicate artifact path: ${normalizedPath}.`);
-    artifactPaths.add(normalizedPath);
-    artifactsById.set(entry.artifact_id, entry);
     if (!artifactRoot) continue;
     try {
       const file = registeredArtifactPath(artifactRoot, entry);
       const canonicalPath = pathKey(file);
-      if (canonicalArtifactPaths.has(canonicalPath)) errors.push(`Duplicate canonical artifact path: ${entry.path}.`);
+      if (canonicalArtifactPaths.has(canonicalPath)) errors.push(`Duplicate canonical artifact path: ${String(entry?.path)}.`);
       canonicalArtifactPaths.add(canonicalPath);
-      const snapshot = readStableFile(file, { label: `registered artifact ${entry.artifact_id}` });
-      if (snapshot.sha256 !== entry.sha256) errors.push(`Registered artifact current hash mismatch: ${entry.artifact_id}.`);
-      const envelope = parseJsonBytes(snapshot.bytes, `registered artifact ${entry.artifact_id}`);
-      envelopesById.set(entry.artifact_id, { envelope, snapshot });
+      const snapshot = readStableFile(file, { label: `registered artifact ${String(entry?.artifact_id)}` });
+      if (snapshot.sha256 !== entry?.sha256) errors.push(`Registered artifact current hash mismatch: ${String(entry?.artifact_id)}.`);
+      const envelope = parseJsonBytes(snapshot.bytes, `registered artifact ${String(entry?.artifact_id)}`);
+      envelopesById.set(entry?.artifact_id, { envelope, snapshot });
       const validation = validateArtifact(envelope, resources);
       errors.push(...validation.errors.map((error) => `${location}: ${error}`));
-      if (envelope.artifact_id !== entry.artifact_id || envelope.artifact_type !== entry.artifact_type || envelope.producer?.role_id !== entry.producer_role || envelope.created_at !== entry.created_at) {
-        errors.push(`Registered artifact metadata does not match its envelope: ${entry.artifact_id}.`);
-      }
-      if (envelope.run_id !== run.run_id) errors.push(`Registered artifact belongs to another run: ${entry.artifact_id}.`);
     } catch (error) {
       errors.push(error.message);
     }
   }
-  const sortedIds = [...artifacts].sort((left, right) => compareText(left.artifact_id, right.artifact_id)).map((entry) => entry.artifact_id);
-  if (!isDeepStrictEqual(artifacts.map((entry) => entry.artifact_id), sortedIds)) errors.push("Run artifacts must be sorted by artifact_id.");
-  for (const [artifactId, record] of envelopesById) {
-    const role = roleFor(resources, record.envelope.producer.role_id);
-    const allowedInputTypes = new Set(role?.input_types ?? []);
-    for (const input of record.envelope.inputs) {
-      if (input.run_id !== run.run_id) errors.push(`Artifact input must belong to the same run: ${artifactId} -> ${input.artifact_id}.`);
-      const registered = artifactsById.get(input.artifact_id);
-      if (!registered) {
-        errors.push(`Artifact input is missing or not registered: ${artifactId} -> ${input.artifact_id}.`);
-        continue;
-      }
-      if (registered.sha256 !== input.sha256) errors.push(`Artifact input SHA-256 hash mismatch: ${artifactId} -> ${input.artifact_id}.`);
-      if (!allowedInputTypes.has(registered.artifact_type)) errors.push(`Producer role ${role.id} does not allow input type ${registered.artifact_type}.`);
-      if (registered.created_at > record.envelope.created_at) errors.push(`Artifact input was created after its consumer: ${artifactId} -> ${input.artifact_id}.`);
-    }
-  }
-  validateHistory(run, resources, artifactsById, errors);
+  validateArtifactEnvelopeSemantics(runRecord, resources, artifactsById, envelopesById, errors);
+  if (usesCurrentPolicy) validateDeclaredHumanBindings(envelopesById, runRecord.profile?.id, resources, errors);
+  validateHistory(runRecord, resources, artifactsById, errors);
   return { valid: errors.length === 0, errors, resources, artifactRoot, envelopesById };
 }
 
@@ -427,16 +635,9 @@ export function createAuditRun(options) {
   const network = normalizePermission(options.network, { local_read_only: "allowlisted", allowlisted: "allowlisted", none: "denied", denied: "denied" }, "network");
   const interaction = normalizePermission(options.interaction, { safe_read_only: "read_only", read_only: "read_only", human_supervised: "human_supervised" }, "interaction");
   const sourceWrite = normalizePermission(options.sourceWrite, { none: "denied", denied: "denied", authorized_only: "authorized_only" }, "source-write");
-  const allowedActions = ["inspect_without_mutation"];
-  if (network === "allowlisted") allowedActions.push("read_allowlisted_resources");
-  if (interaction === "human_supervised") allowedActions.push("human_supervised_interaction");
-  if (sourceWrite === "authorized_only") allowedActions.push("write_authorized_files");
-  const forbiddenActions = ["execute_commands"];
-  if (network === "allowlisted") forbiddenActions.push("network_outside_allowlist");
-  else forbiddenActions.push("network_access");
-  if (sourceWrite === "denied") forbiddenActions.push("write_target");
+  const permissions = canonicalPermissions({ network, interaction, source_write: sourceWrite });
   const run = {
-    schema_version: "1.0.0",
+    schema_version: resources.auditRunSchema.properties.schema_version.const,
     run_id: options.runId,
     supersedes_run_id: options.supersedesRunId ?? null,
     status: "initialized",
@@ -444,13 +645,7 @@ export function createAuditRun(options) {
     profile: { id: profile.id, registry_version: resources.standardsRegistry.schema_version },
     scope: { included: targetRefs, excluded: [], complete_processes: [], third_party_content: [], full_pages_reviewed: false },
     environment: { os: ["not_declared"], browsers: [], assistive_technologies: [], input_modes: [] },
-    permissions: {
-      network,
-      interaction,
-      source_write: sourceWrite,
-      allowed_actions: allowedActions.sort(compareText),
-      forbidden_actions: forbiddenActions.sort(compareText)
-    },
+    permissions,
     resource_versions: resources.resourceVersions,
     artifact_root: relativeRoot.split(path.sep).join("/"),
     artifacts: [],
@@ -472,6 +667,7 @@ export function registerArtifact(run, artifact, options = {}) {
   const skillRoot = options.skillRoot ?? defaultSkillRoot;
   if (!options.runFile || !options.artifactFile) throw new Error("runFile and artifactFile are required for registration");
   const validation = assertValidRun(run, { skillRoot, runFile: options.runFile });
+  assertCurrentOperationalRun(run, validation.resources, "Artifact registration");
   const artifactPath = resolveInside(validation.artifactRoot, options.artifactFile);
   const relativePath = path.relative(validation.artifactRoot, artifactPath).split(path.sep).join("/");
   if (run.artifacts.some((entry) => pathKey(registeredArtifactPath(validation.artifactRoot, entry)) === pathKey(artifactPath))) {
@@ -530,8 +726,8 @@ export function registerArtifact(run, artifact, options = {}) {
   return next;
 }
 
-function expectedMethodRef(requirementId, resources) {
-  const record = Object.values(resources.criteriaCatalog.catalogs).flat().find((item) => item.id === requirementId);
+function expectedMethodRef(requirementId, resources, profileId) {
+  const record = profileCatalogRecord(requirementId, profileId, resources);
   if (!record) throw new Error(`Exact profile row is not registered for declared human review: ${requirementId}`);
   const method = resources.auditMethods.methods.find((item) => item.id === record.method_key);
   if (!method) throw new Error(`No registered audit method for exact profile row: ${requirementId}`);
@@ -544,8 +740,66 @@ function validateAssessmentOrThrow(assessment, resources, label) {
   return result;
 }
 
+function assertAssessmentMergeBaseline(assessment, resources) {
+  const record = assessment?.assessment;
+  if (record?.evidence_level !== "E0") {
+    throw new Error("Merge input must be an E0 assessment baseline reconstructed only from current-run artifacts.");
+  }
+  if (!Array.isArray(record.findings) || record.findings.length !== 0) {
+    throw new Error("Merge input E0 assessment baseline must not contain prior findings.");
+  }
+  for (const result of Array.isArray(record.results) ? record.results : []) {
+    if (result?.requirement_kind !== "profile_requirement") {
+      throw new Error("Merge input E0 assessment baseline must not contain prior screening rows.");
+    }
+    if (result.mapping_status !== "unverified" || result.outcome !== "not_tested") {
+      throw new Error("Merge input profile rows must be unverified and not_tested before current-run artifact reconstruction.");
+    }
+    if (!Array.isArray(result.evidence) || result.evidence.length !== 0) {
+      throw new Error("Merge input E0 assessment baseline must not contain prior evidence.");
+    }
+  }
+  const expectedParticipationCoverage = {
+    find: "not_tested",
+    receive: "not_tested",
+    understand: "not_tested",
+    participate: "not_tested",
+    continue: "not_tested"
+  };
+  if (!isDeepStrictEqual(record.participation_coverage, expectedParticipationCoverage)) {
+    throw new Error("Merge input E0 assessment baseline participation_coverage must be entirely not_tested.");
+  }
+  const expectedAssurance = {
+    independent_audit: {
+      performed: false,
+      evaluator_independent: false,
+      scope_method: "",
+      report_location: ""
+    },
+    legal_or_procurement_dossier: {
+      prepared: false,
+      responsible_owner: "",
+      artifacts: []
+    }
+  };
+  if (!isDeepStrictEqual(record.assurance, expectedAssurance)) {
+    throw new Error("Merge input E0 assessment baseline must not claim an independent audit or legal/procurement dossier.");
+  }
+  const expectedClaim = {
+    requested_tier: "reference_only",
+    proposed_wording: resources.standardsRegistry.claim_templates.reference_only?.[0]
+  };
+  if (!isDeepStrictEqual(record.claim, expectedClaim)) {
+    throw new Error("Merge input E0 assessment baseline claim must be the canonical reference_only registry template.");
+  }
+  if (record.next_review_at !== null) {
+    throw new Error("Merge input E0 assessment baseline next_review_at must be null.");
+  }
+}
+
 export function mergeArtifacts({ run, assessment, artifacts, registries }) {
   const resources = registries ?? loadAuditResources();
+  assertCurrentOperationalRun(run, resources, "Artifact merge");
   validateAssessmentOrThrow(assessment, resources, "Invalid input assessment");
   if (assessment.assessment.profile.id !== run.profile.id || assessment.assessment.profile.registry_version !== run.profile.registry_version) {
     throw new Error("Assessment profile does not match the audit run.");
@@ -553,8 +807,13 @@ export function mergeArtifacts({ run, assessment, artifacts, registries }) {
   if (!isDeepStrictEqual(assessment.assessment.target, run.target)) throw new Error("Assessment target does not match the audit run.");
   if (!isDeepStrictEqual(assessment.assessment.scope, run.scope)) throw new Error("Assessment scope does not match the audit run.");
   if (!isDeepStrictEqual(assessment.assessment.environment, run.environment)) throw new Error("Assessment environment does not match the audit run.");
-  const registered = new Map(run.artifacts.map((entry) => [entry.artifact_id, entry]));
+  assertAssessmentMergeBaseline(assessment, resources);
+  const runSemanticErrors = [];
+  const registered = validateRegisteredArtifactEntries(run, runSemanticErrors);
+  validateHistory(run, resources, registered, runSemanticErrors);
+  if (runSemanticErrors.length) throw new Error(`Invalid pure merge audit-run semantics:\n- ${runSemanticErrors.join("\n- ")}`);
   const suppliedIds = new Set();
+  const suppliedEnvelopesById = new Map();
   const sorted = [...artifacts].sort((left, right) => compareText(left.artifact_type, right.artifact_type) || compareText(left.artifact_id, right.artifact_id));
   for (const artifact of sorted) {
     if (suppliedIds.has(artifact.artifact_id)) throw new Error(`Duplicate supplied artifact ID: ${artifact.artifact_id}`);
@@ -569,6 +828,7 @@ export function mergeArtifacts({ run, assessment, artifacts, registries }) {
     if (!(resources.artifact_sha256_by_id instanceof Map)) throw new Error("Pure merge requires an exact artifact hash map and fails closed without one.");
     const exactHash = resources.artifact_sha256_by_id.get(artifact.artifact_id);
     if (!exactHash || exactHash !== entry.sha256) throw new Error(`Merge artifact exact current hash mismatch: ${artifact.artifact_id}`);
+    suppliedEnvelopesById.set(artifact.artifact_id, artifact);
   }
   const registeredIds = [...registered.keys()].sort(compareText);
   const suppliedRegisteredIds = [...suppliedIds].sort(compareText);
@@ -576,6 +836,10 @@ export function mergeArtifacts({ run, assessment, artifacts, registries }) {
     const omitted = registeredIds.filter((id) => !suppliedIds.has(id));
     throw new Error(`Merge requires the complete registered artifact set; missing registered artifacts: ${omitted.join(", ")}`);
   }
+  const bindingErrors = [];
+  validateArtifactEnvelopeSemantics(run, resources, registered, suppliedEnvelopesById, bindingErrors);
+  validateDeclaredHumanBindings(suppliedEnvelopesById, run.profile.id, resources, bindingErrors);
+  if (bindingErrors.length) throw new Error(`Invalid declared human review binding:\n- ${bindingErrors.join("\n- ")}`);
   const merged = structuredClone(assessment);
   const existingIds = new Set(merged.assessment.results.map((item) => item.requirement_id));
   const screeningResults = [];
@@ -616,7 +880,7 @@ export function mergeArtifacts({ run, assessment, artifacts, registries }) {
           mapping_status: "human_verified",
           outcome: review.profile_outcome,
           method_kind: "manual",
-          method_ref: expectedMethodRef(review.requirement_id, resources),
+          method_ref: expectedMethodRef(review.requirement_id, resources, run.profile.id),
           method: `Declared external human review: ${review.rationale}`,
           evidence: structuredClone(review.target_specific_evidence),
           notes: review.rationale
@@ -626,6 +890,14 @@ export function mergeArtifacts({ run, assessment, artifacts, registries }) {
   }
   screeningResults.sort((left, right) => compareText(left.requirement_id, right.requirement_id));
   merged.assessment.results.push(...screeningResults);
+  const reflectedProfileIds = merged.assessment.results
+    .filter((item) => item.requirement_kind === "profile_requirement" && (item.mapping_status === "human_verified" || item.outcome !== "not_tested"))
+    .map((item) => item.requirement_id)
+    .sort(compareText);
+  const declaredReviewIds = [...humanReviews.keys()].sort(compareText);
+  if (!isDeepStrictEqual(reflectedProfileIds, declaredReviewIds)) {
+    throw new Error("Merged assessment profile outcomes must exactly match the current run declared review set.");
+  }
   if (humanReviews.size) {
     merged.assessment.evidence_level = "E2";
     merged.assessment.evaluator = [...reviewerNames].sort(compareText).join(", ");
