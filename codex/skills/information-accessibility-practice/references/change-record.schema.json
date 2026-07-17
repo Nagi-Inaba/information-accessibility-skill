@@ -58,19 +58,34 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["command_id", "executable", "args", "cwd", "exit_code", "signal", "stdout_sha256", "stderr_sha256", "started_at", "completed_at"],
+        "required": ["command_id", "executable", "args", "cwd", "status", "exit_code", "signal", "stdout_sha256", "stderr_sha256", "started_at", "completed_at"],
         "properties": {
           "command_id": { "$ref": "#/$defs/command_id" },
           "executable": { "type": "string", "pattern": "^(?![A-Za-z]:[\\\\/])(?![\\\\/])(?!.*(?:^|[\\\\/])\\.\\.(?:[\\\\/]|$))[A-Za-z0-9._@+-]+(?:[\\\\/][A-Za-z0-9._@+-]+)*$" },
           "args": { "type": "array", "items": { "type": "string" } },
           "cwd": { "$ref": "#/$defs/relative_path" },
+          "status": { "enum": ["exited", "signaled", "spawn_error"] },
           "exit_code": { "type": ["integer", "null"] },
           "signal": { "type": ["string", "null"], "minLength": 1 },
           "stdout_sha256": { "$ref": "#/$defs/sha256" },
           "stderr_sha256": { "$ref": "#/$defs/sha256" },
           "started_at": { "$ref": "#/$defs/timestamp" },
           "completed_at": { "$ref": "#/$defs/timestamp" }
-        }
+        },
+        "allOf": [
+          {
+            "if": { "properties": { "status": { "const": "exited" } }, "required": ["status"] },
+            "then": { "properties": { "exit_code": { "type": "integer" }, "signal": { "const": null } } }
+          },
+          {
+            "if": { "properties": { "status": { "const": "signaled" } }, "required": ["status"] },
+            "then": { "properties": { "exit_code": { "const": null }, "signal": { "type": "string", "minLength": 1 } } }
+          },
+          {
+            "if": { "properties": { "status": { "const": "spawn_error" } }, "required": ["status"] },
+            "then": { "properties": { "exit_code": { "const": null }, "signal": { "const": null } } }
+          }
+        ]
       }
     },
     "lease": {

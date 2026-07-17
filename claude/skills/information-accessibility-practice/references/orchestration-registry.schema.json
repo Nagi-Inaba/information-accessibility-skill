@@ -151,7 +151,7 @@
           "latest_schema_version": "2.0.0",
           "schema_versions": [
             { "version": "1.0.0", "schema_file": "change-record-1.0.0.schema.json", "mode": "read_only" },
-            { "version": "2.0.0", "schema_file": "change-record.schema.json", "mode": "current" }
+            { "version": "2.0.0", "schema_file": "change-record.schema.json", "schema_sha256": "304927774cbdb78f8f770736b0cbfa4b591b858ab78b3f1f2ad310c036b631da", "mode": "current" }
           ]
         }
       ]
@@ -193,6 +193,7 @@
             "properties": {
               "version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
               "schema_file": { "type": "string", "pattern": "^[a-z0-9][a-z0-9.-]*\\.schema\\.json$" },
+              "schema_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
               "mode": { "enum": ["current", "read_only"] }
             }
           }

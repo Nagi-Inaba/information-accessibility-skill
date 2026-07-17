@@ -220,7 +220,8 @@ test("orchestration reference states the current behavioral boundary and future 
   assert.match(body, /deny[^]*(?:authentication|authenticate)[^]*form[^]*state-changing/i);
   assert.match(body, /malicious fixture[^]*target[^]*out-of-scope[^]*hashes[^]*unchanged/i);
   assert.match(body, /denial proof[^]*execution gate/i);
-  assert.match(body, /Task 9[^]*privacy scan[^]*local paths[^]*private URLs[^]*person names[^]*sensitive evidence/i);
+  assert.match(body, /Future public-report hardening[^]*privacy scan[^]*local paths[^]*private URLs[^]*person names[^]*sensitive evidence/i);
+  assert.doesNotMatch(body, /Task 8B|Task 9/i);
   assert.match(body, /public report[^]*(?:must not|never)[^]*(?:internal agent|run IDs|orchestration history|state history)/i);
   assert.match(body, /future acceptance criteria[^]*(?:not yet implemented|not an implemented guarantee)/i);
 });

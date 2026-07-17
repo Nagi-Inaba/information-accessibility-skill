@@ -290,6 +290,7 @@ function validChangeRecordPayload() {
       executable: "node",
       args: ["scripts/verify-target.mjs", "--target", "index.html"],
       cwd: ".",
+      status: "exited",
       exit_code: 0,
       signal: null,
       stdout_sha256: "d".repeat(64),
@@ -624,7 +625,12 @@ test("the orchestration registry fixes the complete role, artifact, and transiti
       latest_schema_version: "2.0.0",
       schema_versions: [
         { version: "1.0.0", schema_file: "change-record-1.0.0.schema.json", mode: "read_only" },
-        { version: "2.0.0", schema_file: "change-record.schema.json", mode: "current" }
+        {
+          version: "2.0.0",
+          schema_file: "change-record.schema.json",
+          schema_sha256: "304927774cbdb78f8f770736b0cbfa4b591b858ab78b3f1f2ad310c036b631da",
+          mode: "current"
+        }
       ]
     }
   ]);
@@ -990,6 +996,18 @@ test("change record 2 enforces operation hashes, structured command results, lea
   deleted.changed_files[0].after_sha256 = null;
   assert.deepEqual(await schemaErrors(deleted, "change-record.schema.json"), []);
 
+  const signaled = validChangeRecordPayload();
+  signaled.command_results[0].status = "signaled";
+  signaled.command_results[0].exit_code = null;
+  signaled.command_results[0].signal = "SIGTERM";
+  assert.deepEqual(await schemaErrors(signaled, "change-record.schema.json"), []);
+
+  const spawnError = validChangeRecordPayload();
+  spawnError.command_results[0].status = "spawn_error";
+  spawnError.command_results[0].exit_code = null;
+  spawnError.command_results[0].signal = null;
+  assert.deepEqual(await schemaErrors(spawnError, "change-record.schema.json"), []);
+
   const mutations = [
     ["absolute path", (value) => { value.changed_files[0].path = "C:\\target\\index.html"; }],
     ["traversal path", (value) => { value.changed_files[0].path = "../index.html"; }],
@@ -999,6 +1017,13 @@ test("change record 2 enforces operation hashes, structured command results, lea
     ["delete with after hash", (value) => { value.changed_files[0].operation = "delete"; }],
     ["command string", (value) => { value.command_results[0].command = "node scripts/verify-target.mjs"; }],
     ["duplicate command ID", (value) => { value.command_results.push(structuredClone(value.command_results[0])); }],
+    ["unknown command status", (value) => { value.command_results[0].status = "unknown"; }],
+    ["exited without exit code", (value) => { value.command_results[0].exit_code = null; }],
+    ["exited with signal", (value) => { value.command_results[0].signal = "SIGTERM"; }],
+    ["signaled with exit code", (value) => { value.command_results[0].status = "signaled"; value.command_results[0].signal = "SIGTERM"; }],
+    ["signaled without signal", (value) => { value.command_results[0].status = "signaled"; value.command_results[0].exit_code = null; }],
+    ["spawn error with exit code", (value) => { value.command_results[0].status = "spawn_error"; }],
+    ["spawn error with signal", (value) => { value.command_results[0].status = "spawn_error"; value.command_results[0].exit_code = null; value.command_results[0].signal = "SIGTERM"; }],
     ["missing lease evidence", (value) => { delete value.lease.source_root_sha256; }],
     ["terminal status", (value) => { value.next_status = "completed"; }],
     ["profile outcome", (value) => { value.profile_outcome = "pass"; }],

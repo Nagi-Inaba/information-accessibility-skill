@@ -134,7 +134,7 @@
       "latest_schema_version": "2.0.0",
       "schema_versions": [
         { "version": "1.0.0", "schema_file": "change-record-1.0.0.schema.json", "mode": "read_only" },
-        { "version": "2.0.0", "schema_file": "change-record.schema.json", "mode": "current" }
+        { "version": "2.0.0", "schema_file": "change-record.schema.json", "schema_sha256": "304927774cbdb78f8f770736b0cbfa4b591b858ab78b3f1f2ad310c036b631da", "mode": "current" }
       ]
     }
   ],

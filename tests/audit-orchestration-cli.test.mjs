@@ -13,6 +13,7 @@ import {
   loadAuditResources,
   mergeArtifacts as mergeArtifactRecords,
   registerArtifact as registerArtifactRecord,
+  validateArtifact,
   validateAuditRun,
   writeNewJson
 } from "../codex/skills/information-accessibility-practice/scripts/lib/audit-run.mjs";
@@ -84,6 +85,24 @@ function initialRun(artifactRoot) {
     history: [],
     limitations: ["The environment was not declared; no profile outcome has been recorded."]
   };
+}
+
+function authorizedInitialRun(artifactRoot) {
+  const run = initialRun(artifactRoot);
+  run.permissions = {
+    network: "allowlisted",
+    interaction: "read_only",
+    source_write: "authorized_only",
+    command_execution: "authorized_verification_only",
+    allowed_actions: [
+      "execute_authorized_verification_commands",
+      "inspect_without_mutation",
+      "read_allowlisted_resources",
+      "write_authorized_files"
+    ],
+    forbidden_actions: ["execute_unapproved_commands", "network_outside_allowlist"]
+  };
+  return run;
 }
 
 function legacyV2InitialRun(artifactRoot) {
@@ -225,6 +244,24 @@ function fixAuthorizationPayload() {
   };
 }
 
+function legacyFixAuthorizationPayload() {
+  return {
+    schema_version: "1.0.0",
+    authorization_id: "AUTH-20260717-TEST0001",
+    run_id: runId,
+    authorizer_role: "declared_authorizer",
+    authorizer_kind: "external_requester",
+    authorized_by: "Requester",
+    identity_authenticated: false,
+    declaration: "I authorize only the listed files and structured command data.",
+    issued_at: "2026-07-17T12:00:05Z",
+    target_root: "target",
+    allowed_files: ["target/index.html"],
+    commands: [{ executable: "npm", args: ["test"], cwd: "." }],
+    remediation_artifact: { artifact_id: "ART-REMEDIATION-001", sha256: "a".repeat(64) }
+  };
+}
+
 function remediationPayload(sourceArtifactId, requirementId = "SCREEN-FIRST") {
   return {
     schema_version: "2.0.0",
@@ -278,6 +315,7 @@ function changePayload(authorizationArtifactId, authorizationHash) {
       executable: "npm",
       args: ["test"],
       cwd: ".",
+      status: "exited",
       exit_code: 0,
       signal: null,
       stdout_sha256: "d".repeat(64),
@@ -292,6 +330,24 @@ function changePayload(authorizationArtifactId, authorizationHash) {
       expires_at: "2026-07-17T12:05:05Z",
       recovery: null
     },
+    next_status: "retest_required"
+  };
+}
+
+function legacyChangePayload() {
+  return {
+    schema_version: "1.0.0",
+    change_id: "CHANGE-20260717-TEST0001",
+    run_id: runId,
+    authorization_id: "AUTH-20260717-TEST0001",
+    authorization_artifact: { artifact_id: "ART-AUTHORIZATION-001", sha256: "a".repeat(64) },
+    changed_files: [{
+      path: "target/index.html",
+      before_sha256: "a".repeat(64),
+      after_sha256: "b".repeat(64),
+      description: "Legacy change record."
+    }],
+    verification: ["The changed file was parsed successfully."],
     next_status: "retest_required"
   };
 }
@@ -977,6 +1033,16 @@ test("schema manifest loader rejects same-version schema swaps and duplicate sch
   }
 }));
 
+test("current registry binds normalized change-record schema content", (t) => withTemp(t, ({ temp }) => {
+  const copiedSkill = path.join(temp, "schema-hash-mismatch");
+  copyDirectory(path.join(skillRoot, "references"), path.join(copiedSkill, "references"));
+  const schemaFile = path.join(copiedSkill, "references/change-record.schema.json");
+  fs.writeFileSync(schemaFile, fs.readFileSync(schemaFile, "utf8").replace(/\r?\n/gu, "\r\n"), "utf8");
+  assert.doesNotThrow(() => loadAuditResources(copiedSkill), "line-ending conversion must preserve the schema binding");
+  fs.appendFileSync(schemaFile, " ", "utf8");
+  assert.throws(() => loadAuditResources(copiedSkill), /change-record.*schema SHA-256 mismatch|schema SHA-256 mismatch.*change-record/i);
+}));
+
 test("frozen registry 1 payload compatibility stays fixed at 1.0.0 alongside newer current schemas", () => {
   const resources = loadAuditResources(skillRoot);
   const frozenPolicy = resources.orchestrationRegistries.get("1.0.0").payloadVersions;
@@ -1021,6 +1087,257 @@ test("each registry derives its own exact per-artifact payload compatibility pol
       payloadVersions,
       registryVersion
     );
+  }
+});
+
+test("registry 2 rejects remediation artifact payload 2 while registry 3 rejects payload 1 through shared validation and registration", (t) => withTemp(t, ({ temp, artifactRoot }) => {
+  const resources = loadAuditResources(skillRoot);
+  const registry2Policy = resources.orchestrationRegistries.get("2.0.0").payloadVersions;
+  const currentPolicy = resources.orchestrationRegistries.get("3.0.0").payloadVersions;
+  const currentArtifacts = [
+    artifactEnvelope({
+      artifactId: "ART-AUTHORIZATION-V2",
+      artifactType: "fix-authorization",
+      roleId: "declared_authorizer",
+      producerKind: "external_requester",
+      payload: fixAuthorizationPayload()
+    }),
+    artifactEnvelope({
+      artifactId: "ART-CHANGE-V2",
+      artifactType: "change-record",
+      roleId: "authorized_fixer",
+      payload: changePayload("ART-AUTHORIZATION-001", "a".repeat(64))
+    })
+  ];
+  for (const artifact of currentArtifacts) {
+    const validation = validateArtifact(artifact, resources, { allowedPayloadVersions: registry2Policy });
+    assert.equal(validation.valid, false, `${artifact.artifact_type} v2 unexpectedly passed registry 2`);
+    assert.match(validation.errors.join("\n"), /payload schema_version.*1\.0\.0|allowed.*1\.0\.0/i);
+  }
+
+  for (const artifactType of ["fix-authorization", "change-record"]) {
+    const legacyRoot = path.join(temp, `run3-${artifactType}`);
+    fs.mkdirSync(legacyRoot);
+    const legacyFixture = makeScreeningRemediationRun(legacyRoot);
+    legacyFixture.run.schema_version = "3.0.0";
+    legacyFixture.run.resource_versions = resourceVersions("orchestration-registry-2.0.0.json");
+    delete legacyFixture.run.permissions.command_execution;
+    let legacyAuthorization;
+    let legacyAuthorizationFile;
+    if (artifactType === "change-record") {
+      const payload = legacyFixAuthorizationPayload();
+      payload.remediation_artifact.sha256 = sha256File(legacyFixture.remediationFile);
+      legacyAuthorization = artifactEnvelope({
+        artifactId: "ART-AUTHORIZATION-V1",
+        artifactType: "fix-authorization",
+        roleId: "declared_authorizer",
+        producerKind: "external_requester",
+        createdAt: "2026-07-17T12:00:05Z",
+        inputs: [{ artifact_id: legacyFixture.remediation.artifact_id, run_id: runId, sha256: sha256File(legacyFixture.remediationFile) }],
+        payload
+      });
+      legacyAuthorizationFile = path.join(legacyRoot, "authorization-v1.json");
+      writeJson(legacyAuthorizationFile, legacyAuthorization);
+      legacyFixture.run.artifacts.push(registerEntry(legacyRoot, legacyAuthorizationFile, legacyAuthorization));
+      legacyFixture.run.history.push({
+        from: "remediation_ready", to: "fix_authorized", at: legacyAuthorization.created_at,
+        actor_role: "declared_authorizer", artifact_ids: [legacyAuthorization.artifact_id]
+      });
+      legacyFixture.run.status = "fix_authorized";
+    }
+    const artifact = artifactType === "fix-authorization"
+      ? artifactEnvelope({
+          artifactId: "ART-AUTHORIZATION-V2",
+          artifactType,
+          roleId: "declared_authorizer",
+          producerKind: "external_requester",
+          createdAt: "2026-07-17T12:00:05Z",
+          inputs: [{ artifact_id: legacyFixture.remediation.artifact_id, run_id: runId, sha256: sha256File(legacyFixture.remediationFile) }],
+          payload: { ...fixAuthorizationPayload(), remediation_artifact: { artifact_id: legacyFixture.remediation.artifact_id, sha256: sha256File(legacyFixture.remediationFile) } }
+        })
+      : artifactEnvelope({
+          artifactId: "ART-CHANGE-V2",
+          artifactType,
+          roleId: "authorized_fixer",
+          createdAt: "2026-07-17T12:00:06Z",
+          inputs: [
+            { artifact_id: legacyFixture.remediation.artifact_id, run_id: runId, sha256: sha256File(legacyFixture.remediationFile) },
+            { artifact_id: legacyAuthorization.artifact_id, run_id: runId, sha256: sha256File(legacyAuthorizationFile) }
+          ],
+          payload: changePayload(legacyAuthorization.artifact_id, sha256File(legacyAuthorizationFile))
+        });
+    const artifactFile = path.join(legacyRoot, `${artifactType}-v2.json`);
+    writeJson(artifactFile, artifact);
+    legacyFixture.run.artifacts.push(registerEntry(legacyRoot, artifactFile, artifact));
+    legacyFixture.run.artifacts.sort((left, right) => left.artifact_id.localeCompare(right.artifact_id));
+    legacyFixture.run.history.push({
+      from: artifactType === "fix-authorization" ? "remediation_ready" : "fix_authorized",
+      to: artifactType === "fix-authorization" ? "fix_authorized" : "retest_required",
+      at: artifact.created_at,
+      actor_role: artifact.producer.role_id,
+      artifact_ids: [artifact.artifact_id]
+    });
+    legacyFixture.run.status = artifactType === "fix-authorization" ? "fix_authorized" : "retest_required";
+    const validation = validateAuditRun(legacyFixture.run, {
+      skillRoot,
+      runFile: path.join(temp, `run3-${artifactType}.json`)
+    });
+    assert.equal(validation.valid, false, `run 3 unexpectedly accepted ${artifactType} v2`);
+    assert.match(validation.errors.join("\n"), /payload schema_version.*1\.0\.0|allowed.*1\.0\.0/i);
+  }
+
+  const fixture = makeScreeningRemediationRun(artifactRoot);
+  fixture.run = authorizedInitialRun(artifactRoot);
+  fixture.run.status = "remediation_ready";
+  fixture.run.artifacts = [
+    registerEntry(artifactRoot, fixture.screenFile, fixture.screen),
+    registerEntry(artifactRoot, fixture.queueFile, fixture.queue),
+    registerEntry(artifactRoot, fixture.remediationFile, fixture.remediation)
+  ].sort((left, right) => left.artifact_id.localeCompare(right.artifact_id));
+  fixture.run.history = [
+    { from: "initialized", to: "screened", at: fixture.screen.created_at, actor_role: "e1_inspector", artifact_ids: [fixture.screen.artifact_id] },
+    { from: "screened", to: "human_queue_ready", at: fixture.queue.created_at, actor_role: "human_queue_planner", artifact_ids: [fixture.queue.artifact_id] },
+    { from: "human_queue_ready", to: "remediation_ready", at: fixture.remediation.created_at, actor_role: "remediation_planner", artifact_ids: [fixture.remediation.artifact_id] }
+  ];
+  const legacyArtifacts = [
+    artifactEnvelope({
+      artifactId: "ART-AUTHORIZATION-V1",
+      artifactType: "fix-authorization",
+      roleId: "declared_authorizer",
+      producerKind: "external_requester",
+      inputs: [{ artifact_id: fixture.remediation.artifact_id, run_id: runId, sha256: sha256File(fixture.remediationFile) }],
+      payload: legacyFixAuthorizationPayload()
+    }),
+    artifactEnvelope({
+      artifactId: "ART-CHANGE-V1",
+      artifactType: "change-record",
+      roleId: "authorized_fixer",
+      inputs: [{ artifact_id: fixture.remediation.artifact_id, run_id: runId, sha256: sha256File(fixture.remediationFile) }],
+      payload: legacyChangePayload()
+    })
+  ];
+  for (const artifact of legacyArtifacts) {
+    const validation = validateArtifact(artifact, resources, { allowedPayloadVersions: currentPolicy });
+    assert.equal(validation.valid, false, `${artifact.artifact_type} v1 unexpectedly passed registry 3`);
+    assert.match(validation.errors.join("\n"), /payload schema_version.*2\.0\.0|allowed.*2\.0\.0/i);
+    const artifactFile = path.join(artifactRoot, `${artifact.artifact_id}.json`);
+    writeJson(artifactFile, artifact);
+    assert.throws(
+      () => registerArtifactRecord(fixture.run, artifact, { skillRoot, runFile: path.join(temp, "run.json"), artifactFile }),
+      /payload schema_version.*2\.0\.0|allowed.*2\.0\.0/i
+    );
+  }
+}));
+
+test("denied run cannot register, validate, or merge fix authorization and change records", (t) => withTemp(t, ({ temp, artifactRoot }) => {
+  const fixture = makeScreeningRemediationRun(artifactRoot);
+  const authorizationPayload = fixAuthorizationPayload();
+  authorizationPayload.remediation_artifact.sha256 = sha256File(fixture.remediationFile);
+  const authorization = artifactEnvelope({
+    artifactId: "ART-AUTHORIZATION-001",
+    artifactType: "fix-authorization",
+    roleId: "declared_authorizer",
+    producerKind: "external_requester",
+    createdAt: "2026-07-17T12:00:05Z",
+    inputs: [{ artifact_id: fixture.remediation.artifact_id, run_id: runId, sha256: sha256File(fixture.remediationFile) }],
+    payload: authorizationPayload
+  });
+  const authorizationFile = path.join(artifactRoot, "authorization.json");
+  writeJson(authorizationFile, authorization);
+  const change = artifactEnvelope({
+    artifactId: "ART-CHANGE-001",
+    artifactType: "change-record",
+    roleId: "authorized_fixer",
+    createdAt: "2026-07-17T12:00:06Z",
+    inputs: [
+      { artifact_id: fixture.remediation.artifact_id, run_id: runId, sha256: sha256File(fixture.remediationFile) },
+      { artifact_id: authorization.artifact_id, run_id: runId, sha256: sha256File(authorizationFile) }
+    ],
+    payload: changePayload(authorization.artifact_id, sha256File(authorizationFile))
+  });
+  const changeFile = path.join(artifactRoot, "change.json");
+  writeJson(changeFile, change);
+  const permissionPattern = /source_write.*authorized_only[^]*command_execution.*authorized_verification_only|remediation artifact.*permissions/i;
+
+  for (const [artifact, artifactFile] of [[authorization, authorizationFile], [change, changeFile]]) {
+    assert.throws(
+      () => registerArtifactRecord(fixture.run, artifact, { skillRoot, runFile: path.join(temp, "run.json"), artifactFile }),
+      permissionPattern,
+      `${artifact.artifact_type} registration must fail closed`
+    );
+  }
+
+  fixture.run.status = "retest_required";
+  fixture.run.artifacts.push(
+    registerEntry(artifactRoot, authorizationFile, authorization),
+    registerEntry(artifactRoot, changeFile, change)
+  );
+  fixture.run.artifacts.sort((left, right) => left.artifact_id.localeCompare(right.artifact_id));
+  fixture.run.history.push(
+    { from: "remediation_ready", to: "fix_authorized", at: authorization.created_at, actor_role: "declared_authorizer", artifact_ids: [authorization.artifact_id] },
+    { from: "fix_authorized", to: "retest_required", at: change.created_at, actor_role: "authorized_fixer", artifact_ids: [change.artifact_id] }
+  );
+  const validation = validateAuditRun(fixture.run, { skillRoot, runFile: path.join(temp, "run.json") });
+  assert.equal(validation.valid, false, "denied run validation unexpectedly accepted remediation artifacts");
+  assert.match(validation.errors.join("\n"), permissionPattern);
+  assert.throws(
+    () => mergeArtifactRecords({
+      run: fixture.run,
+      assessment: assessmentFixture(),
+      artifacts: [...fixture.artifacts, authorization, change],
+      registries: pureMergeResources(fixture.run, artifactRoot)
+    }),
+    permissionPattern
+  );
+}));
+
+test("current artifact validation rejects duplicate remediation semantic keys even when records differ", () => {
+  const resources = loadAuditResources(skillRoot);
+  const cases = [];
+  const authorization = artifactEnvelope({
+    artifactId: "ART-AUTHORIZATION-DUP",
+    artifactType: "fix-authorization",
+    roleId: "declared_authorizer",
+    producerKind: "external_requester",
+    payload: fixAuthorizationPayload()
+  });
+  authorization.payload.verification_commands.push({
+    ...structuredClone(authorization.payload.verification_commands[0]),
+    args: ["run", "different"]
+  });
+  cases.push([authorization, /fix-authorization.*command_id.*unique/i]);
+
+  const duplicatePath = artifactEnvelope({
+    artifactId: "ART-CHANGE-PATH-DUP",
+    artifactType: "change-record",
+    roleId: "authorized_fixer",
+    payload: changePayload("ART-AUTHORIZATION-001", "a".repeat(64))
+  });
+  duplicatePath.payload.changed_files.push({
+    ...structuredClone(duplicatePath.payload.changed_files[0]),
+    operation: "delete",
+    after_sha256: null,
+    description: "A different record using the same path."
+  });
+  cases.push([duplicatePath, /change-record.*changed_files.*path.*unique/i]);
+
+  const duplicateCommand = artifactEnvelope({
+    artifactId: "ART-CHANGE-COMMAND-DUP",
+    artifactType: "change-record",
+    roleId: "authorized_fixer",
+    payload: changePayload("ART-AUTHORIZATION-001", "a".repeat(64))
+  });
+  duplicateCommand.payload.command_results.push({
+    ...structuredClone(duplicateCommand.payload.command_results[0]),
+    args: ["run", "different"],
+    stdout_sha256: "f".repeat(64)
+  });
+  cases.push([duplicateCommand, /change-record.*command_id.*unique/i]);
+
+  for (const [artifact, pattern] of cases) {
+    const validation = validateArtifact(artifact, resources, { allowedPayloadVersions: resources.currentPayloadVersions });
+    assert.equal(validation.valid, false, `${artifact.artifact_id} unexpectedly passed`);
+    assert.match(validation.errors.join("\n"), pattern);
   }
 });
 
@@ -1787,7 +2104,7 @@ test("queue, remediation, authorization, and change records never alter profile 
   const changeFile = path.join(artifactRoot, "change.json");
   writeJson(changeFile, change);
   const artifacts = [[screenFile, screen], [queueFile, queue], [remediationFile, remediation], [authorizationFile, authorization], [changeFile, change]];
-  const run = initialRun(artifactRoot);
+  const run = authorizedInitialRun(artifactRoot);
   run.status = "retest_required";
   run.artifacts = artifacts.map(([file, artifact]) => registerEntry(artifactRoot, file, artifact)).sort((left, right) => left.artifact_id.localeCompare(right.artifact_id));
   run.history = [

@@ -167,6 +167,10 @@ export function sha256File(file) {
   return sha256Bytes(fs.readFileSync(file));
 }
 
+function sha256NormalizedTextBytes(bytes) {
+  return sha256Bytes(Buffer.from(bytes.toString("utf8").replace(/\r\n/gu, "\n"), "utf8"));
+}
+
 function parseJsonBytes(bytes, label) {
   try {
     return JSON.parse(bytes.toString("utf8").replace(/^\uFEFF/u, ""));
@@ -243,7 +247,11 @@ export function loadAuditResources(skillRoot = defaultSkillRoot) {
       if (schemas.has(entry.version)) throw new Error(`Duplicate schema version ${entry.version} for artifact type ${manifest.id}.`);
       if (schemaFiles.has(entry.schema_file)) throw new Error(`Duplicate schema file reference in orchestration registry: ${entry.schema_file}.`);
       schemaFiles.add(entry.schema_file);
-      const schema = readJson(`references/${entry.schema_file}`, skillRoot).value;
+      const schemaRecord = readJson(`references/${entry.schema_file}`, skillRoot);
+      const schema = schemaRecord.value;
+      if (entry.schema_sha256 && sha256NormalizedTextBytes(schemaRecord.bytes) !== entry.schema_sha256) {
+        throw new Error(`Schema SHA-256 mismatch for ${manifest.id} ${entry.version}: ${entry.schema_file}.`);
+      }
       if (schema?.properties?.schema_version?.const !== entry.version) {
         throw new Error(`Schema manifest version mismatch for ${manifest.id} ${entry.version}: ${entry.schema_file}.`);
       }
@@ -369,6 +377,10 @@ export function validateArtifact(artifact, resources = loadAuditResources(), { a
     const commandIds = commandRecords.map((command) => command?.command_id);
     if (new Set(commandIds).size !== commandIds.length) errors.push(`${String(artifact.artifact_type)} command_id values must be unique.`);
   }
+  if (artifact?.artifact_type === "change-record" && payloadVersion === "2.0.0" && Array.isArray(artifact?.payload?.changed_files)) {
+    const changedPaths = artifact.payload.changed_files.map((changedFile) => changedFile?.path);
+    if (new Set(changedPaths).size !== changedPaths.length) errors.push("change-record changed_files path values must be unique.");
+  }
   const allowedPayloadVersion = allowedPayloadVersions?.get(artifact?.artifact_type);
   if (allowedPayloadVersion && payloadVersion !== allowedPayloadVersion) {
     errors.push(`${String(artifact?.artifact_type)} payload schema_version must be ${allowedPayloadVersion} for this orchestration registry; received ${String(payloadVersion)}.`);
@@ -423,6 +435,15 @@ function canonicalPermissions(permissions) {
     allowed_actions: allowedActions.sort(compareText),
     forbidden_actions: forbiddenActions.sort(compareText)
   };
+}
+
+const remediationArtifactTypes = new Set(["fix-authorization", "change-record"]);
+
+function remediationPermissionError(run, artifacts) {
+  if (!artifacts.some((artifact) => remediationArtifactTypes.has(artifact?.artifact_type))) return null;
+  if (run?.permissions?.source_write === "authorized_only"
+      && run?.permissions?.command_execution === "authorized_verification_only") return null;
+  return "fix-authorization and change-record artifacts require permissions.source_write authorized_only and permissions.command_execution authorized_verification_only.";
 }
 
 function normalizedArtifactPath(value) {
@@ -823,6 +844,10 @@ export function validateAuditRun(run, { skillRoot = defaultSkillRoot, runFile } 
     errors.push(error.message);
   }
   const artifacts = Array.isArray(runRecord.artifacts) ? runRecord.artifacts : [];
+  if (usesCurrentPolicy) {
+    const permissionError = remediationPermissionError(runRecord, artifacts);
+    if (permissionError) errors.push(permissionError);
+  }
   const artifactsById = validateRegisteredArtifactEntries(runRecord, errors, { requireNormalizedPaths: usesCurrentPolicy });
   const canonicalArtifactPaths = new Set();
   const envelopesById = new Map();
@@ -922,6 +947,8 @@ export function registerArtifact(run, artifact, options = {}) {
     allowedPayloadVersions: validation.resources.currentPayloadVersions
   });
   if (!artifactValidation.valid) throw new Error(`Invalid artifact:\n- ${artifactValidation.errors.join("\n- ")}`);
+  const permissionError = remediationPermissionError(run, [installedArtifact]);
+  if (permissionError) throw new Error(permissionError);
   if (installedArtifact.run_id !== run.run_id) throw new Error(`Artifact must belong to the same run: ${installedArtifact.run_id}`);
   if (run.artifacts.some((entry) => entry.artifact_id === installedArtifact.artifact_id)) throw new Error(`Duplicate artifact ID: ${installedArtifact.artifact_id}`);
   const artifactsById = new Map(run.artifacts.map((entry) => [entry.artifact_id, entry]));
@@ -1044,6 +1071,8 @@ function assertAssessmentMergeBaseline(assessment, resources) {
 export function mergeArtifacts({ run, assessment, artifacts, registries }) {
   const resources = registries ?? loadAuditResources();
   assertCurrentOperationalRun(run, resources, "Artifact merge");
+  const permissionError = remediationPermissionError(run, artifacts);
+  if (permissionError) throw new Error(permissionError);
   validateAssessmentOrThrow(assessment, resources, "Invalid input assessment");
   if (assessment.assessment.profile.id !== run.profile.id || assessment.assessment.profile.registry_version !== run.profile.registry_version) {
     throw new Error("Assessment profile does not match the audit run.");
