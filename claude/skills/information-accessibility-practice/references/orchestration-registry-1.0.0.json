@@ -1,6 +1,6 @@
 {
   "$schema": "./orchestration-registry.schema.json",
-  "schema_version": "2.0.0",
+  "schema_version": "1.0.0",
   "roles": [
     {
       "id": "orchestrator",
@@ -81,59 +81,13 @@
     }
   ],
   "artifact_types": [
-    {
-      "id": "audit-run",
-      "latest_schema_version": "3.0.0",
-      "schema_versions": [
-        { "version": "1.0.0", "schema_file": "audit-run-1.0.0.schema.json", "mode": "read_only" },
-        { "version": "2.0.0", "schema_file": "audit-run-2.0.0.schema.json", "mode": "read_only" },
-        { "version": "3.0.0", "schema_file": "audit-run.schema.json", "mode": "current" }
-      ]
-    },
-    {
-      "id": "screening-observations",
-      "latest_schema_version": "1.0.0",
-      "schema_versions": [
-        { "version": "1.0.0", "schema_file": "screening-observations.schema.json", "mode": "current" }
-      ]
-    },
-    {
-      "id": "human-review-queue",
-      "latest_schema_version": "2.0.0",
-      "schema_versions": [
-        { "version": "1.0.0", "schema_file": "human-review-queue-1.0.0.schema.json", "mode": "read_only" },
-        { "version": "2.0.0", "schema_file": "human-review-queue.schema.json", "mode": "current" }
-      ]
-    },
-    {
-      "id": "declared-human-review",
-      "latest_schema_version": "1.0.0",
-      "schema_versions": [
-        { "version": "1.0.0", "schema_file": "declared-human-review.schema.json", "mode": "current" }
-      ]
-    },
-    {
-      "id": "remediation-plan",
-      "latest_schema_version": "2.0.0",
-      "schema_versions": [
-        { "version": "1.0.0", "schema_file": "remediation-plan-1.0.0.schema.json", "mode": "read_only" },
-        { "version": "2.0.0", "schema_file": "remediation-plan.schema.json", "mode": "current" }
-      ]
-    },
-    {
-      "id": "fix-authorization",
-      "latest_schema_version": "1.0.0",
-      "schema_versions": [
-        { "version": "1.0.0", "schema_file": "fix-authorization.schema.json", "mode": "current" }
-      ]
-    },
-    {
-      "id": "change-record",
-      "latest_schema_version": "1.0.0",
-      "schema_versions": [
-        { "version": "1.0.0", "schema_file": "change-record.schema.json", "mode": "current" }
-      ]
-    }
+    { "id": "audit-run", "schema_file": "audit-run.schema.json" },
+    { "id": "screening-observations", "schema_file": "screening-observations.schema.json" },
+    { "id": "human-review-queue", "schema_file": "human-review-queue.schema.json" },
+    { "id": "declared-human-review", "schema_file": "declared-human-review.schema.json" },
+    { "id": "remediation-plan", "schema_file": "remediation-plan.schema.json" },
+    { "id": "fix-authorization", "schema_file": "fix-authorization.schema.json" },
+    { "id": "change-record", "schema_file": "change-record.schema.json" }
   ],
   "transitions": [
     { "from": "initialized", "to": "screened", "required_artifact_types": ["screening-observations"] },

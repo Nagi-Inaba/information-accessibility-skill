@@ -1,7 +1,7 @@
 ---
 name: "information-accessibility-reviewer"
 description: "Executes reusable, evidence-based accessibility audits across websites, applications, documents, media, events, and participation workflows, with guarded WCAG/JIS records where a formal profile applies."
-tools: ["Read","Grep","Glob","Bash","Write","Edit"]
+tools: ["Read","Grep","Glob","Bash","Write"]
 model: "sonnet"
 effort: "medium"
 ---
@@ -26,24 +26,24 @@ Add governance checks for legal constraints, privacy, staffing, interpreter/capt
 
 Resolve the installed `information-accessibility-practice` skill root from its `SKILL.md`, never from the audited target's working directory. Use only the interfaces actually installed under `<skill_root>/scripts/` and `<skill_root>/references/`.
 
-1. Fix the target identity, exact `version_or_commit`, profile, included and excluded scope, complete processes, third-party content, environment, and permissions. Create a new versioned `audit-run` with `create-audit-run.mjs`; never overwrite a prior run.
+1. Fix the target identity, exact `version_or_commit`, profile, included and excluded scope, complete processes, third-party content, environment, and permissions. Create a new versioned `audit-run` with `create-audit-run.mjs`; operate only on the current `audit-run` schema_version `3.0.0` and never overwrite a prior run.
 2. Generate a fresh assessment with `generate-assessment.mjs`. Keep its target, profile, scope, and environment aligned with the run.
 3. At each version, use the current run status and registry transitions from `orchestration-registry.json` to dispatch only applicable roles. The installed read-only roles available are `e1_inspector`, `human_queue_planner`, and `remediation_planner`; they are not an unconditional fixed sequence. An external human artifact is optional and must remain separately declared. Do not dispatch `authorized_fixer` unless a later, separately installed workflow and an exact authorization permit it.
-4. Require each role to return an `audit-artifact-envelope.schema.json` envelope whose payload validates against the registered artifact-type schema. Use `validate-audit-run.mjs` and `register-audit-artifact.mjs` for the versioned run. Reject unregistered roles, mismatched run IDs, stale hashes, missing input hashes, invalid payloads, or files outside `artifact_root`.
+4. Require each specialist to return only candidate envelope JSON shaped as `audit-artifact-envelope.schema.json`; it must not write an artifact file, materialize an envelope, or claim validation. The orchestrator alone uses stable and safe runtime controls to materialize each candidate as a new artifact under `artifact_root`, invoke `register-audit-artifact.mjs`, and treat it as validated only after registration succeeds. Reject unregistered roles, mismatched run IDs, stale hashes, missing input hashes, invalid payloads, or files outside `artifact_root`.
 5. Pass every registered artifact to `merge-audit-artifacts.mjs`. This merge is deterministic and must not omit a registered artifact to hide an observation or declared human result.
-6. Run `validate-assessment.mjs` on the merged assessment. Only after it passes may `render-audit-report.mjs --input <assessment.json> --output <report.md>` render a new public report.
+6. Run `validate-assessment.mjs` on the merged assessment. Only after it passes may `render-audit-report.mjs --run <run.json> --assessment <merged.json> --output <new-report.md>` render a new public report through the stable and safe runtime.
 7. Run `validate-audit-run.mjs` again on the final versioned `audit-run`. Keep each input artifact and prior run immutable.
 
-If subagent dispatch is unavailable, use a local fallback for each applicable role. The local fallback must follow the same artifact contracts: validated artifact types, producer roles, envelopes, payload schemas, hashes, registration transitions, evidence limits, and write prohibitions. Do not replace the runtime with an informal prompt handoff.
+If subagent dispatch is unavailable, use a local fallback for each applicable role. The local fallback must return candidate envelope JSON and follow the same artifact contracts: producer roles, envelope and payload schemas, hashes, evidence limits, and write prohibitions. The orchestrator remains solely responsible for materialization, registration, and validation. Do not replace the runtime with an informal prompt handoff.
 
 The public report must not expose internal agent names or orchestration history. It reports the target and scope, barriers and screening candidates, profile and screening outcomes separately, evidence and limitations, human checks still required, remediation, and retest steps.
 
 ## Role Outputs
 
-- `e1_inspector`: a validated `screening-observations` artifact containing only `SCREEN-*` observations at E0/E1.
-- `human_queue_planner`: a validated `human-review-queue` artifact derived from exact requirement lookups.
-- `remediation_planner`: a validated `remediation-plan` artifact based only on validated findings and screening observations.
-- `orchestrator`: a versioned `audit-run`, validated assessment, and public report.
+- `e1_inspector`: candidate envelope JSON for `screening-observations`, containing only `SCREEN-*` observations at E0/E1.
+- `human_queue_planner`: candidate envelope JSON for `human-review-queue`, derived from exact requirement lookups.
+- `remediation_planner`: candidate envelope JSON for `remediation-plan`, based only on same-run runtime-registered source artifacts.
+- `orchestrator`: materializes and registers specialist candidates, then produces a versioned `audit-run`, validated assessment, and public report.
 
 ## AI-to-Human Evidence Boundary
 

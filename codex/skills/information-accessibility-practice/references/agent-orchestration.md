@@ -1,21 +1,25 @@
 # Audit orchestration boundary
 
-## Internal contracts
+## Current runtime contract
 
-`audit-run` and all role artifacts are internal traceability records. They preserve the declared producer, inputs, resource hashes, permissions, and state history needed to validate an audit workflow; they are not public findings and do not raise the evidence level of the assessment.
+`audit-run` and all role artifacts are internal traceability records. Registered role artifacts preserve the declared producer, inputs, resource hashes, permissions, and transition records required to validate an audit workflow. They are not public findings and do not raise the assessment evidence level.
 
-The orchestration registry is authoritative for role output types and allowed state transitions. A transition is accepted only when its required artifact type is present, the artifact envelope names the role registered to produce that type, and the payload passes that type's schema. No AI role can record a profile outcome or produce `fix-authorization`. Only the non-default `authorized_fixer` role can write an audited target, and only after a validated `fix-authorization` produced by the declared external requester.
+Specialist agents return candidate envelope JSON only. They must not write or materialize an artifact file and must not claim that their candidate is validated. The orchestrator alone materializes a new artifact under `artifact_root`, validates it, and invokes `register-audit-artifact.mjs`. A candidate is treated as validated only after that registration succeeds for the same run.
 
-The `input_types` array order is part of the canonical serialized role contract so registry artifacts remain deterministic. Task 5 must treat those values as an allowed-input set, not as semantic priority or execution order.
+The orchestration registry is authoritative for role output types and allowed transitions. A transition is accepted only when its required artifact type is present, the artifact envelope names the registered producer role, its input belongs to the same run, has an exact SHA-256 matching a registered artifact, and its payload passes the registered schema. The `input_types` array order is part of the canonical serialized role contract. Schema validation does not authenticate identity or grant authorization. No AI role can record a profile outcome or produce `fix-authorization`. The non-default `authorized_fixer` role is reserved for a separately installed workflow and an exact validated authorization.
 
-An initial run uses `supersedes_run_id: null`. A new run that follows an authorized source change names the predecessor whose terminal state was `retest_required`; that predecessor relationship requires orchestration-level validation against the stored run, not merely string-shape validation.
+This contract layer does not execute commands or write the audited target.
 
-Before an input is registered, an orchestration validator must confirm that it belongs to the same run, that its exact SHA-256 matches, and that it names a registered artifact. JSON Schema fixes the required fields and their shapes but cannot compare values across stored records. Schema validation does not authenticate identity or grant authorization. `declared-human-review` and `fix-authorization` therefore record declarations and explicitly keep `identity_authenticated: false`.
+The current read-only boundary is a behavioral contract, not a complete tool sandbox. Agent instructions prohibit target writes, authentication, forms, and state-changing interaction. They do not by themselves provide an operating-system or browser enforcement boundary.
 
-Audit target and scope references may identify public Web URLs or files, matching the assessment record. Fix commands are data, not shell text. Each authorized command contains one `executable`, an `args` array, and a relative `cwd`; authorization, artifact, and change-record paths are relative, URL-free, and traversal-free. This contract layer does not execute commands or write the audited target.
+`audit-run` schema version 3.0.0 and the current registry define the run-backed flow. The reviewer dispatches applicable specialists, the orchestrator materializes and registers candidates, `merge-audit-artifacts.mjs` produces the assessment, and `render-audit-report.mjs` with `--run` `<run.json>`, `--assessment` `<merged.json>`, and `--output` `<new-report.md>` creates the public report through stable and safe runtime checks.
 
 ## Public reporting boundary
 
-`render-audit-report.mjs` consumes only the validated assessment. The current public report path does not read the orchestration registry, audit-run manifest, artifact envelopes, or role payloads.
+The public report must never expose internal agent identifiers, run IDs, orchestration history, transition history, state history, local paths, Git branches, or raw artifact envelopes. It may publish only target and scope context, results with their evidence level, limitations, human checks, remediation, and retest information accepted by the report validator.
 
-The later `render-orchestrated-report.mjs` may consume validated run artifacts, but its public output never exposes agent identifiers, local paths, Git branches, run IDs, or transition history. It may publish only assessment and remediation content that has independently passed the relevant public-report validation and claim guards.
+## Future mechanical enforcement
+
+The following are future acceptance criteria and not yet implemented guarantees. Task 8 must provide a pre-execution enforcement layer that permits only an allowlisted executable with allowlisted arguments, applies a pre-execution `artifact_root` write gate, and ensures target-derived commands are never executed. It must deny authentication, form submission, and state-changing interactions. A malicious fixture must prove that target and out-of-scope hashes remain unchanged, and the result must include denial proof from the execution gate.
+
+Task 9 must add a public-report privacy scan for local paths, private URLs, person names, and sensitive evidence. Until that scan exists and passes, distribution remains subject to the documented public-report review boundary rather than an implemented privacy guarantee.

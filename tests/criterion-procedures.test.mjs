@@ -52,3 +52,31 @@ test("unimplemented criteria retain the generic playbook without a criterion-spe
   assert.equal("criterion_procedure" in result, false);
   assert.equal(result.audit_method.id, "keyboard-operation");
 });
+
+test("lookup normalizes an available criterion procedure into an exact versioned queue binding", () => {
+  const result = lookupRequirement("web-modern", "WCAG-2.2-SC-1.1.1", skill);
+  assert.equal(result.lookup_version, "2.0.0");
+  assert.deepEqual(result.procedure_binding, {
+    procedure_availability: "available",
+    procedure_ref: "criterion-procedures:1.0.0#wcag22-sc-1-1-1-non-text-content",
+    generic_method_ref: null,
+    official_sources: result.criterion_procedure.primary_sources,
+    human_actions: result.criterion_procedure.procedure_steps,
+    required_evidence_types: result.criterion_procedure.required_evidence_types,
+    cant_tell_conditions: result.criterion_procedure.cant_tell_when
+  });
+});
+
+test("lookup normalizes an unavailable criterion procedure into the exact generic method binding", () => {
+  const result = lookupRequirement("web-modern", "WCAG-2.2-SC-2.1.1", skill);
+  assert.equal(result.lookup_version, "2.0.0");
+  assert.deepEqual(result.procedure_binding, {
+    procedure_availability: "unavailable",
+    procedure_ref: null,
+    generic_method_ref: "web-audit-methods:1.0.0#keyboard-operation",
+    official_sources: result.criterion.official_method_sources,
+    human_actions: result.audit_method.procedure_steps,
+    required_evidence_types: result.audit_method.required_evidence_types,
+    cant_tell_conditions: [result.audit_method.cant_tell_when]
+  });
+});

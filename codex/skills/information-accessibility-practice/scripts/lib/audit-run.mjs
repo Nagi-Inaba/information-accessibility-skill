@@ -5,10 +5,12 @@ import { isDeepStrictEqual } from "node:util";
 import { fileURLToPath } from "node:url";
 
 import { validateAssessment } from "../validate-assessment.mjs";
+import { lookupRequirement } from "../show-requirement.mjs";
 import { validateJsonSchema } from "./json-schema.mjs";
 
 const defaultSkillRoot = path.dirname(path.dirname(path.dirname(fileURLToPath(import.meta.url))));
 const noFollow = process.platform === "win32" ? 0 : (fs.constants.O_NOFOLLOW ?? 0);
+const frozenRegistryPayloadCompatibility = new Map([["1.0.0", "1.0.0"]]);
 
 function pathKey(value) {
   const normalized = path.normalize(path.resolve(value));
@@ -107,7 +109,7 @@ function removeCreatedOutput(inspected, createdIdentity) {
   fs.unlinkSync(inspected.absolute);
 }
 
-export function writeNewJson(output, value, hooks = {}) {
+function writeNewContent(output, content, hooks = {}) {
   const inspected = inspectSafeOutput(output);
   let descriptor;
   let createdIdentity;
@@ -119,7 +121,8 @@ export function writeNewJson(output, value, hooks = {}) {
     writtenIdentity = statIdentity(openedStats);
     const currentParent = directoryIdentity(fs.statSync(path.dirname(inspected.absolute), { bigint: true }));
     if (!sameIdentity(inspected.parentIdentity, currentParent)) throw new Error(`Unsafe output parent changed before write: ${path.dirname(inspected.absolute)}`);
-    fs.writeFileSync(descriptor, canonicalJson(value), "utf8");
+    hooks.beforeWrite?.(inspected.absolute);
+    fs.writeFileSync(descriptor, content, "utf8");
     writtenIdentity = statIdentity(fs.fstatSync(descriptor, { bigint: true }));
     fs.fsyncSync(descriptor);
     fs.closeSync(descriptor);
@@ -140,6 +143,15 @@ export function writeNewJson(output, value, hooks = {}) {
     }
     throw error;
   }
+}
+
+export function writeNewJson(output, value, hooks = {}) {
+  return writeNewContent(output, canonicalJson(value), hooks);
+}
+
+export function writeNewText(output, value, hooks = {}) {
+  if (typeof value !== "string") throw new Error("Text output must be a string.");
+  return writeNewContent(output, value, hooks);
 }
 
 export function sha256Bytes(bytes) {
@@ -191,8 +203,8 @@ export function loadAuditResources(skillRoot = defaultSkillRoot) {
     standardsRegistry: "references/standards-registry.json",
     orchestrationRegistry: "references/orchestration-registry.json",
     orchestrationSchema: "references/orchestration-registry.schema.json",
-    auditRunSchema: "references/audit-run.schema.json",
-    auditRunLegacySchema: "references/audit-run-1.0.0.schema.json",
+    orchestrationRegistryLegacy: "references/orchestration-registry-1.0.0.json",
+    orchestrationSchemaLegacy: "references/orchestration-registry-1.0.0.schema.json",
     envelopeSchema: "references/audit-artifact-envelope.schema.json",
     assessmentSchema: "references/assessment-record.schema.json",
     criteriaCatalog: "references/criteria-catalog.json",
@@ -203,26 +215,88 @@ export function loadAuditResources(skillRoot = defaultSkillRoot) {
   const registryErrors = [];
   validateJsonSchema(loaded.orchestrationRegistry.value, loaded.orchestrationSchema.value, "$", registryErrors);
   if (registryErrors.length) throw new Error(`Invalid installed orchestration registry:\n- ${registryErrors.join("\n- ")}`);
-  const payloadSchemas = new Map();
-  for (const artifactType of loaded.orchestrationRegistry.value.artifact_types) {
-    if (artifactType.id === "audit-run") continue;
-    payloadSchemas.set(artifactType.id, readJson(`references/${artifactType.schema_file}`, skillRoot).value);
+  const legacyRegistryErrors = [];
+  validateJsonSchema(loaded.orchestrationRegistryLegacy.value, loaded.orchestrationSchemaLegacy.value, "$", legacyRegistryErrors);
+  if (legacyRegistryErrors.length) throw new Error(`Invalid frozen orchestration registry:\n- ${legacyRegistryErrors.join("\n- ")}`);
+  const schemaManifests = new Map();
+  const artifactTypeIds = new Set();
+  const schemaFiles = new Set();
+  for (const manifest of loaded.orchestrationRegistry.value.artifact_types) {
+    if (artifactTypeIds.has(manifest.id)) throw new Error(`Duplicate artifact type manifest: ${manifest.id}`);
+    artifactTypeIds.add(manifest.id);
+    const schemas = new Map();
+    const currentEntries = manifest.schema_versions.filter((entry) => entry.mode === "current");
+    if (currentEntries.length !== 1 || currentEntries[0].version !== manifest.latest_schema_version) {
+      throw new Error(`Artifact type ${manifest.id} must have exactly one current schema matching latest_schema_version.`);
+    }
+    for (const entry of manifest.schema_versions) {
+      if (schemas.has(entry.version)) throw new Error(`Duplicate schema version ${entry.version} for artifact type ${manifest.id}.`);
+      if (schemaFiles.has(entry.schema_file)) throw new Error(`Duplicate schema file reference in orchestration registry: ${entry.schema_file}.`);
+      schemaFiles.add(entry.schema_file);
+      const schema = readJson(`references/${entry.schema_file}`, skillRoot).value;
+      if (schema?.properties?.schema_version?.const !== entry.version) {
+        throw new Error(`Schema manifest version mismatch for ${manifest.id} ${entry.version}: ${entry.schema_file}.`);
+      }
+      const expectedSchemaId = `urn:information-accessibility:${manifest.id}:${entry.version}`;
+      if (schema?.$id !== expectedSchemaId) {
+        throw new Error(`Schema $id must match artifact type and version ${expectedSchemaId}: ${entry.schema_file}.`);
+      }
+      schemas.set(entry.version, { ...entry, schema });
+    }
+    schemaManifests.set(manifest.id, { ...manifest, schemas });
   }
+  const auditRunManifest = schemaManifests.get("audit-run");
+  if (!auditRunManifest) throw new Error("The orchestration registry does not declare the audit-run schema manifest.");
+  const auditRunSchemas = new Map([...auditRunManifest.schemas].map(([version, entry]) => [version, entry.schema]));
+  const auditRunSchema = auditRunSchemas.get(auditRunManifest.latest_schema_version);
+  const payloadSchemas = new Map([...schemaManifests]
+    .filter(([artifactType]) => artifactType !== "audit-run")
+    .map(([artifactType, manifest]) => [
+      artifactType,
+      new Map([...manifest.schemas].map(([version, entry]) => [version, entry.schema]))
+    ]));
+  const currentPayloadVersions = new Map([...schemaManifests]
+    .filter(([artifactType]) => artifactType !== "audit-run")
+    .map(([artifactType, manifest]) => [artifactType, manifest.latest_schema_version]));
+  const frozenRegistryVersion = loaded.orchestrationRegistryLegacy.value.schema_version;
+  const frozenPayloadVersion = frozenRegistryPayloadCompatibility.get(frozenRegistryVersion);
+  if (!frozenPayloadVersion) throw new Error(`No payload compatibility policy is registered for frozen orchestration registry ${frozenRegistryVersion}.`);
+  const legacyPayloadVersions = new Map(loaded.orchestrationRegistryLegacy.value.artifact_types
+    .filter((artifactType) => artifactType.id !== "audit-run")
+    .map((artifactType) => {
+      if (!payloadSchemas.get(artifactType.id)?.has(frozenPayloadVersion)) {
+        throw new Error(`Frozen orchestration registry ${frozenRegistryVersion} requires missing ${artifactType.id} payload schema ${frozenPayloadVersion}.`);
+      }
+      return [artifactType.id, frozenPayloadVersion];
+    }));
+  const orchestrationRegistries = new Map([
+    [loaded.orchestrationRegistryLegacy.value.schema_version, {
+      value: loaded.orchestrationRegistryLegacy.value,
+      sha256: sha256Bytes(loaded.orchestrationRegistryLegacy.bytes),
+      payloadVersions: legacyPayloadVersions
+    }],
+    [loaded.orchestrationRegistry.value.schema_version, {
+      value: loaded.orchestrationRegistry.value,
+      sha256: sha256Bytes(loaded.orchestrationRegistry.bytes),
+      payloadVersions: currentPayloadVersions
+    }]
+  ]);
   return {
     skillRoot,
     standardsRegistry: loaded.standardsRegistry.value,
     orchestrationRegistry: loaded.orchestrationRegistry.value,
-    auditRunSchema: loaded.auditRunSchema.value,
-    auditRunSchemas: new Map([
-      [loaded.auditRunLegacySchema.value.properties.schema_version.const, loaded.auditRunLegacySchema.value],
-      [loaded.auditRunSchema.value.properties.schema_version.const, loaded.auditRunSchema.value]
-    ]),
+    legacyOrchestrationRegistryVersion: loaded.orchestrationRegistryLegacy.value.schema_version,
+    schemaManifests,
+    auditRunSchema,
+    auditRunSchemas,
     envelopeSchema: loaded.envelopeSchema.value,
     assessmentSchema: loaded.assessmentSchema.value,
     criteriaCatalog: loaded.criteriaCatalog.value,
     criterionProcedures: loaded.criterionProcedures.value,
     auditMethods: loaded.auditMethods.value,
     payloadSchemas,
+    currentPayloadVersions,
+    orchestrationRegistries,
     resourceVersions: {
       standards_registry_version: loaded.standardsRegistry.value.schema_version,
       orchestration_registry_version: loaded.orchestrationRegistry.value.schema_version,
@@ -269,12 +343,22 @@ function containsProfileOutcome(value) {
   return false;
 }
 
-export function validateArtifact(artifact, resources = loadAuditResources()) {
+export function validateArtifact(artifact, resources = loadAuditResources(), { allowedPayloadVersions } = {}) {
   const errors = [];
   validateJsonSchema(artifact, resources.envelopeSchema, "$", errors);
-  const payloadSchema = resources.payloadSchemas.get(artifact?.artifact_type);
-  if (!payloadSchema) errors.push(`Unknown or unsupported artifact type: ${String(artifact?.artifact_type)}`);
-  else validateJsonSchema(artifact?.payload, payloadSchema, "$.payload", errors);
+  const payloadVersion = artifact?.payload?.schema_version;
+  const payloadSchema = resources.payloadSchemas.get(artifact?.artifact_type)?.get(payloadVersion);
+  if (!resources.payloadSchemas.has(artifact?.artifact_type)) {
+    errors.push(`Unknown or unsupported artifact type: ${String(artifact?.artifact_type)}`);
+  } else if (!payloadSchema) {
+    errors.push(`Unsupported ${String(artifact?.artifact_type)} payload schema_version: ${String(payloadVersion)}.`);
+  } else {
+    validateJsonSchema(artifact?.payload, payloadSchema, "$.payload", errors);
+  }
+  const allowedPayloadVersion = allowedPayloadVersions?.get(artifact?.artifact_type);
+  if (allowedPayloadVersion && payloadVersion !== allowedPayloadVersion) {
+    errors.push(`${String(artifact?.artifact_type)} payload schema_version must be ${allowedPayloadVersion} for this orchestration registry; received ${String(payloadVersion)}.`);
+  }
   const role = roleFor(resources, artifact?.producer?.role_id);
   if (!role) errors.push(`Unknown producer role: ${String(artifact?.producer?.role_id)}`);
   else {
@@ -431,6 +515,51 @@ function profileCatalogRecord(requirementId, profileId, resources) {
   return null;
 }
 
+function validateHumanQueueBindings(envelopesById, profileId, resources, errors) {
+  for (const [artifactId, record] of envelopesById) {
+    const artifact = record?.envelope ?? record;
+    if (artifact?.artifact_type !== "human-review-queue") continue;
+    const items = Array.isArray(artifact.payload?.items) ? artifact.payload.items : [];
+    const coverage = artifact.payload?.procedure_coverage ?? {};
+    const available = items.filter((item) => item?.procedure_availability === "available").length;
+    const unavailable = items.filter((item) => item?.procedure_availability === "unavailable").length;
+    if (coverage.total_requirements !== items.length
+        || coverage.available_procedures !== available
+        || coverage.unavailable_procedures !== unavailable
+        || items.length !== available + unavailable) {
+      errors.push(`Human review queue ${artifactId} procedure coverage must exactly equal its item, available, and unavailable counts.`);
+    }
+    const seen = new Set();
+    for (const item of items) {
+      const requirementId = item?.requirement_id;
+      if (seen.has(requirementId)) {
+        errors.push(`Human review queue ${artifactId} contains a duplicate requirement: ${String(requirementId)}.`);
+        continue;
+      }
+      seen.add(requirementId);
+      let lookup;
+      try {
+        lookup = lookupRequirement(profileId, requirementId, resources.skillRoot);
+      } catch (error) {
+        errors.push(`Human review queue ${artifactId} requirement is not registered for profile ${String(profileId)}: ${String(requirementId)} (${error.message}).`);
+        continue;
+      }
+      const actualBinding = {
+        procedure_availability: item.procedure_availability,
+        procedure_ref: item.procedure_ref,
+        generic_method_ref: item.generic_method_ref,
+        official_sources: item.official_sources,
+        human_actions: item.human_actions,
+        required_evidence_types: item.required_evidence_types,
+        cant_tell_conditions: item.cant_tell_conditions
+      };
+      if (!isDeepStrictEqual(actualBinding, lookup.procedure_binding)) {
+        errors.push(`Human review queue ${artifactId} binding must exactly match lookup version ${lookup.lookup_version} for ${requirementId}.`);
+      }
+    }
+  }
+}
+
 function validateDeclaredHumanBindings(envelopesById, profileId, resources, errors) {
   for (const [artifactId, record] of envelopesById) {
     const artifact = record?.envelope ?? record;
@@ -508,6 +637,80 @@ function validateDeclaredHumanBindings(envelopesById, profileId, resources, erro
   }
 }
 
+function artifactEnvelopeFromRecord(record) {
+  return record?.envelope ?? record;
+}
+
+function remediationItems(envelopesById) {
+  const items = [];
+  for (const [artifactId, record] of envelopesById) {
+    const artifact = artifactEnvelopeFromRecord(record);
+    if (artifact?.artifact_type !== "remediation-plan") continue;
+    for (const item of Array.isArray(artifact.payload?.items) ? artifact.payload.items : []) {
+      items.push({ artifactId, artifact, item });
+    }
+  }
+  return items.sort((left, right) => compareText(String(left.item?.remediation_id), String(right.item?.remediation_id))
+    || compareText(String(left.artifactId), String(right.artifactId)));
+}
+
+function validateRemediationBindings(envelopesById, errors) {
+  const seenRemediationIds = new Set();
+  for (const [artifactId, record] of envelopesById) {
+    const artifact = artifactEnvelopeFromRecord(record);
+    if (artifact?.artifact_type !== "remediation-plan") continue;
+    const inputIds = new Set((Array.isArray(artifact.inputs) ? artifact.inputs : []).map((input) => input?.artifact_id));
+    const usedInputIds = new Set();
+    for (const item of Array.isArray(artifact.payload?.items) ? artifact.payload.items : []) {
+      const remediationId = item?.remediation_id;
+      if (seenRemediationIds.has(remediationId)) {
+        errors.push(`Duplicate or conflicting remediation ID ${String(remediationId)}.`);
+      } else {
+        seenRemediationIds.add(remediationId);
+      }
+      for (const sourceArtifactId of Array.isArray(item?.source_artifact_ids) ? item.source_artifact_ids : []) {
+        if (!inputIds.has(sourceArtifactId)) {
+          errors.push(`Remediation ${String(remediationId)} source_artifact_ids must name a registered envelope input: ${String(sourceArtifactId)}.`);
+          continue;
+        }
+        usedInputIds.add(sourceArtifactId);
+        const source = artifactEnvelopeFromRecord(envelopesById.get(sourceArtifactId));
+        if (!source) {
+          errors.push(`Remediation ${String(remediationId)} source is missing or not registered: ${String(sourceArtifactId)}.`);
+          continue;
+        }
+        if (source.run_id !== artifact.run_id) {
+          errors.push(`Remediation ${String(remediationId)} source must belong to the same run: ${String(sourceArtifactId)}.`);
+          continue;
+        }
+        if (item?.basis === "verified_failure") {
+          if (source.artifact_type !== "declared-human-review") {
+            errors.push(`Remediation ${String(remediationId)} verified_failure source must be declared-human-review: ${String(sourceArtifactId)}.`);
+            continue;
+          }
+          const matchingFailure = (source.payload?.reviews ?? []).some((review) => review?.requirement_id === item?.requirement_id
+            && review?.profile_outcome === "fail");
+          if (!matchingFailure) {
+            errors.push(`Remediation ${String(remediationId)} verified_failure requires a matching declared-human-review profile_outcome fail for ${String(item?.requirement_id)}.`);
+          }
+        } else if (item?.basis === "unverified_screening_candidate") {
+          if (source.artifact_type !== "screening-observations") {
+            errors.push(`Remediation ${String(remediationId)} unverified screening source must be screening-observations: ${String(sourceArtifactId)}.`);
+            continue;
+          }
+          const matchingObservation = (source.payload?.observations ?? []).some((observation) => observation?.requirement_id === item?.requirement_id);
+          if (!matchingObservation) {
+            errors.push(`Remediation ${String(remediationId)} requires an exact screening observation for ${String(item?.requirement_id)}.`);
+          }
+        }
+      }
+    }
+    for (const inputId of inputIds) {
+      if (!usedInputIds.has(inputId)) errors.push(`Remediation plan ${String(artifactId)} has an unused evidence input: ${String(inputId)}.`);
+    }
+  }
+}
+
 function validateHistory(run, resources, artifactsById, errors) {
   let current = "initialized";
   let previousAt = "";
@@ -560,8 +763,28 @@ export function validateAuditRun(run, { skillRoot = defaultSkillRoot, runFile } 
   const schema = resources.auditRunSchemas.get(runRecord.schema_version);
   if (!schema) errors.push(`Unsupported audit-run schema_version: ${String(runRecord.schema_version)}.`);
   else validateJsonSchema(run, schema, "$", errors);
-  const expectedResourceVersions = { ...resources.resourceVersions };
-  if (runRecord.schema_version === "1.0.0") delete expectedResourceVersions.orchestration_registry_sha256;
+  const registryVersion = runRecord.resource_versions?.orchestration_registry_version;
+  const registryRecord = resources.orchestrationRegistries.get(registryVersion);
+  if (!registryRecord) errors.push(`Unsupported orchestration_registry_version: ${String(registryVersion)}.`);
+  const runResources = registryRecord
+    ? { ...resources, orchestrationRegistry: registryRecord.value }
+    : resources;
+  const runSchemaEntry = resources.schemaManifests.get("audit-run")?.schemas.get(runRecord.schema_version);
+  const expectedRegistryVersion = runSchemaEntry?.mode === "current"
+    ? resources.orchestrationRegistry.schema_version
+    : runSchemaEntry?.mode === "read_only" ? resources.legacyOrchestrationRegistryVersion : undefined;
+  if (expectedRegistryVersion && registryVersion !== expectedRegistryVersion) {
+    errors.push(`audit-run ${runRecord.schema_version} requires orchestration registry ${expectedRegistryVersion}; received ${String(registryVersion)}.`);
+  }
+  const expectedResourceVersions = {
+    ...resources.resourceVersions,
+    orchestration_registry_version: registryRecord?.value.schema_version,
+    orchestration_registry_sha256: registryRecord?.sha256
+  };
+  const resourceVersionRequirements = schema?.properties?.resource_versions?.required ?? [];
+  if (!resourceVersionRequirements.includes("orchestration_registry_sha256")) {
+    delete expectedResourceVersions.orchestration_registry_sha256;
+  }
   for (const [key, expected] of Object.entries(expectedResourceVersions)) {
     if (runRecord.resource_versions?.[key] !== expected) errors.push(`resource_versions.${key} must match the exact installed resource hash or version ${expected}.`);
   }
@@ -600,16 +823,20 @@ export function validateAuditRun(run, { skillRoot = defaultSkillRoot, runFile } 
       if (snapshot.sha256 !== entry?.sha256) errors.push(`Registered artifact current hash mismatch: ${String(entry?.artifact_id)}.`);
       const envelope = parseJsonBytes(snapshot.bytes, `registered artifact ${String(entry?.artifact_id)}`);
       envelopesById.set(entry?.artifact_id, { envelope, snapshot });
-      const validation = validateArtifact(envelope, resources);
+      const validation = validateArtifact(envelope, runResources, { allowedPayloadVersions: registryRecord?.payloadVersions });
       errors.push(...validation.errors.map((error) => `${location}: ${error}`));
     } catch (error) {
       errors.push(error.message);
     }
   }
-  validateArtifactEnvelopeSemantics(runRecord, resources, artifactsById, envelopesById, errors);
-  if (usesCurrentPolicy) validateDeclaredHumanBindings(envelopesById, runRecord.profile?.id, resources, errors);
-  validateHistory(runRecord, resources, artifactsById, errors);
-  return { valid: errors.length === 0, errors, resources, artifactRoot, envelopesById };
+  validateArtifactEnvelopeSemantics(runRecord, runResources, artifactsById, envelopesById, errors);
+  if (usesCurrentPolicy) {
+    validateHumanQueueBindings(envelopesById, runRecord.profile?.id, runResources, errors);
+    validateDeclaredHumanBindings(envelopesById, runRecord.profile?.id, runResources, errors);
+    validateRemediationBindings(envelopesById, errors);
+  }
+  validateHistory(runRecord, runResources, artifactsById, errors);
+  return { valid: errors.length === 0, errors, resources: runResources, artifactRoot, envelopesById };
 }
 
 function normalizePermission(value, aliases, name) {
@@ -676,7 +903,9 @@ export function registerArtifact(run, artifact, options = {}) {
   const snapshot = readStableFile(artifactPath, { label: "artifact file" });
   const installedArtifact = parseJsonBytes(snapshot.bytes, "artifact file");
   if (artifact !== undefined && !isDeepStrictEqual(artifact, installedArtifact)) throw new Error("Artifact object does not match the exact artifact file bytes.");
-  const artifactValidation = validateArtifact(installedArtifact, validation.resources);
+  const artifactValidation = validateArtifact(installedArtifact, validation.resources, {
+    allowedPayloadVersions: validation.resources.currentPayloadVersions
+  });
   if (!artifactValidation.valid) throw new Error(`Invalid artifact:\n- ${artifactValidation.errors.join("\n- ")}`);
   if (installedArtifact.run_id !== run.run_id) throw new Error(`Artifact must belong to the same run: ${installedArtifact.run_id}`);
   if (run.artifacts.some((entry) => entry.artifact_id === installedArtifact.artifact_id)) throw new Error(`Duplicate artifact ID: ${installedArtifact.artifact_id}`);
@@ -814,20 +1043,35 @@ export function mergeArtifacts({ run, assessment, artifacts, registries }) {
   if (runSemanticErrors.length) throw new Error(`Invalid pure merge audit-run semantics:\n- ${runSemanticErrors.join("\n- ")}`);
   const suppliedIds = new Set();
   const suppliedEnvelopesById = new Map();
+  if (!(resources.artifact_snapshots_by_id instanceof Map)) {
+    throw new Error("Pure merge requires registered artifact byte snapshots and fails closed without them.");
+  }
   const sorted = [...artifacts].sort((left, right) => compareText(left.artifact_type, right.artifact_type) || compareText(left.artifact_id, right.artifact_id));
   for (const artifact of sorted) {
     if (suppliedIds.has(artifact.artifact_id)) throw new Error(`Duplicate supplied artifact ID: ${artifact.artifact_id}`);
     suppliedIds.add(artifact.artifact_id);
-    const artifactValidation = validateArtifact(artifact, resources);
+    const artifactValidation = validateArtifact(artifact, resources, {
+      allowedPayloadVersions: resources.currentPayloadVersions
+    });
     if (!artifactValidation.valid) throw new Error(`Invalid merge artifact ${artifact.artifact_id}:\n- ${artifactValidation.errors.join("\n- ")}`);
     const entry = registered.get(artifact.artifact_id);
     if (!entry) throw new Error(`Merge artifact is not registered in the run: ${artifact.artifact_id}`);
     if (entry.artifact_type !== artifact.artifact_type || entry.producer_role !== artifact.producer.role_id || artifact.run_id !== run.run_id) {
       throw new Error(`Merge artifact metadata does not match its registered run entry: ${artifact.artifact_id}`);
     }
-    if (!(resources.artifact_sha256_by_id instanceof Map)) throw new Error("Pure merge requires an exact artifact hash map and fails closed without one.");
-    const exactHash = resources.artifact_sha256_by_id.get(artifact.artifact_id);
-    if (!exactHash || exactHash !== entry.sha256) throw new Error(`Merge artifact exact current hash mismatch: ${artifact.artifact_id}`);
+    const snapshot = resources.artifact_snapshots_by_id.get(artifact.artifact_id);
+    if (!snapshot || !Buffer.isBuffer(snapshot.bytes) || typeof snapshot.sha256 !== "string") {
+      throw new Error(`Pure merge requires a registered byte snapshot for artifact: ${artifact.artifact_id}`);
+    }
+    const snapshotBytes = Buffer.from(snapshot.bytes);
+    const snapshotHash = sha256Bytes(snapshotBytes);
+    if (snapshotHash !== snapshot.sha256 || snapshotHash !== entry.sha256) {
+      throw new Error(`Merge artifact registered byte snapshot hash mismatch: ${artifact.artifact_id}`);
+    }
+    const registeredEnvelope = parseJsonBytes(snapshotBytes, `registered byte snapshot ${artifact.artifact_id}`);
+    if (!isDeepStrictEqual(registeredEnvelope, artifact)) {
+      throw new Error(`Merge artifact does not match its registered bytes: ${artifact.artifact_id}`);
+    }
     suppliedEnvelopesById.set(artifact.artifact_id, artifact);
   }
   const registeredIds = [...registered.keys()].sort(compareText);
@@ -838,8 +1082,10 @@ export function mergeArtifacts({ run, assessment, artifacts, registries }) {
   }
   const bindingErrors = [];
   validateArtifactEnvelopeSemantics(run, resources, registered, suppliedEnvelopesById, bindingErrors);
+  validateHumanQueueBindings(suppliedEnvelopesById, run.profile.id, resources, bindingErrors);
   validateDeclaredHumanBindings(suppliedEnvelopesById, run.profile.id, resources, bindingErrors);
-  if (bindingErrors.length) throw new Error(`Invalid declared human review binding:\n- ${bindingErrors.join("\n- ")}`);
+  validateRemediationBindings(suppliedEnvelopesById, bindingErrors);
+  if (bindingErrors.length) throw new Error(`Invalid merge artifact binding:\n- ${bindingErrors.join("\n- ")}`);
   const merged = structuredClone(assessment);
   const existingIds = new Set(merged.assessment.results.map((item) => item.requirement_id));
   const screeningResults = [];
@@ -906,6 +1152,32 @@ export function mergeArtifacts({ run, assessment, artifacts, registries }) {
     if (!merged.assessment.limitations.includes(identityLimitation)) merged.assessment.limitations.push(identityLimitation);
   } else if (screeningResults.length && merged.assessment.evidence_level === "E0") {
     merged.assessment.evidence_level = "E1";
+  }
+  const sortedRemediationItems = remediationItems(suppliedEnvelopesById);
+  const verifiedFailureRequirements = new Set(sortedRemediationItems
+    .filter(({ item }) => item.basis === "verified_failure")
+    .map(({ item }) => item.requirement_id));
+  for (const [requirementId, review] of humanReviews) {
+    if (review.profile_outcome === "fail" && !verifiedFailureRequirements.has(requirementId)) {
+      throw new Error(`Human fail requires a matching verified_failure remediation item: ${requirementId}.`);
+    }
+  }
+  merged.assessment.findings = sortedRemediationItems
+    .filter(({ item }) => item.basis === "verified_failure")
+    .map(({ item }) => ({
+      id: item.remediation_id,
+      priority: item.priority,
+      requirement_ids: [item.requirement_id],
+      location: item.location,
+      affected_users: structuredClone(item.affected_users),
+      observation: item.issue,
+      remediation: item.proposed_change,
+      verification: item.verification
+    }));
+  for (const { item } of sortedRemediationItems) {
+    if (!merged.assessment.limitations.includes(item.residual_limitation)) {
+      merged.assessment.limitations.push(item.residual_limitation);
+    }
   }
   validateAssessmentOrThrow(merged, resources, "Merged assessment failed existing assessment validation");
   return merged;

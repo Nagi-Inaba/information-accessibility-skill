@@ -31,9 +31,26 @@ export function lookupRequirement(profileId, requirementId, root = skillRoot) {
   const method = methods.methods.find((item) => item.id === criterion.method_key);
   if (!method) throw new Error(`Audit method is missing for ${requirementId}: ${criterion.method_key}`);
   const criterionProcedure = criterionProcedures.procedures.find((item) => item.requirement_id === requirementId);
+  const procedureBinding = criterionProcedure ? {
+    procedure_availability: "available",
+    procedure_ref: `criterion-procedures:${criterionProcedures.schema_version}#${criterionProcedure.id}`,
+    generic_method_ref: null,
+    official_sources: criterionProcedure.primary_sources,
+    human_actions: criterionProcedure.procedure_steps,
+    required_evidence_types: criterionProcedure.required_evidence_types,
+    cant_tell_conditions: criterionProcedure.cant_tell_when
+  } : {
+    procedure_availability: "unavailable",
+    procedure_ref: null,
+    generic_method_ref: `web-audit-methods:${methods.schema_version}#${method.id}`,
+    official_sources: criterion.official_method_sources,
+    human_actions: method.procedure_steps,
+    required_evidence_types: method.required_evidence_types,
+    cant_tell_conditions: [method.cant_tell_when]
+  };
 
   return {
-    lookup_version: "1.0.0",
+    lookup_version: "2.0.0",
     profile: {
       id: profile.id,
       display_name: profile.display_name,
@@ -45,6 +62,7 @@ export function lookupRequirement(profileId, requirementId, root = skillRoot) {
     criterion_procedure_catalog_status: criterionProcedures.catalog_status,
     criterion_procedure_status: criterionProcedure ? "available" : "not_available",
     ...(criterionProcedure ? { criterion_procedure: criterionProcedure } : {}),
+    procedure_binding: procedureBinding,
     catalog_verified_at: catalog.verified_at,
     method_catalog_verified_at: methods.verified_at,
     usage_boundary: "Open the criterion's primary sources before evaluating it. This lookup is a reproducibility aid, not a conformance determination."

@@ -1,27 +1,32 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:information-accessibility:remediation-plan:1.0.0",
+  "$id": "urn:information-accessibility:remediation-plan:2.0.0",
   "title": "Information Accessibility Remediation Plan",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema_version", "items"],
   "properties": {
-    "schema_version": { "const": "1.0.0" },
+    "schema_version": { "const": "2.0.0" },
     "items": {
       "type": "array",
       "minItems": 1,
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["remediation_id", "basis", "requirement_id", "source_artifact_ids", "issue", "proposed_change", "verification"],
+        "required": ["remediation_id", "basis", "requirement_id", "source_artifact_ids", "priority", "location", "affected_users", "issue", "proposed_change", "verification", "residual_limitation"],
         "properties": {
           "remediation_id": { "type": "string", "pattern": "^REM-[A-Z0-9]{8}$" },
           "basis": { "enum": ["verified_failure", "unverified_screening_candidate"] },
           "requirement_id": { "type": "string", "minLength": 1 },
           "source_artifact_ids": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "pattern": "^ART-[A-Z0-9][A-Z0-9-]{2,63}$" } },
+          "priority": { "enum": ["P0", "P1", "P2"] },
+          "location": { "type": "string", "minLength": 1 },
+          "affected_users": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
           "issue": { "type": "string", "minLength": 1 },
           "proposed_change": { "type": "string", "minLength": 1 },
-          "verification": { "type": "string", "minLength": 1 }
+          "verification": { "type": "string", "minLength": 1 },
+          "owner": { "type": "string", "minLength": 1 },
+          "residual_limitation": { "type": "string", "minLength": 1 }
         },
         "allOf": [
           { "if": { "properties": { "basis": { "const": "verified_failure" } }, "required": ["basis"] }, "then": { "properties": { "requirement_id": { "type": "string", "pattern": "^(?!SCREEN-).+$" } } } },

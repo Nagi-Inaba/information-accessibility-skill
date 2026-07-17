@@ -33,7 +33,7 @@ function schemaErrors(value, schemaName) {
 
 function validAuditRun() {
   return {
-    schema_version: "2.0.0",
+    schema_version: "3.0.0",
     run_id: runId,
     supersedes_run_id: null,
     status: "initialized",
@@ -68,8 +68,8 @@ function validAuditRun() {
     },
     resource_versions: {
       standards_registry_version: "1.0.0",
-      orchestration_registry_version: "1.0.0",
-      orchestration_registry_sha256: "75485a0c4c616261963f1cdc92f39841ac6d31a668e789431eb0b5a35fa90fe5",
+      orchestration_registry_version: "2.0.0",
+      orchestration_registry_sha256: sha256,
       criteria_catalog_sha256: sha256,
       criterion_procedures_sha256: sha256,
       audit_methods_sha256: sha256
@@ -109,11 +109,16 @@ function validScreeningPayload() {
 
 function validHumanQueuePayload() {
   return {
-    schema_version: "1.0.0",
+    schema_version: "2.0.0",
     items: [{
       requirement_id: "WCAG-2.2-SC-1.1.1",
       procedure_availability: "available",
       procedure_ref: "criterion-procedures:1.0.0#wcag22-sc-1-1-1-non-text-content",
+      generic_method_ref: null,
+      official_sources: [
+        "https://www.w3.org/TR/WCAG22/#non-text-content",
+        "https://www.w3.org/WAI/WCAG22/Understanding/non-text-content.html"
+      ],
       human_actions: ["Inspect the target-specific alternative and visible purpose."],
       required_evidence_types: ["browser_inspection", "manual_observation"],
       cant_tell_conditions: ["The computed accessible name cannot be inspected."]
@@ -156,18 +161,49 @@ function validDeclaredHumanReviewPayload(availability = "available") {
 
 function validRemediationPayload() {
   return {
-    schema_version: "1.0.0",
+    schema_version: "2.0.0",
     items: [{
       remediation_id: "REM-ABC12345",
       basis: "unverified_screening_candidate",
       requirement_id: "SCREEN-AXE-SERIOUS",
       source_artifact_ids: ["ART-SCREENING-001"],
+      priority: "P1",
+      location: "target/index.html#main",
+      affected_users: ["Screen reader users"],
       issue: "A candidate issue needs confirmation before any profile claim.",
       proposed_change: "Add an accessible name if the candidate is verified.",
-      verification: "Retest the target and repeat the relevant human procedure."
+      verification: "Retest the target and repeat the relevant human procedure.",
+      owner: "Frontend team",
+      residual_limitation: "The candidate remains unverified until target-specific review is completed."
     }]
   };
 }
+
+test("current queue and remediation schemas are version 2 while frozen version 1 schemas remain readable", async () => {
+  const currentQueue = readReferenceJson("human-review-queue.schema.json");
+  const legacyQueue = readReferenceJson("human-review-queue-1.0.0.schema.json");
+  const currentRemediation = readReferenceJson("remediation-plan.schema.json");
+  const legacyRemediation = readReferenceJson("remediation-plan-1.0.0.schema.json");
+  assert.equal(currentQueue.properties.schema_version.const, "2.0.0");
+  assert.equal(legacyQueue.properties.schema_version.const, "1.0.0");
+  assert.equal(currentRemediation.properties.schema_version.const, "2.0.0");
+  assert.equal(legacyRemediation.properties.schema_version.const, "1.0.0");
+
+  const legacyQueueValue = structuredClone(validHumanQueuePayload());
+  legacyQueueValue.schema_version = "1.0.0";
+  delete legacyQueueValue.items[0].generic_method_ref;
+  delete legacyQueueValue.items[0].official_sources;
+  assert.deepEqual(await schemaErrors(legacyQueueValue, "human-review-queue-1.0.0.schema.json"), []);
+  assert.notDeepEqual(await schemaErrors(legacyQueueValue, "human-review-queue.schema.json"), []);
+
+  const legacyRemediationValue = structuredClone(validRemediationPayload());
+  legacyRemediationValue.schema_version = "1.0.0";
+  for (const field of ["priority", "location", "affected_users", "owner", "residual_limitation"]) {
+    delete legacyRemediationValue.items[0][field];
+  }
+  assert.deepEqual(await schemaErrors(legacyRemediationValue, "remediation-plan-1.0.0.schema.json"), []);
+  assert.notDeepEqual(await schemaErrors(legacyRemediationValue, "remediation-plan.schema.json"), []);
+});
 
 function validFixAuthorizationPayload() {
   return {
@@ -446,13 +482,51 @@ test("the orchestration registry fixes the complete role, artifact, and transiti
   assert.equal(writers[0].install_by_default, false);
 
   assert.deepEqual(registry.artifact_types, [
-    { id: "audit-run", schema_file: "audit-run.schema.json" },
-    { id: "screening-observations", schema_file: "screening-observations.schema.json" },
-    { id: "human-review-queue", schema_file: "human-review-queue.schema.json" },
-    { id: "declared-human-review", schema_file: "declared-human-review.schema.json" },
-    { id: "remediation-plan", schema_file: "remediation-plan.schema.json" },
-    { id: "fix-authorization", schema_file: "fix-authorization.schema.json" },
-    { id: "change-record", schema_file: "change-record.schema.json" }
+    {
+      id: "audit-run",
+      latest_schema_version: "3.0.0",
+      schema_versions: [
+        { version: "1.0.0", schema_file: "audit-run-1.0.0.schema.json", mode: "read_only" },
+        { version: "2.0.0", schema_file: "audit-run-2.0.0.schema.json", mode: "read_only" },
+        { version: "3.0.0", schema_file: "audit-run.schema.json", mode: "current" }
+      ]
+    },
+    {
+      id: "screening-observations",
+      latest_schema_version: "1.0.0",
+      schema_versions: [{ version: "1.0.0", schema_file: "screening-observations.schema.json", mode: "current" }]
+    },
+    {
+      id: "human-review-queue",
+      latest_schema_version: "2.0.0",
+      schema_versions: [
+        { version: "1.0.0", schema_file: "human-review-queue-1.0.0.schema.json", mode: "read_only" },
+        { version: "2.0.0", schema_file: "human-review-queue.schema.json", mode: "current" }
+      ]
+    },
+    {
+      id: "declared-human-review",
+      latest_schema_version: "1.0.0",
+      schema_versions: [{ version: "1.0.0", schema_file: "declared-human-review.schema.json", mode: "current" }]
+    },
+    {
+      id: "remediation-plan",
+      latest_schema_version: "2.0.0",
+      schema_versions: [
+        { version: "1.0.0", schema_file: "remediation-plan-1.0.0.schema.json", mode: "read_only" },
+        { version: "2.0.0", schema_file: "remediation-plan.schema.json", mode: "current" }
+      ]
+    },
+    {
+      id: "fix-authorization",
+      latest_schema_version: "1.0.0",
+      schema_versions: [{ version: "1.0.0", schema_file: "fix-authorization.schema.json", mode: "current" }]
+    },
+    {
+      id: "change-record",
+      latest_schema_version: "1.0.0",
+      schema_versions: [{ version: "1.0.0", schema_file: "change-record.schema.json", mode: "current" }]
+    }
   ]);
   assert.deepEqual(registry.transitions, [
     { from: "initialized", to: "screened", required_artifact_types: ["screening-observations"] },
@@ -790,16 +864,12 @@ test("change records require relative paths, strict hashes, and retest_required 
 test("the internal/public boundary prohibits orchestration metadata leakage", () => {
   const boundary = read("codex/skills/information-accessibility-practice/references/agent-orchestration.md");
   assert.match(boundary, /`audit-run` and all role artifacts are internal traceability records/i);
-  assert.match(boundary, /`render-audit-report\.mjs` consumes only the validated assessment/i);
-  assert.match(boundary, /`render-orchestrated-report\.mjs` may consume validated run artifacts/i);
-  for (const prohibited of ["agent identifiers", "local paths", "Git branches", "run IDs", "transition history"]) {
-    assert.match(boundary, new RegExp(`never exposes[^.]*${prohibited}`, "i"), prohibited);
+  assert.match(boundary, /`render-audit-report\.mjs`[^]*`--run`[^]*`--assessment`[^]*`--output`/i);
+  for (const prohibited of ["internal agent identifiers", "local paths", "Git branches", "run IDs", "transition history", "state history"]) {
+    assert.match(boundary, new RegExp(`(?:must not|never)[^.]*${prohibited}`, "i"), prohibited);
   }
   assert.match(boundary, /schema validation does not authenticate identity or grant authorization/i);
   assert.match(boundary, /does not execute commands or write the audited target/i);
   assert.match(boundary, /same run[^.]*exact SHA-256[^.]*registered artifact/i);
   assert.match(boundary, /`input_types` array order is part of the canonical serialized role contract/i);
-
-  const currentRenderer = read("codex/skills/information-accessibility-practice/scripts/render-audit-report.mjs");
-  assert.doesNotMatch(currentRenderer, /orchestration-registry|audit-run\.schema|artifact_id|transition history/i);
 });

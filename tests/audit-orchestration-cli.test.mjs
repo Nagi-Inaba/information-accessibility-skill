@@ -8,6 +8,7 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { generateAssessment } from "../codex/skills/information-accessibility-practice/scripts/generate-assessment.mjs";
+import { lookupRequirement } from "../codex/skills/information-accessibility-practice/scripts/show-requirement.mjs";
 import {
   loadAuditResources,
   mergeArtifacts as mergeArtifactRecords,
@@ -46,13 +47,13 @@ function sha256File(file) {
   return sha256Bytes(fs.readFileSync(file));
 }
 
-function resourceVersions() {
+function resourceVersions(registryFile = "orchestration-registry.json") {
   const standards = readJson(path.join(references, "standards-registry.json"));
-  const orchestration = readJson(path.join(references, "orchestration-registry.json"));
+  const orchestration = readJson(path.join(references, registryFile));
   return {
     standards_registry_version: standards.schema_version,
     orchestration_registry_version: orchestration.schema_version,
-    orchestration_registry_sha256: sha256File(path.join(references, "orchestration-registry.json")),
+    orchestration_registry_sha256: sha256File(path.join(references, registryFile)),
     criteria_catalog_sha256: sha256File(path.join(references, "criteria-catalog.json")),
     criterion_procedures_sha256: sha256File(path.join(references, "criterion-procedures.json")),
     audit_methods_sha256: sha256File(path.join(references, "web-audit-methods.json"))
@@ -61,7 +62,7 @@ function resourceVersions() {
 
 function initialRun(artifactRoot) {
   return {
-    schema_version: "2.0.0",
+    schema_version: "3.0.0",
     run_id: runId,
     supersedes_run_id: null,
     status: "initialized",
@@ -82,6 +83,13 @@ function initialRun(artifactRoot) {
     history: [],
     limitations: ["The environment was not declared; no profile outcome has been recorded."]
   };
+}
+
+function legacyV2InitialRun(artifactRoot) {
+  const run = initialRun(artifactRoot);
+  run.schema_version = "2.0.0";
+  run.resource_versions = resourceVersions("orchestration-registry-1.0.0.json");
+  return run;
 }
 
 function screeningEnvelope({ artifactId, requirementId, capturedAt = "2026-07-17T12:00:01Z" }) {
@@ -108,17 +116,18 @@ function screeningEnvelope({ artifactId, requirementId, capturedAt = "2026-07-17
 }
 
 function queuePayload(requirementId = "WCAG-2.2-SC-1.1.1") {
+  const binding = lookupRequirement("web-modern", requirementId, skillRoot).procedure_binding;
   return {
-    schema_version: "1.0.0",
+    schema_version: "2.0.0",
     items: [{
       requirement_id: requirementId,
-      procedure_availability: "available",
-      procedure_ref: "criterion-procedures:1.0.0#wcag22-sc-1-1-1-non-text-content",
-      human_actions: ["Inspect the target-specific text alternative."],
-      required_evidence_types: ["browser_inspection", "manual_observation"],
-      cant_tell_conditions: ["The computed alternative cannot be observed."]
+      ...binding
     }],
-    procedure_coverage: { total_requirements: 1, available_procedures: 1, unavailable_procedures: 0 }
+    procedure_coverage: {
+      total_requirements: 1,
+      available_procedures: binding.procedure_availability === "available" ? 1 : 0,
+      unavailable_procedures: binding.procedure_availability === "unavailable" ? 1 : 0
+    }
   };
 }
 
@@ -201,15 +210,39 @@ function fixAuthorizationPayload() {
 
 function remediationPayload(sourceArtifactId, requirementId = "SCREEN-FIRST") {
   return {
-    schema_version: "1.0.0",
+    schema_version: "2.0.0",
     items: [{
       remediation_id: "REM-TEST0001",
       basis: "unverified_screening_candidate",
       requirement_id: requirementId,
       source_artifact_ids: [sourceArtifactId],
+      priority: "P1",
+      location: "target/index.html#main",
+      affected_users: ["Screen reader users"],
       issue: "Unverified screening candidate requiring review.",
       proposed_change: "Prepare a bounded candidate change for authorization.",
-      verification: "Retest the same screening check after an authorized change."
+      verification: "Retest the same screening check after an authorized change.",
+      residual_limitation: "The candidate remains unverified until target-specific review is completed."
+    }]
+  };
+}
+
+function verifiedFailureRemediationPayload(sourceArtifactId, requirementId = "WCAG-2.2-SC-1.1.1") {
+  return {
+    schema_version: "2.0.0",
+    items: [{
+      remediation_id: "REM-FAIL0001",
+      basis: "verified_failure",
+      requirement_id: requirementId,
+      source_artifact_ids: [sourceArtifactId],
+      priority: "P0",
+      location: "target/index.html#main-image",
+      affected_users: ["Screen reader users"],
+      issue: "The human review verified that the text alternative does not communicate the image purpose.",
+      proposed_change: "Provide a text alternative that communicates the same purpose as the image.",
+      verification: "Repeat the registered human review with browser inspection and manual observation.",
+      owner: "Frontend team",
+      residual_limitation: "The reviewer identity remains declared but unauthenticated."
     }]
   };
 }
@@ -261,6 +294,90 @@ function makeHumanReviewRun(artifactRoot, requirementId = "WCAG-2.2-SC-1.1.1") {
   return { run, screenFile, queueFile, humanFile, human };
 }
 
+function makeScreeningRemediationRun(artifactRoot) {
+  const screen = screeningEnvelope({ artifactId: "ART-SCREEN-001", requirementId: "SCREEN-FIRST" });
+  const screenFile = path.join(artifactRoot, "screen.json");
+  writeJson(screenFile, screen);
+  const queue = queueEnvelope({ inputs: [{ artifact_id: screen.artifact_id, run_id: runId, sha256: sha256File(screenFile) }] });
+  const queueFile = path.join(artifactRoot, "queue.json");
+  writeJson(queueFile, queue);
+  const remediation = artifactEnvelope({
+    artifactId: "ART-REMEDIATION-001",
+    artifactType: "remediation-plan",
+    roleId: "remediation_planner",
+    createdAt: "2026-07-17T12:00:04Z",
+    inputs: [{ artifact_id: screen.artifact_id, run_id: runId, sha256: sha256File(screenFile) }],
+    payload: remediationPayload(screen.artifact_id)
+  });
+  const remediationFile = path.join(artifactRoot, "remediation.json");
+  writeJson(remediationFile, remediation);
+  const run = initialRun(artifactRoot);
+  run.status = "remediation_ready";
+  run.artifacts = [
+    registerEntry(artifactRoot, screenFile, screen),
+    registerEntry(artifactRoot, queueFile, queue),
+    registerEntry(artifactRoot, remediationFile, remediation)
+  ].sort((left, right) => left.artifact_id.localeCompare(right.artifact_id));
+  run.history = [
+    { from: "initialized", to: "screened", at: screen.created_at, actor_role: "e1_inspector", artifact_ids: [screen.artifact_id] },
+    { from: "screened", to: "human_queue_ready", at: queue.created_at, actor_role: "human_queue_planner", artifact_ids: [queue.artifact_id] },
+    { from: "human_queue_ready", to: "remediation_ready", at: remediation.created_at, actor_role: "remediation_planner", artifact_ids: [remediation.artifact_id] }
+  ];
+  return {
+    run,
+    screen,
+    screenFile,
+    queue,
+    queueFile,
+    remediation,
+    remediationFile,
+    artifacts: [screen, queue, remediation]
+  };
+}
+
+function makeVerifiedFailureRemediationRun(artifactRoot, profileOutcome = "fail") {
+  const fixture = makeHumanReviewRun(artifactRoot);
+  fixture.human.payload.reviews[0].profile_outcome = profileOutcome;
+  writeJson(fixture.humanFile, fixture.human);
+  fixture.run.artifacts.find((entry) => entry.artifact_id === fixture.human.artifact_id).sha256 = sha256File(fixture.humanFile);
+  const remediation = artifactEnvelope({
+    artifactId: "ART-REMEDIATION-001",
+    artifactType: "remediation-plan",
+    roleId: "remediation_planner",
+    createdAt: "2026-07-17T12:00:05Z",
+    inputs: [{ artifact_id: fixture.human.artifact_id, run_id: runId, sha256: sha256File(fixture.humanFile) }],
+    payload: verifiedFailureRemediationPayload(fixture.human.artifact_id)
+  });
+  const remediationFile = path.join(artifactRoot, "remediation.json");
+  writeJson(remediationFile, remediation);
+  fixture.run.status = "remediation_ready";
+  fixture.run.artifacts.push(registerEntry(artifactRoot, remediationFile, remediation));
+  fixture.run.artifacts.sort((left, right) => left.artifact_id.localeCompare(right.artifact_id));
+  fixture.run.history.push({
+    from: "human_review_recorded",
+    to: "remediation_ready",
+    at: remediation.created_at,
+    actor_role: "remediation_planner",
+    artifact_ids: [remediation.artifact_id]
+  });
+  return {
+    ...fixture,
+    remediation,
+    remediationFile,
+    artifacts: [
+      readJson(fixture.screenFile),
+      readJson(fixture.queueFile),
+      fixture.human,
+      remediation
+    ]
+  };
+}
+
+function rewriteFixtureArtifact(fixture, artifact, file) {
+  writeJson(file, artifact);
+  fixture.run.artifacts.find((entry) => entry.artifact_id === artifact.artifact_id).sha256 = sha256File(file);
+}
+
 function assessmentFixture() {
   const assessment = generateAssessment("web-modern", {
     targetName: "Local fixture",
@@ -276,6 +393,7 @@ function assessmentFixture() {
 
 function applyLegacyRunContract(run) {
   run.schema_version = "1.0.0";
+  run.resource_versions = resourceVersions("orchestration-registry-1.0.0.json");
   delete run.resource_versions.orchestration_registry_sha256;
   run.permissions.allowed_actions = ["read_target", "write_internal_artifacts"];
   run.permissions.forbidden_actions = ["record_profile_outcome", "write_target", "authorize_fix"];
@@ -338,9 +456,13 @@ function registerEntry(artifactRoot, file, artifact) {
   };
 }
 
-function pureMergeResources(run) {
+function pureMergeResources(run, artifactRoot) {
   const resources = loadAuditResources(skillRoot);
-  resources.artifact_sha256_by_id = new Map(run.artifacts.map((entry) => [entry.artifact_id, entry.sha256]));
+  resources.artifact_snapshots_by_id = new Map(run.artifacts.map((entry) => {
+    const file = path.join(artifactRoot, ...entry.path.replace(/^\.\//u, "").split("/"));
+    const bytes = fs.readFileSync(file);
+    return [entry.artifact_id, { bytes, sha256: sha256Bytes(bytes) }];
+  }));
   return resources;
 }
 
@@ -350,6 +472,16 @@ function withTemp(t, callback) {
   const artifactRoot = path.join(temp, "artifacts");
   fs.mkdirSync(artifactRoot);
   return callback({ temp, artifactRoot });
+}
+
+function copyDirectory(source, destination) {
+  fs.mkdirSync(destination, { recursive: true });
+  for (const entry of fs.readdirSync(source, { withFileTypes: true })) {
+    const sourceEntry = path.join(source, entry.name);
+    const destinationEntry = path.join(destination, entry.name);
+    if (entry.isDirectory()) copyDirectory(sourceEntry, destinationEntry);
+    else fs.copyFileSync(sourceEntry, destinationEntry);
+  }
 }
 
 test("run initialization creates a schema-valid immutable manifest with installed resource hashes", (t) => withTemp(t, ({ temp, artifactRoot }) => {
@@ -368,12 +500,12 @@ test("run initialization creates a schema-valid immutable manifest with installe
   ]);
   assert.equal(result.status, 0, result.stderr || result.stdout);
   const run = readJson(output);
-  assert.equal(run.schema_version, "2.0.0");
+  assert.equal(run.schema_version, "3.0.0");
   assert.equal(run.status, "initialized");
   assert.equal(run.artifact_root, "artifacts");
   assert.deepEqual(run.permissions, initialRun(artifactRoot).permissions);
   assert.deepEqual(run.resource_versions, resourceVersions());
-  assert.equal(run.resource_versions.orchestration_registry_sha256, "75485a0c4c616261963f1cdc92f39841ac6d31a668e789431eb0b5a35fa90fe5");
+  assert.equal(run.resource_versions.orchestration_registry_sha256, sha256File(path.join(references, "orchestration-registry.json")));
 
   const overwrite = runNode(createRun, [
     "--run-id", runId, "--profile", "web-modern", "--target-name", "Local fixture",
@@ -385,17 +517,34 @@ test("run initialization creates a schema-valid immutable manifest with installe
   assert.match(overwrite.stderr, /overwrite/i);
 }));
 
-test("audit-run schema dispatch emits 2.0.0, preserves valid 1.0.0 inputs, and rejects unknown versions", (t) => withTemp(t, ({ temp, artifactRoot }) => {
+test("audit-run schema dispatch emits 3.0.0 and preserves valid 1.0.0 and 2.0.0 inputs", (t) => withTemp(t, ({ temp, artifactRoot }) => {
   const currentSchema = readJson(path.join(references, "audit-run.schema.json"));
-  const legacySchemaFile = path.join(references, "audit-run-1.0.0.schema.json");
-  assert.equal(currentSchema.$id, "urn:information-accessibility:audit-run:2.0.0");
-  assert.equal(currentSchema.properties.schema_version.const, "2.0.0");
-  assert.equal(fs.existsSync(legacySchemaFile), true);
-  assert.equal(readJson(legacySchemaFile).properties.schema_version.const, "1.0.0");
+  const legacyV1SchemaFile = path.join(references, "audit-run-1.0.0.schema.json");
+  const legacyV2SchemaFile = path.join(references, "audit-run-2.0.0.schema.json");
+  assert.equal(currentSchema.$id, "urn:information-accessibility:audit-run:3.0.0");
+  assert.equal(currentSchema.properties.schema_version.const, "3.0.0");
+  assert.equal(readJson(legacyV1SchemaFile).properties.schema_version.const, "1.0.0");
+  assert.equal(readJson(legacyV2SchemaFile).properties.schema_version.const, "2.0.0");
+
+  const currentRegistry = readJson(path.join(references, "orchestration-registry.json"));
+  const legacyRegistry = readJson(path.join(references, "orchestration-registry-1.0.0.json"));
+  assert.equal(currentRegistry.schema_version, "2.0.0");
+  assert.equal(legacyRegistry.schema_version, "1.0.0");
 
   const runFile = path.join(temp, "run.json");
   const current = validateAuditRun(initialRun(artifactRoot), { skillRoot, runFile });
   assert.equal(current.valid, true, current.errors.join("\n"));
+
+  const legacyV2 = validateAuditRun(legacyV2InitialRun(artifactRoot), { skillRoot, runFile });
+  assert.equal(legacyV2.valid, true, legacyV2.errors.join("\n"));
+
+  const artifactFile = path.join(artifactRoot, "legacy-v2-screening.json");
+  const artifact = screeningEnvelope({ artifactId: "ART-SCREEN-V2", requirementId: "SCREEN-LEGACY-V2" });
+  writeJson(artifactFile, artifact);
+  assert.throws(
+    () => registerArtifactRecord(legacyV2InitialRun(artifactRoot), artifact, { skillRoot, runFile, artifactFile }),
+    /latest.*audit-run.*3\.0\.0|legacy.*read.only|implicit upgrade/i
+  );
 
   const legacy = validateAuditRun(legacyInitialRun(artifactRoot), { skillRoot, runFile });
   assert.equal(legacy.valid, true, legacy.errors.join("\n"));
@@ -455,7 +604,7 @@ test("latest-only operational gate rejects legacy runs in direct artifact regist
   assert.equal(readable.valid, true, readable.errors.join("\n"));
   assert.throws(
     () => registerArtifactRecord(legacyRun, artifact, { skillRoot, runFile, artifactFile }),
-    /latest.*audit-run.*2\.0\.0|legacy.*read.only|implicit upgrade/i
+    /latest.*audit-run.*3\.0\.0|legacy.*read.only|implicit upgrade/i
   );
 }));
 
@@ -466,21 +615,34 @@ test("legacy Task 4 declared-human runs remain readable without retroactive curr
   human.payload.reviews[0].target_specific_evidence = human.payload.reviews[0].target_specific_evidence
     .filter((item) => item.type === "manual_observation");
   writeJson(fixture.humanFile, human);
+  const queue = readJson(fixture.queueFile);
+  queue.payload.schema_version = "1.0.0";
+  delete queue.payload.items[0].generic_method_ref;
+  delete queue.payload.items[0].official_sources;
+  writeJson(fixture.queueFile, queue);
+  human.inputs[0].sha256 = sha256File(fixture.queueFile);
+  writeJson(fixture.humanFile, human);
   const run = applyLegacyRunContract(fixture.run);
   run.artifacts.find((entry) => entry.artifact_type === "screening-observations").path = "./screen.json";
+  run.artifacts.find((entry) => entry.artifact_id === queue.artifact_id).sha256 = sha256File(fixture.queueFile);
   run.artifacts.find((entry) => entry.artifact_id === human.artifact_id).sha256 = sha256File(fixture.humanFile);
   const runFile = path.join(temp, "legacy-human-run.json");
 
   const readable = validateAuditRun(run, { skillRoot, runFile });
   assert.equal(readable.valid, true, readable.errors.join("\n"));
+  const runV2 = structuredClone(run);
+  runV2.schema_version = "2.0.0";
+  runV2.resource_versions = resourceVersions("orchestration-registry-1.0.0.json");
+  const readableV2 = validateAuditRun(runV2, { skillRoot, runFile });
+  assert.equal(readableV2.valid, true, readableV2.errors.join("\n"));
   assert.throws(
     () => mergeArtifactRecords({
       run,
       assessment: assessmentFixture(),
       artifacts: [readJson(fixture.screenFile), readJson(fixture.queueFile), human],
-      registries: pureMergeResources(run)
+      registries: pureMergeResources(run, artifactRoot)
     }),
-    /latest.*audit-run.*2\.0\.0|legacy.*read.only|implicit upgrade/i
+    /latest.*audit-run.*3\.0\.0|legacy.*read.only|implicit upgrade/i
   );
 }));
 
@@ -493,7 +655,7 @@ test("latest-only operational gate rejects legacy runs in the register CLI witho
   writeJson(artifactFile, artifact);
 
   const result = runNode(registerArtifact, ["--run", runFile, "--artifact", artifactFile, "--output", output]);
-  assertRejected(result, /latest.*audit-run.*2\.0\.0|legacy.*read.only|implicit upgrade/i);
+  assertRejected(result, /latest.*audit-run.*3\.0\.0|legacy.*read.only|implicit upgrade/i);
   assert.equal(fs.existsSync(output), false);
 }));
 
@@ -503,16 +665,16 @@ test("latest-only operational gate rejects legacy runs in pure merge while prese
   writeJson(artifactFile, artifact);
   const legacyRun = screenedRun(artifactRoot, artifactFile, artifact);
   legacyRun.schema_version = "1.0.0";
+  legacyRun.resource_versions = resourceVersions("orchestration-registry-1.0.0.json");
   delete legacyRun.resource_versions.orchestration_registry_sha256;
   const runFile = path.join(temp, "legacy-run.json");
   const readable = validateAuditRun(legacyRun, { skillRoot, runFile });
   assert.equal(readable.valid, true, readable.errors.join("\n"));
 
-  const resources = loadAuditResources(skillRoot);
-  resources.artifact_sha256_by_id = new Map([[artifact.artifact_id, sha256File(artifactFile)]]);
+  const resources = pureMergeResources(legacyRun, artifactRoot);
   assert.throws(
     () => mergeArtifactRecords({ run: legacyRun, assessment: assessmentFixture(), artifacts: [artifact], registries: resources }),
-    /latest.*audit-run.*2\.0\.0|legacy.*read.only|implicit upgrade/i
+    /latest.*audit-run.*3\.0\.0|legacy.*read.only|implicit upgrade/i
   );
 }));
 
@@ -522,6 +684,7 @@ test("latest-only operational gate rejects legacy runs in the merge CLI without 
   writeJson(artifactFile, artifact);
   const legacyRun = screenedRun(artifactRoot, artifactFile, artifact);
   legacyRun.schema_version = "1.0.0";
+  legacyRun.resource_versions = resourceVersions("orchestration-registry-1.0.0.json");
   delete legacyRun.resource_versions.orchestration_registry_sha256;
   const runFile = path.join(temp, "legacy-run.json");
   const assessmentFile = path.join(temp, "assessment.json");
@@ -532,7 +695,7 @@ test("latest-only operational gate rejects legacy runs in the merge CLI without 
   const result = runNode(mergeArtifactsCli, [
     "--run", runFile, "--assessment", assessmentFile, "--artifact", artifactFile, "--output", output
   ]);
-  assertRejected(result, /latest.*audit-run.*2\.0\.0|legacy.*read.only|implicit upgrade/i);
+  assertRejected(result, /latest.*audit-run.*3\.0\.0|legacy.*read.only|implicit upgrade/i);
   assert.equal(fs.existsSync(output), false);
 }));
 
@@ -551,8 +714,7 @@ test("latest-only operational gate makes pure merge fail closed on exact current
   for (const [binding, mutate] of mutations) {
     const run = structuredClone(currentRun);
     mutate(run);
-    const resources = loadAuditResources(skillRoot);
-    resources.artifact_sha256_by_id = new Map([[artifact.artifact_id, sha256File(artifactFile)]]);
+    const resources = pureMergeResources(run, artifactRoot);
     assert.throws(
       () => mergeArtifactRecords({ run, assessment: assessmentFixture(), artifacts: [artifact], registries: resources }),
       /current operational run|latest.*audit-run|schema_version|resource_versions|profile\.registry_version|permissions.*canonical/i,
@@ -569,7 +731,7 @@ test("latest-only operational gate rejects inactive profiles in pure merge", (t)
   assessment.assessment.results = [];
 
   assert.throws(
-    () => mergeArtifactRecords({ run, assessment, artifacts: [], registries: pureMergeResources(run) }),
+    () => mergeArtifactRecords({ run, assessment, artifacts: [], registries: pureMergeResources(run, artifactRoot) }),
     /known active profile|unknown or inactive profile/i
   );
 }));
@@ -624,7 +786,7 @@ test("pure merge rejects filesystem-independent registration and history semanti
   for (const [name, build] of variants) {
     const { run, artifacts } = build();
     try {
-      mergeArtifactRecords({ run, assessment: assessmentFixture(), artifacts, registries: pureMergeResources(run) });
+      mergeArtifactRecords({ run, assessment: assessmentFixture(), artifacts, registries: pureMergeResources(run, artifactRoot) });
       accepted.push(name);
     } catch {}
   }
@@ -655,7 +817,7 @@ test("pure merge rejects filesystem-independent artifact input semantic corrupti
         run: structuredClone(fixture.run),
         assessment: assessmentFixture(),
         artifacts,
-        registries: pureMergeResources(fixture.run)
+        registries: pureMergeResources(fixture.run, artifactRoot)
       });
       accepted.push(name);
     } catch {}
@@ -663,12 +825,101 @@ test("pure merge rejects filesystem-independent artifact input semantic corrupti
   assert.deepEqual(accepted, [], `Pure merge accepted corrupt artifact input semantics: ${accepted.join(", ")}`);
 }));
 
+test("pure merge rejects a legacy queue payload in a current run", (t) => withTemp(t, ({ artifactRoot }) => {
+  const fixture = makeHumanReviewRun(artifactRoot);
+  const queue = readJson(fixture.queueFile);
+  queue.payload.schema_version = "1.0.0";
+  delete queue.payload.items[0].generic_method_ref;
+  delete queue.payload.items[0].official_sources;
+  assert.throws(
+    () => mergeArtifactRecords({
+      run: fixture.run,
+      assessment: assessmentFixture(),
+      artifacts: [readJson(fixture.screenFile), queue, readJson(fixture.humanFile)],
+      registries: pureMergeResources(fixture.run, artifactRoot)
+    }),
+    /human-review-queue.*schema_version.*2\.0\.0|current.*payload|orchestration registry/i
+  );
+}));
+
+test("pure merge rejects a current queue whose machine binding differs from lookup", (t) => withTemp(t, ({ artifactRoot }) => {
+  const fixture = makeHumanReviewRun(artifactRoot);
+  const queue = readJson(fixture.queueFile);
+  queue.payload.items[0].official_sources = ["https://example.invalid/not-authoritative"];
+  writeJson(fixture.queueFile, queue);
+  fixture.run.artifacts.find((entry) => entry.artifact_id === queue.artifact_id).sha256 = sha256File(fixture.queueFile);
+  const human = readJson(fixture.humanFile);
+  human.inputs[0].sha256 = sha256File(fixture.queueFile);
+  writeJson(fixture.humanFile, human);
+  fixture.run.artifacts.find((entry) => entry.artifact_id === human.artifact_id).sha256 = sha256File(fixture.humanFile);
+  assert.throws(
+    () => mergeArtifactRecords({
+      run: fixture.run,
+      assessment: assessmentFixture(),
+      artifacts: [readJson(fixture.screenFile), queue, human],
+      registries: pureMergeResources(fixture.run, artifactRoot)
+    }),
+    /human review queue.*binding|lookup version|official_sources/i
+  );
+}));
+
+test("schema manifest loader rejects same-version schema swaps and duplicate schema-file references", (t) => withTemp(t, ({ temp }) => {
+  for (const [label, mutate, pattern] of [
+    ["same-version swap", (registry) => {
+      const authorization = registry.artifact_types.find((item) => item.id === "fix-authorization");
+      const change = registry.artifact_types.find((item) => item.id === "change-record");
+      [authorization.schema_versions[0].schema_file, change.schema_versions[0].schema_file] = [
+        change.schema_versions[0].schema_file,
+        authorization.schema_versions[0].schema_file
+      ];
+    }, /schema.*\$id|artifact type.*schema/i],
+    ["duplicate schema file", (registry) => {
+      const authorization = registry.artifact_types.find((item) => item.id === "fix-authorization");
+      const change = registry.artifact_types.find((item) => item.id === "change-record");
+      change.schema_versions[0].schema_file = authorization.schema_versions[0].schema_file;
+    }, /duplicate.*schema.*file|schema.*file.*duplicate/i]
+  ]) {
+    const copiedSkill = path.join(temp, label.replaceAll(" ", "-"));
+    copyDirectory(path.join(skillRoot, "references"), path.join(copiedSkill, "references"));
+    const registryFile = path.join(copiedSkill, "references/orchestration-registry.json");
+    const registry = readJson(registryFile);
+    mutate(registry);
+    writeJson(registryFile, registry);
+    assert.throws(() => loadAuditResources(copiedSkill), pattern, label);
+  }
+}));
+
+test("frozen registry 1 payload compatibility stays fixed at 1.0.0 when older schemas are added to the current manifest", (t) => withTemp(t, ({ temp }) => {
+  const copiedSkill = path.join(temp, "legacy-policy-skill");
+  copyDirectory(path.join(skillRoot, "references"), path.join(copiedSkill, "references"));
+  const referencesRoot = path.join(copiedSkill, "references");
+  const experimentalFile = path.join(referencesRoot, "human-review-queue-0.5.0.schema.json");
+  const experimental = readJson(path.join(referencesRoot, "human-review-queue-1.0.0.schema.json"));
+  experimental.$id = "urn:information-accessibility:human-review-queue:0.5.0";
+  experimental.properties.schema_version.const = "0.5.0";
+  writeJson(experimentalFile, experimental);
+  const registryFile = path.join(referencesRoot, "orchestration-registry.json");
+  const registry = readJson(registryFile);
+  const queue = registry.artifact_types.find((item) => item.id === "human-review-queue");
+  queue.schema_versions.unshift({
+    version: "0.5.0",
+    schema_file: "human-review-queue-0.5.0.schema.json",
+    mode: "read_only"
+  });
+  writeJson(registryFile, registry);
+
+  const resources = loadAuditResources(copiedSkill);
+  const frozenPolicy = resources.orchestrationRegistries.get("1.0.0").payloadVersions;
+  assert.equal(frozenPolicy.get("human-review-queue"), "1.0.0");
+  assert.equal(frozenPolicy.get("remediation-plan"), "1.0.0");
+}));
+
 test("merge baseline rejects current-run-unprovable participation assurance claim and review metadata", (t) => withTemp(t, ({ artifactRoot }) => {
   const artifactFile = path.join(artifactRoot, "screening.json");
   const artifact = screeningEnvelope({ artifactId: "ART-SCREEN-001", requirementId: "SCREEN-FIRST" });
   writeJson(artifactFile, artifact);
   const run = screenedRun(artifactRoot, artifactFile, artifact);
-  const resources = pureMergeResources(run);
+  const resources = pureMergeResources(run, artifactRoot);
   const referenceTemplates = resources.standardsRegistry.claim_templates.reference_only;
   const variants = [
     ["participation pass", (assessment) => { assessment.assessment.participation_coverage.find = "pass"; }],
@@ -954,6 +1205,58 @@ test("registration rejects missing, cross-run, and mismatched input artifact ref
   }
 }));
 
+test("run 3 queue registration enforces exact lookup bindings, unique profile requirements, and exact coverage counts", (t) => withTemp(t, ({ temp, artifactRoot }) => {
+  const screenFile = path.join(artifactRoot, "screening.json");
+  const screen = screeningEnvelope({ artifactId: "ART-SCREEN-001", requirementId: "SCREEN-FIRST" });
+  writeJson(screenFile, screen);
+  const runFile = path.join(temp, "audit-run.json");
+  const run = screenedRun(artifactRoot, screenFile, screen);
+  const input = [{ artifact_id: screen.artifact_id, run_id: runId, sha256: sha256File(screenFile) }];
+
+  const validQueue = queueEnvelope({ artifactId: "ART-QUEUE-VALID", inputs: input });
+  const validFile = path.join(artifactRoot, "queue-valid.json");
+  writeJson(validFile, validQueue);
+  const registered = registerArtifactRecord(run, validQueue, { skillRoot, runFile, artifactFile: validFile });
+  assert.equal(registered.status, "human_queue_ready");
+
+  const cases = [
+    ["stale procedure ref", (payload) => { payload.items[0].procedure_ref = "criterion-procedures:0.9.0#wcag22-sc-1-1-1-non-text-content"; }],
+    ["wrong sources", (payload) => { payload.items[0].official_sources = ["https://example.invalid/not-authoritative"]; }],
+    ["wrong actions", (payload) => { payload.items[0].human_actions = ["Guess the result."]; }],
+    ["wrong evidence", (payload) => { payload.items[0].required_evidence_types = ["manual_observation"]; }],
+    ["wrong cannot-tell", (payload) => { payload.items[0].cant_tell_conditions = ["Never."]; }],
+    ["unregistered requirement", (payload) => { payload.items[0].requirement_id = "WCAG-2.2-SC-9.9.9"; }],
+    ["duplicate requirement", (payload) => {
+      payload.items.push(structuredClone(payload.items[0]));
+      payload.procedure_coverage = { total_requirements: 2, available_procedures: 2, unavailable_procedures: 0 };
+    }],
+    ["false total", (payload) => { payload.procedure_coverage.total_requirements = 55; }],
+    ["false split", (payload) => { payload.procedure_coverage = { total_requirements: 1, available_procedures: 0, unavailable_procedures: 1 }; }]
+  ];
+  for (const [index, [label, mutate]] of cases.entries()) {
+    const payload = queuePayload();
+    mutate(payload);
+    const queue = queueEnvelope({ artifactId: `ART-QUEUE-BAD-${String(index + 1).padStart(2, "0")}`, inputs: input, payload });
+    const file = path.join(artifactRoot, `queue-bad-${index}.json`);
+    writeJson(file, queue);
+    assert.throws(
+      () => registerArtifactRecord(run, queue, { skillRoot, runFile, artifactFile: file }),
+      /queue|binding|requirement|procedure|source|evidence|coverage|duplicate|lookup/i,
+      label
+    );
+  }
+
+  const unavailablePayload = queuePayload("WCAG-2.2-SC-2.1.1");
+  unavailablePayload.items[0].generic_method_ref = "web-audit-methods:1.0.0#adaptable-structure";
+  const unavailable = queueEnvelope({ artifactId: "ART-QUEUE-BAD-GENERIC", inputs: input, payload: unavailablePayload });
+  const unavailableFile = path.join(artifactRoot, "queue-bad-generic.json");
+  writeJson(unavailableFile, unavailable);
+  assert.throws(
+    () => registerArtifactRecord(run, unavailable, { skillRoot, runFile, artifactFile: unavailableFile }),
+    /queue|binding|generic|method|lookup/i
+  );
+}));
+
 test("registration detects mutation of a previously registered input before accepting a dependent artifact", (t) => withTemp(t, ({ temp, artifactRoot }) => {
   const screenFile = path.join(artifactRoot, "screening.json");
   const screen = screeningEnvelope({ artifactId: "ART-SCREEN-001", requirementId: "SCREEN-FIRST" });
@@ -1136,15 +1439,7 @@ test("declared human review is bound to its registered queue, current procedure,
 test("unavailable declared review uses the queued criterion's current generic method and catalog sources", (t) => withTemp(t, ({ temp, artifactRoot }) => {
   const fixture = makeHumanReviewRun(artifactRoot);
   const queue = readJson(fixture.queueFile);
-  queue.payload.items = [{
-    requirement_id: "WCAG-2.2-SC-1.2.1",
-    procedure_availability: "unavailable",
-    procedure_ref: null,
-    human_actions: ["Review the scoped prerecorded audio-only and video-only media."],
-    required_evidence_types: ["assistive_technology_test", "manual_observation"],
-    cant_tell_conditions: ["The media cannot be played in the scoped environment."]
-  }];
-  queue.payload.procedure_coverage = { total_requirements: 1, available_procedures: 0, unavailable_procedures: 1 };
+  queue.payload = queuePayload("WCAG-2.2-SC-1.2.1");
   writeJson(fixture.queueFile, queue);
 
   const resources = loadAuditResources(skillRoot);
@@ -1449,7 +1744,7 @@ test("merge requires run scope and environment to exactly match the assessment",
   assertRejected(result, /scope|environment|does not match/i);
 }));
 
-test("merge requires the complete registered artifact set and pure merge requires exact hashes", (t) => withTemp(t, ({ temp, artifactRoot }) => {
+test("merge requires the complete registered artifact set and pure merge requires registered byte snapshots", (t) => withTemp(t, ({ temp, artifactRoot }) => {
   const firstFile = path.join(artifactRoot, "first.json");
   const secondFile = path.join(artifactRoot, "second.json");
   const first = screeningEnvelope({ artifactId: "ART-SCREEN-001", requirementId: "SCREEN-FIRST" });
@@ -1470,9 +1765,10 @@ test("merge requires the complete registered artifact set and pure merge require
   assertRejected(omitted, /complete.*artifact|omitted|missing registered/i);
 
   const resources = loadAuditResources(skillRoot);
+  resources.artifact_sha256_by_id = new Map(run.artifacts.map((entry) => [entry.artifact_id, entry.sha256]));
   assert.throws(
     () => mergeArtifactRecords({ run, assessment: assessmentFixture(), artifacts: [first, second], registries: resources }),
-    /exact.*hash|hash map|fail.closed/i
+    /registered artifact byte snapshots|snapshot.*fail.closed|fails closed/i
   );
 }));
 
@@ -1490,6 +1786,231 @@ test("declared human merge preserves the unauthenticated identity limitation", (
   ]);
   assert.equal(result.status, 0, result.stderr || result.stdout);
   assert.ok(readJson(output).assessment.limitations.some((item) => /identity.*not authenticated|unauthenticated identity/i.test(item)));
+}));
+
+test("run validation and pure merge enforce the same remediation evidence semantics", (t) => withTemp(t, ({ temp }) => {
+  function assertBothReject(name, fixture, pattern) {
+    const runFile = path.join(temp, `${name}-run.json`);
+    const validation = validateAuditRun(fixture.run, { skillRoot, runFile });
+    assert.equal(validation.valid, false, `${name} unexpectedly passed run validation`);
+    assert.match(validation.errors.join("\n"), pattern, `${name} run validation used the wrong rejection reason`);
+    assert.throws(
+      () => mergeArtifactRecords({
+        run: fixture.run,
+        assessment: assessmentFixture(),
+        artifacts: fixture.artifacts,
+        registries: pureMergeResources(fixture.run, path.dirname(fixture.screenFile))
+      }),
+      pattern,
+      `${name} unexpectedly passed pure merge`
+    );
+  }
+
+  function caseRoot(name) {
+    const root = path.join(temp, name);
+    fs.mkdirSync(root);
+    return root;
+  }
+
+  {
+    const fixture = makeScreeningRemediationRun(caseRoot("source-not-input"));
+    fixture.remediation.payload.items[0].source_artifact_ids = ["ART-SCREEN-MISSING"];
+    rewriteFixtureArtifact(fixture, fixture.remediation, fixture.remediationFile);
+    assertBothReject("source-not-input", fixture, /source_artifact_ids|registered.*input|missing.*source/i);
+  }
+
+  {
+    const fixture = makeScreeningRemediationRun(caseRoot("wrong-screening-requirement"));
+    fixture.remediation.payload.items[0].requirement_id = "SCREEN-OTHER";
+    rewriteFixtureArtifact(fixture, fixture.remediation, fixture.remediationFile);
+    assertBothReject("wrong-screening-requirement", fixture, /SCREEN-OTHER|exact.*screening|matching.*observation/i);
+  }
+
+  {
+    const fixture = makeVerifiedFailureRemediationRun(caseRoot("wrong-source-type"));
+    const item = fixture.remediation.payload.items[0];
+    item.basis = "unverified_screening_candidate";
+    item.requirement_id = "SCREEN-FIRST";
+    rewriteFixtureArtifact(fixture, fixture.remediation, fixture.remediationFile);
+    assertBothReject("wrong-source-type", fixture, /screening-observations|source.*type|screening.*source/i);
+  }
+
+  {
+    const fixture = makeVerifiedFailureRemediationRun(caseRoot("asserted-only"), "pass");
+    assertBothReject("asserted-only", fixture, /verified_failure|profile_outcome.*fail|matching.*failure/i);
+  }
+
+  {
+    const fixture = makeVerifiedFailureRemediationRun(caseRoot("unused-input"));
+    const screen = fixture.artifacts.find((artifact) => artifact.artifact_type === "screening-observations");
+    const screenEntry = fixture.run.artifacts.find((entry) => entry.artifact_id === screen.artifact_id);
+    fixture.remediation.inputs.push({ artifact_id: screen.artifact_id, run_id: runId, sha256: screenEntry.sha256 });
+    rewriteFixtureArtifact(fixture, fixture.remediation, fixture.remediationFile);
+    assertBothReject("unused-input", fixture, /unused.*input|input.*must be used|evidence input/i);
+  }
+
+  {
+    const fixture = makeScreeningRemediationRun(caseRoot("cross-run-input"));
+    fixture.remediation.inputs[0].run_id = "RUN-20260717T120000Z-OTHER001";
+    rewriteFixtureArtifact(fixture, fixture.remediation, fixture.remediationFile);
+    assertBothReject("cross-run-input", fixture, /same run|another run|run_id/i);
+  }
+
+  {
+    const fixture = makeScreeningRemediationRun(caseRoot("stale-input-hash"));
+    fixture.remediation.inputs[0].sha256 = "f".repeat(64);
+    rewriteFixtureArtifact(fixture, fixture.remediation, fixture.remediationFile);
+    assertBothReject("stale-input-hash", fixture, /hash mismatch|SHA-256/i);
+  }
+}));
+
+test("legacy run 2 keeps remediation payload 1 readable without retroactive evidence semantics", (t) => withTemp(t, ({ temp, artifactRoot }) => {
+  const fixture = makeScreeningRemediationRun(artifactRoot);
+  fixture.run.schema_version = "2.0.0";
+  fixture.run.resource_versions = resourceVersions("orchestration-registry-1.0.0.json");
+  fixture.queue.payload.schema_version = "1.0.0";
+  delete fixture.queue.payload.items[0].generic_method_ref;
+  delete fixture.queue.payload.items[0].official_sources;
+  rewriteFixtureArtifact(fixture, fixture.queue, fixture.queueFile);
+  fixture.remediation.payload.schema_version = "1.0.0";
+  fixture.remediation.payload.items[0].source_artifact_ids = ["ART-SCREEN-MISSING"];
+  for (const field of ["priority", "location", "affected_users", "owner", "residual_limitation"]) {
+    delete fixture.remediation.payload.items[0][field];
+  }
+  rewriteFixtureArtifact(fixture, fixture.remediation, fixture.remediationFile);
+  const validation = validateAuditRun(fixture.run, { skillRoot, runFile: path.join(temp, "legacy-run.json") });
+  assert.equal(validation.valid, true, validation.errors.join("\n"));
+}));
+
+test("merge requires a matching verified-failure remediation for every human failure", (t) => withTemp(t, ({ artifactRoot }) => {
+  const fixture = makeHumanReviewRun(artifactRoot);
+  fixture.human.payload.reviews[0].profile_outcome = "fail";
+  rewriteFixtureArtifact(fixture, fixture.human, fixture.humanFile);
+  assert.throws(
+    () => mergeArtifactRecords({
+      run: fixture.run,
+      assessment: assessmentFixture(),
+      artifacts: [readJson(fixture.screenFile), readJson(fixture.queueFile), fixture.human],
+      registries: pureMergeResources(fixture.run, artifactRoot)
+    }),
+    /matching.*verified_failure|human.*fail.*remediation/i
+  );
+}));
+
+test("verified-failure remediation deterministically creates findings and residual limitations", (t) => withTemp(t, ({ artifactRoot }) => {
+  const fixture = makeVerifiedFailureRemediationRun(artifactRoot);
+  const second = structuredClone(fixture.remediation.payload.items[0]);
+  second.remediation_id = "REM-FAIL0002";
+  second.priority = "P1";
+  second.issue = "A second independently actionable consequence of the same verified failure.";
+  second.residual_limitation = "A second residual limitation remains after this planned change.";
+  fixture.remediation.payload.items.push(second);
+  rewriteFixtureArtifact(fixture, fixture.remediation, fixture.remediationFile);
+  const resources = pureMergeResources(fixture.run, artifactRoot);
+  const forward = mergeArtifactRecords({
+    run: fixture.run,
+    assessment: assessmentFixture(),
+    artifacts: fixture.artifacts,
+    registries: resources
+  });
+  fixture.remediation.payload.items.reverse();
+  rewriteFixtureArtifact(fixture, fixture.remediation, fixture.remediationFile);
+  const reverse = mergeArtifactRecords({
+    run: fixture.run,
+    assessment: assessmentFixture(),
+    artifacts: [...fixture.artifacts].reverse(),
+    registries: pureMergeResources(fixture.run, artifactRoot)
+  });
+  assert.deepEqual(reverse, forward);
+  assert.deepEqual(forward.assessment.findings, [
+    {
+      id: "REM-FAIL0001",
+      priority: "P0",
+      requirement_ids: ["WCAG-2.2-SC-1.1.1"],
+      location: "target/index.html#main-image",
+      affected_users: ["Screen reader users"],
+      observation: "The human review verified that the text alternative does not communicate the image purpose.",
+      remediation: "Provide a text alternative that communicates the same purpose as the image.",
+      verification: "Repeat the registered human review with browser inspection and manual observation."
+    },
+    {
+      id: "REM-FAIL0002",
+      priority: "P1",
+      requirement_ids: ["WCAG-2.2-SC-1.1.1"],
+      location: "target/index.html#main-image",
+      affected_users: ["Screen reader users"],
+      observation: "A second independently actionable consequence of the same verified failure.",
+      remediation: "Provide a text alternative that communicates the same purpose as the image.",
+      verification: "Repeat the registered human review with browser inspection and manual observation."
+    }
+  ]);
+  assert.equal(Object.hasOwn(forward.assessment.findings[0], "owner"), false);
+  assert.ok(forward.assessment.limitations.includes("The reviewer identity remains declared but unauthenticated."));
+  assert.ok(forward.assessment.limitations.includes("A second residual limitation remains after this planned change."));
+}));
+
+test("unverified screening candidates stay out of assessment findings and profile outcomes", (t) => withTemp(t, ({ artifactRoot }) => {
+  const fixture = makeScreeningRemediationRun(artifactRoot);
+  const merged = mergeArtifactRecords({
+    run: fixture.run,
+    assessment: assessmentFixture(),
+    artifacts: fixture.artifacts,
+    registries: pureMergeResources(fixture.run, artifactRoot)
+  });
+  assert.deepEqual(merged.assessment.findings, []);
+  const screening = merged.assessment.results.find((item) => item.requirement_id === "SCREEN-FIRST");
+  assert.equal(screening.mapping_status, "unverified");
+  assert.equal(screening.outcome, "cant_tell");
+  assert.ok(merged.assessment.limitations.includes("The candidate remains unverified until target-specific review is completed."));
+}));
+
+test("duplicate or conflicting remediation IDs are rejected before merge", (t) => withTemp(t, ({ temp, artifactRoot }) => {
+  const fixture = makeVerifiedFailureRemediationRun(artifactRoot);
+  const conflict = structuredClone(fixture.remediation.payload.items[0]);
+  conflict.issue = "Conflicting content under the same remediation identifier.";
+  fixture.remediation.payload.items.push(conflict);
+  rewriteFixtureArtifact(fixture, fixture.remediation, fixture.remediationFile);
+  const validation = validateAuditRun(fixture.run, { skillRoot, runFile: path.join(temp, "run.json") });
+  assert.equal(validation.valid, false);
+  assert.match(validation.errors.join("\n"), /duplicate.*REM-FAIL0001|conflict.*remediation/i);
+  assert.throws(
+    () => mergeArtifactRecords({
+      run: fixture.run,
+      assessment: assessmentFixture(),
+      artifacts: fixture.artifacts,
+      registries: pureMergeResources(fixture.run, artifactRoot)
+    }),
+    /duplicate.*REM-FAIL0001|conflict.*remediation/i
+  );
+}));
+
+test("pure merge rejects an in-memory human failure that differs from the registered artifact bytes", (t) => withTemp(t, ({ artifactRoot }) => {
+  const fixture = makeVerifiedFailureRemediationRun(artifactRoot, "pass");
+  const suppliedArtifacts = structuredClone(fixture.artifacts);
+  suppliedArtifacts.find((artifact) => artifact.artifact_type === "declared-human-review")
+    .payload.reviews[0].profile_outcome = "fail";
+  assert.throws(
+    () => mergeArtifactRecords({
+      run: fixture.run,
+      assessment: assessmentFixture(),
+      artifacts: suppliedArtifacts,
+      registries: pureMergeResources(fixture.run, artifactRoot)
+    }),
+    /registered.*bytes|snapshot.*artifact|artifact.*does not match/i
+  );
+}));
+
+test("pure merge recomputes each registered snapshot hash instead of trusting snapshot metadata", (t) => withTemp(t, ({ artifactRoot }) => {
+  const screen = screeningEnvelope({ artifactId: "ART-SCREEN-001", requirementId: "SCREEN-FIRST" });
+  const screenFile = path.join(artifactRoot, "screen.json");
+  writeJson(screenFile, screen);
+  const run = screenedRun(artifactRoot, screenFile, screen);
+  const resources = pureMergeResources(run, artifactRoot);
+  resources.artifact_snapshots_by_id.get(screen.artifact_id).sha256 = "0".repeat(64);
+  assert.throws(
+    () => mergeArtifactRecords({ run, assessment: assessmentFixture(), artifacts: [screen], registries: resources }),
+    /snapshot hash mismatch/i
+  );
 }));
 
 test("post-close output verification failure removes the newly created output", (t) => withTemp(t, ({ temp }) => {

@@ -61,7 +61,7 @@ export function main(argv = process.argv.slice(2)) {
   }));
   const artifactSnapshots = [];
   const artifacts = [];
-  const artifactHashes = new Map();
+  const artifactSnapshotsById = new Map();
   const suppliedPaths = new Set();
   for (const candidate of options.artifacts) {
     const absolute = resolveInside(runValidation.artifactRoot, candidate);
@@ -74,11 +74,11 @@ export function main(argv = process.argv.slice(2)) {
     if (snapshot.sha256 !== entry.sha256) throw new Error(`Merge artifact exact current hash mismatch: ${entry.artifact_id}`);
     const artifact = parseSnapshot(snapshot, `merge artifact ${entry.artifact_id}`);
     artifactSnapshots.push(snapshot);
+    artifactSnapshotsById.set(entry.artifact_id, snapshot);
     artifacts.push(artifact);
-    artifactHashes.set(entry.artifact_id, snapshot.sha256);
   }
   const resources = loadAuditResources();
-  resources.artifact_sha256_by_id = artifactHashes;
+  resources.artifact_snapshots_by_id = artifactSnapshotsById;
   const assessment = parseSnapshot(assessmentSnapshot, "assessment input");
   const merged = mergeArtifacts({ run, assessment, artifacts, registries: resources });
   assertStableFile(runSnapshot, "audit run input");

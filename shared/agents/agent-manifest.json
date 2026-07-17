@@ -7,7 +7,7 @@
       "install_by_default": true,
       "body_file": "information-accessibility-reviewer.md",
       "codex": { "model_reasoning_effort": "medium" },
-      "claude": { "tools": ["Read", "Grep", "Glob", "Bash", "Write", "Edit"], "model": "sonnet", "effort": "medium" }
+      "claude": { "tools": ["Read", "Grep", "Glob", "Bash", "Write"], "model": "sonnet", "effort": "medium" }
     },
     {
       "id": "information-accessibility-e1-inspector",
@@ -15,7 +15,7 @@
       "install_by_default": true,
       "body_file": "information-accessibility-e1-inspector.md",
       "codex": { "model_reasoning_effort": "medium" },
-      "claude": { "tools": ["Read", "Grep", "Glob", "Bash", "Write"], "model": "sonnet", "effort": "medium" }
+      "claude": { "tools": ["Read", "Grep", "Glob", "Bash"], "model": "sonnet", "effort": "medium" }
     },
     {
       "id": "information-accessibility-human-queue-planner",
@@ -23,7 +23,7 @@
       "install_by_default": true,
       "body_file": "information-accessibility-human-queue-planner.md",
       "codex": { "model_reasoning_effort": "medium" },
-      "claude": { "tools": ["Read", "Grep", "Glob", "Bash", "Write"], "model": "sonnet", "effort": "medium" }
+      "claude": { "tools": ["Read", "Grep", "Glob", "Bash"], "model": "sonnet", "effort": "medium" }
     },
     {
       "id": "information-accessibility-remediation-planner",
@@ -31,7 +31,7 @@
       "install_by_default": true,
       "body_file": "information-accessibility-remediation-planner.md",
       "codex": { "model_reasoning_effort": "medium" },
-      "claude": { "tools": ["Read", "Grep", "Glob", "Bash", "Write"], "model": "sonnet", "effort": "medium" }
+      "claude": { "tools": ["Read", "Grep", "Glob", "Bash"], "model": "sonnet", "effort": "medium" }
     }
   ]
 }

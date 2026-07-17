@@ -1,12 +1,12 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:information-accessibility:human-review-queue:1.0.0",
+  "$id": "urn:information-accessibility:human-review-queue:2.0.0",
   "title": "Declared Human Review Queue",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema_version", "items", "procedure_coverage"],
   "properties": {
-    "schema_version": { "const": "1.0.0" },
+    "schema_version": { "const": "2.0.0" },
     "items": {
       "type": "array",
       "minItems": 1,
@@ -27,18 +27,20 @@
     "item": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["requirement_id", "procedure_availability", "procedure_ref", "human_actions", "required_evidence_types", "cant_tell_conditions"],
+      "required": ["requirement_id", "procedure_availability", "procedure_ref", "generic_method_ref", "official_sources", "human_actions", "required_evidence_types", "cant_tell_conditions"],
       "properties": {
         "requirement_id": { "type": "string", "minLength": 1 },
         "procedure_availability": { "enum": ["available", "unavailable"] },
         "procedure_ref": { "type": ["string", "null"], "pattern": "^criterion-procedures:[0-9]+\\.[0-9]+\\.[0-9]+#[a-z0-9-]+$" },
+        "generic_method_ref": { "type": ["string", "null"], "pattern": "^web-audit-methods:[0-9]+\\.[0-9]+\\.[0-9]+#[a-z0-9-]+$" },
+        "official_sources": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
         "human_actions": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
         "required_evidence_types": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
         "cant_tell_conditions": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } }
       },
       "allOf": [
-        { "if": { "properties": { "procedure_availability": { "const": "available" } }, "required": ["procedure_availability"] }, "then": { "properties": { "procedure_ref": { "type": "string", "pattern": "^criterion-procedures:[0-9]+\\.[0-9]+\\.[0-9]+#[a-z0-9-]+$" } } } },
-        { "if": { "properties": { "procedure_availability": { "const": "unavailable" } }, "required": ["procedure_availability"] }, "then": { "properties": { "procedure_ref": { "const": null } } } }
+        { "if": { "properties": { "procedure_availability": { "const": "available" } }, "required": ["procedure_availability"] }, "then": { "properties": { "procedure_ref": { "type": "string", "pattern": "^criterion-procedures:[0-9]+\\.[0-9]+\\.[0-9]+#[a-z0-9-]+$" }, "generic_method_ref": { "const": null } } } },
+        { "if": { "properties": { "procedure_availability": { "const": "unavailable" } }, "required": ["procedure_availability"] }, "then": { "properties": { "procedure_ref": { "const": null }, "generic_method_ref": { "type": "string", "pattern": "^web-audit-methods:[0-9]+\\.[0-9]+\\.[0-9]+#[a-z0-9-]+$" } } } }
       ]
     }
   }
