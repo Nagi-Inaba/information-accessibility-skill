@@ -55,6 +55,63 @@ function assertDefaultAgentsInstalled(codexHome) {
   }
 }
 
+function snapshotTree(base) {
+  return new Map(relativeFiles(base).map((relative) => [relative, sha256(path.join(base, relative))]));
+}
+
+function stageResidues() {
+  return fs.readdirSync(os.tmpdir()).filter((name) => name.startsWith("information-accessibility-install-")).sort();
+}
+
+function createJunctionOrSkip(t, target, link) {
+  try {
+    fs.symlinkSync(target, link, "junction");
+    return true;
+  } catch (error) {
+    if (["EPERM", "EACCES", "ENOTSUP"].includes(error?.code)) {
+      t.skip(`junction creation unavailable (${error.code}): ${error.message}`);
+      return false;
+    }
+    throw error;
+  }
+}
+
+function writeFaultWrapper(file) {
+  const script = `
+[CmdletBinding()]
+param(
+    [Parameter(Mandatory = $true)][string]$Installer,
+    [Parameter(Mandatory = $true)][string]$CodexHomePath,
+    [Parameter(Mandatory = $true)][string]$BackupRootPath,
+    [Parameter(Mandatory = $true)][string]$FailDestination
+)
+$ErrorActionPreference = 'Stop'
+$script:InjectedMoveFailure = $false
+function global:Move-Item {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)][string[]]$LiteralPath,
+        [Parameter(Mandatory = $true)][string]$Destination,
+        [switch]$Force
+    )
+    $fullDestination = [IO.Path]::GetFullPath($Destination)
+    if (-not $script:InjectedMoveFailure -and $fullDestination.Equals([IO.Path]::GetFullPath($FailDestination), [StringComparison]::OrdinalIgnoreCase)) {
+        $script:InjectedMoveFailure = $true
+        throw 'Injected test-only Move-Item failure after multiple replacements.'
+    }
+    Microsoft.PowerShell.Management\\Move-Item @PSBoundParameters
+}
+try {
+    & $Installer -CodexHome $CodexHomePath -BackupRoot $BackupRootPath
+    exit $LASTEXITCODE
+} catch {
+    [Console]::Error.WriteLine($_.Exception.Message)
+    exit 23
+}
+`;
+  fs.writeFileSync(file, script, "utf8");
+}
+
 test("Codex installer installs manifest defaults, preserves unrelated agents, and records per-agent backups", { skip: process.platform !== "win32" }, () => {
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), "a11y-codex-install-"));
   try {
@@ -136,6 +193,110 @@ test("Codex installer installs manifest defaults, preserves unrelated agents, an
   }
 });
 
+test("WhatIf rejects exact managed junction destinations without mutation", { skip: process.platform !== "win32" }, async (t) => {
+  for (const kind of ["agent", "skill"]) {
+    await t.test(kind, (subtest) => {
+      const temp = fs.mkdtempSync(path.join(os.tmpdir(), `a11y-codex-install-${kind}-junction-`));
+      const outside = path.join(temp, "outside");
+      const codexHome = path.join(temp, "codex-home");
+      const backupRoot = path.join(temp, "backup");
+      const beforeStages = stageResidues();
+      fs.mkdirSync(outside);
+      fs.writeFileSync(path.join(outside, "sentinel.txt"), `${kind} outside\n`, "utf8");
+      const exactDestination = kind === "agent"
+        ? path.join(codexHome, "agents", `${defaultAgents[0].id}.toml`)
+        : path.join(codexHome, "skills", "information-accessibility-practice");
+      fs.mkdirSync(path.dirname(exactDestination), { recursive: true });
+      if (!createJunctionOrSkip(subtest, outside, exactDestination)) {
+        fs.rmSync(temp, { recursive: true, force: true });
+        return;
+      }
+      try {
+        const result = run("powershell", [
+          "-ExecutionPolicy", "Bypass", "-File", installer,
+          "-CodexHome", codexHome,
+          "-BackupRoot", backupRoot,
+          "-WhatIf"
+        ]);
+        assert.notEqual(result.status, 0, result.stderr || result.stdout);
+        assert.match(result.stderr || result.stdout, /unsafe|reparse|junction|symbolic/i);
+        assert.equal(fs.existsSync(backupRoot), false);
+        assert.equal(fs.readFileSync(path.join(outside, "sentinel.txt"), "utf8"), `${kind} outside\n`);
+        assert.deepEqual(stageResidues(), beforeStages);
+      } finally {
+        if (fs.existsSync(exactDestination)) fs.unlinkSync(exactDestination);
+        fs.rmSync(temp, { recursive: true, force: true });
+      }
+    });
+  }
+});
+
+test("installer rejects a directory at an exact agent file destination before mutation", { skip: process.platform !== "win32" }, () => {
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), "a11y-codex-install-agent-directory-"));
+  try {
+    const codexHome = path.join(temp, "codex-home");
+    const backupRoot = path.join(temp, "backup");
+    const invalidAgent = agentPath(codexHome, defaultAgents[0]);
+    fs.mkdirSync(invalidAgent, { recursive: true });
+    fs.writeFileSync(path.join(invalidAgent, "sentinel.txt"), "must remain\n", "utf8");
+    const beforeStages = stageResidues();
+    const result = run("powershell", [
+      "-ExecutionPolicy", "Bypass", "-File", installer,
+      "-CodexHome", codexHome,
+      "-BackupRoot", backupRoot
+    ]);
+    assert.notEqual(result.status, 0, result.stderr || result.stdout);
+    assert.match(result.stderr || result.stdout, /agent destination.*file|not a file|leaf/i);
+    assert.equal(fs.readFileSync(path.join(invalidAgent, "sentinel.txt"), "utf8"), "must remain\n");
+    assert.equal(fs.existsSync(backupRoot), false);
+    assert.deepEqual(stageResidues(), beforeStages);
+  } finally {
+    fs.rmSync(temp, { recursive: true, force: true });
+  }
+});
+
+test("installer rejects package overlap case-insensitively without changing package bytes", { skip: process.platform !== "win32" }, async (t) => {
+  const before = snapshotTree(root);
+  const caseVariantRoot = root.replace(/^([A-Z]):/u, (_, drive) => `${drive.toLowerCase()}:`);
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), "a11y-codex-install-overlap-"));
+  try {
+    const cases = [
+      {
+        name: "CodexHome inside package",
+        codexHome: path.join(caseVariantRoot, "codex", "unsafe-install-home"),
+        backupRoot: path.join(temp, "backup-one")
+      },
+      {
+        name: "BackupRoot inside package",
+        codexHome: path.join(temp, "codex-home-two"),
+        backupRoot: path.join(caseVariantRoot, "unsafe-install-backup")
+      },
+      {
+        name: "BackupRoot inside an agent source",
+        codexHome: path.join(temp, "codex-home-three"),
+        backupRoot: path.join(caseVariantRoot, "codex", "agents", "unsafe-install-backup")
+      }
+    ];
+    for (const entry of cases) {
+      await t.test(entry.name, () => {
+        const result = run("powershell", [
+          "-ExecutionPolicy", "Bypass", "-File", installer,
+          "-CodexHome", entry.codexHome,
+          "-BackupRoot", entry.backupRoot,
+          "-WhatIf"
+        ]);
+        assert.notEqual(result.status, 0, result.stderr || result.stdout);
+        assert.match(result.stderr || result.stdout, /overlap|disjoint|package/i);
+        assert.equal(fs.existsSync(entry.codexHome), false);
+        assert.equal(fs.existsSync(entry.backupRoot), false);
+      });
+    }
+    assert.deepEqual(snapshotTree(root), before);
+  } finally {
+    fs.rmSync(temp, { recursive: true, force: true });
+  }
+});
+
 test("Codex installer restores selected agents and the skill after a late replacement failure", { skip: process.platform !== "win32" }, () => {
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), "a11y-codex-install-rollback-"));
   try {
@@ -148,10 +309,8 @@ test("Codex installer restores selected agents and the skill after a late replac
     fs.mkdirSync(path.dirname(unrelatedAgent), { recursive: true });
     fs.writeFileSync(unrelatedAgent, "user-owned\n", "utf8");
 
-    const missingId = "information-accessibility-e1-inspector";
     const previousAgents = new Map();
     for (const agent of defaultAgents) {
-      if (agent.id === missingId) continue;
       const bytes = Buffer.from(`old ${agent.id}\n`, "utf8");
       previousAgents.set(agent.id, bytes);
       fs.writeFileSync(agentPath(codexHome, agent), bytes);
@@ -161,11 +320,15 @@ test("Codex installer restores selected agents and the skill after a late replac
       fs.readFileSync(path.join(installedSkill, relative))
     ]));
     const backupRoot = path.join(temp, "rollback-backup");
+    const wrapper = path.join(temp, "copy-fault-wrapper.ps1");
+    writeFaultWrapper(wrapper);
     const failed = run("powershell", [
-      "-ExecutionPolicy", "Bypass", "-File", installer,
-      "-CodexHome", codexHome,
-      "-BackupRoot", backupRoot
-    ], root, { ...process.env, A11Y_TEST_FAIL_AFTER_AGENT_REPLACEMENTS: "2" });
+      "-ExecutionPolicy", "Bypass", "-File", wrapper,
+      "-Installer", installer,
+      "-CodexHomePath", codexHome,
+      "-BackupRootPath", backupRoot,
+      "-FailDestination", agentPath(codexHome, defaultAgents[2])
+    ]);
     assert.notEqual(failed.status, 0, failed.stderr || failed.stdout);
     assert.match(failed.stderr || failed.stdout, /injected|rollback|failure/i);
     assert.deepEqual(relativeFiles(installedSkill), [...previousSkill.keys()].sort());
@@ -174,16 +337,14 @@ test("Codex installer restores selected agents and the skill after a late replac
     }
     for (const agent of defaultAgents) {
       const destination = agentPath(codexHome, agent);
-      if (previousAgents.has(agent.id)) {
-        assert.deepEqual(fs.readFileSync(destination), previousAgents.get(agent.id), agent.id);
-      } else {
-        assert.equal(fs.existsSync(destination), false, agent.id);
-      }
+      assert.deepEqual(fs.readFileSync(destination), previousAgents.get(agent.id), agent.id);
     }
     assert.equal(fs.readFileSync(unrelatedAgent, "utf8"), "user-owned\n");
     assert.equal(fs.existsSync(path.join(backupRoot, "skill", "SKILL.md")), true);
     for (const agent of previousAgents.keys()) {
-      assert.equal(fs.existsSync(path.join(backupRoot, "agents", `${agent}.toml`)), true, agent);
+      const backup = path.join(backupRoot, "agents", `${agent}.toml`);
+      assert.equal(fs.existsSync(backup), true, agent);
+      assert.deepEqual(fs.readFileSync(backup), previousAgents.get(agent), agent);
     }
   } finally {
     fs.rmSync(temp, { recursive: true, force: true });
