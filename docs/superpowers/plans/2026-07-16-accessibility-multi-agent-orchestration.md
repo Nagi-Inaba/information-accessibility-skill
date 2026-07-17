@@ -1037,6 +1037,8 @@ M4-3 runs after Task 7 and before Task 8.
 SC 2.1.1 and SC 4.1.2 must appear in the human-review queue without changing any agent prompt; that is the first extension proof for the registry-driven design.
 M5 E3 evidence work starts only after Task 9 because E3 requires the run manifest and human evidence handoff to be stable.
 
+**M4-3 implemented:** Commits `5447363..863b4ab` added original human-review procedures for WCAG 2.2 SC 2.1.1 and SC 4.1.2 through the criterion procedure catalog and generated skill mirrors only. Existing exact lookup produced two available bindings, and a two-item queue registered with `2/2/0` coverage without runtime, queue-schema, or agent-prompt changes. SC 4.1.2 separately tests accessibility-interface programmatic setting and change notification. Final verification: 210 tests, 208 pass, 0 fail, and 2 Windows `EPERM` symlink tests skipped rather than counted as verified. Independent code and standards reviews approved with no findings.
+
 ## Maintenance Acceptance Criteria
 
 - Adding a read-only agent requires one shared body, one manifest entry, one role-registry entry, one payload schema when its output is new, and focused tests.
