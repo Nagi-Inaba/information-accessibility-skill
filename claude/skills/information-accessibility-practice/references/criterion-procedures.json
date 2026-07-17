@@ -2,9 +2,9 @@
   "$schema": "./criterion-procedures.schema.json",
   "schema_version": "1.0.0",
   "catalog_status": "partial",
-  "verified_at": "2026-07-14",
+  "verified_at": "2026-07-18",
   "copyright_boundary": "These are original procedural summaries. They identify public W3C sources but do not reproduce normative standard text.",
-  "usage_rule": "Use a listed procedure only after fixing the target scope and opening its primary sources. This partial catalog adds procedures for two criteria only; it does not make an unlisted criterion executable or the profile complete.",
+  "usage_rule": "Use a listed procedure only after fixing the target scope and opening its primary sources. This partial catalog adds procedures for four criteria only; it does not make an unlisted criterion executable or the profile complete.",
   "automation_role": "supporting_only",
   "procedures": [
     {
@@ -104,6 +104,104 @@
         ]
       },
       "ai_boundary": "AI may inventory candidate relationships or draft questions, but it must not record a profile outcome, human_verified mapping, or E2+ claim; an external human reviewer records any criterion result with target-specific evidence."
+    },
+    {
+      "id": "wcag22-sc-2-1-1-keyboard",
+      "requirement_id": "WCAG-2.2-SC-2.1.1",
+      "procedure_version": "1.0.0",
+      "procedure_kind": "human_manual_or_hybrid",
+      "automation_role": "supporting_only",
+      "primary_sources": [
+        "https://www.w3.org/TR/WCAG22/#keyboard",
+        "https://www.w3.org/WAI/WCAG22/Understanding/keyboard.html"
+      ],
+      "applicability_steps": [
+        "Fix the review scope and inventory every user-operable function available within it, including controls, composite widgets, drag or drawing interactions, and state-dependent actions.",
+        "Identify the permitted interactive states needed to expose each function and record any state that cannot be reached without a pointer or other unavailable input.",
+        "Identify any function whose underlying purpose depends on the path of the user's movement rather than only its endpoints, and require a specific rationale before treating that path-dependent function as an exception."
+      ],
+      "procedure_steps": [
+        "Enter each required permitted state and exercise every applicable function through a keyboard interface only, without using a pointer or mouse emulation as the substitute test.",
+        "For each exercise, record the starting state, exact keys and sequence used, observed result, and any function or state that remains unreachable.",
+        "Check whether operation requires a particular timing for individual keystrokes; where a path-dependent exception is claimed, record the underlying function, required movement path, and why endpoints alone cannot perform it.",
+        "Record keyboard traps, character-key shortcuts, focus visibility, focus order, and related issues separately under their own criteria; use them here only when they also show that functionality cannot be operated through a keyboard interface."
+      ],
+      "expected_results": [
+        "Every applicable function in the fixed scope and permitted interactive states can be operated through a keyboard interface without requiring specific timings for individual keystrokes.",
+        "Any excluded path-dependent function has a recorded rationale showing that its underlying purpose depends on the movement path and not merely the endpoints.",
+        "The review evidence identifies the keys used, the observed result, and any unreachable function rather than inferring operability from the presence of keyboard event handlers."
+      ],
+      "required_evidence_types": [
+        "keyboard_test",
+        "manual_observation"
+      ],
+      "cant_tell_when": [
+        "The interactive runtime, a required interactive state, or the keyboard path needed to exercise an applicable function cannot be reached in the permitted environment.",
+        "A claimed path-dependent exception cannot be exercised or its underlying movement-path dependency cannot be distinguished from endpoint-only operation."
+      ],
+      "counterexamples": {
+        "pass": [
+          "A custom menu can be opened, traversed, activated, and closed with documented keys in every permitted menu state without per-keystroke timing.",
+          "A freehand drawing function lacks keyboard operation, but the reviewer verifies and records that the function inherently depends on the path of the user's movement rather than only start and end points."
+        ],
+        "fail": [
+          "A file picker opens with the keyboard, but one available file action can be completed only with a pointer.",
+          "A control recognizes a key only when it is pressed within a narrow timing window, even though the underlying function does not depend on movement path."
+        ],
+        "cant_tell": [
+          "The reviewer can see a state-dependent editor control but cannot enter the required state or send the keyboard sequence in the permitted runtime."
+        ]
+      },
+      "ai_boundary": "AI may inventory candidate functions, states, or keyboard paths and draft review questions, but it must not record a profile outcome, human_verified mapping, or E2+ claim; an external human reviewer records any criterion result with target-specific keyboard and manual evidence."
+    },
+    {
+      "id": "wcag22-sc-4-1-2-name-role-value",
+      "requirement_id": "WCAG-2.2-SC-4.1.2",
+      "procedure_version": "1.0.0",
+      "procedure_kind": "human_manual_or_hybrid",
+      "automation_role": "supporting_only",
+      "primary_sources": [
+        "https://www.w3.org/TR/WCAG22/#name-role-value",
+        "https://www.w3.org/WAI/WCAG22/Understanding/name-role-value.html"
+      ],
+      "applicability_steps": [
+        "Inventory native and custom user interface components in the fixed scope, including components that appear only after permitted interaction or in a changed state.",
+        "For each component, identify its visible purpose, expected role, user-settable value, state, or property, and the changes that users must perceive during operation.",
+        "Identify components whose DOM or accessibility-tree exposure cannot be inspected in the permitted environment and keep status-message-only behavior under SC 4.1.3 outside this procedure."
+      ],
+      "procedure_steps": [
+        "Before interaction, inspect each native and custom component in the DOM and accessibility tree and record its programmatic name, role, and current user-settable values, states, or properties.",
+        "Perform each permitted interaction, then inspect the DOM and accessibility tree after the change and compare the exposed name, role, value, state, and property with the component's visible behavior.",
+        "Observe whether changes to user-settable values, states, or properties are available to user agents, including assistive technology, and record the interaction, prior exposure, changed exposure, and notification observed.",
+        "Record status-message-only behavior separately under SC 4.1.3; do not use a status message by itself as evidence for this component name, role, value, state, or property procedure."
+      ],
+      "expected_results": [
+        "Each applicable component exposes a programmatically determinable name and role that match its purpose in the reviewed state.",
+        "Values, states, and properties that users can set are programmatically settable, and their changes are exposed to user agents including assistive technology.",
+        "Native and custom components preserve accurate programmatic exposure before and after each permitted interaction."
+      ],
+      "required_evidence_types": [
+        "browser_inspection",
+        "assistive_technology_test"
+      ],
+      "cant_tell_when": [
+        "The component's accessibility-tree exposure, interactive behavior, or assistive-technology notification cannot be observed in the permitted environment.",
+        "A required state or change cannot be triggered, so the reviewer cannot compare the component before and after interaction."
+      ],
+      "counterexamples": {
+        "pass": [
+          "A custom disclosure exposes its label and button role before activation, updates its expanded state after activation, and the changed state is available to assistive technology.",
+          "A native range input exposes its label, role, current value, and updated value when the reviewer changes it through a permitted interaction."
+        ],
+        "fail": [
+          "A custom toggle changes visually but exposes only a generic container role and never updates a programmatic checked or pressed state.",
+          "An icon-only custom control performs an action but has no programmatically determinable name describing its purpose."
+        ],
+        "cant_tell": [
+          "A recording shows a custom control changing visually, but the reviewer cannot inspect its DOM or accessibility-tree exposure or observe an assistive-technology notification."
+        ]
+      },
+      "ai_boundary": "AI may inventory candidate components, compare captured DOM or accessibility-tree states, or draft review questions, but it must not record a profile outcome, human_verified mapping, or E2+ claim; an external human reviewer records any criterion result with target-specific browser and assistive-technology evidence."
     }
   ]
 }

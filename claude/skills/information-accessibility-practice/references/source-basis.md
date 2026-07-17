@@ -7,6 +7,8 @@ The five-gate participation model organizes practical accessibility review acros
 ## Primary Public Sources
 
 - WCAG 2.2: https://www.w3.org/TR/WCAG22/
+- WCAG 2.2 SC 2.1.1 Keyboard and Understanding guidance: https://www.w3.org/TR/WCAG22/#keyboard and https://www.w3.org/WAI/WCAG22/Understanding/keyboard.html
+- WCAG 2.2 SC 4.1.2 Name, Role, Value and Understanding guidance: https://www.w3.org/TR/WCAG22/#name-role-value and https://www.w3.org/WAI/WCAG22/Understanding/name-role-value.html
 - ATAG 2.0: https://www.w3.org/TR/ATAG20/
 - ACT Rules Format 1.1: https://www.w3.org/TR/act-rules-format/
 - WCAG-EM 1.0: https://www.w3.org/TR/WCAG-EM/
@@ -24,7 +26,7 @@ The five-gate participation model organizes practical accessibility review acros
 
 - Included as original metadata: complete WCAG 2.2 A/AA identifiers (55), JIS X 8341-3:2016 A/AA identifiers (38), and the separately identified 18 added WCAG criteria used by the Japanese public-Web profile.
 - Source HTML hashes are stored in `criteria-catalog.json`; normative standards text is not reproduced.
-- Partially implemented: original human-review procedures for WCAG 2.2 SC 1.1.1 and SC 1.3.1 in `criterion-procedures.json`, each linked to W3C primary and Understanding sources. They do not supply a result without target-specific human evidence.
+- Partially implemented: original human-review procedures for WCAG 2.2 SC 1.1.1, SC 1.3.1, SC 2.1.1, and SC 4.1.2 in `criterion-procedures.json`, each linked to W3C primary and Understanding sources. They do not supply a result without target-specific human evidence.
 - Not yet implemented: criterion-complete executable test procedures for every active profile requirement, the ATAG 2.0 Part B criterion catalog and feature map, and formal PDF/UA, EPUB, EN 301 549, Section 508, and organization profiles.
 
 The current registry is metadata-complete for active Web profiles but method-incomplete. It supports full-profile audit initialization, structured evidence, coverage accounting, and claim blocking—not automated certification or complete conformance determination.

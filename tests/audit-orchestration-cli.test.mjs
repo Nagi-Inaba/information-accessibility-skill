@@ -116,17 +116,21 @@ function screeningEnvelope({ artifactId, requirementId, capturedAt = "2026-07-17
 }
 
 function queuePayload(requirementId = "WCAG-2.2-SC-1.1.1") {
-  const binding = lookupRequirement("web-modern", requirementId, skillRoot).procedure_binding;
+  return queuePayloadFor([requirementId]);
+}
+
+function queuePayloadFor(requirementIds) {
+  const items = requirementIds.map((requirementId) => ({
+    requirement_id: requirementId,
+    ...lookupRequirement("web-modern", requirementId, skillRoot).procedure_binding
+  }));
   return {
     schema_version: "2.0.0",
-    items: [{
-      requirement_id: requirementId,
-      ...binding
-    }],
+    items,
     procedure_coverage: {
-      total_requirements: 1,
-      available_procedures: binding.procedure_availability === "available" ? 1 : 0,
-      unavailable_procedures: binding.procedure_availability === "unavailable" ? 1 : 0
+      total_requirements: items.length,
+      available_procedures: items.filter((item) => item.procedure_availability === "available").length,
+      unavailable_procedures: items.filter((item) => item.procedure_availability === "unavailable").length
     }
   };
 }
@@ -1219,6 +1223,26 @@ test("run 3 queue registration enforces exact lookup bindings, unique profile re
   const registered = registerArtifactRecord(run, validQueue, { skillRoot, runFile, artifactFile: validFile });
   assert.equal(registered.status, "human_queue_ready");
 
+  const twoProcedurePayload = queuePayloadFor([
+    "WCAG-2.2-SC-2.1.1",
+    "WCAG-2.2-SC-4.1.2"
+  ]);
+  assert.deepEqual(twoProcedurePayload.procedure_coverage, {
+    total_requirements: 2,
+    available_procedures: 2,
+    unavailable_procedures: 0
+  });
+  assert.deepEqual(twoProcedurePayload.items.map((item) => item.procedure_availability), ["available", "available"]);
+  const twoProcedureQueue = queueEnvelope({ artifactId: "ART-QUEUE-TWO-PROCEDURES", inputs: input, payload: twoProcedurePayload });
+  const twoProcedureFile = path.join(artifactRoot, "queue-two-procedures.json");
+  writeJson(twoProcedureFile, twoProcedureQueue);
+  const registeredTwoProcedureQueue = registerArtifactRecord(run, twoProcedureQueue, {
+    skillRoot,
+    runFile,
+    artifactFile: twoProcedureFile
+  });
+  assert.equal(registeredTwoProcedureQueue.status, "human_queue_ready");
+
   const cases = [
     ["stale procedure ref", (payload) => { payload.items[0].procedure_ref = "criterion-procedures:0.9.0#wcag22-sc-1-1-1-non-text-content"; }],
     ["wrong sources", (payload) => { payload.items[0].official_sources = ["https://example.invalid/not-authoritative"]; }],
@@ -1246,7 +1270,7 @@ test("run 3 queue registration enforces exact lookup bindings, unique profile re
     );
   }
 
-  const unavailablePayload = queuePayload("WCAG-2.2-SC-2.1.1");
+  const unavailablePayload = queuePayload("WCAG-2.2-SC-2.2.1");
   unavailablePayload.items[0].generic_method_ref = "web-audit-methods:1.0.0#adaptable-structure";
   const unavailable = queueEnvelope({ artifactId: "ART-QUEUE-BAD-GENERIC", inputs: input, payload: unavailablePayload });
   const unavailableFile = path.join(artifactRoot, "queue-bad-generic.json");
