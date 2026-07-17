@@ -738,7 +738,7 @@ git commit -m "feat: split accessibility audit read-only roles"
 - Backup folder contains `skill/` and `agents/<agent-id>.toml` for every replaced agent.
 - Rollback restores only package-managed agent IDs and leaves unrelated agents untouched.
 
-- [ ] **Step 1: Expand the installer test to expect the manifest-selected agent set**
+- [x] **Step 1: Expand the installer test to expect the manifest-selected agent set**
 
 ```js
 const manifest = readJson("shared/agents/agent-manifest.json");
@@ -752,31 +752,31 @@ for (const agent of defaultAgents) {
 assert.equal(fs.readFileSync(unrelatedAgent, "utf8"), "user-owned\n");
 ```
 
-- [ ] **Step 2: Run the installer test and confirm the hard-coded single-agent behavior fails**
+- [x] **Step 2: Run the installer test and confirm the hard-coded single-agent behavior fails**
 
 Run: `node --test .\tests\install-codex.test.mjs`
 
 Expected: FAIL because only `information-accessibility-reviewer.toml` is staged and backed up.
 
-- [ ] **Step 3: Replace singular agent paths with a manifest-selected collection**
+- [x] **Step 3: Replace singular agent paths with a manifest-selected collection**
 
 Resolve every source and destination path before staging.
 Reject duplicate IDs and paths outside the package's `codex/agents` directory.
 Print selected agent IDs in `-WhatIf` output.
 
-- [ ] **Step 4: Preserve atomic staging and rollback**
+- [x] **Step 4: Preserve atomic staging and rollback**
 
 Back up existing managed agents before replacing any destination.
 If copying any agent fails, restore every replaced managed agent and the skill.
 Do not enumerate or delete unrelated files in the user's `agents` directory.
 
-- [ ] **Step 5: Test partial-old-version and rollback cases**
+- [x] **Step 5: Test partial-old-version and rollback cases**
 
 Prepare a fake Codex home containing an old reviewer, no inspector, an old remediation planner, and one unrelated agent.
 After install, require current hashes for all default agents and unchanged bytes for the unrelated agent.
 Force a staged copy failure and require every pre-existing managed agent to be restored.
 
-- [ ] **Step 6: Run installer and package tests**
+- [x] **Step 6: Run installer and package tests**
 
 Run: `node --test .\tests\install-codex.test.mjs .\tests\distribution-sync.test.mjs`
 
@@ -786,12 +786,14 @@ Run: `node .\scripts\verify-package.mjs`
 
 Expected: PASS with four agents.
 
-- [ ] **Step 7: Commit multi-agent installation**
+- [x] **Step 7: Commit multi-agent installation**
 
 ```powershell
 git add scripts/install-codex.ps1 tests/install-codex.test.mjs README.md
 git commit -m "feat: install accessibility agent set atomically"
 ```
+
+**Implemented:** Manifest-selected installation was completed through `96d731f`. Default installation deploys the four read-only agents, preserves unrelated agents, supports verified backup and rollback of only managed destinations, rejects path overlap and reparse redirection before `-WhatIf` or staging, and handles a fresh nonexistent `CodexHome`. Partial-copy failures restore original bytes and remove installer-owned transaction residue. Final verification: 207 tests, 205 pass, 0 fail, and 2 Windows `EPERM` symlink tests skipped rather than counted as verified. Independent code-quality and security reviews approved with no findings.
 
 ### Task 8: Add The Opt-In Authorized Fixer
 
