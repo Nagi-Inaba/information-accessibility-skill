@@ -1,12 +1,12 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:information-accessibility:audit-run:4.0.0",
+  "$id": "urn:information-accessibility:audit-run:3.0.0",
   "title": "Immutable Information Accessibility Audit Run",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema_version", "run_id", "supersedes_run_id", "status", "target", "profile", "scope", "environment", "permissions", "resource_versions", "artifact_root", "artifacts", "history", "limitations"],
   "properties": {
-    "schema_version": { "const": "4.0.0" },
+    "schema_version": { "const": "3.0.0" },
     "run_id": { "$ref": "#/$defs/run_id" },
     "supersedes_run_id": { "type": ["string", "null"], "pattern": "^RUN-[0-9]{8}T[0-9]{6}Z-[A-Z0-9]{8}$" },
     "status": { "$ref": "#/$defs/status" },
@@ -55,49 +55,14 @@
     "permissions": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["network", "interaction", "source_write", "command_execution", "allowed_actions", "forbidden_actions"],
+      "required": ["network", "interaction", "source_write", "allowed_actions", "forbidden_actions"],
       "properties": {
         "network": { "enum": ["denied", "allowlisted"] },
         "interaction": { "enum": ["read_only", "human_supervised"] },
         "source_write": { "enum": ["denied", "authorized_only"] },
-        "command_execution": { "enum": ["denied", "authorized_verification_only"] },
-        "allowed_actions": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "enum": ["execute_authorized_verification_commands", "human_supervised_interaction", "inspect_without_mutation", "read_allowlisted_resources", "write_authorized_files"] } },
-        "forbidden_actions": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "enum": ["execute_commands", "execute_unapproved_commands", "network_access", "network_outside_allowlist", "write_target"] } }
-      },
-      "allOf": [
-        {
-          "if": { "properties": { "network": { "const": "denied" }, "interaction": { "const": "read_only" }, "source_write": { "const": "denied" } }, "required": ["network", "interaction", "source_write"] },
-          "then": { "properties": { "command_execution": { "const": "denied" }, "allowed_actions": { "const": ["inspect_without_mutation"] }, "forbidden_actions": { "const": ["execute_commands", "network_access", "write_target"] } } }
-        },
-        {
-          "if": { "properties": { "network": { "const": "allowlisted" }, "interaction": { "const": "read_only" }, "source_write": { "const": "denied" } }, "required": ["network", "interaction", "source_write"] },
-          "then": { "properties": { "command_execution": { "const": "denied" }, "allowed_actions": { "const": ["inspect_without_mutation", "read_allowlisted_resources"] }, "forbidden_actions": { "const": ["execute_commands", "network_outside_allowlist", "write_target"] } } }
-        },
-        {
-          "if": { "properties": { "network": { "const": "denied" }, "interaction": { "const": "human_supervised" }, "source_write": { "const": "denied" } }, "required": ["network", "interaction", "source_write"] },
-          "then": { "properties": { "command_execution": { "const": "denied" }, "allowed_actions": { "const": ["human_supervised_interaction", "inspect_without_mutation"] }, "forbidden_actions": { "const": ["execute_commands", "network_access", "write_target"] } } }
-        },
-        {
-          "if": { "properties": { "network": { "const": "allowlisted" }, "interaction": { "const": "human_supervised" }, "source_write": { "const": "denied" } }, "required": ["network", "interaction", "source_write"] },
-          "then": { "properties": { "command_execution": { "const": "denied" }, "allowed_actions": { "const": ["human_supervised_interaction", "inspect_without_mutation", "read_allowlisted_resources"] }, "forbidden_actions": { "const": ["execute_commands", "network_outside_allowlist", "write_target"] } } }
-        },
-        {
-          "if": { "properties": { "network": { "const": "denied" }, "interaction": { "const": "read_only" }, "source_write": { "const": "authorized_only" } }, "required": ["network", "interaction", "source_write"] },
-          "then": { "properties": { "command_execution": { "const": "authorized_verification_only" }, "allowed_actions": { "const": ["execute_authorized_verification_commands", "inspect_without_mutation", "write_authorized_files"] }, "forbidden_actions": { "const": ["execute_unapproved_commands", "network_access"] } } }
-        },
-        {
-          "if": { "properties": { "network": { "const": "allowlisted" }, "interaction": { "const": "read_only" }, "source_write": { "const": "authorized_only" } }, "required": ["network", "interaction", "source_write"] },
-          "then": { "properties": { "command_execution": { "const": "authorized_verification_only" }, "allowed_actions": { "const": ["execute_authorized_verification_commands", "inspect_without_mutation", "read_allowlisted_resources", "write_authorized_files"] }, "forbidden_actions": { "const": ["execute_unapproved_commands", "network_outside_allowlist"] } } }
-        },
-        {
-          "if": { "properties": { "network": { "const": "denied" }, "interaction": { "const": "human_supervised" }, "source_write": { "const": "authorized_only" } }, "required": ["network", "interaction", "source_write"] },
-          "then": { "properties": { "command_execution": { "const": "authorized_verification_only" }, "allowed_actions": { "const": ["execute_authorized_verification_commands", "human_supervised_interaction", "inspect_without_mutation", "write_authorized_files"] }, "forbidden_actions": { "const": ["execute_unapproved_commands", "network_access"] } } }
-        },
-        {
-          "if": { "properties": { "network": { "const": "allowlisted" }, "interaction": { "const": "human_supervised" }, "source_write": { "const": "authorized_only" } }, "required": ["network", "interaction", "source_write"] },
-          "then": { "properties": { "command_execution": { "const": "authorized_verification_only" }, "allowed_actions": { "const": ["execute_authorized_verification_commands", "human_supervised_interaction", "inspect_without_mutation", "read_allowlisted_resources", "write_authorized_files"] }, "forbidden_actions": { "const": ["execute_unapproved_commands", "network_outside_allowlist"] } } }
-        }
-      ]
+        "allowed_actions": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" } },
+        "forbidden_actions": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" } }
+      }
     },
     "resource_versions": {
       "type": "object",

@@ -62,7 +62,7 @@ function resourceVersions(registryFile = "orchestration-registry.json") {
 
 function initialRun(artifactRoot) {
   return {
-    schema_version: "3.0.0",
+    schema_version: "4.0.0",
     run_id: runId,
     supersedes_run_id: null,
     status: "initialized",
@@ -74,6 +74,7 @@ function initialRun(artifactRoot) {
       network: "allowlisted",
       interaction: "read_only",
       source_write: "denied",
+      command_execution: "denied",
       allowed_actions: ["inspect_without_mutation", "read_allowlisted_resources"],
       forbidden_actions: ["execute_commands", "network_outside_allowlist", "write_target"]
     },
@@ -89,6 +90,17 @@ function legacyV2InitialRun(artifactRoot) {
   const run = initialRun(artifactRoot);
   run.schema_version = "2.0.0";
   run.resource_versions = resourceVersions("orchestration-registry-1.0.0.json");
+  delete run.permissions.command_execution;
+  run.permissions.allowed_actions = ["read_target", "write_internal_artifacts"];
+  run.permissions.forbidden_actions = ["record_profile_outcome", "write_target", "authorize_fix"];
+  return run;
+}
+
+function legacyV3InitialRun(artifactRoot) {
+  const run = initialRun(artifactRoot);
+  run.schema_version = "3.0.0";
+  run.resource_versions = resourceVersions("orchestration-registry-2.0.0.json");
+  delete run.permissions.command_execution;
   return run;
 }
 
@@ -196,18 +208,19 @@ function declaredHumanPayload(requirementId = "WCAG-2.2-SC-1.1.1", profileOutcom
 
 function fixAuthorizationPayload() {
   return {
-    schema_version: "1.0.0",
+    schema_version: "2.0.0",
     authorization_id: "AUTH-20260717-TEST0001",
     run_id: runId,
     authorizer_role: "declared_authorizer",
     authorizer_kind: "external_requester",
-    authorized_by: "Requester",
+    approved_by: "Requester",
     identity_authenticated: false,
     declaration: "I authorize only the listed files and structured command data.",
-    issued_at: "2026-07-17T12:00:05Z",
-    target_root: "target",
-    allowed_files: ["index.html"],
-    commands: [{ executable: "npm", args: ["test"], cwd: "target" }],
+    approved_at: "2026-07-17T12:00:05Z",
+    source_root: "C:\\work\\target",
+    allowed_paths: ["index.html"],
+    allowed_operations: ["modify"],
+    verification_commands: [{ command_id: "VERIFY-001", executable: "npm", args: ["test"], cwd: "." }],
     remediation_artifact: { artifact_id: "ART-REMEDIATION-001", sha256: "a".repeat(64) }
   };
 }
@@ -253,13 +266,32 @@ function verifiedFailureRemediationPayload(sourceArtifactId, requirementId = "WC
 
 function changePayload(authorizationArtifactId, authorizationHash) {
   return {
-    schema_version: "1.0.0",
+    schema_version: "2.0.0",
     change_id: "CHANGE-20260717-TEST0001",
     run_id: runId,
     authorization_id: "AUTH-20260717-TEST0001",
     authorization_artifact: { artifact_id: authorizationArtifactId, sha256: authorizationHash },
-    changed_files: [{ path: "index.html", before_sha256: null, after_sha256: "b".repeat(64), description: "Declared test change record." }],
-    verification: ["Recorded only; this orchestration code did not execute the command or write the target."],
+    changed_files: [{ path: "index.html", operation: "modify", before_sha256: "a".repeat(64), after_sha256: "b".repeat(64), description: "Declared test change record." }],
+    diff_sha256: "c".repeat(64),
+    command_results: [{
+      command_id: "VERIFY-001",
+      executable: "npm",
+      args: ["test"],
+      cwd: ".",
+      exit_code: 0,
+      signal: null,
+      stdout_sha256: "d".repeat(64),
+      stderr_sha256: "e".repeat(64),
+      started_at: "2026-07-17T12:00:06Z",
+      completed_at: "2026-07-17T12:00:07Z"
+    }],
+    lease: {
+      lease_id: "LEASE-20260717-TEST0001",
+      source_root_sha256: "f".repeat(64),
+      acquired_at: "2026-07-17T12:00:05Z",
+      expires_at: "2026-07-17T12:05:05Z",
+      recovery: null
+    },
     next_status: "retest_required"
   };
 }
@@ -399,6 +431,7 @@ function applyLegacyRunContract(run) {
   run.schema_version = "1.0.0";
   run.resource_versions = resourceVersions("orchestration-registry-1.0.0.json");
   delete run.resource_versions.orchestration_registry_sha256;
+  delete run.permissions.command_execution;
   run.permissions.allowed_actions = ["read_target", "write_internal_artifacts"];
   run.permissions.forbidden_actions = ["record_profile_outcome", "write_target", "authorize_fix"];
   return run;
@@ -504,7 +537,7 @@ test("run initialization creates a schema-valid immutable manifest with installe
   ]);
   assert.equal(result.status, 0, result.stderr || result.stdout);
   const run = readJson(output);
-  assert.equal(run.schema_version, "3.0.0");
+  assert.equal(run.schema_version, "4.0.0");
   assert.equal(run.status, "initialized");
   assert.equal(run.artifact_root, "artifacts");
   assert.deepEqual(run.permissions, initialRun(artifactRoot).permissions);
@@ -521,19 +554,48 @@ test("run initialization creates a schema-valid immutable manifest with installe
   assert.match(overwrite.stderr, /overwrite/i);
 }));
 
-test("audit-run schema dispatch emits 3.0.0 and preserves valid 1.0.0 and 2.0.0 inputs", (t) => withTemp(t, ({ temp, artifactRoot }) => {
+test("run 4 initialization couples authorized source writes to authorized verification-only command execution", (t) => withTemp(t, ({ temp, artifactRoot }) => {
+  const output = path.join(temp, "authorized-run.json");
+  const result = runNode(createRun, [
+    "--run-id", runId,
+    "--profile", "web-modern",
+    "--target-name", "Local fixture",
+    "--target-version", "fixture-v1",
+    "--target-ref", "http://127.0.0.1:4173/",
+    "--artifact-root", artifactRoot,
+    "--network", "none",
+    "--interaction", "safe_read_only",
+    "--source-write", "authorized_only",
+    "--output", output
+  ]);
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.deepEqual(readJson(output).permissions, {
+    network: "denied",
+    interaction: "read_only",
+    source_write: "authorized_only",
+    command_execution: "authorized_verification_only",
+    allowed_actions: ["execute_authorized_verification_commands", "inspect_without_mutation", "write_authorized_files"],
+    forbidden_actions: ["execute_unapproved_commands", "network_access"]
+  });
+}));
+
+test("audit-run dispatch maps runs 1/2 to registry 1, run 3 to registry 2, and only run 4 to registry 3", (t) => withTemp(t, ({ temp, artifactRoot }) => {
   const currentSchema = readJson(path.join(references, "audit-run.schema.json"));
   const legacyV1SchemaFile = path.join(references, "audit-run-1.0.0.schema.json");
   const legacyV2SchemaFile = path.join(references, "audit-run-2.0.0.schema.json");
-  assert.equal(currentSchema.$id, "urn:information-accessibility:audit-run:3.0.0");
-  assert.equal(currentSchema.properties.schema_version.const, "3.0.0");
+  const legacyV3SchemaFile = path.join(references, "audit-run-3.0.0.schema.json");
+  assert.equal(currentSchema.$id, "urn:information-accessibility:audit-run:4.0.0");
+  assert.equal(currentSchema.properties.schema_version.const, "4.0.0");
   assert.equal(readJson(legacyV1SchemaFile).properties.schema_version.const, "1.0.0");
   assert.equal(readJson(legacyV2SchemaFile).properties.schema_version.const, "2.0.0");
+  assert.equal(readJson(legacyV3SchemaFile).properties.schema_version.const, "3.0.0");
 
   const currentRegistry = readJson(path.join(references, "orchestration-registry.json"));
-  const legacyRegistry = readJson(path.join(references, "orchestration-registry-1.0.0.json"));
-  assert.equal(currentRegistry.schema_version, "2.0.0");
-  assert.equal(legacyRegistry.schema_version, "1.0.0");
+  const registryV1 = readJson(path.join(references, "orchestration-registry-1.0.0.json"));
+  const registryV2 = readJson(path.join(references, "orchestration-registry-2.0.0.json"));
+  assert.equal(currentRegistry.schema_version, "3.0.0");
+  assert.equal(registryV1.schema_version, "1.0.0");
+  assert.equal(registryV2.schema_version, "2.0.0");
 
   const runFile = path.join(temp, "run.json");
   const current = validateAuditRun(initialRun(artifactRoot), { skillRoot, runFile });
@@ -542,16 +604,36 @@ test("audit-run schema dispatch emits 3.0.0 and preserves valid 1.0.0 and 2.0.0 
   const legacyV2 = validateAuditRun(legacyV2InitialRun(artifactRoot), { skillRoot, runFile });
   assert.equal(legacyV2.valid, true, legacyV2.errors.join("\n"));
 
+  const legacyV3 = validateAuditRun(legacyV3InitialRun(artifactRoot), { skillRoot, runFile });
+  assert.equal(legacyV3.valid, true, legacyV3.errors.join("\n"));
+
   const artifactFile = path.join(artifactRoot, "legacy-v2-screening.json");
   const artifact = screeningEnvelope({ artifactId: "ART-SCREEN-V2", requirementId: "SCREEN-LEGACY-V2" });
   writeJson(artifactFile, artifact);
   assert.throws(
     () => registerArtifactRecord(legacyV2InitialRun(artifactRoot), artifact, { skillRoot, runFile, artifactFile }),
-    /latest.*audit-run.*3\.0\.0|legacy.*read.only|implicit upgrade/i
+    /latest.*audit-run.*4\.0\.0|legacy.*read.only|implicit upgrade/i
+  );
+
+  assert.throws(
+    () => registerArtifactRecord(legacyV3InitialRun(artifactRoot), artifact, { skillRoot, runFile, artifactFile }),
+    /latest.*audit-run.*4\.0\.0|legacy.*read.only|implicit upgrade/i
   );
 
   const legacy = validateAuditRun(legacyInitialRun(artifactRoot), { skillRoot, runFile });
   assert.equal(legacy.valid, true, legacy.errors.join("\n"));
+
+  for (const [label, run, wrongRegistry] of [
+    ["run 1 with registry 2", legacyInitialRun(artifactRoot), "orchestration-registry-2.0.0.json"],
+    ["run 2 with registry 2", legacyV2InitialRun(artifactRoot), "orchestration-registry-2.0.0.json"],
+    ["run 3 with registry 1", legacyV3InitialRun(artifactRoot), "orchestration-registry-1.0.0.json"],
+    ["run 4 with registry 2", initialRun(artifactRoot), "orchestration-registry-2.0.0.json"]
+  ]) {
+    run.resource_versions = resourceVersions(wrongRegistry);
+    const result = validateAuditRun(run, { skillRoot, runFile });
+    assert.equal(result.valid, false, label);
+    assert.match(result.errors.join("\n"), /requires orchestration registry|resource_versions\.orchestration_registry/i, label);
+  }
 
   const unknownRun = initialRun(artifactRoot);
   unknownRun.schema_version = "9.9.9";
@@ -608,7 +690,7 @@ test("latest-only operational gate rejects legacy runs in direct artifact regist
   assert.equal(readable.valid, true, readable.errors.join("\n"));
   assert.throws(
     () => registerArtifactRecord(legacyRun, artifact, { skillRoot, runFile, artifactFile }),
-    /latest.*audit-run.*3\.0\.0|legacy.*read.only|implicit upgrade/i
+    /latest.*audit-run.*4\.0\.0|legacy.*read.only|implicit upgrade/i
   );
 }));
 
@@ -646,7 +728,7 @@ test("legacy Task 4 declared-human runs remain readable without retroactive curr
       artifacts: [readJson(fixture.screenFile), readJson(fixture.queueFile), human],
       registries: pureMergeResources(run, artifactRoot)
     }),
-    /latest.*audit-run.*3\.0\.0|legacy.*read.only|implicit upgrade/i
+    /latest.*audit-run.*4\.0\.0|legacy.*read.only|implicit upgrade/i
   );
 }));
 
@@ -659,7 +741,7 @@ test("latest-only operational gate rejects legacy runs in the register CLI witho
   writeJson(artifactFile, artifact);
 
   const result = runNode(registerArtifact, ["--run", runFile, "--artifact", artifactFile, "--output", output]);
-  assertRejected(result, /latest.*audit-run.*3\.0\.0|legacy.*read.only|implicit upgrade/i);
+  assertRejected(result, /latest.*audit-run.*4\.0\.0|legacy.*read.only|implicit upgrade/i);
   assert.equal(fs.existsSync(output), false);
 }));
 
@@ -671,6 +753,7 @@ test("latest-only operational gate rejects legacy runs in pure merge while prese
   legacyRun.schema_version = "1.0.0";
   legacyRun.resource_versions = resourceVersions("orchestration-registry-1.0.0.json");
   delete legacyRun.resource_versions.orchestration_registry_sha256;
+  delete legacyRun.permissions.command_execution;
   const runFile = path.join(temp, "legacy-run.json");
   const readable = validateAuditRun(legacyRun, { skillRoot, runFile });
   assert.equal(readable.valid, true, readable.errors.join("\n"));
@@ -678,7 +761,7 @@ test("latest-only operational gate rejects legacy runs in pure merge while prese
   const resources = pureMergeResources(legacyRun, artifactRoot);
   assert.throws(
     () => mergeArtifactRecords({ run: legacyRun, assessment: assessmentFixture(), artifacts: [artifact], registries: resources }),
-    /latest.*audit-run.*3\.0\.0|legacy.*read.only|implicit upgrade/i
+    /latest.*audit-run.*4\.0\.0|legacy.*read.only|implicit upgrade/i
   );
 }));
 
@@ -690,6 +773,7 @@ test("latest-only operational gate rejects legacy runs in the merge CLI without 
   legacyRun.schema_version = "1.0.0";
   legacyRun.resource_versions = resourceVersions("orchestration-registry-1.0.0.json");
   delete legacyRun.resource_versions.orchestration_registry_sha256;
+  delete legacyRun.permissions.command_execution;
   const runFile = path.join(temp, "legacy-run.json");
   const assessmentFile = path.join(temp, "assessment.json");
   const output = path.join(temp, "merged.json");
@@ -699,7 +783,7 @@ test("latest-only operational gate rejects legacy runs in the merge CLI without 
   const result = runNode(mergeArtifactsCli, [
     "--run", runFile, "--assessment", assessmentFile, "--artifact", artifactFile, "--output", output
   ]);
-  assertRejected(result, /latest.*audit-run.*3\.0\.0|legacy.*read.only|implicit upgrade/i);
+  assertRejected(result, /latest.*audit-run.*4\.0\.0|legacy.*read.only|implicit upgrade/i);
   assert.equal(fs.existsSync(output), false);
 }));
 
@@ -876,12 +960,12 @@ test("schema manifest loader rejects same-version schema swaps and duplicate sch
         change.schema_versions[0].schema_file,
         authorization.schema_versions[0].schema_file
       ];
-    }, /schema.*\$id|artifact type.*schema/i],
+    }, /artifact_types.*must equal|schema.*\$id|artifact type.*schema/i],
     ["duplicate schema file", (registry) => {
       const authorization = registry.artifact_types.find((item) => item.id === "fix-authorization");
       const change = registry.artifact_types.find((item) => item.id === "change-record");
       change.schema_versions[0].schema_file = authorization.schema_versions[0].schema_file;
-    }, /duplicate.*schema.*file|schema.*file.*duplicate/i]
+    }, /artifact_types.*must equal|duplicate.*schema.*file|schema.*file.*duplicate/i]
   ]) {
     const copiedSkill = path.join(temp, label.replaceAll(" ", "-"));
     copyDirectory(path.join(skillRoot, "references"), path.join(copiedSkill, "references"));
@@ -893,29 +977,71 @@ test("schema manifest loader rejects same-version schema swaps and duplicate sch
   }
 }));
 
-test("frozen registry 1 payload compatibility stays fixed at 1.0.0 when older schemas are added to the current manifest", (t) => withTemp(t, ({ temp }) => {
-  const copiedSkill = path.join(temp, "legacy-policy-skill");
-  copyDirectory(path.join(skillRoot, "references"), path.join(copiedSkill, "references"));
-  const referencesRoot = path.join(copiedSkill, "references");
-  const experimentalFile = path.join(referencesRoot, "human-review-queue-0.5.0.schema.json");
-  const experimental = readJson(path.join(referencesRoot, "human-review-queue-1.0.0.schema.json"));
-  experimental.$id = "urn:information-accessibility:human-review-queue:0.5.0";
-  experimental.properties.schema_version.const = "0.5.0";
-  writeJson(experimentalFile, experimental);
-  const registryFile = path.join(referencesRoot, "orchestration-registry.json");
-  const registry = readJson(registryFile);
-  const queue = registry.artifact_types.find((item) => item.id === "human-review-queue");
-  queue.schema_versions.unshift({
-    version: "0.5.0",
-    schema_file: "human-review-queue-0.5.0.schema.json",
-    mode: "read_only"
-  });
-  writeJson(registryFile, registry);
-
-  const resources = loadAuditResources(copiedSkill);
+test("frozen registry 1 payload compatibility stays fixed at 1.0.0 alongside newer current schemas", () => {
+  const resources = loadAuditResources(skillRoot);
   const frozenPolicy = resources.orchestrationRegistries.get("1.0.0").payloadVersions;
   assert.equal(frozenPolicy.get("human-review-queue"), "1.0.0");
   assert.equal(frozenPolicy.get("remediation-plan"), "1.0.0");
+  assert.equal(resources.currentPayloadVersions.get("human-review-queue"), "2.0.0");
+  assert.equal(resources.currentPayloadVersions.get("remediation-plan"), "2.0.0");
+});
+
+test("each registry derives its own exact per-artifact payload compatibility policy", () => {
+  const resources = loadAuditResources(skillRoot);
+  const expected = new Map([
+    ["1.0.0", {
+      "screening-observations": "1.0.0",
+      "human-review-queue": "1.0.0",
+      "declared-human-review": "1.0.0",
+      "remediation-plan": "1.0.0",
+      "fix-authorization": "1.0.0",
+      "change-record": "1.0.0"
+    }],
+    ["2.0.0", {
+      "screening-observations": "1.0.0",
+      "human-review-queue": "2.0.0",
+      "declared-human-review": "1.0.0",
+      "remediation-plan": "2.0.0",
+      "fix-authorization": "1.0.0",
+      "change-record": "1.0.0"
+    }],
+    ["3.0.0", {
+      "screening-observations": "1.0.0",
+      "human-review-queue": "2.0.0",
+      "declared-human-review": "1.0.0",
+      "remediation-plan": "2.0.0",
+      "fix-authorization": "2.0.0",
+      "change-record": "2.0.0"
+    }]
+  ]);
+  assert.deepEqual([...resources.orchestrationRegistries.keys()], [...expected.keys()]);
+  for (const [registryVersion, payloadVersions] of expected) {
+    assert.deepEqual(
+      Object.fromEntries(resources.orchestrationRegistries.get(registryVersion).payloadVersions),
+      payloadVersions,
+      registryVersion
+    );
+  }
+});
+
+test("run 3 with frozen registry 2 stays readable but register and merge remain read-only", (t) => withTemp(t, ({ temp, artifactRoot }) => {
+  const artifactFile = path.join(artifactRoot, "screening.json");
+  const artifact = screeningEnvelope({ artifactId: "ART-SCREEN-003", requirementId: "SCREEN-LEGACY-V3" });
+  writeJson(artifactFile, artifact);
+  const run = screenedRun(artifactRoot, artifactFile, artifact);
+  run.schema_version = "3.0.0";
+  run.resource_versions = resourceVersions("orchestration-registry-2.0.0.json");
+  delete run.permissions.command_execution;
+  const runFile = path.join(temp, "run-3.json");
+  assert.equal(validateAuditRun(run, { skillRoot, runFile }).valid, true);
+  assert.throws(
+    () => registerArtifactRecord(run, artifact, { skillRoot, runFile, artifactFile }),
+    /latest.*audit-run.*4\.0\.0|legacy.*read.only|implicit upgrade/i
+  );
+  assert.throws(
+    () => mergeArtifactRecords({ run, assessment: assessmentFixture(), artifacts: [artifact], registries: pureMergeResources(run, artifactRoot) }),
+    /latest.*audit-run.*4\.0\.0|legacy.*read.only|implicit upgrade/i
+  );
 }));
 
 test("merge baseline rejects current-run-unprovable participation assurance claim and review metadata", (t) => withTemp(t, ({ artifactRoot }) => {
@@ -1209,7 +1335,7 @@ test("registration rejects missing, cross-run, and mismatched input artifact ref
   }
 }));
 
-test("run 3 queue registration enforces exact lookup bindings, unique profile requirements, and exact coverage counts", (t) => withTemp(t, ({ temp, artifactRoot }) => {
+test("run 4 queue registration enforces exact lookup bindings, unique profile requirements, and exact coverage counts", (t) => withTemp(t, ({ temp, artifactRoot }) => {
   const screenFile = path.join(artifactRoot, "screening.json");
   const screen = screeningEnvelope({ artifactId: "ART-SCREEN-001", requirementId: "SCREEN-FIRST" });
   writeJson(screenFile, screen);
@@ -1892,6 +2018,7 @@ test("legacy run 2 keeps remediation payload 1 readable without retroactive evid
   const fixture = makeScreeningRemediationRun(artifactRoot);
   fixture.run.schema_version = "2.0.0";
   fixture.run.resource_versions = resourceVersions("orchestration-registry-1.0.0.json");
+  delete fixture.run.permissions.command_execution;
   fixture.queue.payload.schema_version = "1.0.0";
   delete fixture.queue.payload.items[0].generic_method_ref;
   delete fixture.queue.payload.items[0].official_sources;

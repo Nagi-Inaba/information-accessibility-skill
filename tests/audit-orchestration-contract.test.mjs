@@ -33,7 +33,7 @@ function schemaErrors(value, schemaName) {
 
 function validAuditRun() {
   return {
-    schema_version: "3.0.0",
+    schema_version: "4.0.0",
     run_id: runId,
     supersedes_run_id: null,
     status: "initialized",
@@ -63,12 +63,13 @@ function validAuditRun() {
       network: "denied",
       interaction: "read_only",
       source_write: "denied",
-      allowed_actions: ["read_target", "write_internal_artifacts"],
-      forbidden_actions: ["record_profile_outcome", "write_target", "authorize_fix"]
+      command_execution: "denied",
+      allowed_actions: ["inspect_without_mutation"],
+      forbidden_actions: ["execute_commands", "network_access", "write_target"]
     },
     resource_versions: {
       standards_registry_version: "1.0.0",
-      orchestration_registry_version: "2.0.0",
+      orchestration_registry_version: "3.0.0",
       orchestration_registry_sha256: sha256,
       criteria_catalog_sha256: sha256,
       criterion_procedures_sha256: sha256,
@@ -205,7 +206,109 @@ test("current queue and remediation schemas are version 2 while frozen version 1
   assert.notDeepEqual(await schemaErrors(legacyRemediationValue, "remediation-plan.schema.json"), []);
 });
 
+test("Task 8A freezes Task 7 contracts and makes run 4 plus payload 2 current", async () => {
+  const versions = [
+    ["orchestration-registry.json", "schema_version", "3.0.0"],
+    ["orchestration-registry-2.0.0.json", "schema_version", "2.0.0"],
+    ["orchestration-registry.schema.json", "schema", "3.0.0"],
+    ["orchestration-registry-2.0.0.schema.json", "schema", "2.0.0"],
+    ["audit-run.schema.json", "schema", "4.0.0"],
+    ["audit-run-3.0.0.schema.json", "schema", "3.0.0"],
+    ["fix-authorization.schema.json", "schema", "2.0.0"],
+    ["fix-authorization-1.0.0.schema.json", "schema", "1.0.0"],
+    ["change-record.schema.json", "schema", "2.0.0"],
+    ["change-record-1.0.0.schema.json", "schema", "1.0.0"]
+  ];
+  for (const [file, kind, expected] of versions) {
+    const value = readReferenceJson(file);
+    const actual = kind === "schema" ? value.properties.schema_version.const : value.schema_version;
+    assert.equal(actual, expected, file);
+  }
+
+  const currentAuthorization = validFixAuthorizationPayload();
+  const legacyAuthorization = validLegacyFixAuthorizationPayload();
+  assert.deepEqual(await schemaErrors(currentAuthorization, "fix-authorization.schema.json"), []);
+  assert.notDeepEqual(await schemaErrors(currentAuthorization, "fix-authorization-1.0.0.schema.json"), []);
+  assert.deepEqual(await schemaErrors(legacyAuthorization, "fix-authorization-1.0.0.schema.json"), []);
+  assert.notDeepEqual(await schemaErrors(legacyAuthorization, "fix-authorization.schema.json"), []);
+
+  const currentChange = validChangeRecordPayload();
+  const legacyChange = validLegacyChangeRecordPayload();
+  assert.deepEqual(await schemaErrors(currentChange, "change-record.schema.json"), []);
+  assert.notDeepEqual(await schemaErrors(currentChange, "change-record-1.0.0.schema.json"), []);
+  assert.deepEqual(await schemaErrors(legacyChange, "change-record-1.0.0.schema.json"), []);
+  assert.notDeepEqual(await schemaErrors(legacyChange, "change-record.schema.json"), []);
+});
+
 function validFixAuthorizationPayload() {
+  return {
+    schema_version: "2.0.0",
+    authorization_id: "AUTH-20260717-ABC12345",
+    run_id: runId,
+    authorizer_role: "declared_authorizer",
+    authorizer_kind: "external_requester",
+    approved_by: "Declared Requester",
+    identity_authenticated: false,
+    declaration: "I authorize only the listed target-relative changes and structured commands.",
+    approved_at: createdAt,
+    source_root: "C:\\work\\target",
+    allowed_paths: ["index.html"],
+    allowed_operations: ["modify"],
+    verification_commands: [{
+      command_id: "VERIFY-001",
+      executable: "node",
+      args: ["scripts/verify-target.mjs", "--target", "index.html"],
+      cwd: "."
+    }],
+    remediation_artifact: {
+      artifact_id: "ART-REMEDIATION-001",
+      sha256
+    }
+  };
+}
+
+function validChangeRecordPayload() {
+  return {
+    schema_version: "2.0.0",
+    change_id: "CHANGE-20260717-ABC12345",
+    run_id: runId,
+    authorization_id: "AUTH-20260717-ABC12345",
+    authorization_artifact: {
+      artifact_id: "ART-AUTHORIZATION-001",
+      sha256
+    },
+    changed_files: [{
+      path: "index.html",
+      operation: "modify",
+      before_sha256: sha256,
+      after_sha256: "b".repeat(64),
+      description: "Added the authorized accessible name."
+    }],
+    diff_sha256: "c".repeat(64),
+    command_results: [{
+      command_id: "VERIFY-001",
+      executable: "node",
+      args: ["scripts/verify-target.mjs", "--target", "index.html"],
+      cwd: ".",
+      exit_code: 0,
+      signal: null,
+      stdout_sha256: "d".repeat(64),
+      stderr_sha256: "e".repeat(64),
+      started_at: "2026-07-17T01:02:04Z",
+      completed_at: "2026-07-17T01:02:05Z"
+    }],
+    lease: {
+      lease_id: "LEASE-20260717-ABC12345",
+      source_root_sha256: "f".repeat(64),
+      acquired_at: "2026-07-17T01:02:03Z",
+      expires_at: "2026-07-17T01:07:03Z",
+      recovery: null
+    },
+    next_status: "retest_required"
+  };
+}
+
+function validLegacyFixAuthorizationPayload() {
   return {
     schema_version: "1.0.0",
     authorization_id: "AUTH-20260717-ABC12345",
@@ -218,28 +321,18 @@ function validFixAuthorizationPayload() {
     issued_at: createdAt,
     target_root: "target",
     allowed_files: ["target/index.html"],
-    commands: [{
-      executable: "node",
-      args: ["scripts/fix-target.mjs", "--target", "target/index.html"],
-      cwd: "."
-    }],
-    remediation_artifact: {
-      artifact_id: "ART-REMEDIATION-001",
-      sha256
-    }
+    commands: [{ executable: "node", args: ["scripts/fix-target.mjs"], cwd: "." }],
+    remediation_artifact: { artifact_id: "ART-REMEDIATION-001", sha256 }
   };
 }
 
-function validChangeRecordPayload() {
+function validLegacyChangeRecordPayload() {
   return {
     schema_version: "1.0.0",
     change_id: "CHANGE-20260717-ABC12345",
     run_id: runId,
     authorization_id: "AUTH-20260717-ABC12345",
-    authorization_artifact: {
-      artifact_id: "ART-AUTHORIZATION-001",
-      sha256
-    },
+    authorization_artifact: { artifact_id: "ART-AUTHORIZATION-001", sha256 },
     changed_files: [{
       path: "target/index.html",
       before_sha256: sha256,
@@ -484,11 +577,12 @@ test("the orchestration registry fixes the complete role, artifact, and transiti
   assert.deepEqual(registry.artifact_types, [
     {
       id: "audit-run",
-      latest_schema_version: "3.0.0",
+      latest_schema_version: "4.0.0",
       schema_versions: [
         { version: "1.0.0", schema_file: "audit-run-1.0.0.schema.json", mode: "read_only" },
         { version: "2.0.0", schema_file: "audit-run-2.0.0.schema.json", mode: "read_only" },
-        { version: "3.0.0", schema_file: "audit-run.schema.json", mode: "current" }
+        { version: "3.0.0", schema_file: "audit-run-3.0.0.schema.json", mode: "read_only" },
+        { version: "4.0.0", schema_file: "audit-run.schema.json", mode: "current" }
       ]
     },
     {
@@ -519,13 +613,19 @@ test("the orchestration registry fixes the complete role, artifact, and transiti
     },
     {
       id: "fix-authorization",
-      latest_schema_version: "1.0.0",
-      schema_versions: [{ version: "1.0.0", schema_file: "fix-authorization.schema.json", mode: "current" }]
+      latest_schema_version: "2.0.0",
+      schema_versions: [
+        { version: "1.0.0", schema_file: "fix-authorization-1.0.0.schema.json", mode: "read_only" },
+        { version: "2.0.0", schema_file: "fix-authorization.schema.json", mode: "current" }
+      ]
     },
     {
       id: "change-record",
-      latest_schema_version: "1.0.0",
-      schema_versions: [{ version: "1.0.0", schema_file: "change-record.schema.json", mode: "current" }]
+      latest_schema_version: "2.0.0",
+      schema_versions: [
+        { version: "1.0.0", schema_file: "change-record-1.0.0.schema.json", mode: "read_only" },
+        { version: "2.0.0", schema_file: "change-record.schema.json", mode: "current" }
+      ]
     }
   ]);
   assert.deepEqual(registry.transitions, [
@@ -629,6 +729,33 @@ test("the registry schema pins the output type for every canonical role", async 
 
 test("the immutable audit-run schema accepts a bounded initial run", async () => {
   assert.deepEqual(await schemaErrors(validAuditRun(), "audit-run.schema.json"), []);
+});
+
+test("audit-run 4 permissions grant only authorized verification command execution with authorized source writes", async () => {
+  const denied = validAuditRun();
+  assert.deepEqual(await schemaErrors(denied, "audit-run.schema.json"), []);
+
+  const authorized = validAuditRun();
+  authorized.permissions = {
+    network: "denied",
+    interaction: "read_only",
+    source_write: "authorized_only",
+    command_execution: "authorized_verification_only",
+    allowed_actions: ["execute_authorized_verification_commands", "inspect_without_mutation", "write_authorized_files"],
+    forbidden_actions: ["execute_unapproved_commands", "network_access"]
+  };
+  assert.deepEqual(await schemaErrors(authorized, "audit-run.schema.json"), []);
+
+  for (const [label, mutate] of [
+    ["commands enabled while writes denied", (value) => { value.permissions.command_execution = "authorized_verification_only"; }],
+    ["commands denied while writes authorized", (value) => { value.permissions = structuredClone(authorized.permissions); value.permissions.command_execution = "denied"; }],
+    ["generic execute command grant", (value) => { value.permissions = structuredClone(authorized.permissions); value.permissions.allowed_actions.push("execute_commands"); }],
+    ["missing unapproved-command prohibition", (value) => { value.permissions = structuredClone(authorized.permissions); value.permissions.forbidden_actions = ["network_access"]; }]
+  ]) {
+    const value = validAuditRun();
+    mutate(value);
+    assert.notDeepEqual(await schemaErrors(value, "audit-run.schema.json"), [], label);
+  }
 });
 
 test("audit-run rejects malformed IDs, hashes, paths, artifacts, and transition history", async () => {
@@ -818,25 +945,31 @@ test("remediation basis keeps verified failures separate from unverified screeni
   assert.notDeepEqual(await schemaErrors(elevatedCandidate, "remediation-plan.schema.json"), []);
 });
 
-test("fix authorization accepts only structured commands and relative bounded paths", async () => {
+test("fix authorization 2 requires declared identity, absolute source root, bounded paths, operations, and structured verification commands", async () => {
   const valid = validFixAuthorizationPayload();
   assert.deepEqual(await schemaErrors(valid, "fix-authorization.schema.json"), []);
 
   const mutations = [
     ["shell command property", (value) => {
-      value.commands[0] = { command: "node scripts/fix-target.mjs", cwd: "." };
+      value.verification_commands[0] = { command: "node scripts/verify-target.mjs", cwd: "." };
     }],
-    ["shell syntax in executable", (value) => { value.commands[0].executable = "node && whoami"; }],
-    ["shell launcher string", (value) => { value.commands[0].executable = "cmd /c node"; }],
-    ["absolute cwd", (value) => { value.commands[0].cwd = "C:\\target"; }],
-    ["UNC cwd", (value) => { value.commands[0].cwd = "\\\\server\\share"; }],
-    ["URL cwd", (value) => { value.commands[0].cwd = "https://example.com/"; }],
-    ["traversal cwd", (value) => { value.commands[0].cwd = "../target"; }],
-    ["shell command instead of args array", (value) => { value.commands[0].args = "scripts/fix-target.mjs && whoami"; }],
-    ["absolute allowed path", (value) => { value.allowed_files[0] = "/tmp/target.html"; }],
-    ["UNC allowed path", (value) => { value.allowed_files[0] = "\\\\server\\share\\target.html"; }],
-    ["traversal allowed path", (value) => { value.allowed_files[0] = "target/../../outside.html"; }],
+    ["shell syntax in executable", (value) => { value.verification_commands[0].executable = "node && whoami"; }],
+    ["shell launcher string", (value) => { value.verification_commands[0].executable = "cmd /c node"; }],
+    ["absolute cwd", (value) => { value.verification_commands[0].cwd = "C:\\target"; }],
+    ["UNC cwd", (value) => { value.verification_commands[0].cwd = "\\\\server\\share"; }],
+    ["URL cwd", (value) => { value.verification_commands[0].cwd = "https://example.com/"; }],
+    ["traversal cwd", (value) => { value.verification_commands[0].cwd = "../target"; }],
+    ["shell command instead of args array", (value) => { value.verification_commands[0].args = "scripts/verify-target.mjs && whoami"; }],
+    ["duplicate command ID", (value) => { value.verification_commands.push(structuredClone(value.verification_commands[0])); }],
+    ["relative source root", (value) => { value.source_root = "target"; }],
+    ["control character in source root", (value) => { value.source_root = "C:\\target\nother"; }],
+    ["absolute allowed path", (value) => { value.allowed_paths[0] = "/tmp/target.html"; }],
+    ["UNC allowed path", (value) => { value.allowed_paths[0] = "\\\\server\\share\\target.html"; }],
+    ["traversal allowed path", (value) => { value.allowed_paths[0] = "target/../../outside.html"; }],
+    ["duplicate allowed path", (value) => { value.allowed_paths.push(value.allowed_paths[0]); }],
+    ["unknown operation", (value) => { value.allowed_operations[0] = "rename"; }],
     ["bad remediation hash", (value) => { value.remediation_artifact.sha256 = "1234"; }],
+    ["authenticated identity claim", (value) => { value.identity_authenticated = true; }],
     ["AI authorizer kind", (value) => { value.authorizer_kind = "ai_agent"; }]
   ];
   for (const [label, mutate] of mutations) {
@@ -846,13 +979,31 @@ test("fix authorization accepts only structured commands and relative bounded pa
   }
 });
 
-test("change records require relative paths, strict hashes, and retest_required without profile outcome", async () => {
+test("change record 2 enforces operation hashes, structured command results, lease evidence, and retest_required", async () => {
+  const create = validChangeRecordPayload();
+  create.changed_files[0].operation = "create";
+  create.changed_files[0].before_sha256 = null;
+  assert.deepEqual(await schemaErrors(create, "change-record.schema.json"), []);
+
+  const deleted = validChangeRecordPayload();
+  deleted.changed_files[0].operation = "delete";
+  deleted.changed_files[0].after_sha256 = null;
+  assert.deepEqual(await schemaErrors(deleted, "change-record.schema.json"), []);
+
   const mutations = [
     ["absolute path", (value) => { value.changed_files[0].path = "C:\\target\\index.html"; }],
     ["traversal path", (value) => { value.changed_files[0].path = "../index.html"; }],
     ["bad hash", (value) => { value.changed_files[0].after_sha256 = "not-a-sha"; }],
+    ["create with before hash", (value) => { value.changed_files[0].operation = "create"; }],
+    ["modify without before hash", (value) => { value.changed_files[0].before_sha256 = null; }],
+    ["delete with after hash", (value) => { value.changed_files[0].operation = "delete"; }],
+    ["command string", (value) => { value.command_results[0].command = "node scripts/verify-target.mjs"; }],
+    ["duplicate command ID", (value) => { value.command_results.push(structuredClone(value.command_results[0])); }],
+    ["missing lease evidence", (value) => { delete value.lease.source_root_sha256; }],
     ["terminal status", (value) => { value.next_status = "completed"; }],
-    ["profile outcome", (value) => { value.profile_outcome = "pass"; }]
+    ["profile outcome", (value) => { value.profile_outcome = "pass"; }],
+    ["conformance wording", (value) => { value.conformance_statement = "conforms"; }],
+    ["human verified", (value) => { value.human_verified = true; }]
   ];
   for (const [label, mutate] of mutations) {
     const value = validChangeRecordPayload();

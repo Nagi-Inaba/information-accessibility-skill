@@ -203,7 +203,7 @@ function reportRunFixture(temp) {
   const artifactFiles = new Map([[screen.artifact_id, screenFile], [queue.artifact_id, queueFile], [human.artifact_id, humanFile], [remediation.artifact_id, remediationFile]]);
   const artifacts = [screen, queue, human, remediation];
   const run = {
-    schema_version: "3.0.0",
+    schema_version: "4.0.0",
     run_id: runId,
     supersedes_run_id: null,
     status: "remediation_ready",
@@ -215,6 +215,7 @@ function reportRunFixture(temp) {
       network: "allowlisted",
       interaction: "read_only",
       source_write: "denied",
+      command_execution: "denied",
       allowed_actions: ["inspect_without_mutation", "read_allowlisted_resources"],
       forbidden_actions: ["execute_commands", "network_outside_allowlist", "write_target"]
     },

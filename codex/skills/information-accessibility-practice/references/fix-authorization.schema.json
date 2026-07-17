@@ -1,30 +1,33 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:information-accessibility:fix-authorization:1.0.0",
+  "$id": "urn:information-accessibility:fix-authorization:2.0.0",
   "title": "Declared Fix Authorization",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "authorization_id", "run_id", "authorizer_role", "authorizer_kind", "authorized_by", "identity_authenticated", "declaration", "issued_at", "target_root", "allowed_files", "commands", "remediation_artifact"],
+  "required": ["schema_version", "authorization_id", "run_id", "authorizer_role", "authorizer_kind", "approved_by", "identity_authenticated", "declaration", "approved_at", "source_root", "allowed_paths", "allowed_operations", "verification_commands", "remediation_artifact"],
   "properties": {
-    "schema_version": { "const": "1.0.0" },
+    "schema_version": { "const": "2.0.0" },
     "authorization_id": { "type": "string", "pattern": "^AUTH-[0-9]{8}-[A-Z0-9]{8}$" },
     "run_id": { "$ref": "#/$defs/run_id" },
     "authorizer_role": { "const": "declared_authorizer" },
     "authorizer_kind": { "const": "external_requester" },
-    "authorized_by": { "type": "string", "minLength": 1 },
+    "approved_by": { "type": "string", "minLength": 1 },
     "identity_authenticated": { "const": false },
     "declaration": { "type": "string", "minLength": 1 },
-    "issued_at": { "$ref": "#/$defs/timestamp" },
-    "target_root": { "$ref": "#/$defs/relative_path" },
-    "allowed_files": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/relative_path" } },
-    "commands": {
+    "approved_at": { "$ref": "#/$defs/timestamp" },
+    "source_root": { "$ref": "#/$defs/absolute_path" },
+    "allowed_paths": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/relative_path" } },
+    "allowed_operations": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "enum": ["create", "modify", "delete"] } },
+    "verification_commands": {
       "type": "array",
       "minItems": 1,
+      "uniqueItems": true,
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["executable", "args", "cwd"],
+        "required": ["command_id", "executable", "args", "cwd"],
         "properties": {
+          "command_id": { "$ref": "#/$defs/command_id" },
           "executable": { "type": "string", "pattern": "^(?![A-Za-z]:[\\\\/])(?![\\\\/])(?!.*(?:^|[\\\\/])\\.\\.(?:[\\\\/]|$))[A-Za-z0-9._@+-]+(?:[\\\\/][A-Za-z0-9._@+-]+)*$" },
           "args": { "type": "array", "items": { "type": "string" } },
           "cwd": { "$ref": "#/$defs/relative_path" }
@@ -45,7 +48,9 @@
     "run_id": { "type": "string", "pattern": "^RUN-[0-9]{8}T[0-9]{6}Z-[A-Z0-9]{8}$" },
     "artifact_id": { "type": "string", "pattern": "^ART-[A-Z0-9][A-Z0-9-]{2,63}$" },
     "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "command_id": { "type": "string", "pattern": "^[A-Z][A-Z0-9_-]{2,63}$" },
     "timestamp": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$" },
+    "absolute_path": { "type": "string", "minLength": 1, "pattern": "^(?:[A-Za-z]:[\\\\/]|/|\\\\\\\\[^\\\\/\\u0000-\\u001F]+[\\\\/][^\\\\/\\u0000-\\u001F]+)[^\\u0000-\\u001F]*$" },
     "relative_path": { "type": "string", "pattern": "^(?![A-Za-z][A-Za-z0-9+.-]*:)(?![\\\\/])(?!.*(?:^|[\\\\/])\\.\\.(?:[\\\\/]|$))[^\\u0000-\\u001F]+$" }
   }
 }

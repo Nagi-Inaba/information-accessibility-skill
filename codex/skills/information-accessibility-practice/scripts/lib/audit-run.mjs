@@ -10,7 +10,12 @@ import { validateJsonSchema } from "./json-schema.mjs";
 
 const defaultSkillRoot = path.dirname(path.dirname(path.dirname(fileURLToPath(import.meta.url))));
 const noFollow = process.platform === "win32" ? 0 : (fs.constants.O_NOFOLLOW ?? 0);
-const frozenRegistryPayloadCompatibility = new Map([["1.0.0", "1.0.0"]]);
+const auditRunRegistryCompatibility = new Map([
+  ["1.0.0", "1.0.0"],
+  ["2.0.0", "1.0.0"],
+  ["3.0.0", "2.0.0"],
+  ["4.0.0", "3.0.0"]
+]);
 
 function pathKey(value) {
   const normalized = path.normalize(path.resolve(value));
@@ -203,8 +208,10 @@ export function loadAuditResources(skillRoot = defaultSkillRoot) {
     standardsRegistry: "references/standards-registry.json",
     orchestrationRegistry: "references/orchestration-registry.json",
     orchestrationSchema: "references/orchestration-registry.schema.json",
-    orchestrationRegistryLegacy: "references/orchestration-registry-1.0.0.json",
-    orchestrationSchemaLegacy: "references/orchestration-registry-1.0.0.schema.json",
+    orchestrationRegistryV1: "references/orchestration-registry-1.0.0.json",
+    orchestrationSchemaV1: "references/orchestration-registry-1.0.0.schema.json",
+    orchestrationRegistryV2: "references/orchestration-registry-2.0.0.json",
+    orchestrationSchemaV2: "references/orchestration-registry-2.0.0.schema.json",
     envelopeSchema: "references/audit-artifact-envelope.schema.json",
     assessmentSchema: "references/assessment-record.schema.json",
     criteriaCatalog: "references/criteria-catalog.json",
@@ -212,12 +219,15 @@ export function loadAuditResources(skillRoot = defaultSkillRoot) {
     auditMethods: "references/web-audit-methods.json"
   };
   const loaded = Object.fromEntries(Object.entries(names).map(([key, relative]) => [key, readJson(relative, skillRoot)]));
-  const registryErrors = [];
-  validateJsonSchema(loaded.orchestrationRegistry.value, loaded.orchestrationSchema.value, "$", registryErrors);
-  if (registryErrors.length) throw new Error(`Invalid installed orchestration registry:\n- ${registryErrors.join("\n- ")}`);
-  const legacyRegistryErrors = [];
-  validateJsonSchema(loaded.orchestrationRegistryLegacy.value, loaded.orchestrationSchemaLegacy.value, "$", legacyRegistryErrors);
-  if (legacyRegistryErrors.length) throw new Error(`Invalid frozen orchestration registry:\n- ${legacyRegistryErrors.join("\n- ")}`);
+  for (const [label, registry, schema] of [
+    ["installed", loaded.orchestrationRegistry, loaded.orchestrationSchema],
+    ["frozen 1.0.0", loaded.orchestrationRegistryV1, loaded.orchestrationSchemaV1],
+    ["frozen 2.0.0", loaded.orchestrationRegistryV2, loaded.orchestrationSchemaV2]
+  ]) {
+    const registryErrors = [];
+    validateJsonSchema(registry.value, schema.value, "$", registryErrors);
+    if (registryErrors.length) throw new Error(`Invalid ${label} orchestration registry:\n- ${registryErrors.join("\n- ")}`);
+  }
   const schemaManifests = new Map();
   const artifactTypeIds = new Set();
   const schemaFiles = new Set();
@@ -255,37 +265,32 @@ export function loadAuditResources(skillRoot = defaultSkillRoot) {
       artifactType,
       new Map([...manifest.schemas].map(([version, entry]) => [version, entry.schema]))
     ]));
-  const currentPayloadVersions = new Map([...schemaManifests]
-    .filter(([artifactType]) => artifactType !== "audit-run")
-    .map(([artifactType, manifest]) => [artifactType, manifest.latest_schema_version]));
-  const frozenRegistryVersion = loaded.orchestrationRegistryLegacy.value.schema_version;
-  const frozenPayloadVersion = frozenRegistryPayloadCompatibility.get(frozenRegistryVersion);
-  if (!frozenPayloadVersion) throw new Error(`No payload compatibility policy is registered for frozen orchestration registry ${frozenRegistryVersion}.`);
-  const legacyPayloadVersions = new Map(loaded.orchestrationRegistryLegacy.value.artifact_types
-    .filter((artifactType) => artifactType.id !== "audit-run")
-    .map((artifactType) => {
-      if (!payloadSchemas.get(artifactType.id)?.has(frozenPayloadVersion)) {
-        throw new Error(`Frozen orchestration registry ${frozenRegistryVersion} requires missing ${artifactType.id} payload schema ${frozenPayloadVersion}.`);
-      }
-      return [artifactType.id, frozenPayloadVersion];
-    }));
-  const orchestrationRegistries = new Map([
-    [loaded.orchestrationRegistryLegacy.value.schema_version, {
-      value: loaded.orchestrationRegistryLegacy.value,
-      sha256: sha256Bytes(loaded.orchestrationRegistryLegacy.bytes),
-      payloadVersions: legacyPayloadVersions
-    }],
-    [loaded.orchestrationRegistry.value.schema_version, {
-      value: loaded.orchestrationRegistry.value,
-      sha256: sha256Bytes(loaded.orchestrationRegistry.bytes),
-      payloadVersions: currentPayloadVersions
-    }]
-  ]);
+  function payloadVersionsForRegistry(registry) {
+    return new Map(registry.value.artifact_types
+      .filter((artifactType) => artifactType.id !== "audit-run")
+      .map((artifactType) => {
+        // Registry 1 predates versioned manifests; every schema it published was 1.0.0.
+        const version = artifactType.latest_schema_version ?? "1.0.0";
+        if (!payloadSchemas.get(artifactType.id)?.has(version)) {
+          throw new Error(`Orchestration registry ${registry.value.schema_version} requires missing ${artifactType.id} payload schema ${version}.`);
+        }
+        return [artifactType.id, version];
+      }));
+  }
+  const registryFiles = [loaded.orchestrationRegistryV1, loaded.orchestrationRegistryV2, loaded.orchestrationRegistry];
+  const orchestrationRegistries = new Map(registryFiles.map((registry) => [
+    registry.value.schema_version,
+    {
+      value: registry.value,
+      sha256: sha256Bytes(registry.bytes),
+      payloadVersions: payloadVersionsForRegistry(registry)
+    }
+  ]));
+  const currentPayloadVersions = orchestrationRegistries.get(loaded.orchestrationRegistry.value.schema_version).payloadVersions;
   return {
     skillRoot,
     standardsRegistry: loaded.standardsRegistry.value,
     orchestrationRegistry: loaded.orchestrationRegistry.value,
-    legacyOrchestrationRegistryVersion: loaded.orchestrationRegistryLegacy.value.schema_version,
     schemaManifests,
     auditRunSchema,
     auditRunSchemas,
@@ -355,6 +360,15 @@ export function validateArtifact(artifact, resources = loadAuditResources(), { a
   } else {
     validateJsonSchema(artifact?.payload, payloadSchema, "$.payload", errors);
   }
+  const commandRecords = artifact?.artifact_type === "fix-authorization" && payloadVersion === "2.0.0"
+    ? artifact?.payload?.verification_commands
+    : artifact?.artifact_type === "change-record" && payloadVersion === "2.0.0"
+      ? artifact?.payload?.command_results
+      : undefined;
+  if (Array.isArray(commandRecords)) {
+    const commandIds = commandRecords.map((command) => command?.command_id);
+    if (new Set(commandIds).size !== commandIds.length) errors.push(`${String(artifact.artifact_type)} command_id values must be unique.`);
+  }
   const allowedPayloadVersion = allowedPayloadVersions?.get(artifact?.artifact_type);
   if (allowedPayloadVersion && payloadVersion !== allowedPayloadVersion) {
     errors.push(`${String(artifact?.artifact_type)} payload schema_version must be ${allowedPayloadVersion} for this orchestration registry; received ${String(payloadVersion)}.`);
@@ -393,8 +407,11 @@ function canonicalPermissions(permissions) {
   const allowedActions = ["inspect_without_mutation"];
   if (network === "allowlisted") allowedActions.push("read_allowlisted_resources");
   if (interaction === "human_supervised") allowedActions.push("human_supervised_interaction");
-  if (sourceWrite === "authorized_only") allowedActions.push("write_authorized_files");
-  const forbiddenActions = ["execute_commands"];
+  if (sourceWrite === "authorized_only") {
+    allowedActions.push("write_authorized_files", "execute_authorized_verification_commands");
+  }
+  const commandExecution = sourceWrite === "authorized_only" ? "authorized_verification_only" : "denied";
+  const forbiddenActions = [sourceWrite === "authorized_only" ? "execute_unapproved_commands" : "execute_commands"];
   if (network === "allowlisted") forbiddenActions.push("network_outside_allowlist");
   else forbiddenActions.push("network_access");
   if (sourceWrite === "denied") forbiddenActions.push("write_target");
@@ -402,6 +419,7 @@ function canonicalPermissions(permissions) {
     network,
     interaction,
     source_write: sourceWrite,
+    command_execution: commandExecution,
     allowed_actions: allowedActions.sort(compareText),
     forbidden_actions: forbiddenActions.sort(compareText)
   };
@@ -490,7 +508,7 @@ function assertCurrentOperationalRun(run, resources, operation) {
   }
   const expectedPermissions = canonicalPermissions(runRecord.permissions);
   if (!expectedPermissions || !isDeepStrictEqual(runRecord.permissions, expectedPermissions)) {
-    errors.push("permissions must exactly match the canonical allowed_actions and forbidden_actions for network, interaction, and source_write.");
+    errors.push("permissions must exactly match the canonical command_execution, allowed_actions, and forbidden_actions for network, interaction, and source_write.");
   }
   if (errors.length) {
     throw new Error(`${operation} requires the latest audit-run schema_version ${String(latestSchemaVersion)}. Legacy and other non-latest audit runs are read-only; no implicit upgrade is performed.\n- ${errors.join("\n- ")}`);
@@ -769,10 +787,7 @@ export function validateAuditRun(run, { skillRoot = defaultSkillRoot, runFile } 
   const runResources = registryRecord
     ? { ...resources, orchestrationRegistry: registryRecord.value }
     : resources;
-  const runSchemaEntry = resources.schemaManifests.get("audit-run")?.schemas.get(runRecord.schema_version);
-  const expectedRegistryVersion = runSchemaEntry?.mode === "current"
-    ? resources.orchestrationRegistry.schema_version
-    : runSchemaEntry?.mode === "read_only" ? resources.legacyOrchestrationRegistryVersion : undefined;
+  const expectedRegistryVersion = auditRunRegistryCompatibility.get(runRecord.schema_version);
   if (expectedRegistryVersion && registryVersion !== expectedRegistryVersion) {
     errors.push(`audit-run ${runRecord.schema_version} requires orchestration registry ${expectedRegistryVersion}; received ${String(registryVersion)}.`);
   }
@@ -798,7 +813,7 @@ export function validateAuditRun(run, { skillRoot = defaultSkillRoot, runFile } 
     }
     const expectedPermissions = canonicalPermissions(runRecord.permissions);
     if (expectedPermissions && !isDeepStrictEqual(runRecord.permissions, expectedPermissions)) {
-      errors.push("permissions must exactly match the canonical allowed_actions and forbidden_actions for network, interaction, and source_write.");
+      errors.push("permissions must exactly match the canonical command_execution, allowed_actions, and forbidden_actions for network, interaction, and source_write.");
     }
   }
   let artifactRoot;

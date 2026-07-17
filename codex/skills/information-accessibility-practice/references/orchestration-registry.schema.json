@@ -1,13 +1,13 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:information-accessibility:orchestration-registry:2.0.0",
+  "$id": "urn:information-accessibility:orchestration-registry:3.0.0",
   "title": "Information Accessibility Audit Orchestration Registry",
   "type": "object",
   "additionalProperties": false,
   "required": ["$schema", "schema_version", "roles", "artifact_types", "transitions"],
   "properties": {
     "$schema": { "const": "./orchestration-registry.schema.json" },
-    "schema_version": { "const": "2.0.0" },
+    "schema_version": { "const": "3.0.0" },
     "roles": {
       "type": "array",
       "minItems": 7,
@@ -97,11 +97,64 @@
       }
     },
     "artifact_types": {
-      "type": "array",
-      "minItems": 7,
-      "maxItems": 7,
-      "uniqueItems": true,
-      "items": { "$ref": "#/$defs/artifact_type_manifest" }
+      "const": [
+        {
+          "id": "audit-run",
+          "latest_schema_version": "4.0.0",
+          "schema_versions": [
+            { "version": "1.0.0", "schema_file": "audit-run-1.0.0.schema.json", "mode": "read_only" },
+            { "version": "2.0.0", "schema_file": "audit-run-2.0.0.schema.json", "mode": "read_only" },
+            { "version": "3.0.0", "schema_file": "audit-run-3.0.0.schema.json", "mode": "read_only" },
+            { "version": "4.0.0", "schema_file": "audit-run.schema.json", "mode": "current" }
+          ]
+        },
+        {
+          "id": "screening-observations",
+          "latest_schema_version": "1.0.0",
+          "schema_versions": [
+            { "version": "1.0.0", "schema_file": "screening-observations.schema.json", "mode": "current" }
+          ]
+        },
+        {
+          "id": "human-review-queue",
+          "latest_schema_version": "2.0.0",
+          "schema_versions": [
+            { "version": "1.0.0", "schema_file": "human-review-queue-1.0.0.schema.json", "mode": "read_only" },
+            { "version": "2.0.0", "schema_file": "human-review-queue.schema.json", "mode": "current" }
+          ]
+        },
+        {
+          "id": "declared-human-review",
+          "latest_schema_version": "1.0.0",
+          "schema_versions": [
+            { "version": "1.0.0", "schema_file": "declared-human-review.schema.json", "mode": "current" }
+          ]
+        },
+        {
+          "id": "remediation-plan",
+          "latest_schema_version": "2.0.0",
+          "schema_versions": [
+            { "version": "1.0.0", "schema_file": "remediation-plan-1.0.0.schema.json", "mode": "read_only" },
+            { "version": "2.0.0", "schema_file": "remediation-plan.schema.json", "mode": "current" }
+          ]
+        },
+        {
+          "id": "fix-authorization",
+          "latest_schema_version": "2.0.0",
+          "schema_versions": [
+            { "version": "1.0.0", "schema_file": "fix-authorization-1.0.0.schema.json", "mode": "read_only" },
+            { "version": "2.0.0", "schema_file": "fix-authorization.schema.json", "mode": "current" }
+          ]
+        },
+        {
+          "id": "change-record",
+          "latest_schema_version": "2.0.0",
+          "schema_versions": [
+            { "version": "1.0.0", "schema_file": "change-record-1.0.0.schema.json", "mode": "read_only" },
+            { "version": "2.0.0", "schema_file": "change-record.schema.json", "mode": "current" }
+          ]
+        }
+      ]
     },
     "transitions": {
       "type": "array",

@@ -1,6 +1,6 @@
 {
   "$schema": "./orchestration-registry.schema.json",
-  "schema_version": "3.0.0",
+  "schema_version": "2.0.0",
   "roles": [
     {
       "id": "orchestrator",
@@ -83,12 +83,11 @@
   "artifact_types": [
     {
       "id": "audit-run",
-      "latest_schema_version": "4.0.0",
+      "latest_schema_version": "3.0.0",
       "schema_versions": [
         { "version": "1.0.0", "schema_file": "audit-run-1.0.0.schema.json", "mode": "read_only" },
         { "version": "2.0.0", "schema_file": "audit-run-2.0.0.schema.json", "mode": "read_only" },
-        { "version": "3.0.0", "schema_file": "audit-run-3.0.0.schema.json", "mode": "read_only" },
-        { "version": "4.0.0", "schema_file": "audit-run.schema.json", "mode": "current" }
+        { "version": "3.0.0", "schema_file": "audit-run.schema.json", "mode": "current" }
       ]
     },
     {
@@ -123,18 +122,16 @@
     },
     {
       "id": "fix-authorization",
-      "latest_schema_version": "2.0.0",
+      "latest_schema_version": "1.0.0",
       "schema_versions": [
-        { "version": "1.0.0", "schema_file": "fix-authorization-1.0.0.schema.json", "mode": "read_only" },
-        { "version": "2.0.0", "schema_file": "fix-authorization.schema.json", "mode": "current" }
+        { "version": "1.0.0", "schema_file": "fix-authorization.schema.json", "mode": "current" }
       ]
     },
     {
       "id": "change-record",
-      "latest_schema_version": "2.0.0",
+      "latest_schema_version": "1.0.0",
       "schema_versions": [
-        { "version": "1.0.0", "schema_file": "change-record-1.0.0.schema.json", "mode": "read_only" },
-        { "version": "2.0.0", "schema_file": "change-record.schema.json", "mode": "current" }
+        { "version": "1.0.0", "schema_file": "change-record.schema.json", "mode": "current" }
       ]
     }
   ],
