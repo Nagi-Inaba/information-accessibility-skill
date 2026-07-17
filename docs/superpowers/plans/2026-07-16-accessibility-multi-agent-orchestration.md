@@ -797,6 +797,10 @@ git commit -m "feat: install accessibility agent set atomically"
 
 ### Task 8: Add The Opt-In Authorized Fixer
 
+**Implementation refinement:** Task 8 is executed as three reviewable commits. Task 8A freezes the current registry 2.0.0, audit-run 3.0.0, fix-authorization 1.0.0, and change-record 1.0.0 contracts as read-only, then introduces registry 3.0.0, audit-run 4.0.0, and payload 2.0.0 contracts without inferring new permissions for legacy artifacts. Task 8B adds the authorization, transaction, verification-command, lease, and retest-run runtime. Task 8C adds the non-default fixer agent and opt-in installation. This version boundary is required because existing run 3.0.0 manifests bind the exact registry 2.0.0 hash; changing that registry in place would invalidate previous runs.
+
+The fixer does not freely edit and then draft its own evidence. A deterministic transaction CLI validates an externally declared authorization, acquires the source-root lease, applies only the authorized operation, runs only authorization-sourced structured verification commands with `shell: false`, writes a measured change-record artifact, records authorization consumption, and releases the lease. The orchestrator registers that completed artifact after the lease is released. Legacy authorization and change-record payloads remain readable but cannot authorize current writes.
+
 **Files:**
 
 - Modify: `shared/agents/agent-manifest.json`
