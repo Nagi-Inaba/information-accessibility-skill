@@ -61,9 +61,36 @@ The same targeted command after implementation completed with 65 tests, 65 passe
 
 The two skipped distribution tests require Windows symbolic-link creation and reported `EPERM`; all executable tests in the current permissions passed.
 
+## Standards review repair
+
+A follow-up standards review found that the initial SC 4.1.2 procedure could record a false pass when a component exposed and announced an ordinary interaction change but rejected programmatic setting through assistive technology or an accessibility API.
+
+The repair base was `54473634ee48ba38c20abdc9d16c5baa68aa5557`.
+
+Tests were changed before the catalog.
+
+The targeted RED run executed 65 tests, passed 64, and failed only the new assertion requiring an explicit programmatic-set attempt through an accessibility interface.
+
+The repaired SC 4.1.2 record now:
+
+- attempts to programmatically set every applicable user-settable value, state, or property through assistive technology, an accessibility API client, or an equivalent accessibility interface;
+- records the current and requested setting before the attempt and the resulting setting after it;
+- treats the absence of an applicable accessibility-interface control path as `cant_tell`;
+- requires programmatic-set capability and change notification as separate conditions;
+- includes a passing example where the set request succeeds and a failing example where a pointer-driven change is exposed and announced but the accessibility API set request fails; and
+- keeps status-message-only behavior under SC 4.1.3 and preserves the AI-to-human boundary.
+
+The repaired targeted run passed 65 of 65 tests.
+
+The full suite passed 208 tests, failed 0, and skipped the same 2 Windows symbolic-link tests.
+
+The final mechanical review confirmed the required set step, requested/resulting before/after evidence, separate notification step, unavailable-control-path `cant_tell`, pass/fail distinction, and absence of DOM or page-script mutation shortcuts.
+
 ## Review and residual risk
 
-The local code-review pass found no scope, correctness, or regression issue in the final diff.
+The initial local review missed the programmatic-set gap described above.
+
+The follow-up review finding is repaired, and the final code-review pass found no remaining scope, correctness, or regression issue in the repaired diff.
 
 The catalog remains intentionally partial at four criterion procedures, so the claim ceiling remains `evaluated_subset`.
 

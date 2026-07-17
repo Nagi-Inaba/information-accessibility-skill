@@ -83,13 +83,36 @@ test("SC 4.1.2 exposes a component semantics and change-exposure human review pr
   assert.ok(procedure.applicability_steps.some((step) => /native|custom|component/i.test(step)));
   assert.ok(procedure.procedure_steps.some((step) => /DOM|accessibility tree/i.test(step)));
   assert.match(procedure.procedure_steps.join(" "), /before.*after/i);
+  const programmaticSetStep = procedure.procedure_steps.find((step) =>
+    /attempt.*programmatically set/i.test(step)
+    && /assistive technology|accessibility API|accessibility interface/i.test(step)
+  );
+  assert.ok(programmaticSetStep, "SC 4.1.2 must attempt a programmatic set through an accessibility interface");
+  assert.doesNotMatch(programmaticSetStep, /DOM mutation|script mutation|page script/i);
+  assert.ok(procedure.procedure_steps.some((step) =>
+    /before.*requested.*resulting.*after/i.test(step)
+    && /value|state|property/i.test(step)
+  ));
   assert.ok(procedure.expected_results.some((result) => /name|role/i.test(result)));
   assert.ok(procedure.expected_results.some((result) => /state|property|value|change/i.test(result)));
   assert.deepEqual(procedure.required_evidence_types, ["browser_inspection", "assistive_technology_test"]);
   assert.ok(procedure.cant_tell_when.some((condition) => /accessibility-tree exposure|component behavior|assistive-technology notification/i.test(condition)));
+  assert.ok(procedure.cant_tell_when.some((condition) =>
+    /assistive-technology|accessibility API|accessibility interface/i.test(condition)
+    && /control path|programmatic set|set operation/i.test(condition)
+  ));
   assert.equal(procedure.counterexamples.pass.length > 0, true);
   assert.equal(procedure.counterexamples.fail.length > 0, true);
   assert.equal(procedure.counterexamples.cant_tell.length > 0, true);
+  assert.ok(procedure.counterexamples.pass.some((example) =>
+    /programmatically set|set request/i.test(example)
+    && /assistive technology|accessibility API|accessibility interface/i.test(example)
+    && /notification|announced|exposed/i.test(example)
+  ));
+  assert.ok(procedure.counterexamples.fail.some((example) =>
+    /notification|announced|exposed/i.test(example)
+    && /cannot be programmatically set|rejects.*set request|set request.*fails/i.test(example)
+  ));
   assert.ok(procedure.procedure_steps.some((step) => /4\.1\.3|status message|separate/i.test(step)));
   assert.match(procedure.ai_boundary, /must not record a profile outcome/i);
 });

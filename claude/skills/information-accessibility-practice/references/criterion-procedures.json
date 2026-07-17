@@ -166,18 +166,21 @@
       ],
       "applicability_steps": [
         "Inventory native and custom user interface components in the fixed scope, including components that appear only after permitted interaction or in a changed state.",
-        "For each component, identify its visible purpose, expected role, user-settable value, state, or property, and the changes that users must perceive during operation.",
-        "Identify components whose DOM or accessibility-tree exposure cannot be inspected in the permitted environment and keep status-message-only behavior under SC 4.1.3 outside this procedure."
+        "For each component, identify its visible purpose, expected role, every applicable user-settable value, state, or property, and the assistive-technology, accessibility API, or equivalent accessibility-interface control path that can request each setting.",
+        "Identify components whose DOM or accessibility-tree exposure, applicable programmatic-set control path, or change behavior cannot be inspected in the permitted environment, and keep status-message-only behavior under SC 4.1.3 outside this procedure."
       ],
       "procedure_steps": [
         "Before interaction, inspect each native and custom component in the DOM and accessibility tree and record its programmatic name, role, and current user-settable values, states, or properties.",
         "Perform each permitted interaction, then inspect the DOM and accessibility tree after the change and compare the exposed name, role, value, state, and property with the component's visible behavior.",
-        "Observe whether changes to user-settable values, states, or properties are available to user agents, including assistive technology, and record the interaction, prior exposure, changed exposure, and notification observed.",
+        "For every applicable user-settable value, state, or property, use assistive technology, an accessibility API client, or an equivalent accessibility interface to attempt to programmatically set a distinct permitted setting through that interface.",
+        "Before each programmatic-set attempt, record the current value, state, or property and the requested setting; record the resulting value, state, or property after the attempt, whether the requested setting took effect, and the programmatic and visible observations.",
+        "Separately observe whether each change is exposed and notified to user agents, including assistive technology, and record the prior exposure, changed exposure, and notification observed.",
         "Record status-message-only behavior separately under SC 4.1.3; do not use a status message by itself as evidence for this component name, role, value, state, or property procedure."
       ],
       "expected_results": [
         "Each applicable component exposes a programmatically determinable name and role that match its purpose in the reviewed state.",
-        "Values, states, and properties that users can set are programmatically settable, and their changes are exposed to user agents including assistive technology.",
+        "Every applicable user-settable value, state, or property accepts the requested permitted setting through assistive technology, an accessibility API, or an equivalent accessibility interface and exposes the resulting setting.",
+        "Changes to applicable values, states, and properties are separately exposed and notified to user agents, including assistive technology.",
         "Native and custom components preserve accurate programmatic exposure before and after each permitted interaction."
       ],
       "required_evidence_types": [
@@ -186,19 +189,20 @@
       ],
       "cant_tell_when": [
         "The component's accessibility-tree exposure, interactive behavior, or assistive-technology notification cannot be observed in the permitted environment.",
+        "No applicable assistive-technology, accessibility API, or equivalent accessibility-interface control path is available to issue and observe a programmatic set operation.",
         "A required state or change cannot be triggered, so the reviewer cannot compare the component before and after interaction."
       ],
       "counterexamples": {
         "pass": [
-          "A custom disclosure exposes its label and button role before activation, updates its expanded state after activation, and the changed state is available to assistive technology.",
-          "A native range input exposes its label, role, current value, and updated value when the reviewer changes it through a permitted interaction."
+          "An accessibility API set request programmatically sets a custom slider from 20 to 40, the resulting value is exposed as 40, and the change notification is announced to assistive technology.",
+          "A custom disclosure exposes its label and button role, accepts an assistive-technology request to set its expanded state, exposes the requested resulting state, and notifies the state change."
         ],
         "fail": [
-          "A custom toggle changes visually but exposes only a generic container role and never updates a programmatic checked or pressed state.",
+          "A custom toggle's changed state is exposed and its notification is announced after pointer operation, but an accessibility API set request fails and the state cannot be programmatically set through the accessibility interface.",
           "An icon-only custom control performs an action but has no programmatically determinable name describing its purpose."
         ],
         "cant_tell": [
-          "A recording shows a custom control changing visually, but the reviewer cannot inspect its DOM or accessibility-tree exposure or observe an assistive-technology notification."
+          "A custom control's value is visible in the accessibility tree, but no permitted assistive-technology or accessibility API control path is available to issue and observe a set request."
         ]
       },
       "ai_boundary": "AI may inventory candidate components, compare captured DOM or accessibility-tree states, or draft review questions, but it must not record a profile outcome, human_verified mapping, or E2+ claim; an external human reviewer records any criterion result with target-specific browser and assistive-technology evidence."
