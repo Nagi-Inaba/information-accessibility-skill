@@ -104,7 +104,7 @@ function envelope(overrides = {}) {
   };
 }
 
-test("Task 9A freezes registry 3, audit-run 4, and envelope 1 byte-for-byte", () => {
+test("Task 9A freezes registry 3, audit-run 4, and envelope 1 across line-ending conventions", () => {
   const frozenHashes = [
     ["orchestration-registry-3.0.0.json", "f57534c1e430050b6f559d6ae5859171487647346c13624aa58fc18127ed2864"],
     ["orchestration-registry-3.0.0.schema.json", "19903e95a727cca2b4002fa9c9d35b1cf0ddc4d4ac4d658cd28c7820f45b4105"],
@@ -112,8 +112,7 @@ test("Task 9A freezes registry 3, audit-run 4, and envelope 1 byte-for-byte", ()
     ["audit-artifact-envelope-1.0.0.schema.json", "37d60f9882298141a61e5764c1e8efdd9530e128d89b78658e01941d3c508f9b"]
   ];
   for (const [frozen, expectedSha256] of frozenHashes) {
-    const bytes = fs.readFileSync(path.join(references, frozen));
-    assert.equal(crypto.createHash("sha256").update(bytes).digest("hex"), expectedSha256, frozen);
+    assert.equal(sha256NormalizedText(path.join(references, frozen)), expectedSha256, frozen);
   }
   assert.equal(readJson(path.join(references, "orchestration-registry-3.0.0.json")).schema_version, "3.0.0");
   assert.equal(readJson(path.join(references, "audit-run-4.0.0.schema.json")).properties.schema_version.const, "4.0.0");

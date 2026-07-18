@@ -18,10 +18,12 @@ This version treats the following two layers separately:
 ```text
 codex/
   skills/information-accessibility-practice/
+    package.json
     agents/openai.yaml
     assets/audit-report.template.md
     assets/assessment-record.template.json
     assets/waic-publication.template.md
+    scripts/accessibility-audit.mjs
     scripts/generate-assessment.mjs
     scripts/render-audit-report.mjs
     scripts/show-requirement.mjs
@@ -34,7 +36,9 @@ codex/
     information-accessibility-remediation-planner.toml
 claude/
   skills/information-accessibility-practice/
+    package.json
     assets/assessment-record.template.json
+    scripts/accessibility-audit.mjs
     scripts/generate-assessment.mjs
     scripts/render-audit-report.mjs
     scripts/show-requirement.mjs
@@ -52,6 +56,7 @@ tests/claim-guard.test.mjs
 tests/audit-workflow.test.mjs
 tests/audit-report.test.mjs
 tests/install-codex.test.mjs
+tests/unified-cli.test.mjs
 ```
 
 Each skill contains the reference files it reads at runtime.
@@ -107,6 +112,48 @@ references/
 The skill selects the reference files needed for the target and uses them as concrete review criteria.
 
 ## Usage
+
+### Unified CLI
+
+`accessibility-audit` is the common entry point for the existing scripts that manage audit runs, assessment records, registered artifacts, and reports.
+It does not reimplement audit logic. It forwards arguments to fixed installed scripts with `shell: false`, preserving the same validation, no-overwrite behavior, and evidence boundaries as the individual CLIs.
+
+Install the command from the skill folder.
+
+```powershell
+npm install --global .\codex\skills\information-accessibility-practice
+accessibility-audit --help
+```
+
+Without a global installation, run the same entry point through Node.js.
+
+```powershell
+node .\codex\skills\information-accessibility-practice\scripts\accessibility-audit.mjs --help
+```
+
+| Command | Purpose |
+| --- | --- |
+| `init` | Create a new audit run with a fixed target, version, scope, and permissions |
+| `assessment` | Create a complete assessment with every requirement initialized as `not_tested` |
+| `requirement` | Show one registered requirement and its review method |
+| `validate-run` | Validate an audit run and write a separate validation record |
+| `validate-assessment` | Validate an assessment and its claim ceiling |
+| `register` | Register a validated artifact in a new run version |
+| `merge` | Merge registered artifacts into a new assessment |
+| `report` | Create a new Markdown report from a validated assessment |
+| `retest` | Create a new post-change run without overwriting the predecessor |
+
+A minimal standalone assessment uses these three commands.
+
+```powershell
+accessibility-audit assessment --profile web-modern --target-name "Example" --target-version "2026-07-18" --target-ref "https://example.com/" --evaluator "external-human-review-required" --evaluated-at "2026-07-18" --output .\audit.json
+accessibility-audit validate-assessment .\audit.json
+accessibility-audit report --input .\audit.json --output .\audit-report.md
+```
+
+The standard CLI does not expose a command that mutates audited source.
+Mutation remains available only through the separately installed authorized fixer when an external authorization fixes the target, change, before and after SHA-256 values, and verification commands.
+`retest` requires `--supersedes-run` and starts a fresh audit without carrying prior evidence or outcomes forward.
 
 Run an audit with a standards profile in this order:
 
@@ -270,6 +317,7 @@ node --test ".\tests\audit-workflow.test.mjs"
 node --test ".\tests\criterion-procedures.test.mjs"
 node --test ".\tests\audit-report.test.mjs"
 node --test ".\tests\install-codex.test.mjs"
+node --test ".\tests\unified-cli.test.mjs"
 node ".\scripts\build-criteria-catalog.mjs" --check
 ```
 

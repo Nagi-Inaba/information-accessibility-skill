@@ -1,0 +1,14 @@
+{
+  "name": "information-accessibility-practice-cli",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Thin, claim-safe CLI for the information accessibility audit runtime.",
+  "type": "module",
+  "bin": {
+    "accessibility-audit": "./scripts/accessibility-audit.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT"
+}
