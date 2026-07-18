@@ -965,7 +965,7 @@ test("latest-only operational gate rejects legacy runs in direct artifact regist
   );
 }));
 
-test("legacy Task 4 declared-human runs remain readable without retroactive current binding eligibility", (t) => withTemp(t, ({ temp, artifactRoot }) => {
+test("legacy declared-human runs remain readable without retroactive current binding eligibility", (t) => withTemp(t, ({ temp, artifactRoot }) => {
   const fixture = makeHumanReviewRun(artifactRoot);
   const screen = readJson(fixture.screenFile);
   downgradeScreeningEnvelopeToV1(screen);

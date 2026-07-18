@@ -93,7 +93,7 @@ test("specialist metadata promises candidate output rather than validation", () 
   }
 });
 
-test("public reviewer remains the broad entry and orchestrates the Task 5 runtime", () => {
+test("public reviewer remains the broad entry and orchestrates the current runtime", () => {
   const manifest = readJson("shared/agents/agent-manifest.json");
   const reviewer = manifest.agents.find((agent) => agent.id === "information-accessibility-reviewer");
   const body = sharedBody("information-accessibility-reviewer");
