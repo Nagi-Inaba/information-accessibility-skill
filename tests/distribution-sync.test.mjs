@@ -168,6 +168,19 @@ test("distribution sync renders every manifest agent for Codex and Claude", () =
   }
 });
 
+test("authorized fixer distribution is read-only and exposes no generic command or write tool", () => {
+  const manifest = readJson("shared/agents/agent-manifest.json");
+  const fixer = manifest.agents.find((agent) => agent.id === "information-accessibility-authorized-fixer");
+  assert.ok(fixer);
+  assert.equal(fixer.codex.sandbox_mode, "read-only");
+  assert.deepEqual(fixer.claude.tools, ["Read", "Grep", "Glob"]);
+
+  const codex = fs.readFileSync(path.join(root, "codex/agents/information-accessibility-authorized-fixer.toml"), "utf8");
+  const claude = parseClaudeFrontmatter(fs.readFileSync(path.join(root, "claude/agents/information-accessibility-authorized-fixer.md"), "utf8"));
+  assert.match(codex, /^sandbox_mode = "read-only"$/mu);
+  assert.deepEqual(claude.values.tools, ["Read", "Grep", "Glob"]);
+});
+
 test("package verification reports manifest-derived agent counts", () => {
   const manifest = readJson("shared/agents/agent-manifest.json");
   const verification = runNode("scripts/verify-package.mjs");

@@ -22,9 +22,67 @@ const acquireFixLeaseScript = path.join(skillRoot, "scripts/acquire-fix-lease.mj
 const releaseFixLeaseScript = path.join(skillRoot, "scripts/release-fix-lease.mjs");
 const fixTransactionLib = path.join(skillRoot, "scripts/lib/fix-transaction.mjs");
 const applyAuthorizedFixScript = path.join(skillRoot, "scripts/apply-authorized-fix.mjs");
+const agentManifest = path.join(root, "shared/agents/agent-manifest.json");
+const authorizedFixerBody = path.join(root, "shared/agents/information-accessibility-authorized-fixer.md");
 const resources = loadAuditResources(skillRoot);
 
 const RUN_ID = "RUN-20260718T100000Z-TEST0001";
+
+test("authorized fixer remains opt-in and declares every runtime trust boundary", () => {
+  const manifest = JSON.parse(fs.readFileSync(agentManifest, "utf8"));
+  const agent = manifest.agents.find((entry) => entry.id === "information-accessibility-authorized-fixer");
+  assert.ok(agent);
+  assert.equal(agent.install_by_default, false);
+  assert.equal(agent.codex.sandbox_mode, "read-only");
+  assert.deepEqual(agent.claude.tools, ["Read", "Grep", "Glob"]);
+
+  const body = fs.readFileSync(authorizedFixerBody, "utf8");
+  for (const pattern of [
+    /exact(?:ly)? validated external authorization/i,
+    /exclusive (?:operator control|control of the source tree)/i,
+    /host[- ]protected consumption ledger/i,
+    /not a kernel sandbox/i,
+    /preserve unrelated changes/i,
+    /do not (?:invoke|run|use).*(?:arbitrary|unapproved).*(?:shell|interpreter|command)/i,
+    /apply-authorized-fix\.mjs/i,
+    /do not (?:record|claim).*(?:pass|fail)/i,
+    /human_verified/i,
+    /\bE2\b/i,
+    /conformance/i,
+    /retest_required/i,
+    /do not (?:create|issue|invent).*(?:authorization|approval)/i
+  ]) {
+    assert.match(body, pattern);
+  }
+
+  assert.doesNotMatch(body, /--expected-after-sha256/u);
+  for (const flag of [
+    "--authorization",
+    "--run",
+    "--source-root",
+    "--operation",
+    "--target",
+    "--description",
+    "--command-id",
+    "--lock-dir",
+    "--output"
+  ]) {
+    assert.match(body, new RegExp(flag, "u"), `prompt must include required ${flag}`);
+  }
+  assert.match(body, /after SHA-256.*authorization.*change binding/i);
+  assert.match(body, /do not execute.*apply-authorized-fix\.mjs/i);
+  assert.match(body, /trusted (?:operator|orchestrator)/i);
+});
+
+test("public guidance describes the current read-only handoff without development history", () => {
+  const readme = fs.readFileSync(path.join(root, "README.md"), "utf8");
+  const orchestration = fs.readFileSync(path.join(references, "agent-orchestration.md"), "utf8");
+  for (const text of [readme, orchestration]) {
+    assert.match(text, /authorized fixer[^]*(?:read-only|generic command or write access)[^]*trusted (?:operator|orchestrator)/i);
+    assert.match(text, /-IncludeAuthorizedFixer/i);
+  }
+  assert.doesNotMatch(readme, /Task\s+8|after Task|not yet included|not included yet/i);
+});
 
 function runNode(script, args) {
   return spawnSync(process.execPath, [script, ...args], { encoding: "utf8" });

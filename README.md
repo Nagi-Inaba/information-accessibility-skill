@@ -150,7 +150,7 @@ powershell -ExecutionPolicy Bypass -File ".\scripts\install-codex.ps1"
 
 インストーラーは既存パスの最終パスとファイルIDを置換直前まで再検査し、同じ親ディレクトリ内の rename で切り替えます。ただし、別プロセスが同じファイル内容を同時に書き換える競合をOSレベルでロックするものではありません。インストール中は、別のインストーラーや手作業で同じスキルとエージェントを変更しないでください。
 
-`information-accessibility-authorized-fixer` は既定では導入されません。Task 8でマニフェストへ追加された後だけ、`-IncludeAuthorizedFixer` を明示して導入できます。現行パッケージでこのスイッチを指定すると、fixerが未収録であるためインストーラーは拒否します。
+authorized fixer `information-accessibility-authorized-fixer` は既定では導入されません。`-IncludeAuthorizedFixer` を明示した場合だけ導入されるread-onlyの引渡しエージェントであり、汎用コマンド権限や直接書込み権限を持ちません。外部認可、対象、変更内容、検証コマンドを確認して構造化された引渡しを作成し、実変更はtrusted operatorが決定的トランザクションruntimeを使って実行します。
 
 Claude で使う場合:
 

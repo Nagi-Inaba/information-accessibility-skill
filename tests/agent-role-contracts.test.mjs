@@ -16,9 +16,11 @@ const expectedAgentIds = [
   "information-accessibility-reviewer",
   "information-accessibility-e1-inspector",
   "information-accessibility-human-queue-planner",
-  "information-accessibility-remediation-planner"
+  "information-accessibility-remediation-planner",
+  "information-accessibility-authorized-fixer"
 ];
-const specialistIds = expectedAgentIds.slice(1);
+const specialistIds = expectedAgentIds.slice(1, expectedAgentIds.length - 1);
+const nonDefaultAgentId = "information-accessibility-authorized-fixer";
 
 function read(relativePath) {
   return fs.readFileSync(path.join(root, relativePath), "utf8");
@@ -44,20 +46,29 @@ function assertReadOnlyBoundary(body, id) {
   assert.match(body, /audit-artifact-envelope\.schema\.json/i, `${id} must use the installed artifact envelope`);
 }
 
-test("manifest installs exactly the registry-declared read-only agent set", () => {
+test("manifest packages the declared agent set while registry defaults remain read-only", () => {
   const manifest = readJson("shared/agents/agent-manifest.json");
   const registry = readJson("codex/skills/information-accessibility-practice/references/orchestration-registry.json");
   const installedRegistryIds = registry.roles
     .filter((role) => role.install_by_default)
     .map((role) => role.agent_id);
 
-  assert.deepEqual(installedRegistryIds, expectedAgentIds);
   assert.deepEqual(manifest.agents.map((agent) => agent.id), expectedAgentIds);
+  assert.deepEqual(installedRegistryIds, [
+    "information-accessibility-reviewer",
+    "information-accessibility-e1-inspector",
+    "information-accessibility-human-queue-planner",
+    "information-accessibility-remediation-planner"
+  ]);
   assert.equal(manifest.agents.filter((agent) => agent.install_by_default).length, 4);
-  assert.equal(manifest.agents.some((agent) => agent.id === "information-accessibility-authorized-fixer"), false);
+  assert.equal(manifest.agents.some((agent) => agent.id === nonDefaultAgentId), true);
 
   for (const agent of manifest.agents) {
-    assert.equal(agent.install_by_default, true, `${agent.id} must be installed by default`);
+    if (agent.id === nonDefaultAgentId) {
+      assert.equal(agent.install_by_default, false, `${agent.id} is opt-in`);
+    } else {
+      assert.equal(agent.install_by_default, true, `${agent.id} must be installed by default`);
+    }
     assert.equal(agent.body_file, `${agent.id}.md`);
     assert.equal(fs.existsSync(path.join(sharedAgentRoot, agent.body_file)), true, `${agent.body_file} must exist`);
   }
@@ -113,15 +124,18 @@ test("public reviewer remains the broad entry and orchestrates the Task 5 runtim
   assert.match(body, /must not modify the audited target/i);
 });
 
-test("manifest removes direct editing from the reviewer and all writing from specialists", () => {
+test("manifest keeps read-only specialists non-writing and grants write only to controlled roles", () => {
   const manifest = readJson("shared/agents/agent-manifest.json");
   const reviewer = manifest.agents.find((agent) => agent.id === "information-accessibility-reviewer");
+  const authorizedFixer = manifest.agents.find((agent) => agent.id === nonDefaultAgentId);
 
   assert.deepEqual(reviewer.claude.tools, ["Read", "Grep", "Glob", "Bash", "Write"]);
   for (const id of specialistIds) {
     const specialist = manifest.agents.find((agent) => agent.id === id);
     assert.deepEqual(specialist.claude.tools, ["Read", "Grep", "Glob", "Bash"], `${id} must not receive Write or Edit`);
   }
+  assert.deepEqual(authorizedFixer.claude.tools, ["Read", "Grep", "Glob"]);
+  assert.equal(authorizedFixer.codex.sandbox_mode, "read-only");
 });
 
 test("all specialist bodies declare the shared read-only evidence boundary", () => {
@@ -236,7 +250,7 @@ test("all agent bodies separate installed control-plane CLIs from untrusted comm
   }
 });
 
-test("all four generated Codex and Claude agents equal their shared bodies", () => {
+test("all generated Codex and Claude agents equal their shared bodies", () => {
   for (const id of expectedAgentIds) {
     const source = sharedBody(id);
     const codex = extractCodexBody(read(path.join("codex", "agents", `${id}.toml`)));

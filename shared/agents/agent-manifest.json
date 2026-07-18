@@ -32,6 +32,14 @@
       "body_file": "information-accessibility-remediation-planner.md",
       "codex": { "model_reasoning_effort": "medium" },
       "claude": { "tools": ["Read", "Grep", "Glob", "Bash"], "model": "sonnet", "effort": "medium" }
+    },
+    {
+      "id": "information-accessibility-authorized-fixer",
+      "description": "Prepares a validated authorized-fix handoff for trusted operator execution without generic command or write access.",
+      "install_by_default": false,
+      "body_file": "information-accessibility-authorized-fixer.md",
+      "codex": { "model_reasoning_effort": "medium", "sandbox_mode": "read-only" },
+      "claude": { "tools": ["Read", "Grep", "Glob"], "model": "sonnet", "effort": "medium" }
     }
   ]
 }

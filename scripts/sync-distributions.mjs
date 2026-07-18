@@ -212,6 +212,7 @@ function validateManifestSchemaContract(schema, errors) {
     [agent?.properties?.install_by_default?.type === "boolean", "install_by_default must be a boolean"],
     [agent?.properties?.body_file?.type === "string" && typeof agent?.properties?.body_file?.pattern === "string", "body_file must be a constrained string"],
     [codex?.type === "object" && codex?.additionalProperties === false && codex?.required?.includes("model_reasoning_effort") && codex?.properties?.model_reasoning_effort?.type === "string", "codex metadata must require model_reasoning_effort"],
+    [codex?.properties?.sandbox_mode?.type === "string" && codex?.properties?.sandbox_mode?.enum?.includes("read-only"), "codex metadata must support an optional read-only sandbox_mode"],
     [claude?.type === "object" && claude?.additionalProperties === false && ["tools", "model", "effort"].every((field) => claude?.required?.includes(field)), "claude metadata must require tools, model, and effort"],
     [claude?.properties?.tools?.type === "array" && claude?.properties?.tools?.items?.type === "string", "claude tools must be an array of strings"],
     [claude?.properties?.model?.type === "string" && claude?.properties?.effort?.type === "string", "claude model and effort must be strings"]
@@ -289,13 +290,16 @@ function escapedJsonString(value) {
 
 function renderCodexAgent(agent, body) {
   const eol = sourceLineEnding(body);
-  return [
+  const lines = [
     `description = ${escapedJsonString(agent.description)}`,
     `developer_instructions = ${escapedJsonString(withoutFinalLineEnding(body))}`,
-    `model_reasoning_effort = ${escapedJsonString(agent.codex.model_reasoning_effort)}`,
-    `name = ${escapedJsonString(agent.id)}`,
-    ""
-  ].join(eol);
+    `model_reasoning_effort = ${escapedJsonString(agent.codex.model_reasoning_effort)}`
+  ];
+  if (agent.codex.sandbox_mode !== undefined) {
+    lines.push(`sandbox_mode = ${escapedJsonString(agent.codex.sandbox_mode)}`);
+  }
+  lines.push(`name = ${escapedJsonString(agent.id)}`, "");
+  return lines.join(eol);
 }
 
 function renderClaudeAgent(agent, body) {

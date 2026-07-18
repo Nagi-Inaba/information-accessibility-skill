@@ -33,6 +33,10 @@
               "model_reasoning_effort": {
                 "type": "string",
                 "enum": ["low", "medium", "high"]
+              },
+              "sandbox_mode": {
+                "type": "string",
+                "enum": ["read-only", "workspace-write"]
               }
             }
           },
