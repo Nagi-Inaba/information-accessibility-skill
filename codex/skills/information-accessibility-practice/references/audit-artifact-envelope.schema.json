@@ -1,14 +1,14 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:information-accessibility:audit-artifact-envelope:1.0.0",
-  "title": "Information Accessibility Audit Artifact Envelope",
+  "$id": "urn:information-accessibility:audit-artifact-envelope:2.0.0",
+  "title": "Extensible Information Accessibility Audit Artifact Envelope",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema_version", "artifact_id", "artifact_type", "run_id", "producer", "created_at", "inputs", "payload"],
   "properties": {
-    "schema_version": { "const": "1.0.0" },
+    "schema_version": { "const": "2.0.0" },
     "artifact_id": { "$ref": "#/$defs/artifact_id" },
-    "artifact_type": { "enum": ["audit-run", "screening-observations", "human-review-queue", "declared-human-review", "remediation-plan", "fix-authorization", "change-record"] },
+    "artifact_type": { "$ref": "#/$defs/artifact_type" },
     "run_id": { "$ref": "#/$defs/run_id" },
     "producer": {
       "type": "object",
@@ -37,27 +37,12 @@
     },
     "payload": { "type": "object" }
   },
-  "allOf": [
-    { "if": { "properties": { "artifact_type": { "const": "audit-run" } }, "required": ["artifact_type"] }, "then": { "properties": { "producer": { "$ref": "#/$defs/orchestrator_producer" } } } },
-    { "if": { "properties": { "artifact_type": { "const": "screening-observations" } }, "required": ["artifact_type"] }, "then": { "properties": { "producer": { "$ref": "#/$defs/e1_producer" } } } },
-    { "if": { "properties": { "artifact_type": { "const": "human-review-queue" } }, "required": ["artifact_type"] }, "then": { "properties": { "producer": { "$ref": "#/$defs/human_queue_producer" } } } },
-    { "if": { "properties": { "artifact_type": { "const": "declared-human-review" } }, "required": ["artifact_type"] }, "then": { "properties": { "producer": { "$ref": "#/$defs/external_human_producer" } } } },
-    { "if": { "properties": { "artifact_type": { "const": "remediation-plan" } }, "required": ["artifact_type"] }, "then": { "properties": { "producer": { "$ref": "#/$defs/remediation_producer" } } } },
-    { "if": { "properties": { "artifact_type": { "const": "fix-authorization" } }, "required": ["artifact_type"] }, "then": { "properties": { "producer": { "$ref": "#/$defs/authorizer_producer" } } } },
-    { "if": { "properties": { "artifact_type": { "const": "change-record" } }, "required": ["artifact_type"] }, "then": { "properties": { "producer": { "$ref": "#/$defs/fixer_producer" } } } }
-  ],
   "$defs": {
     "run_id": { "type": "string", "pattern": "^RUN-[0-9]{8}T[0-9]{6}Z-[A-Z0-9]{8}$" },
     "artifact_id": { "type": "string", "pattern": "^ART-[A-Z0-9][A-Z0-9-]{2,63}$" },
+    "artifact_type": { "type": "string", "pattern": "^[a-z][a-z0-9-]{2,63}$" },
     "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
     "timestamp": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$" },
-    "role": { "enum": ["orchestrator", "e1_inspector", "human_queue_planner", "declared_external_human", "remediation_planner", "declared_authorizer", "authorized_fixer"] },
-    "orchestrator_producer": { "properties": { "role_id": { "const": "orchestrator" }, "producer_kind": { "const": "ai_agent" } } },
-    "e1_producer": { "properties": { "role_id": { "const": "e1_inspector" }, "producer_kind": { "const": "ai_agent" } } },
-    "human_queue_producer": { "properties": { "role_id": { "const": "human_queue_planner" }, "producer_kind": { "const": "ai_agent" } } },
-    "external_human_producer": { "properties": { "role_id": { "const": "declared_external_human" }, "producer_kind": { "const": "external_human" } } },
-    "remediation_producer": { "properties": { "role_id": { "const": "remediation_planner" }, "producer_kind": { "const": "ai_agent" } } },
-    "authorizer_producer": { "properties": { "role_id": { "const": "declared_authorizer" }, "producer_kind": { "const": "external_requester" } } },
-    "fixer_producer": { "properties": { "role_id": { "const": "authorized_fixer" }, "producer_kind": { "const": "ai_agent" } } }
+    "role": { "type": "string", "pattern": "^[a-z][a-z0-9_]{2,63}$" }
   }
 }

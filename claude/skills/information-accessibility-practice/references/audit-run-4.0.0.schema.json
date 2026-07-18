@@ -1,12 +1,12 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:information-accessibility:audit-run:5.0.0",
+  "$id": "urn:information-accessibility:audit-run:4.0.0",
   "title": "Immutable Information Accessibility Audit Run",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema_version", "run_id", "supersedes_run_id", "status", "target", "profile", "scope", "environment", "permissions", "resource_versions", "artifact_root", "artifacts", "history", "limitations"],
   "properties": {
-    "schema_version": { "const": "5.0.0" },
+    "schema_version": { "const": "4.0.0" },
     "run_id": { "$ref": "#/$defs/run_id" },
     "supersedes_run_id": { "type": ["string", "null"], "pattern": "^RUN-[0-9]{8}T[0-9]{6}Z-[A-Z0-9]{8}$" },
     "status": { "$ref": "#/$defs/status" },
@@ -123,9 +123,9 @@
     "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
     "timestamp": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$" },
     "relative_path": { "type": "string", "pattern": "^(?![A-Za-z][A-Za-z0-9+.-]*:)(?![\\\\/])(?!.*(?:^|[\\\\/])\\.\\.(?:[\\\\/]|$))[^\\u0000-\\u001F]+$" },
-    "status": { "type": "string", "pattern": "^[a-z][a-z0-9_]{2,63}$" },
-    "role": { "type": "string", "pattern": "^[a-z][a-z0-9_]{2,63}$" },
-    "artifact_type": { "type": "string", "pattern": "^[a-z][a-z0-9-]{2,63}$" },
+    "status": { "enum": ["initialized", "screened", "human_queue_ready", "human_review_recorded", "remediation_ready", "fix_authorized", "retest_required"] },
+    "role": { "enum": ["orchestrator", "e1_inspector", "human_queue_planner", "declared_external_human", "remediation_planner", "declared_authorizer", "authorized_fixer"] },
+    "artifact_type": { "enum": ["screening-observations", "human-review-queue", "declared-human-review", "remediation-plan", "fix-authorization", "change-record"] },
     "artifact": {
       "type": "object",
       "additionalProperties": false,
@@ -145,12 +145,20 @@
       "additionalProperties": false,
       "required": ["from", "to", "at", "actor_role", "artifact_ids"],
       "properties": {
-        "from": { "$ref": "#/$defs/status" },
+        "from": { "enum": ["initialized", "screened", "human_queue_ready", "human_review_recorded", "remediation_ready", "fix_authorized"] },
         "to": { "$ref": "#/$defs/status" },
         "at": { "$ref": "#/$defs/timestamp" },
         "actor_role": { "$ref": "#/$defs/role" },
         "artifact_ids": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/artifact_id" } }
-      }
+      },
+      "allOf": [
+        { "if": { "properties": { "from": { "const": "initialized" } }, "required": ["from"] }, "then": { "properties": { "to": { "const": "screened" } } } },
+        { "if": { "properties": { "from": { "const": "screened" } }, "required": ["from"] }, "then": { "properties": { "to": { "const": "human_queue_ready" } } } },
+        { "if": { "properties": { "from": { "const": "human_queue_ready" } }, "required": ["from"] }, "then": { "properties": { "to": { "enum": ["human_review_recorded", "remediation_ready"] } } } },
+        { "if": { "properties": { "from": { "const": "human_review_recorded" } }, "required": ["from"] }, "then": { "properties": { "to": { "const": "remediation_ready" } } } },
+        { "if": { "properties": { "from": { "const": "remediation_ready" } }, "required": ["from"] }, "then": { "properties": { "to": { "const": "fix_authorized" } } } },
+        { "if": { "properties": { "from": { "const": "fix_authorized" } }, "required": ["from"] }, "then": { "properties": { "to": { "const": "retest_required" } } } }
+      ]
     }
   }
 }

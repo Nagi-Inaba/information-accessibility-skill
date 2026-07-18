@@ -918,6 +918,35 @@ git add shared/agents codex/agents claude/agents codex/skills/information-access
 git commit -m "feat: add opt-in authorized accessibility fixer"
 ```
 
+### Task 9A: Generalize Safe Read-Only Orchestration Extensions
+
+**Rationale:** The distribution manifest could add agents, but registry 3.0.0, audit-run 4.0.0, and artifact-envelope 1.0.0 fixed all role, artifact, state, and producer identifiers in JSON Schema. That made the runtime contract itself non-extensible. This task adds a version boundary before the forward test so a safe read-only specialist can be added without editing core schema enumerations.
+
+**Files:**
+
+- Freeze: `orchestration-registry-3.0.0.json` and its schema.
+- Freeze: `audit-run-4.0.0.schema.json`.
+- Freeze: `audit-artifact-envelope-1.0.0.schema.json`.
+- Modify: current registry to 4.0.0, audit-run to 5.0.0, and artifact envelope to 2.0.0.
+- Modify: `scripts/lib/audit-run.mjs` for version dispatch and central semantic validation.
+- Create: `tests/orchestration-extensibility.test.mjs`.
+
+**Interfaces and invariants:**
+
+- Current schemas validate safe identifier syntax and structural shape; the installed registry is the authority for role, producer, output, payload, and transition meaning.
+- The seven canonical roles remain byte-equivalent to frozen registry 3.0.0.
+- Additional roles must be read-only AI roles limited to E0 or E1, without profile outcomes, target writes, orchestration output, authorization output, or change output.
+- `authorized_fixer` remains the only writer and is not installed by default. `declared_authorizer` remains the only producer of `fix-authorization`.
+- Every artifact type has a payload schema, a producer, and a single-artifact transition. Duplicate identifiers, ambiguous routes, unreachable states, and cycles are rejected before a run is accepted.
+- Runs 1 through 4 and envelope 1 remain readable through exact version dispatch. Only run 5 with registry 4 and envelope 2 is operational.
+
+- [x] **Step 1: Add RED tests for frozen versions and safe extension**
+- [x] **Step 2: Freeze registry 3, run 4, and envelope 1 without changing their bytes**
+- [x] **Step 3: Add registry 4, run 5, envelope 2, and central semantic validation**
+- [x] **Step 4: Prove an eighth safe role and a new schema-backed artifact type**
+- [x] **Step 5: Prove privilege escalation, producer spoofing, ambiguous transitions, cycles, and unreachable states fail closed**
+- [x] **Step 6: Run distribution synchronization, package verification, and the full regression suite**
+
 ### Task 9: Prove The Architecture With A Generic Forward Test
 
 **Files:**
@@ -929,7 +958,7 @@ git commit -m "feat: add opt-in authorized accessibility fixer"
 - Create: `tests/fixtures/multi-agent-run/remediation-plan.json`
 - Create: `tests/multi-agent-forward.test.mjs`
 - Modify: `codex/skills/information-accessibility-practice/SKILL.md`
-- Create: `codex/skills/information-accessibility-practice/scripts/render-orchestrated-report.mjs`
+- Modify: `codex/skills/information-accessibility-practice/scripts/render-audit-report.mjs`
 - Modify: `README.md`
 - Generate: corresponding Claude skill files.
 
@@ -937,7 +966,7 @@ git commit -m "feat: add opt-in authorized accessibility fixer"
 
 - Test request: local public-like URL, `web-modern`, read-only E1, no authentication, no source write.
 - Expected outputs: initialized run, screening artifact, human queue, remediation plan, merged assessment, public report.
-- Report CLI: `node scripts/render-orchestrated-report.mjs --run <audit-run.json> --assessment <assessment.json> --remediation <remediation-plan.json> --output <report.md>`.
+- Report CLI: use the installed `render-audit-report.mjs` run-backed mode with the exact registered artifact set.
 - Denial test: fixer requested without authorization and no fixture bytes change.
 
 - [ ] **Step 1: Create a minimal generic fixture with known screenable and human-only questions**

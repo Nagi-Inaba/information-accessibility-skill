@@ -14,8 +14,32 @@ const auditRunRegistryCompatibility = new Map([
   ["1.0.0", "1.0.0"],
   ["2.0.0", "1.0.0"],
   ["3.0.0", "2.0.0"],
-  ["4.0.0", "3.0.0"]
+  ["4.0.0", "3.0.0"],
+  ["5.0.0", "4.0.0"]
 ]);
+const auditRunEnvelopeCompatibility = new Map([
+  ["1.0.0", "1.0.0"],
+  ["2.0.0", "1.0.0"],
+  ["3.0.0", "1.0.0"],
+  ["4.0.0", "1.0.0"],
+  ["5.0.0", "2.0.0"]
+]);
+const currentAuditRunManifestContract = {
+  id: "audit-run",
+  latest_schema_version: "5.0.0",
+  schema_versions: [
+    { version: "1.0.0", schema_file: "audit-run-1.0.0.schema.json", mode: "read_only" },
+    { version: "2.0.0", schema_file: "audit-run-2.0.0.schema.json", mode: "read_only" },
+    { version: "3.0.0", schema_file: "audit-run-3.0.0.schema.json", mode: "read_only" },
+    { version: "4.0.0", schema_file: "audit-run-4.0.0.schema.json", mode: "read_only" },
+    {
+      version: "5.0.0",
+      schema_file: "audit-run.schema.json",
+      schema_sha256: "8cafbb4e31b37144895d4bed9ecc52cff0f158018002c1ae384ac48ee44b77d2",
+      mode: "current"
+    }
+  ]
+};
 
 function pathKey(value) {
   const normalized = path.normalize(path.resolve(value));
@@ -212,6 +236,163 @@ function readJson(relative, skillRoot) {
   return { file, bytes, value: parseJsonBytes(bytes, relative) };
 }
 
+function duplicateValues(values) {
+  const seen = new Set();
+  const duplicates = new Set();
+  for (const value of values) {
+    if (seen.has(value)) duplicates.add(value);
+    seen.add(value);
+  }
+  return [...duplicates].sort(compareText);
+}
+
+function canonicalComparableManifest(installedManifest, canonicalManifest) {
+  const canonicalSchemas = new Map((canonicalManifest?.schema_versions ?? []).map((entry) => [entry.version, entry]));
+  return {
+    ...installedManifest,
+    schema_versions: (installedManifest?.schema_versions ?? []).map((entry) => {
+      if (canonicalSchemas.get(entry.version)?.schema_sha256) return entry;
+      const { schema_sha256: _schemaSha256, ...withoutAddedHash } = entry;
+      return withoutAddedHash;
+    })
+  };
+}
+
+function validateOrchestrationRegistrySemantics(registry, canonicalRegistry) {
+  const errors = [];
+  const roles = Array.isArray(registry?.roles) ? registry.roles : [];
+  const artifactTypes = Array.isArray(registry?.artifact_types) ? registry.artifact_types : [];
+  const transitions = Array.isArray(registry?.transitions) ? registry.transitions : [];
+  const roleIds = roles.map((role) => role?.id);
+  const agentIds = roles.map((role) => role?.agent_id).filter((agentId) => agentId !== null && agentId !== undefined);
+  const artifactTypeIds = artifactTypes.map((artifactType) => artifactType?.id);
+  for (const duplicate of duplicateValues(roleIds)) errors.push(`Duplicate role ID: ${String(duplicate)}.`);
+  for (const duplicate of duplicateValues(agentIds)) errors.push(`Duplicate agent ID: ${String(duplicate)}.`);
+  for (const duplicate of duplicateValues(artifactTypeIds)) errors.push(`Duplicate artifact type ID: ${String(duplicate)}.`);
+
+  const roleById = new Map(roles.map((role) => [role?.id, role]));
+  const artifactTypeSet = new Set(artifactTypeIds);
+  const canonicalRoles = new Map((canonicalRegistry?.roles ?? []).map((role) => [role.id, role]));
+  for (const [roleId, canonicalRole] of canonicalRoles) {
+    const installedRole = roleById.get(roleId);
+    if (!installedRole) errors.push(`Missing canonical role: ${roleId}.`);
+    else if (!isDeepStrictEqual(installedRole, canonicalRole)) errors.push(`Canonical role contract changed: ${roleId}.`);
+  }
+  const installedArtifactTypes = new Map(artifactTypes.map((artifactType) => [artifactType?.id, artifactType]));
+  for (const canonicalArtifactType of canonicalRegistry?.artifact_types ?? []) {
+    const installedArtifactType = installedArtifactTypes.get(canonicalArtifactType.id);
+    if (!installedArtifactType) errors.push(`Missing canonical artifact type: ${canonicalArtifactType.id}.`);
+    else if (canonicalArtifactType.id === "audit-run") {
+      if (!isDeepStrictEqual(installedArtifactType, currentAuditRunManifestContract)) errors.push("Canonical audit-run manifest changed.");
+    } else if (!isDeepStrictEqual(canonicalComparableManifest(installedArtifactType, canonicalArtifactType), canonicalArtifactType)) {
+      errors.push(`Canonical artifact type manifest changed: ${canonicalArtifactType.id}.`);
+    }
+  }
+
+  for (const role of roles) {
+    const roleId = String(role?.id);
+    if (!artifactTypeSet.has(role?.output_type)) errors.push(`Role ${roleId} has an unregistered output artifact type: ${String(role?.output_type)}.`);
+    for (const inputType of Array.isArray(role?.input_types) ? role.input_types : []) {
+      if (!artifactTypeSet.has(inputType)) errors.push(`Role ${roleId} has an unregistered input artifact type: ${String(inputType)}.`);
+    }
+    if (role?.producer_kind === "ai_agent") {
+      if (!['E0', 'E1'].includes(role?.max_ai_evidence_level)) errors.push(`AI role ${roleId} must not exceed E1 evidence.`);
+      if (role?.can_record_profile_outcome) errors.push(`AI role ${roleId} cannot record profile outcomes.`);
+    }
+    if (role?.can_record_profile_outcome && roleId !== "declared_external_human") {
+      errors.push(`Only declared_external_human may record profile outcomes; received ${roleId}.`);
+    }
+    if (role?.can_write_target && roleId !== "authorized_fixer") errors.push(`Only authorized_fixer may write the target; received ${roleId}.`);
+    if (role?.can_write_target && role?.install_by_default) errors.push(`A target-writing role cannot be installed by default: ${roleId}.`);
+    if (role?.output_type === "fix-authorization" && roleId !== "declared_authorizer") {
+      errors.push(`Only declared_authorizer may produce fix-authorization; received ${roleId}.`);
+    }
+    if (!canonicalRoles.has(role?.id)) {
+      if (role?.producer_kind !== "ai_agent"
+          || !['E0', 'E1'].includes(role?.max_ai_evidence_level)
+          || role?.can_record_profile_outcome !== false
+          || role?.can_write_target !== false
+          || ["audit-run", "fix-authorization", "change-record"].includes(role?.output_type)) {
+        errors.push(`Extension role ${roleId} must remain a safe read-only AI role without orchestration, authorization, or change output.`);
+      }
+    }
+  }
+  const writers = roles.filter((role) => role?.can_write_target).map((role) => role.id);
+  if (!isDeepStrictEqual(writers, ["authorized_fixer"])) errors.push("The registry must contain exactly one target writer: authorized_fixer.");
+  const authorizers = roles.filter((role) => role?.output_type === "fix-authorization").map((role) => role.id);
+  if (!isDeepStrictEqual(authorizers, ["declared_authorizer"])) errors.push("The registry must contain exactly one fix authorizer: declared_authorizer.");
+
+  const transitionKeys = [];
+  const routeKeys = [];
+  const states = new Set(["initialized"]);
+  const adjacency = new Map();
+  const transitionArtifactTypes = new Set();
+  const canonicalTransitions = canonicalRegistry?.transitions ?? [];
+  const canonicalStates = new Set([
+    "initialized",
+    ...canonicalTransitions.flatMap((transition) => [transition.from, transition.to])
+  ]);
+  for (const canonicalTransition of canonicalTransitions) {
+    if (!transitions.some((transition) => isDeepStrictEqual(transition, canonicalTransition))) {
+      errors.push(`Missing or changed canonical transition: ${canonicalTransition.from} -> ${canonicalTransition.to}.`);
+    }
+  }
+  for (const transition of transitions) {
+    const isCanonicalTransition = canonicalTransitions.some((canonicalTransition) => isDeepStrictEqual(transition, canonicalTransition));
+    const required = Array.isArray(transition?.required_artifact_types) ? transition.required_artifact_types : [];
+    if (required.length !== 1) errors.push(`Transition ${String(transition?.from)} -> ${String(transition?.to)} must require exactly one artifact type.`);
+    const artifactType = required[0];
+    if (artifactType && !artifactTypeSet.has(artifactType)) errors.push(`Transition requires an unregistered artifact type: ${artifactType}.`);
+    if (artifactType && !roles.some((role) => role?.output_type === artifactType)) errors.push(`Transition artifact type has no producer role: ${artifactType}.`);
+    if (transition?.from === transition?.to) errors.push(`Transition cannot form a self-cycle: ${String(transition?.from)}.`);
+    if (["fix-authorization", "change-record"].includes(artifactType) && !isCanonicalTransition) {
+      errors.push(`Privileged artifact type cannot define an extension transition: ${String(artifactType)}.`);
+    }
+    if (!isCanonicalTransition && canonicalStates.has(transition?.to)) {
+      errors.push(`Extension transition cannot enter canonical orchestration state: ${String(transition?.to)}.`);
+    }
+    transitionKeys.push(`${String(transition?.from)}\u0000${String(artifactType)}`);
+    routeKeys.push(`${String(transition?.from)}\u0000${String(transition?.to)}`);
+    states.add(transition?.from);
+    states.add(transition?.to);
+    if (!adjacency.has(transition?.from)) adjacency.set(transition?.from, []);
+    adjacency.get(transition?.from).push(transition?.to);
+    if (artifactType) transitionArtifactTypes.add(artifactType);
+  }
+  for (const duplicate of duplicateValues(transitionKeys)) errors.push(`Ambiguous transition for state and artifact type: ${duplicate.replace("\u0000", " + ")}.`);
+  for (const duplicate of duplicateValues(routeKeys)) errors.push(`Duplicate transition route: ${duplicate.replace("\u0000", " -> ")}.`);
+  for (const artifactType of artifactTypeIds.filter((id) => id !== "audit-run")) {
+    if (!roles.some((role) => role?.output_type === artifactType)) errors.push(`Registered artifact type has no producer role: ${artifactType}.`);
+    if (!transitionArtifactTypes.has(artifactType)) errors.push(`Registered artifact type has no transition: ${artifactType}.`);
+  }
+
+  const reachable = new Set();
+  const queue = ["initialized"];
+  while (queue.length) {
+    const state = queue.shift();
+    if (reachable.has(state)) continue;
+    reachable.add(state);
+    queue.push(...(adjacency.get(state) ?? []));
+  }
+  for (const state of states) if (!reachable.has(state)) errors.push(`Unreachable orchestration state: ${String(state)}.`);
+
+  const visiting = new Set();
+  const visited = new Set();
+  function visit(state) {
+    if (visiting.has(state)) {
+      errors.push(`Orchestration transition cycle detected at state: ${String(state)}.`);
+      return;
+    }
+    if (visited.has(state)) return;
+    visiting.add(state);
+    for (const next of adjacency.get(state) ?? []) visit(next);
+    visiting.delete(state);
+    visited.add(state);
+  }
+  visit("initialized");
+  return errors;
+}
+
 export function loadAuditResources(skillRoot = defaultSkillRoot) {
   const names = {
     standardsRegistry: "references/standards-registry.json",
@@ -221,7 +402,10 @@ export function loadAuditResources(skillRoot = defaultSkillRoot) {
     orchestrationSchemaV1: "references/orchestration-registry-1.0.0.schema.json",
     orchestrationRegistryV2: "references/orchestration-registry-2.0.0.json",
     orchestrationSchemaV2: "references/orchestration-registry-2.0.0.schema.json",
+    orchestrationRegistryV3: "references/orchestration-registry-3.0.0.json",
+    orchestrationSchemaV3: "references/orchestration-registry-3.0.0.schema.json",
     envelopeSchema: "references/audit-artifact-envelope.schema.json",
+    envelopeSchemaV1: "references/audit-artifact-envelope-1.0.0.schema.json",
     assessmentSchema: "references/assessment-record.schema.json",
     criteriaCatalog: "references/criteria-catalog.json",
     criterionProcedures: "references/criterion-procedures.json",
@@ -231,12 +415,18 @@ export function loadAuditResources(skillRoot = defaultSkillRoot) {
   for (const [label, registry, schema] of [
     ["installed", loaded.orchestrationRegistry, loaded.orchestrationSchema],
     ["frozen 1.0.0", loaded.orchestrationRegistryV1, loaded.orchestrationSchemaV1],
-    ["frozen 2.0.0", loaded.orchestrationRegistryV2, loaded.orchestrationSchemaV2]
+    ["frozen 2.0.0", loaded.orchestrationRegistryV2, loaded.orchestrationSchemaV2],
+    ["frozen 3.0.0", loaded.orchestrationRegistryV3, loaded.orchestrationSchemaV3]
   ]) {
     const registryErrors = [];
     validateJsonSchema(registry.value, schema.value, "$", registryErrors);
     if (registryErrors.length) throw new Error(`Invalid ${label} orchestration registry:\n- ${registryErrors.join("\n- ")}`);
   }
+  const semanticErrors = validateOrchestrationRegistrySemantics(
+    loaded.orchestrationRegistry.value,
+    loaded.orchestrationRegistryV3.value
+  );
+  if (semanticErrors.length) throw new Error(`Invalid installed orchestration registry semantics:\n- ${semanticErrors.join("\n- ")}`);
   const schemaManifests = new Map();
   const artifactTypeIds = new Set();
   const schemaFiles = new Set();
@@ -254,6 +444,9 @@ export function loadAuditResources(skillRoot = defaultSkillRoot) {
       schemaFiles.add(entry.schema_file);
       const schemaRecord = readJson(`references/${entry.schema_file}`, skillRoot);
       const schema = schemaRecord.value;
+      if (entry.mode === "current" && !entry.schema_sha256) {
+        throw new Error(`Current schema manifest requires schema_sha256 for ${manifest.id} ${entry.version}: ${entry.schema_file}.`);
+      }
       if (entry.schema_sha256 && sha256NormalizedTextBytes(schemaRecord.bytes) !== entry.schema_sha256) {
         throw new Error(`Schema SHA-256 mismatch for ${manifest.id} ${entry.version}: ${entry.schema_file}.`);
       }
@@ -290,7 +483,12 @@ export function loadAuditResources(skillRoot = defaultSkillRoot) {
         return [artifactType.id, version];
       }));
   }
-  const registryFiles = [loaded.orchestrationRegistryV1, loaded.orchestrationRegistryV2, loaded.orchestrationRegistry];
+  const registryFiles = [
+    loaded.orchestrationRegistryV1,
+    loaded.orchestrationRegistryV2,
+    loaded.orchestrationRegistryV3,
+    loaded.orchestrationRegistry
+  ];
   const orchestrationRegistries = new Map(registryFiles.map((registry) => [
     registry.value.schema_version,
     {
@@ -300,6 +498,10 @@ export function loadAuditResources(skillRoot = defaultSkillRoot) {
     }
   ]));
   const currentPayloadVersions = orchestrationRegistries.get(loaded.orchestrationRegistry.value.schema_version).payloadVersions;
+  const envelopeSchemas = new Map([
+    ["1.0.0", loaded.envelopeSchemaV1.value],
+    ["2.0.0", loaded.envelopeSchema.value]
+  ]);
   return {
     skillRoot,
     standardsRegistry: loaded.standardsRegistry.value,
@@ -308,6 +510,7 @@ export function loadAuditResources(skillRoot = defaultSkillRoot) {
     auditRunSchema,
     auditRunSchemas,
     envelopeSchema: loaded.envelopeSchema.value,
+    envelopeSchemas,
     assessmentSchema: loaded.assessmentSchema.value,
     criteriaCatalog: loaded.criteriaCatalog.value,
     criterionProcedures: loaded.criterionProcedures.value,
@@ -361,9 +564,36 @@ function containsProfileOutcome(value) {
   return false;
 }
 
-export function validateArtifact(artifact, resources = loadAuditResources(), { allowedPayloadVersions } = {}) {
+const evidenceLevelRank = new Map([
+  ["E0", 0],
+  ["E1", 1],
+  ["E2", 2],
+  ["E3", 3],
+  ["E4", 4],
+  ["E5", 5]
+]);
+
+function evidenceLevelViolations(value, maximum, location = "$.payload") {
+  const violations = [];
+  if (Array.isArray(value)) {
+    value.forEach((item, index) => violations.push(...evidenceLevelViolations(item, maximum, `${location}[${index}]`)));
+    return violations;
+  }
+  if (value === null || typeof value !== "object") return violations;
+  for (const [key, item] of Object.entries(value)) {
+    const itemLocation = `${location}.${key}`;
+    if (key === "evidence_level"
+        && (!evidenceLevelRank.has(item) || evidenceLevelRank.get(item) > evidenceLevelRank.get(maximum))) {
+      violations.push(`${itemLocation}=${String(item)}`);
+    }
+    violations.push(...evidenceLevelViolations(item, maximum, itemLocation));
+  }
+  return violations;
+}
+
+export function validateArtifact(artifact, resources = loadAuditResources(), { allowedPayloadVersions, envelopeSchema } = {}) {
   const errors = [];
-  validateJsonSchema(artifact, resources.envelopeSchema, "$", errors);
+  validateJsonSchema(artifact, envelopeSchema ?? resources.envelopeSchema, "$", errors);
   const payloadVersion = artifact?.payload?.schema_version;
   const payloadSchema = resources.payloadSchemas.get(artifact?.artifact_type)?.get(payloadVersion);
   if (!resources.payloadSchemas.has(artifact?.artifact_type)) {
@@ -397,6 +627,11 @@ export function validateArtifact(artifact, resources = loadAuditResources(), { a
     if (role.output_type !== artifact.artifact_type) errors.push(`Producer role ${role.id} cannot output ${String(artifact.artifact_type)}.`);
     if (!role.can_record_profile_outcome && containsProfileOutcome(artifact.payload)) {
       errors.push(`Producer role ${role.id} cannot record a profile outcome.`);
+    }
+    if (role.producer_kind === "ai_agent") {
+      for (const violation of evidenceLevelViolations(artifact.payload, role.max_ai_evidence_level)) {
+        errors.push(`Producer role ${role.id} evidence ${violation} exceeds ${role.max_ai_evidence_level}.`);
+      }
     }
     if (role.producer_kind === "ai_agent" && artifact.artifact_type === "fix-authorization") {
       errors.push("AI roles cannot produce fix-authorization; declared_authorizer is required.");
@@ -862,7 +1097,9 @@ export function validateAuditRun(run, { skillRoot = defaultSkillRoot, runFile } 
     ? { ...resources, orchestrationRegistry: registryRecord.value }
     : resources;
   const expectedRegistryVersion = auditRunRegistryCompatibility.get(runRecord.schema_version);
-  if (expectedRegistryVersion && registryVersion !== expectedRegistryVersion) {
+  if (!expectedRegistryVersion) {
+    errors.push(`Unsupported audit-run registry compatibility: ${String(runRecord.schema_version)}.`);
+  } else if (registryVersion !== expectedRegistryVersion) {
     errors.push(`audit-run ${runRecord.schema_version} requires orchestration registry ${expectedRegistryVersion}; received ${String(registryVersion)}.`);
   }
   const expectedResourceVersions = {
@@ -916,7 +1153,13 @@ export function validateAuditRun(run, { skillRoot = defaultSkillRoot, runFile } 
       if (snapshot.sha256 !== entry?.sha256) errors.push(`Registered artifact current hash mismatch: ${String(entry?.artifact_id)}.`);
       const envelope = parseJsonBytes(snapshot.bytes, `registered artifact ${String(entry?.artifact_id)}`);
       envelopesById.set(entry?.artifact_id, { envelope, snapshot });
-      const validation = validateArtifact(envelope, runResources, { allowedPayloadVersions: registryRecord?.payloadVersions });
+      const envelopeVersion = auditRunEnvelopeCompatibility.get(runRecord.schema_version);
+      const envelopeSchema = resources.envelopeSchemas.get(envelopeVersion);
+      if (!envelopeSchema) errors.push(`Unsupported artifact envelope schema for audit-run ${String(runRecord.schema_version)}.`);
+      const validation = validateArtifact(envelope, runResources, {
+        allowedPayloadVersions: registryRecord?.payloadVersions,
+        envelopeSchema
+      });
       errors.push(...validation.errors.map((error) => `${location}: ${error}`));
     } catch (error) {
       errors.push(error.message);
@@ -977,7 +1220,9 @@ export function createAuditRun(options) {
     if (!options.supersedesRunFile) throw new Error("supersedesRunFile is required for fresh retest initialization.");
     const predecessorValidation = validateAuditRun(options.supersedesRun, { skillRoot, runFile: options.supersedesRunFile });
     if (!predecessorValidation.valid) throw new Error(`Invalid superseded audit run:\n- ${predecessorValidation.errors.join("\n- ")}`);
-    if (options.supersedesRun.schema_version !== "4.0.0") throw new Error("Fresh retest predecessor must be current audit-run 4.0.0.");
+    if (!["4.0.0", "5.0.0"].includes(options.supersedesRun.schema_version)) {
+      throw new Error("Fresh retest predecessor must use supported audit-run schema_version 4.0.0 or 5.0.0.");
+    }
     if (options.supersedesRun.status !== "retest_required") throw new Error("Fresh retest predecessor status must be retest_required.");
     if (run.run_id === options.supersedesRun.run_id) throw new Error("Fresh retest run ID must differ from the predecessor run ID.");
     if (sourceWrite !== "denied") throw new Error("Fresh retest source-write permission must be denied.");

@@ -138,7 +138,7 @@ function assertRejected(result, pattern) {
 
 function initialRun(artifactRoot) {
   return {
-    schema_version: "4.0.0",
+    schema_version: "5.0.0",
     run_id: RUN_ID,
     supersedes_run_id: null,
     status: "initialized",
@@ -270,7 +270,7 @@ function declaredHumanReviewPayload(requirementId = "WCAG-2.2-SC-1.1.1") {
 
 function artifactEnvelope({ artifactId, artifactType, roleId, producerKind, inputs = [], payload, createdAt }) {
   return {
-    schema_version: "1.0.0",
+    schema_version: "2.0.0",
     artifact_id: artifactId,
     artifact_type: artifactType,
     run_id: RUN_ID,
@@ -412,7 +412,7 @@ function makeAuthPayload({
 
 function makeAuthEnvelope(payload, artifactId = "ART-AUTH-001", origin = "external_input") {
   return {
-    schema_version: "1.0.0",
+    schema_version: "2.0.0",
     artifact_id: artifactId,
     artifact_type: "fix-authorization",
     run_id: payload.run_id,
@@ -596,7 +596,7 @@ test("validate-fix-authorization CLI rejects missing operation permissions and m
       "--source-root", sourceRoot,
       "--operation", "modify"
     ]),
-    /run\.schema_version must be exactly 4\.0\.0|audit run invalid: audit-run 3\.0\.0 requires orchestration registry 2\.0\.0/
+    /run\.schema_version must be exactly 5\.0\.0|audit run invalid: audit-run 3\.0\.0 requires orchestration registry 2\.0\.0/
   );
 
   const badHistoryRun = structuredClone(fixture.run);

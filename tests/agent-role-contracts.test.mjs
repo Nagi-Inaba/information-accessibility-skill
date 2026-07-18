@@ -117,7 +117,7 @@ test("public reviewer remains the broad entry and orchestrates the Task 5 runtim
   assert.match(body, /deterministic/i);
   assert.match(body, /local fallback[^]*same[^]*artifact contracts/i);
   assert.match(body, /public report[^]*(?:must not|does not)[^]*(?:internal agent names|orchestration history)/i);
-  assert.match(body, /`audit-run`[^]*schema_version[^]*`3\.0\.0`/i);
+  assert.match(body, /`audit-run`[^]*schema version[^]*current[^]*installed `orchestration-registry\.json`/i);
   assert.match(body, /render-audit-report\.mjs --run <run\.json> --assessment <merged\.json> --output <new-report\.md>/i);
   assert.match(body, /stable[^]*safe[^]*runtime/i);
   assert.match(body, /validated assessment/i);

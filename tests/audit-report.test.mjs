@@ -85,7 +85,7 @@ function reportRunFixture(temp) {
     "2026-07-17T12:00:04Z"
   ];
   const envelope = (artifactId, artifactType, roleId, inputs, payload, createdAt, producerKind = "ai_agent") => ({
-    schema_version: "1.0.0",
+    schema_version: "2.0.0",
     artifact_id: artifactId,
     artifact_type: artifactType,
     run_id: runId,
@@ -203,7 +203,7 @@ function reportRunFixture(temp) {
   const artifactFiles = new Map([[screen.artifact_id, screenFile], [queue.artifact_id, queueFile], [human.artifact_id, humanFile], [remediation.artifact_id, remediationFile]]);
   const artifacts = [screen, queue, human, remediation];
   const run = {
-    schema_version: "4.0.0",
+    schema_version: "5.0.0",
     run_id: runId,
     supersedes_run_id: null,
     status: "remediation_ready",
