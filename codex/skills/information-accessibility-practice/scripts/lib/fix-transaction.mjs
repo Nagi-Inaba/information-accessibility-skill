@@ -413,7 +413,7 @@ export function applyAuthorizedFix(params = {}) {
   const runInput = parseStableJson(params.runFile, "audit run");
   const runValidation = validateAuditRun(runInput.value, { runFile: runInput.snapshot.path });
   if (!runValidation.valid) throw new Error(`Audit run validation failed:\n- ${runValidation.errors.join("\n- ")}`);
-  if (runInput.value.schema_version !== "5.0.0") throw new Error("Authorized fixes require audit-run 5.0.0.");
+  if (runInput.value.schema_version !== "6.0.0") throw new Error("Authorized fixes require audit-run 6.0.0.");
   const artifactRoot = artifactRootFor(runInput.value, runInput.snapshot.path);
   const canonicalSourceRoot = inspectDirectory(params.sourceRoot, "trusted source root");
   if (pathsOverlap(artifactRoot, canonicalSourceRoot)) throw new Error("Run artifact root must be outside and must not overlap the trusted source root.");

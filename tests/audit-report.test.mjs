@@ -16,6 +16,8 @@ import { lookupRequirement } from "../codex/skills/information-accessibility-pra
 import { validateAssessment } from "../codex/skills/information-accessibility-practice/scripts/validate-assessment.mjs";
 import {
   buildPublicReportModel,
+  overallReportJudgement,
+  reportJudgementForOutcome,
   renderRunBackedReport
 } from "../codex/skills/information-accessibility-practice/scripts/render-audit-report.mjs";
 
@@ -74,6 +76,39 @@ function readJson(file) {
   return JSON.parse(fs.readFileSync(file, "utf8"));
 }
 
+const reportJudgements = new Set(["適合", "不適合", "要確認", "未確認"]);
+const formalNotice = "このレポートでは、改善判断のために「適合」「不適合」などの判定語を使用します。";
+
+function assertUnifiedJudgementReport(report, expectedOverall) {
+  assert.match(report, /^# WCAG検査レポート/m);
+  assert.match(report, new RegExp(`^- 総合判定: ${expectedOverall}$`, "mu"));
+  assert.equal((report.match(new RegExp(formalNotice, "gu")) ?? []).length, 1, "正式な適合表明ではない旨の注意書きは冒頭に1回だけ表示する");
+  assert.doesNotMatch(report, /WCAG適合は判定していません/u);
+  assert.doesNotMatch(report, /セルフチェック用|公開向け/u);
+  for (const line of report.split(/\r?\n/u)) {
+    if (!/^\|\s*(?:WCAG-|SCREEN-)/u.test(line)) continue;
+    const cells = line.split("|").slice(1, -1).map((value) => value.trim());
+    const judgement = cells.find((value) => reportJudgements.has(value));
+    assert.ok(judgement, `判定行には4種類の判定語のいずれかが必要です: ${line}`);
+  }
+}
+
+test("report judgement vocabulary and overall priority are fixed", () => {
+  assert.equal(reportJudgementForOutcome("pass"), "適合");
+  assert.equal(reportJudgementForOutcome("fail"), "不適合");
+  assert.equal(reportJudgementForOutcome("cant_tell"), "要確認");
+  assert.equal(reportJudgementForOutcome("not_tested"), "未確認");
+  assert.equal(reportJudgementForOutcome("not_applicable"), null);
+
+  const cases = [
+    [{ pass: 3, fail: 1, not_applicable: 0, not_tested: 2, cant_tell: 2 }, "不適合"],
+    [{ pass: 3, fail: 0, not_applicable: 0, not_tested: 2, cant_tell: 1 }, "要確認"],
+    [{ pass: 3, fail: 0, not_applicable: 1, not_tested: 2, cant_tell: 0 }, "未確認"],
+    [{ pass: 3, fail: 0, not_applicable: 4, not_tested: 0, cant_tell: 0 }, "適合"]
+  ];
+  for (const [counts, expected] of cases) assert.equal(overallReportJudgement(counts), expected);
+});
+
 function reportRunFixture(temp) {
   const artifactRoot = path.join(temp, "artifacts");
   fs.mkdirSync(artifactRoot);
@@ -99,14 +134,18 @@ function reportRunFixture(temp) {
     payload
   });
   const screen = envelope("ART-SCREEN-REPORT", "screening-observations", "e1_inspector", [], {
-    schema_version: "1.0.0",
+    schema_version: "2.0.0",
     observations: [{
       requirement_id: "SCREEN-FIRST",
       evidence_level: "E1",
       method: "Static DOM inspection",
       location: "Checkout heading",
       observation: "The heading structure may skip a level.",
-      captured_at: created[0]
+      captured_at: created[0],
+      profile_requirement_id: "WCAG-2.2-SC-2.4.2",
+      report_outcome: "fail",
+      applicability: "applicable",
+      report_rationale: "The inspected page title does not identify the page topic."
     }]
   }, created[0]);
   const screenFile = path.join(artifactRoot, "screen.json");
@@ -207,7 +246,7 @@ function reportRunFixture(temp) {
   const artifactFiles = new Map([[screen.artifact_id, screenFile], [queue.artifact_id, queueFile], [human.artifact_id, humanFile], [remediation.artifact_id, remediationFile]]);
   const artifacts = [screen, queue, human, remediation];
   const run = {
-    schema_version: "5.0.0",
+    schema_version: "6.0.0",
     run_id: runId,
     supersedes_run_id: null,
     status: "remediation_ready",
@@ -278,13 +317,13 @@ test("renderer creates a self-contained report from a validated record with an a
     const run = spawnSync(process.execPath, [renderer, "--input", input], { encoding: "utf8" });
 
     assert.equal(run.status, 0, run.stderr || run.stdout);
-    assert.match(run.stdout, /^# Accessibility Audit Report/m);
+    assertUnifiedJudgementReport(run.stdout, "不適合");
     assert.match(run.stdout, /Example service/);
-    assert.match(run.stdout, /P1 findings: 1/);
+    assert.match(run.stdout, /\| F-001 \| WCAG-2\.2-SC-2\.1\.1 \|/);
     assert.match(run.stdout, /F-001/);
     assert.match(run.stdout, /WCAG-2\.2-SC-2\.1\.1/);
     assert.match(run.stdout, /The selector cannot receive keyboard focus\./);
-    assert.match(run.stdout, /Selected requirements were manually reviewed; the full requirement set was not reviewed\./);
+    assert.doesNotMatch(run.stdout, /Claim Statement|does not declare conformance/i);
     assert.equal(run.stdout.includes("REPLACE_ME"), false);
   } finally {
     fs.rmSync(temp, { recursive: true, force: true });
@@ -306,20 +345,25 @@ test("run-backed renderer reports verified, pending, and unverified work without
 
     assert.equal(result.status, 0, result.stderr || result.stdout);
     const report = fs.readFileSync(output, "utf8");
-    assert.match(report, /Human-reviewed requirements recorded as met/i);
+    assertUnifiedJudgementReport(report, "不適合");
+    assert.match(report, /\| WCAG-2\.2-SC-1\.3\.1 \| 適合 \|/);
     assert.match(report, /WCAG-2\.2-SC-1\.3\.1/);
-    assert.match(report, /Verified failures/i);
+    assert.match(report, /確認済みの不適合/);
     assert.match(report, /WCAG-2\.2-SC-1\.1\.1/);
     assert.match(report, /Frontend team/);
-    assert.match(report, /Not assigned/);
-    assert.match(report, /Pending human checks/i);
+    assert.match(report, /未設定/);
+    assert.match(report, /確認手順が残っている達成基準/);
     assert.match(report, /WCAG-2\.2-SC-2\.1\.1/);
-    assert.match(report, /Unverified screening candidates/i);
+    assert.match(report, /今後の確認事項/);
     assert.match(report, /SCREEN-FIRST/);
+    assert.match(report, /\| WCAG-2\.2-SC-2\.4\.2 \| 不適合 \| The inspected page title does not identify the page topic\. \|/);
+    const formalProfileRow = fixture.assessment.assessment.results.find((item) => item.requirement_id === "WCAG-2.2-SC-2.4.2");
+    assert.equal(formalProfileRow.mapping_status, "unverified");
+    assert.equal(formalProfileRow.outcome, "not_tested");
     assert.match(report, /A human reviewer has not yet confirmed this observation\./);
-    assert.match(report, /Evidence and claim limits/i);
-    assert.match(report, /Audit date: 2026-07-17/i);
-    assert.match(report, /Standards registry version: 1\.0\.0/i);
+    assert.match(report, /記録の範囲/);
+    assert.match(report, /確認日: 2026-07-17/);
+    assert.match(report, /規格台帳の版: 1\.0\.0/);
     assert.doesNotMatch(report, /Confirmed conformance points/i);
     for (const internal of [fixture.run.run_id, "ART-HUMAN-REPORT", "producer_role", "e1_inspector", "External Reviewer", "remediation_ready", "verified_failure", "unverified_screening_candidate", "human_verified", "reference_only"]) {
       assert.equal(report.includes(internal), false, `public report leaked internal term: ${internal}`);
@@ -809,20 +853,20 @@ test("run-backed target versions allow immutable release tokens and withhold bra
 
     for (const branch of ["main", "master", "develop", "dev", "trunk", "HEAD", "feature/private-client"]) {
       const report = renderVersion(branch);
-      const versionLine = report.split(/\r?\n/u).find((line) => line.startsWith("- Version or commit:"));
-      assert.equal(versionLine, "- Version or commit: Withheld from public report", `branch-like version was published: ${branch}`);
+      const versionLine = report.split(/\r?\n/u).find((line) => line.startsWith("- 版・コミット:"));
+      assert.equal(versionLine, "- 版・コミット: Withheld from public report", `branch-like version was published: ${branch}`);
     }
     for (const immutableVersion of ["1.2.3", "v2.4.0", "2026-07-18", "release-2026.07", "a1b2c3d4e5f6"]) {
       const report = renderVersion(immutableVersion);
-      const versionLine = report.split(/\r?\n/u).find((line) => line.startsWith("- Version or commit:"));
-      assert.equal(versionLine, `- Version or commit: ${immutableVersion}`);
+      const versionLine = report.split(/\r?\n/u).find((line) => line.startsWith("- 版・コミット:"));
+      assert.equal(versionLine, `- 版・コミット: ${immutableVersion}`);
     }
   } finally {
     fs.rmSync(temp, { recursive: true, force: true });
   }
 });
 
-test("run-backed category wording does not imply positive conformance", () => {
+test("run-backed report uses inspection judgements without a second formal-claim disclaimer", () => {
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), "a11y-run-backed-claim-wording-"));
   try {
     const fixture = reportRunFixture(temp);
@@ -834,9 +878,9 @@ test("run-backed category wording does not imply positive conformance", () => {
       resources: loadAuditResources(skill)
     }));
 
-    assert.match(report, /Human-reviewed requirements recorded as met/);
-    assert.doesNotMatch(report, /Confirmed conformance points/i);
-    assert.doesNotMatch(report, /No confirmed conformance points/i);
+    assert.match(report, /\| WCAG-2\.2-SC-1\.3\.1 \| 適合 \|/);
+    assert.doesNotMatch(report, /Claim Statement|does not declare conformance|Confirmed conformance points/i);
+    assert.equal((report.match(new RegExp(formalNotice, "gu")) ?? []).length, 1);
   } finally {
     fs.rmSync(temp, { recursive: true, force: true });
   }

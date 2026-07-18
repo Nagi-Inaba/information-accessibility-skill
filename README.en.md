@@ -9,7 +9,7 @@ Each review follows the whole journey: finding information, receiving and unders
 
 ## Check and improve your own product
 
-This package supports self-checks that compare your own website, application, or other product with WCAG or JIS success criteria, identify barriers, and guide improvements.
+This package supports inspections that compare a website, application, or other product with WCAG or JIS success criteria, identify barriers, and guide improvements.
 It provides natural-language requests and a repeatable CLI so that people can begin reviewing products without being accessibility specialists.
 Results separate actionable improvements from items that need additional human review.
 
@@ -216,24 +216,22 @@ Run an audit with a standards profile in this order:
 2. Generate a complete checklist.
 3. Inspect the actual target only after using `show-requirement.mjs` to review the method and primary sources for each requirement. Profile requirement rows created or updated by AI agents remain `mapping_status: "unverified"` and `outcome: "not_tested"`; observations remain `SCREEN-*` results or unverified handoffs. External human review requires a requirement-specific procedure and target-specific manual or hybrid evidence; only then may the reviewer record `pass`, `fail`, `not_applicable`, or `cant_tell`. A `fail` must link to a finding with P0/P1/P2 priority, affected users, remediation, and a retest method.
 4. Use the validator to check catalog coverage and evaluated coverage separately.
-5. Generate a Markdown audit report from the validated record, including findings, unverified areas, and the available claim ceiling.
+5. Generate a Markdown report with an overall judgement, criterion-level judgements, findings, unverified areas, and improvements. The judgement column uses only `適合`, `不適合`, `要確認`, or `未確認`; not-applicable criteria are listed separately with their rationale.
 
 ### Run-backed workflow
 
 When several roles collaborate, create a read-only run and register candidates in this order: `screening-observations`, `human-review-queue`, and `remediation-plan`.
 Each registration creates a new run file and does not modify the previous run or target files.
-Then merge an E0 assessment whose profile rows remain not evaluated with all registered artifacts, and generate a public report by specifying `--run` and `--assessment`.
+Then merge an E0 assessment whose profile rows remain formally unevaluated with all registered artifacts, and generate the unified report by specifying `--run` and `--assessment`.
 
-The public report separates `Observed`, `Improvement`, and `Human review`.
-It also records profile-result, screening-result, catalog-coverage, and evaluated-coverage counts separately.
-Run IDs, artifact IDs, role IDs, transition history, and local paths remain in the internal run and are not emitted in the public report.
-Observations and improvement candidates do not support pass, fail, or conformance claims until a human reviews them.
+The report shows the overall judgement, criterion-level judgements, improvements, pending checks, scope, and test environment. The overall judgement follows this order: `不適合`, `要確認`, `未確認`, then `適合`. AI inspection judgements appear in the improvement report but do not elevate `human_verified` profile outcomes or an organizational conformance statement.
+Run IDs, artifact IDs, role IDs, transition history, and local paths remain in the internal run and are not emitted in the report.
 
 Role assignments, artifact order, stop conditions, and the boundary with external human review are documented in the [agent orchestration reference for Codex](codex/skills/information-accessibility-practice/references/agent-orchestration.md) and the [agent orchestration reference for Claude](claude/skills/information-accessibility-practice/references/agent-orchestration.md).
-The minimum command for generating only a run-backed public report is:
+The minimum command for generating a run-backed report is:
 
 ```powershell
-node .\codex\skills\information-accessibility-practice\scripts\render-audit-report.mjs --run .\audit-run.json --assessment .\merged-assessment.json --output .\public-report.md
+node .\codex\skills\information-accessibility-practice\scripts\render-audit-report.mjs --run .\audit-run.json --assessment .\merged-assessment.json --output .\audit-report.md
 ```
 
 ```powershell
@@ -328,7 +326,7 @@ Identify gaps in this meeting plan regarding captions, microphone practices, que
 ```
 
 ```text
-Review this web application with the `web-modern` profile and create evidence records for the requirements you inspect. Do not make a conformance determination, and leave unverified items explicit.
+Inspect this web application from the WCAG 2.2 perspective and create a report with an overall judgement and criterion-level judgements. Use only `適合`, `不適合`, `要確認`, or `未確認` in the judgement column.
 ```
 
 ```text
@@ -337,21 +335,20 @@ For this website intended for Japan, record JIS X 8341-3:2016 and the additional
 
 ## Example output
 
-Review results are returned in a form such as the following when appropriate.
+Standards-based inspections such as WCAG use the following unified report format from the start.
 
 ```markdown
-## Accessibility Review
+# WCAG Inspection Report
 
-| Priority | Issue | Who is affected | Fix | Verification |
-| --- | --- | --- | --- | --- |
-| P0 |  |  |  |  |
-| P1 |  |  |  |  |
-| P2 |  |  |  |  |
+> Notice: these report judgements are inspection results for the recorded scope and evidence. They are not third-party certification, a legal determination, or a formal organizational conformance statement.
 
-## Missing Evidence
+## Overall judgement
 
-- Not checked:
-- Needs confirmation:
+- Overall judgement: 不適合
+
+| Success criterion | Judgement | Evidence or missing check |
+| --- | --- | --- |
+| WCAG 2.2 1.1.1 | 不適合 | The alternative text does not convey the purpose of the image. |
 ```
 
 To create a standards evidence record, generate every row for the target profile before validation. Records created by AI keep profile requirements unverified. A profile requirement is evaluated only when an external human reviewer records requirement-specific procedures and target-specific manual or hybrid evidence. From the distribution-package root, run:
@@ -361,7 +358,7 @@ node .\codex\skills\information-accessibility-practice\scripts\generate-assessme
 node .\codex\skills\information-accessibility-practice\scripts\validate-assessment.mjs <assessment.json>
 ```
 
-The validator does not determine outcomes under a standard. It detects JSON inconsistencies, catalog coverage, evaluated coverage, and claim-ceiling violations, and returns the current maximum permitted stage. Use `profile_outcome_counts` and `screening_outcome_counts` for report summaries. `outcome_counts` is a backward-compatible total across all result types and must not be used to summarize standards requirements. Because complete executable procedures for every requirement are not yet available, the current version permits `proposed_wording` only when it exactly matches the registered fixed Japanese or English template for the relevant stage. Record target-specific inspection details, observations, and unassessed scope in a separate audit report without changing the fixed wording.
+The validator does not invent new report judgements. It detects JSON inconsistencies, catalog coverage, evaluated coverage, and claim-ceiling violations. The report renderer combines validated formal outcomes and AI report-only judgements, then displays exactly `適合`, `不適合`, `要確認`, or `未確認`. Use `profile_outcome_counts` and `screening_outcome_counts` for machine-readable summaries. `outcome_counts` is a backward-compatible total across all result types and must not be used to summarize standards requirements. Because complete executable procedures for every requirement are not yet available, the current version permits `proposed_wording` only when it exactly matches the registered fixed Japanese or English template for the relevant stage.
 
 ## Verification
 

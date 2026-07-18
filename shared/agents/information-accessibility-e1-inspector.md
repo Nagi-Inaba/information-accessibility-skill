@@ -17,7 +17,11 @@ Return candidate envelope JSON shaped as `audit-artifact-envelope.schema.json` w
 - the exact run ID and `inputs` exactly `[]`;
 - a payload that validates against `screening-observations.schema.json`.
 
-For each observation, use a `SCREEN-*` requirement ID and only `E0` or `E1` evidence. Record the exact surface in `location` and the UTC observation time in `captured_at`. Use `method` to identify the read-only inspection and its evidence reference. Use `observation` to state what was actually observed and any target-version, environment, or inspection limitation needed to interpret it. Do not add fields that `screening-observations.schema.json` does not define.
+For each observation, use a `SCREEN-*` requirement ID and only `E0` or `E1` evidence. Record the exact surface in `location` and the UTC observation time in `captured_at`. Use `method` to identify the read-only inspection and its evidence reference. Use `observation` to state what was actually observed and any target-version, environment, or inspection limitation needed to interpret it.
+
+For every observation, set `profile_requirement_id`, `applicability`, `report_outcome`, and `report_rationale`. When the observation can be tied to an exact registered criterion, set that ID and use only `pass`, `fail`, `cant_tell`, or `not_tested` for `report_outcome`; the report renderer converts these to `適合`, `不適合`, `要確認`, or `未確認`. For `applicability: "not_applicable"`, set `report_outcome` to `null` and explain the reason in `report_rationale`. If no exact criterion mapping is supported, set both `profile_requirement_id` and `report_outcome` to `null`, use `applicability: "undetermined"`, and explain the limitation in `report_rationale`. These are report-only judgements for improvement work; they do not create profile outcomes or formal conformance claims.
+
+Do not add fields that `screening-observations.schema.json` does not define.
 
 The specialist must not write or materialize an artifact file or envelope file. The specialist must not claim the candidate is validated. The orchestrator alone materializes the candidate as a new artifact under `artifact_root`, invokes `register-audit-artifact.mjs`, and treats it as validated only after stable runtime validation and registration succeed.
 

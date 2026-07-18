@@ -16,6 +16,24 @@ const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.dirname(scriptDir);
 const outcomes = ["pass", "fail", "not_applicable", "not_tested", "cant_tell"];
 const priorityOrder = ["P0", "P1", "P2"];
+const reportNotice = "> 注意：このレポートでは、改善判断のために「適合」「不適合」などの判定語を使用します。これらは記載した対象・範囲・環境・確認日時・証拠に基づく検査結果であり、第三者認証、法的判断、または組織による正式な適合表明ではありません。";
+const outcomeLabels = {
+  pass: "適合",
+  fail: "不適合",
+  not_tested: "未確認",
+  cant_tell: "要確認"
+};
+
+export function reportJudgementForOutcome(outcome) {
+  return outcomeLabels[outcome] ?? null;
+}
+
+export function overallReportJudgement(counts = {}) {
+  if (count(counts, "fail") > 0) return "不適合";
+  if (count(counts, "cant_tell") > 0) return "要確認";
+  if (count(counts, "not_tested") > 0) return "未確認";
+  return "適合";
+}
 
 function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, "utf8").replace(/^\uFEFF/, ""));
@@ -38,7 +56,7 @@ function cell(value) {
 }
 
 function list(values) {
-  return values?.length ? values.map((value) => `- ${cell(value)}`).join("\n") : "- None recorded.";
+  return values?.length ? values.map((value) => `- ${cell(value)}`).join("\n") : "- 記録なし。";
 }
 
 function count(counts, outcome) {
@@ -46,17 +64,19 @@ function count(counts, outcome) {
 }
 
 function outcomeRows(profileCounts, screeningCounts) {
-  return outcomes.map((outcome) => `| ${cell(outcome)} | ${count(profileCounts, outcome)} | ${count(screeningCounts, outcome)} |`).join("\n");
+  const labels = { ...outcomeLabels, not_applicable: "適用対象外" };
+  return outcomes.map((outcome) => `| ${labels[outcome]} | ${count(profileCounts, outcome)} | ${count(screeningCounts, outcome)} |`).join("\n");
 }
 
 function groupRows(groups, groupCounts) {
-  return outcomes.map((outcome) => `| ${cell(outcome)} | ${groups.map((group) => count(groupCounts?.[group.id], outcome)).join(" | ")} |`).join("\n");
+  const labels = { ...outcomeLabels, not_applicable: "適用対象外" };
+  return outcomes.map((outcome) => `| ${labels[outcome]} | ${groups.map((group) => count(groupCounts?.[group.id], outcome)).join(" | ")} |`).join("\n");
 }
 
 function findingTable(findings) {
-  if (findings.length === 0) return "No structured findings were recorded.";
+  if (findings.length === 0) return "該当する指摘はありません。";
   return [
-    "| ID | Requirement IDs | Location | Affected users | Observation | Remediation | Verification |",
+    "| ID | 達成基準 | 箇所 | 影響を受ける利用者 | 確認内容 | 改善案 | 再確認方法 |",
     "| --- | --- | --- | --- | --- | --- | --- |",
     ...findings.map((finding) => [
       finding.id,
@@ -68,6 +88,13 @@ function findingTable(findings) {
       finding.verification
     ].map(cell).join(" | ").replace(/^/, "| ").replace(/$/, " |"))
   ].join("\n");
+}
+
+function resultRationale(result) {
+  if (result.outcome === "not_tested" && /^Not yet evaluated\./u.test(result.notes ?? "")) {
+    return "この検査では確認していません。";
+  }
+  return result.notes || result.evidence?.map((item) => `${item.location}: ${item.observation}`).join("; ") || "根拠の記録なし";
 }
 
 export function renderAuditReport(record, validation) {
@@ -84,68 +111,79 @@ export function renderAuditReport(record, validation) {
     throw new Error(`Assessment record has failed results without structured findings: ${unlinkedFailures.join(", ")}`);
   }
 
+  const profileResults = assessment.results.filter((result) => result.requirement_kind === "profile_requirement");
+  const judgementRows = profileResults
+    .filter((result) => result.outcome !== "not_applicable")
+    .map((result) => [
+      result.requirement_id,
+      reportJudgementForOutcome(result.outcome),
+      resultRationale(result)
+    ]);
+  const notApplicableRows = profileResults
+    .filter((result) => result.outcome === "not_applicable")
+    .map((result) => [result.requirement_id, result.notes || "適用対象外とした理由の記録なし"]);
+
   const lines = [
-    "# Accessibility Audit Report",
+    "# WCAG検査レポート",
     "",
-    "> Status: generated from a validated assessment record.",
-    "> This report applies only to the recorded target, version, scope, environment, and date. It is not a certification or conformance determination.",
+    reportNotice,
     "",
-    "## 1. Audit Identity",
+    "## 1. 総合判定",
     "",
-    `- Target: ${cell(assessment.target.name)}`,
-    `- Version / commit: ${cell(assessment.target.version_or_commit)}`,
-    `- URLs / files: ${cell(assessment.target.urls_or_files.length ? assessment.target.urls_or_files.join(", ") : "Not recorded")}`,
-    `- Audit profile: ${assessment.profile.id}`,
-    `- Audit date: ${assessment.evaluated_at}`,
-    `- Evaluator: ${cell(assessment.evaluator)}`,
-    `- Evidence level: ${assessment.evidence_level}`,
+    `- 総合判定: ${overallReportJudgement(profileCounts)}`,
+    `- 不適合件数: ${count(profileCounts, "fail")}`,
+    `- 要確認件数: ${count(profileCounts, "cant_tell")}`,
+    `- 未確認件数: ${count(profileCounts, "not_tested")}`,
+    `- 適用対象外件数: ${count(profileCounts, "not_applicable")}`,
     "",
-    "## 2. Executive Summary",
+    "## 2. 検査対象",
     "",
-    `- P0 findings: ${findings.filter((finding) => finding.priority === "P0").length}`,
-    `- P1 findings: ${findings.filter((finding) => finding.priority === "P1").length}`,
-    `- P2 findings: ${findings.filter((finding) => finding.priority === "P2").length}`,
-    `- Failed profile requirements: ${count(profileCounts, "fail")}`,
-    `- Untested profile requirements: ${count(profileCounts, "not_tested")}`,
-    `- Indeterminate profile requirements: ${count(profileCounts, "cant_tell")}`,
-    `- Highest claim tier allowed by the validator: ${guard.max_tier}`,
+    `- 対象: ${cell(assessment.target.name)}`,
+    `- 版・コミット: ${cell(assessment.target.version_or_commit)}`,
+    `- URL・ファイル: ${cell(assessment.target.urls_or_files.length ? assessment.target.urls_or_files.join(", ") : "記録なし")}`,
+    `- 適用プロファイル: ${assessment.profile.id}`,
+    `- 確認日: ${assessment.evaluated_at}`,
+    `- 確認者: ${cell(assessment.evaluator)}`,
+    `- 証拠レベル: ${assessment.evidence_level}`,
     "",
-    "## 3. Scope",
+    "## 3. 対象範囲",
     "",
-    "### Included",
+    "### 含む範囲",
     "",
     list(assessment.scope.included),
     "",
-    "### Excluded",
+    "### 除外した範囲",
     "",
     list(assessment.scope.excluded),
     "",
-    "### Complete User Processes",
+    "### 一連の利用手順",
     "",
     list(assessment.scope.complete_processes),
     "",
-    "### Third-Party Content",
+    "### 第三者コンテンツ",
     "",
     list(assessment.scope.third_party_content),
     "",
-    `- Full pages reviewed: ${assessment.scope.full_pages_reviewed ? "Yes" : "No"}`,
+    `- ページ全体を確認: ${assessment.scope.full_pages_reviewed ? "はい" : "いいえ"}`,
     "",
-    "## 4. Test Environment",
+    "## 4. 検査環境",
     "",
-    "| Layer | Recorded environment |",
+    "| 項目 | 記録内容 |",
     "| --- | --- |",
-    `| OS | ${cell(assessment.environment.os.join(", ") || "Not recorded")} |`,
-    `| Browser / renderer | ${cell(assessment.environment.browsers.join(", ") || "Not recorded")} |`,
-    `| Assistive technology | ${cell(assessment.environment.assistive_technologies.join(", ") || "Not recorded")} |`,
-    `| Input mode | ${cell(assessment.environment.input_modes.join(", ") || "Not recorded")} |`,
+    `| OS | ${cell(assessment.environment.os.join(", ") || "記録なし")} |`,
+    `| ブラウザー・表示環境 | ${cell(assessment.environment.browsers.join(", ") || "記録なし")} |`,
+    `| 支援技術 | ${cell(assessment.environment.assistive_technologies.join(", ") || "記録なし")} |`,
+    `| 入力方法 | ${cell(assessment.environment.input_modes.join(", ") || "記録なし")} |`,
     "",
-    "## 5. Method And Evidence Boundary",
+    "## 5. 達成基準別の判定",
     "",
-    `- Human-verified profile requirements: ${guard.evaluation_coverage.human_verified} of ${guard.catalog_coverage.expected}`,
-    "- Automated and screening checks are supporting evidence only; they do not determine profile requirement outcomes.",
-    "- Catalog coverage and evaluation coverage are reported separately below.",
+    publicTable(["達成基準", "判定", "根拠・未確認事項"], judgementRows, "判定対象の達成基準はありません。"),
     "",
-    "## 6. Findings",
+    "### 適用対象外とした達成基準",
+    "",
+    publicTable(["達成基準", "理由"], notApplicableRows, "適用対象外とした達成基準はありません。"),
+    "",
+    "## 6. 指摘事項",
     ""
   ];
 
@@ -153,23 +191,23 @@ export function renderAuditReport(record, validation) {
     lines.push(`### ${priority}`, "", findingTable(priorityFindings), "");
   }
   lines.push(
-    "## 7. Profile Coverage",
+    "## 7. 判定件数",
     "",
-    "| Result | Registered profile requirements | Supporting screening checks |",
+    "| 結果 | 登録済み達成基準 | 補助的なスクリーニング |",
     "| --- | ---: | ---: |",
     outcomeRows(profileCounts, guard.screening_outcome_counts),
     "",
-    `- Catalog coverage: ${guard.catalog_coverage.recorded} of ${guard.catalog_coverage.expected}; complete: ${guard.catalog_coverage.complete ? "yes" : "no"}.`,
-    `- Evaluation coverage: ${guard.evaluation_coverage.human_verified} human-verified; complete: ${guard.evaluation_coverage.complete ? "yes" : "no"}.`,
+    `- 登録件数: ${guard.catalog_coverage.recorded}/${guard.catalog_coverage.expected}`,
+    `- 人による確認済み件数: ${guard.evaluation_coverage.human_verified}`,
     ""
   );
 
   const reportGroups = guard.report_groups ?? [];
   if (reportGroups.length > 1) {
     lines.push(
-      "### Profile Requirement Groups",
+      "### 達成基準の区分別件数",
       "",
-      `| Result | ${reportGroups.map((group) => cell(group.label)).join(" | ")} |`,
+      `| 結果 | ${reportGroups.map((group) => cell(group.label)).join(" | ")} |`,
       `| --- | ${reportGroups.map(() => "---:").join(" | ")} |`,
       groupRows(reportGroups, guard.profile_group_outcome_counts),
       ""
@@ -177,29 +215,21 @@ export function renderAuditReport(record, validation) {
   }
 
   lines.push(
-    "## 8. Participation Coverage",
+    "## 8. 参加のしやすさに関する確認",
     "",
-    "| Gate | Result |",
+    "| 観点 | 結果 |",
     "| --- | --- |",
     ...["find", "receive", "understand", "participate", "continue"].map((gate) => `| ${gate} | ${assessment.participation_coverage[gate]} |`),
     "",
-    "## 9. Limitations And Residual Risk",
+    "## 9. 制約と残る確認事項",
     "",
     list(assessment.limitations),
-    "- Results do not extend beyond the recorded target version and scope.",
+    "- 結果は、記載した対象の版と範囲を越えて適用しません。",
     "",
-    "## 10. Remediation And Retest",
+    "## 10. 改善と再確認",
     "",
-    findings.length ? "Use each finding's remediation and verification field as the retest plan." : "- No structured remediation items were recorded.",
-    assessment.next_review_at ? `- Next review date: ${assessment.next_review_at}` : "- Next review date: Not recorded.",
-    "",
-    "## 11. Claim Statement",
-    "",
-    `> ${assessment.claim.proposed_wording}`,
-    "",
-    `- Requested tier: ${assessment.claim.requested_tier}`,
-    `- Validator maximum tier: ${guard.max_tier}`,
-    "- The claim statement is limited to the recorded evidence and does not declare conformance."
+    findings.length ? "各指摘事項の改善案と再確認方法を使用します。" : "- 改善項目の記録はありません。",
+    assessment.next_review_at ? `- 次回確認日: ${assessment.next_review_at}` : "- 次回確認日: 記録なし。"
   );
 
   return `${lines.join("\n").trimEnd()}\n`;
@@ -643,6 +673,67 @@ function outcomeCountsFor(results) {
   ]));
 }
 
+function reportOutcomeRank(outcome) {
+  return ({ fail: 4, cant_tell: 3, not_tested: 2, pass: 1 }[outcome] ?? 0);
+}
+
+function buildReportProjection(profileResults, screeningObservations) {
+  const profileIds = new Set(profileResults.map((result) => result.requirement_id));
+  const aiByProfile = new Map();
+  for (const observation of screeningObservations) {
+    const hasProjection = observation.profile_requirement_id !== null
+      && observation.profile_requirement_id !== undefined;
+    if (hasProjection) {
+      if (!observation.profile_requirement_id || !profileIds.has(observation.profile_requirement_id)) {
+        throw new Error(`Screening report projection references an unregistered profile requirement: ${String(observation.profile_requirement_id)}.`);
+      }
+      if (!observation.applicability || !observation.report_rationale) {
+        throw new Error(`Screening report projection is incomplete for ${observation.requirement_id}.`);
+      }
+      if (observation.applicability === "not_applicable") {
+        if (observation.report_outcome !== null) throw new Error(`Not-applicable report projection must use report_outcome null: ${observation.requirement_id}.`);
+      } else if (!Object.hasOwn(outcomeLabels, observation.report_outcome)) {
+        throw new Error(`Screening report projection has an invalid report_outcome: ${observation.requirement_id}.`);
+      }
+      const current = aiByProfile.get(observation.profile_requirement_id);
+      if (!current || reportOutcomeRank(observation.report_outcome) > reportOutcomeRank(current.report_outcome)) {
+        aiByProfile.set(observation.profile_requirement_id, observation);
+      }
+      continue;
+    }
+  }
+
+  const checks = [];
+  const notApplicable = [];
+  for (const result of profileResults) {
+    if (result.mapping_status === "human_verified") {
+      const row = {
+        requirement_id: result.requirement_id,
+        outcome: result.outcome,
+        rationale: resultRationale(result),
+        applicability: result.outcome === "not_applicable" ? "not_applicable" : "applicable"
+      };
+      (row.applicability === "not_applicable" ? notApplicable : checks).push(row);
+      continue;
+    }
+    const observation = aiByProfile.get(result.requirement_id);
+    if (!observation) {
+      checks.push({ requirement_id: result.requirement_id, outcome: "not_tested", rationale: "この検査では確認していません。", applicability: "undetermined" });
+      continue;
+    }
+    const row = {
+      requirement_id: result.requirement_id,
+      outcome: observation.report_outcome,
+      rationale: observation.report_rationale,
+      applicability: observation.applicability
+    };
+    (row.applicability === "not_applicable" ? notApplicable : checks).push(row);
+  }
+  const counts = { pass: 0, fail: 0, not_applicable: notApplicable.length, not_tested: 0, cant_tell: 0 };
+  for (const item of checks) counts[item.outcome] += 1;
+  return { checks: sortedByRequirement(checks), notApplicable: sortedByRequirement(notApplicable), counts };
+}
+
 export function validateRunBackedAssessment({ run, assessment, envelopesById, resources }) {
   const record = assessment?.assessment;
   if (!record) throw new Error("Run-backed report requires an assessment record.");
@@ -768,6 +859,7 @@ export function buildPublicReportModel({ run, assessment, envelopesById, resourc
   const evidence = collectRunEvidence(envelopesById);
   const profileResults = assessment.assessment.results.filter((result) => result.requirement_kind === "profile_requirement");
   const screeningResults = assessment.assessment.results.filter((result) => result.requirement_kind === "screening_check");
+  const reportProjection = buildReportProjection(profileResults, evidence.screeningObservations);
   const expectedProfileCount = resources?.standardsRegistry?.profiles
     ?.find((profile) => profile.id === run.profile.id)?.requirement_ids?.length ?? profileResults.length;
   const reviewedIds = new Set(evidence.humanReviews.map((review) => review.requirement_id));
@@ -868,6 +960,9 @@ export function buildPublicReportModel({ run, assessment, envelopesById, resourc
     screeningCount: evidence.screeningObservations.length,
     profileOutcomeCounts: outcomeCountsFor(profileResults),
     screeningOutcomeCounts: outcomeCountsFor(screeningResults),
+    reportChecks: reportProjection.checks,
+    notApplicableChecks: reportProjection.notApplicable,
+    reportOutcomeCounts: reportProjection.counts,
     catalogCoverage: { recorded: profileResults.length, expected: expectedProfileCount },
     evaluationCoverage: {
       humanReviewed: profileResults.filter((result) => result.mapping_status === "human_verified").length,
@@ -889,173 +984,116 @@ function publicTable(headers, rows, emptyMessage) {
 }
 
 export function renderRunBackedReport(model) {
-  const outcomeLabel = (outcome) => ({
-    pass: "Met in the recorded review",
-    fail: "Verified failure",
-    not_applicable: "Not applicable",
-    not_tested: "Not tested",
-    cant_tell: "Could not determine"
-  }[outcome] ?? "Not recorded");
+  const reportChecks = model.reportChecks ?? [];
+  const notApplicableChecks = model.notApplicableChecks ?? [];
+  const reportCounts = model.reportOutcomeCounts ?? model.profileOutcomeCounts ?? {};
+  const evidenceStatus = (value) => value === "Verified failure" ? "確認済みの不適合" : "要確認の候補";
   const lines = [
-    "# Accessibility Audit Report",
+    "# WCAG検査レポート",
     "",
-    "> This report is limited to the recorded target, version, scope, environment, and evidence. It is not a certification or conformance determination.",
+    reportNotice,
     "",
-    "## Audit scope",
+    "## 1. 総合判定",
     "",
-    `- Target: ${cell(model.target.name)}`,
-    `- Version or commit: ${cell(model.target.version_or_commit)}`,
-    `- URLs or files: ${cell(model.target.urls_or_files.join(", ") || "Not recorded")}`,
-    `- Profile: ${cell(model.profile.id)}`,
-    `- Audit date: ${cell(model.evaluatedAt)}`,
-    `- Standards registry version: ${cell(model.standardsRegistryVersion)}`,
-    `- Included: ${cell(model.scope.included.join(", ") || "Not recorded")}`,
-    `- Excluded: ${cell(model.scope.excluded.join(", ") || "None recorded")}`,
-    `- Complete user processes: ${cell(model.scope.complete_processes.join(", ") || "None recorded")}`,
-    `- Third-party content: ${cell(model.scope.third_party_content.join(", ") || "None recorded")}`,
-    `- Full pages reviewed: ${model.scope.full_pages_reviewed ? "Yes" : "No"}`,
-    `- Operating systems: ${cell(model.environment.os.join(", ") || "Not recorded")}`,
-    `- Browsers or renderers: ${cell(model.environment.browsers.join(", ") || "Not recorded")}`,
-    `- Assistive technologies: ${cell(model.environment.assistive_technologies.join(", ") || "Not recorded")}`,
-    `- Input modes: ${cell(model.environment.input_modes.join(", ") || "Not recorded")}`,
+    `- 総合判定: ${overallReportJudgement(reportCounts)}`,
+    `- 適合: ${count(reportCounts, "pass")}`,
+    `- 不適合: ${count(reportCounts, "fail")}`,
+    `- 要確認: ${count(reportCounts, "cant_tell")}`,
+    `- 未確認: ${count(reportCounts, "not_tested")}`,
+    `- 適用対象外: ${notApplicableChecks.length}`,
     "",
-    "## Observed / 観測",
+    "## 2. 検査対象",
     "",
-    "### Human-reviewed requirements recorded as met",
+    `- 対象: ${cell(model.target.name)}`,
+    `- 版・コミット: ${cell(model.target.version_or_commit)}`,
+    `- URL・ファイル: ${cell(model.target.urls_or_files.join(", ") || "記録なし")}`,
+    `- 適用プロファイル: ${cell(model.profile.id)}`,
+    `- 確認日: ${cell(model.evaluatedAt)}`,
+    `- 規格台帳の版: ${cell(model.standardsRegistryVersion)}`,
+    "",
+    "## 3. 達成基準別の判定",
     "",
     publicTable(
-      ["Requirement", "Human-review rationale", "Recorded evidence"],
-      model.confirmedPoints.map((item) => [item.requirement_id, item.rationale, item.evidence.map((entry) => `${entry.location}: ${entry.observation}`).join("; ")]),
-      "No human-reviewed requirements were recorded as met."
+      ["達成基準・検査項目", "判定", "根拠・未確認事項"],
+      reportChecks.map((item) => [item.requirement_id, reportJudgementForOutcome(item.outcome), item.rationale]),
+      "判定対象の達成基準はありません。"
     ),
     "",
-    "### Verified failures",
+    "### 適用対象外とした達成基準",
     "",
     publicTable(
-      ["Requirement", "Priority", "Location", "Affected users", "Issue", "Proposed change"],
-      model.verifiedFailures.map((item) => [
-        item.requirement_id,
-        item.finding?.priority ?? "Not recorded",
-        item.finding?.location ?? "Not recorded",
-        item.finding?.affected_users?.join(", ") ?? "Not recorded",
-        item.finding?.observation ?? item.rationale,
-        item.remediation?.proposed_change ?? "Not recorded"
-      ]),
-      "No verified failures were recorded."
+      ["達成基準", "理由"],
+      notApplicableChecks.map((item) => [item.requirement_id, item.rationale]),
+      "適用対象外とした達成基準はありません。"
     ),
     "",
-    "### Unverified screening candidates",
-    "",
-    "> The entries in this section are leads for human review. They are not failures and do not support a conformance claim.",
+    "## 4. 改善事項",
     "",
     publicTable(
-      ["Check", "Location", "Observation", "Proposed next step", "Residual limitation"],
-      model.screeningCandidates.map((item) => [
-        item.requirement_id,
-        item.location,
-        item.observation,
-        item.remediation?.proposed_change ?? "Review the observation before deciding whether a change is needed.",
-        item.remediation?.residual_limitation ?? "The observation has not been verified by a human reviewer."
-      ]),
-      "No unverified screening candidates were recorded."
-    ),
-    "",
-    "## Improvement / 改善",
-    "",
-    "### Remediation",
-    "",
-    publicTable(
-      ["Evidence status", "Requirement", "Priority", "Location", "Affected users", "Issue", "Proposed change", "Owner", "Residual limitation"],
+      ["優先度", "達成基準・検査項目", "証拠の状態", "箇所", "影響を受ける利用者", "問題", "改善案", "担当", "残る確認事項"],
       model.remediation.map((item) => [
-        item.evidence_status,
-        item.requirement_id,
         item.priority,
+        item.requirement_id,
+        evidenceStatus(item.evidence_status),
         item.location,
         item.affected_users.join(", "),
         item.issue,
         item.proposed_change,
-        item.owner ?? "Not assigned",
+        item.owner ?? "未設定",
         item.residual_limitation
       ]),
-      "No remediation items were recorded."
+      "改善項目の記録はありません。"
     ),
     "",
-    "### Retest",
+    "### 再確認方法",
     "",
     publicTable(
-      ["Requirement", "Retest method", "Owner"],
-      model.remediation.map((item) => [item.requirement_id, item.verification, item.owner ?? "Not assigned"]),
-      "No retest methods were recorded."
+      ["優先度", "達成基準・検査項目", "再確認方法", "担当"],
+      model.remediation.map((item) => [item.priority, item.requirement_id, item.verification, item.owner ?? "未設定"]),
+      "再確認方法の記録はありません。"
     ),
     "",
-    "## Human review / 人が確認",
-    "",
-    "> Screening entries remain questions for a person to confirm. They are not recorded profile results.",
-    "",
-    "### Candidate observations to confirm",
+    "## 5. 今後の確認事項",
     "",
     publicTable(
-      ["Check", "Location", "Question for human review"],
-      model.screeningCandidates.map((item) => [item.requirement_id, item.location, item.observation]),
-      "No candidate observations are waiting for human confirmation."
+      ["検査項目", "判定", "箇所", "確認内容"],
+      model.screeningCandidates.map((item) => [item.requirement_id, "要確認", item.location, item.observation]),
+      "追加確認が必要な候補はありません。"
     ),
     "",
-    "### Recorded human checks",
+    "### 確認手順が残っている達成基準",
     "",
     publicTable(
-      ["Requirement", "Recorded result", "Rationale"],
-      model.recordedHumanChecks.map((item) => [item.requirement_id, outcomeLabel(item.outcome), item.rationale]),
-      "No completed human checks were recorded."
-    ),
-    "",
-    "### Pending human checks",
-    "",
-    publicTable(
-      ["Requirement", "Procedure availability", "Human actions", "Cannot-determine conditions"],
+      ["達成基準", "判定", "手順の有無", "確認作業", "要確認となる条件"],
       model.pendingHumanChecks.map((item) => [
         item.requirement_id,
+        "未確認",
         item.procedure_availability,
         item.human_actions.join("; "),
         item.cant_tell_conditions.join("; ")
       ]),
-      "No pending human checks were recorded."
+      "未実施の確認手順はありません。"
     ),
     "",
-    "## Coverage counts",
+    "## 6. 対象範囲と検査環境",
     "",
-    "### Profile outcome counts",
+    `- 含む範囲: ${cell(model.scope.included.join(", ") || "記録なし")}`,
+    `- 除外した範囲: ${cell(model.scope.excluded.join(", ") || "記録なし")}`,
+    `- 一連の利用手順: ${cell(model.scope.complete_processes.join(", ") || "記録なし")}`,
+    `- 第三者コンテンツ: ${cell(model.scope.third_party_content.join(", ") || "記録なし")}`,
+    `- ページ全体を確認: ${model.scope.full_pages_reviewed ? "はい" : "いいえ"}`,
+    `- OS: ${cell(model.environment.os.join(", ") || "記録なし")}`,
+    `- ブラウザー・表示環境: ${cell(model.environment.browsers.join(", ") || "記録なし")}`,
+    `- 支援技術: ${cell(model.environment.assistive_technologies.join(", ") || "記録なし")}`,
+    `- 入力方法: ${cell(model.environment.input_modes.join(", ") || "記録なし")}`,
     "",
-    publicTable(
-      ["Outcome", "Count"],
-      outcomes.map((outcome) => [outcome, model.profileOutcomeCounts[outcome]]),
-      "No profile rows were recorded."
-    ),
+    "## 7. 記録の範囲",
     "",
-    "### Screening outcome counts",
-    "",
-    publicTable(
-      ["Outcome", "Count"],
-      outcomes.map((outcome) => [outcome, model.screeningOutcomeCounts[outcome]]),
-      "No screening rows were recorded."
-    ),
-    "",
-    "### Catalog coverage count",
-    "",
-    `- Catalog coverage: ${model.catalogCoverage.recorded} recorded of ${model.catalogCoverage.expected} expected profile requirements.`,
-    "",
-    "### Evaluation coverage count",
-    "",
-    `- Evaluation coverage: ${model.evaluationCoverage.humanReviewed} human-reviewed of ${model.evaluationCoverage.expected} expected profile requirements.`,
-    "",
-    "## Evidence and claim limits",
-    "",
-    `- Recorded human checks: ${model.reviewedCount}`,
-    `- Recorded screening observations: ${model.screeningCount}`,
-    `- Evidence level: ${cell(model.evidenceLevel)}`,
-    `- Claim tier: ${cell(model.claim.tier)}`,
-    `- Claim wording: ${cell(model.claim.wording)}`,
-    "- Screening observations and candidates do not determine requirement outcomes.",
-    "- Results do not extend beyond the recorded target version, scope, environment, and evidence.",
+    `- 登録済み達成基準: ${model.catalogCoverage.recorded}/${model.catalogCoverage.expected}`,
+    `- 人による確認済み達成基準: ${model.evaluationCoverage.humanReviewed}/${model.evaluationCoverage.expected}`,
+    `- 記録済みスクリーニング: ${model.screeningCount}`,
+    `- 証拠レベル: ${cell(model.evidenceLevel)}`,
+    "- 結果は、記載した対象の版・範囲・環境・証拠を越えて適用しません。",
     ...model.limitations.map((limitation) => `- ${cell(limitation)}`)
   ];
   return `${lines.join("\n").trimEnd()}\n`;

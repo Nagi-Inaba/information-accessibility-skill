@@ -15,27 +15,43 @@ const auditRunRegistryCompatibility = new Map([
   ["2.0.0", "1.0.0"],
   ["3.0.0", "2.0.0"],
   ["4.0.0", "3.0.0"],
-  ["5.0.0", "4.0.0"]
+  ["5.0.0", "4.0.0"],
+  ["6.0.0", "5.0.0"]
 ]);
 const auditRunEnvelopeCompatibility = new Map([
   ["1.0.0", "1.0.0"],
   ["2.0.0", "1.0.0"],
   ["3.0.0", "1.0.0"],
   ["4.0.0", "1.0.0"],
-  ["5.0.0", "2.0.0"]
+  ["5.0.0", "2.0.0"],
+  ["6.0.0", "2.0.0"]
 ]);
 const currentAuditRunManifestContract = {
   id: "audit-run",
-  latest_schema_version: "5.0.0",
+  latest_schema_version: "6.0.0",
   schema_versions: [
     { version: "1.0.0", schema_file: "audit-run-1.0.0.schema.json", mode: "read_only" },
     { version: "2.0.0", schema_file: "audit-run-2.0.0.schema.json", mode: "read_only" },
     { version: "3.0.0", schema_file: "audit-run-3.0.0.schema.json", mode: "read_only" },
     { version: "4.0.0", schema_file: "audit-run-4.0.0.schema.json", mode: "read_only" },
+    { version: "5.0.0", schema_file: "audit-run-5.0.0.schema.json", mode: "read_only" },
     {
-      version: "5.0.0",
+      version: "6.0.0",
       schema_file: "audit-run.schema.json",
-      schema_sha256: "8cafbb4e31b37144895d4bed9ecc52cff0f158018002c1ae384ac48ee44b77d2",
+      schema_sha256: "9809a64eeb9b93394cf0213e7291e8bdf489853f6e8d660a6756cae32f2178a4",
+      mode: "current"
+    }
+  ]
+};
+const currentScreeningManifestContract = {
+  id: "screening-observations",
+  latest_schema_version: "2.0.0",
+  schema_versions: [
+    { version: "1.0.0", schema_file: "screening-observations-1.0.0.schema.json", mode: "read_only" },
+    {
+      version: "2.0.0",
+      schema_file: "screening-observations.schema.json",
+      schema_sha256: "c1d50902738383184fe5ca27831f65f8f6926214bc7370a4ada6752b326033fa",
       mode: "current"
     }
   ]
@@ -284,6 +300,8 @@ function validateOrchestrationRegistrySemantics(registry, canonicalRegistry) {
     if (!installedArtifactType) errors.push(`Missing canonical artifact type: ${canonicalArtifactType.id}.`);
     else if (canonicalArtifactType.id === "audit-run") {
       if (!isDeepStrictEqual(installedArtifactType, currentAuditRunManifestContract)) errors.push("Canonical audit-run manifest changed.");
+    } else if (canonicalArtifactType.id === "screening-observations") {
+      if (!isDeepStrictEqual(installedArtifactType, currentScreeningManifestContract)) errors.push("Canonical screening-observations manifest changed.");
     } else if (!isDeepStrictEqual(canonicalComparableManifest(installedArtifactType, canonicalArtifactType), canonicalArtifactType)) {
       errors.push(`Canonical artifact type manifest changed: ${canonicalArtifactType.id}.`);
     }
@@ -404,6 +422,8 @@ export function loadAuditResources(skillRoot = defaultSkillRoot) {
     orchestrationSchemaV2: "references/orchestration-registry-2.0.0.schema.json",
     orchestrationRegistryV3: "references/orchestration-registry-3.0.0.json",
     orchestrationSchemaV3: "references/orchestration-registry-3.0.0.schema.json",
+    orchestrationRegistryV4: "references/orchestration-registry-4.0.0.json",
+    orchestrationSchemaV4: "references/orchestration-registry-4.0.0.schema.json",
     envelopeSchema: "references/audit-artifact-envelope.schema.json",
     envelopeSchemaV1: "references/audit-artifact-envelope-1.0.0.schema.json",
     assessmentSchema: "references/assessment-record.schema.json",
@@ -416,7 +436,8 @@ export function loadAuditResources(skillRoot = defaultSkillRoot) {
     ["installed", loaded.orchestrationRegistry, loaded.orchestrationSchema],
     ["frozen 1.0.0", loaded.orchestrationRegistryV1, loaded.orchestrationSchemaV1],
     ["frozen 2.0.0", loaded.orchestrationRegistryV2, loaded.orchestrationSchemaV2],
-    ["frozen 3.0.0", loaded.orchestrationRegistryV3, loaded.orchestrationSchemaV3]
+    ["frozen 3.0.0", loaded.orchestrationRegistryV3, loaded.orchestrationSchemaV3],
+    ["frozen 4.0.0", loaded.orchestrationRegistryV4, loaded.orchestrationSchemaV4]
   ]) {
     const registryErrors = [];
     validateJsonSchema(registry.value, schema.value, "$", registryErrors);
@@ -424,7 +445,7 @@ export function loadAuditResources(skillRoot = defaultSkillRoot) {
   }
   const semanticErrors = validateOrchestrationRegistrySemantics(
     loaded.orchestrationRegistry.value,
-    loaded.orchestrationRegistryV3.value
+    loaded.orchestrationRegistryV4.value
   );
   if (semanticErrors.length) throw new Error(`Invalid installed orchestration registry semantics:\n- ${semanticErrors.join("\n- ")}`);
   const schemaManifests = new Map();
@@ -487,6 +508,7 @@ export function loadAuditResources(skillRoot = defaultSkillRoot) {
     loaded.orchestrationRegistryV1,
     loaded.orchestrationRegistryV2,
     loaded.orchestrationRegistryV3,
+    loaded.orchestrationRegistryV4,
     loaded.orchestrationRegistry
   ];
   const orchestrationRegistries = new Map(registryFiles.map((registry) => [
@@ -1220,8 +1242,8 @@ export function createAuditRun(options) {
     if (!options.supersedesRunFile) throw new Error("supersedesRunFile is required for fresh retest initialization.");
     const predecessorValidation = validateAuditRun(options.supersedesRun, { skillRoot, runFile: options.supersedesRunFile });
     if (!predecessorValidation.valid) throw new Error(`Invalid superseded audit run:\n- ${predecessorValidation.errors.join("\n- ")}`);
-    if (!["4.0.0", "5.0.0"].includes(options.supersedesRun.schema_version)) {
-      throw new Error("Fresh retest predecessor must use supported audit-run schema_version 4.0.0 or 5.0.0.");
+    if (!["5.0.0", "6.0.0"].includes(options.supersedesRun.schema_version)) {
+      throw new Error("Fresh retest predecessor must use supported audit-run schema_version 5.0.0 or 6.0.0.");
     }
     if (options.supersedesRun.status !== "retest_required") throw new Error("Fresh retest predecessor status must be retest_required.");
     if (run.run_id === options.supersedesRun.run_id) throw new Error("Fresh retest run ID must differ from the predecessor run ID.");

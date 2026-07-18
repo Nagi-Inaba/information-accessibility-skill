@@ -71,13 +71,13 @@ test("Japanese README explains the user journey before using participation termi
   assert.match(japanese, /\*\*行動する（Participate）\*\*[^\n]*質問[^\n]*申込[^\n]*サービスの利用[^\n]*支援依頼[^\n]*イベントへの参加/u);
 });
 
-test("READMEs lead with self-checking and improvement before claim boundaries", () => {
+test("READMEs lead with inspection and improvement before claim boundaries", () => {
   const japanese = read("README.md");
   const english = read("README.en.md");
 
-  assert.match(japanese, /## 自分のプロダクトを確認し、改善する[^]*達成基準と照らし合わせ[^]*セルフチェック[^]*専門家でなくても[^]*改善できる箇所/u);
+  assert.match(japanese, /## 自分のプロダクトを確認し、改善する[^]*達成基準と照らし合わせ[^]*検査[^]*専門家でなくても[^]*改善できる箇所/u);
   assert.match(japanese, /正式な適合宣言ではありません[^]*適合宣言を目指す場合[^]*人による評価へ引き継ぐ準備[^]*結果だけで適合宣言を行うことはできません/u);
-  assert.match(english, /## Check and improve your own product[^]*self-checks[^]*success criteria[^]*without being accessibility specialists[^]*actionable improvements/iu);
+  assert.match(english, /## Check and improve your own product[^]*inspections[^]*success criteria[^]*without being accessibility specialists[^]*actionable improvements/iu);
   assert.match(english, /not third-party certification[^]*formal declaration[^]*When formal conformance is the goal[^]*before human evaluation[^]*results alone cannot support a conformance declaration/iu);
   assert.ok(japanese.indexOf("## 自分のプロダクトを確認し、改善する") < japanese.indexOf("`web-modern`"));
   assert.ok(english.indexOf("## Check and improve your own product") < english.indexOf("`web-modern`"));
@@ -117,7 +117,10 @@ test("Japanese and English READMEs preserve structural and executable parity", (
   assert.match(english, /AI agents[^]*`mapping_status: "unverified"`[^]*`outcome: "not_tested"`/iu);
   assert.match(english, /external human review[^]*target-specific manual or hybrid evidence[^]*`pass`[^]*`fail`/iu);
   assert.match(english, /does not provide[^]*(?:certification|conformance)/iu);
-  assert.doesNotMatch(english.replace(/^\[日本語\][^\n]*\n/u, ""), /[\u3040-\u30ff\u3400-\u9fff]/u);
+  const englishWithoutSwitchOrJudgements = english
+    .replace(/^\[日本語\][^\n]*\n/u, "")
+    .replace(/適合|不適合|要確認|未確認/gu, "");
+  assert.doesNotMatch(englishWithoutSwitchOrJudgements, /[\u3040-\u30ff\u3400-\u9fff]/u);
 
   const headingPairs = [
     ["自分のプロダクトを確認し、改善する", "Check and improve your own product"],

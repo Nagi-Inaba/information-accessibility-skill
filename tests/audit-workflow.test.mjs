@@ -148,7 +148,7 @@ test("placeholder audit identity and invalid evidence timestamps are rejected", 
 
 test("generic audit report template exposes scope, findings, coverage, limits, and retest", () => {
   const report = fs.readFileSync(path.join(skill, "assets/audit-report.template.md"), "utf8");
-  for (const heading of ["## 3. Scope", "## 6. Findings", "## 7. Profile Coverage", "## 9. Limitations And Residual Risk", "## 10. Remediation And Retest"]) {
+  for (const heading of ["## 1. 総合判定", "## 3. 対象範囲", "## 5. 達成基準別の判定", "## 6. 指摘事項と改善案", "## 8. 制約と残る確認事項", "## 9. 改善と再確認"]) {
     assert.ok(report.includes(heading), heading);
   }
 });

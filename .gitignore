@@ -1,0 +1,2 @@
+# Local audit internals may contain run identifiers, hashes, paths, and raw observations.
+audit-runs/**/*

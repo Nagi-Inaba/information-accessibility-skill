@@ -43,6 +43,16 @@ function assertAiHumanBoundary(text, artifact) {
   assert.doesNotMatch(text, /Record pass, fail, not_applicable, not_tested, or cant_tell with location-specific evidence/, `${artifact} must not use the old unconditional agent profile-outcome imperative`);
 }
 
+function assertReportJudgementContract(text, artifact) {
+  assert.match(text, /`適合`, `不適合`, `要確認`, and `未確認`/, `${artifact} must fix the four report judgement labels`);
+  assert.match(text, /`fail`[^]*`不適合`[^]*`cant_tell`[^]*`要確認`[^]*`not_tested`[^]*`未確認`[^]*otherwise[^]*`適合`/i, `${artifact} must define the overall judgement priority`);
+  assert.match(text, /`not_applicable`[^]*separate/i, `${artifact} must keep not_applicable outside the judgement column`);
+  assert.match(text, /single notice[^]*not a third-party certification, legal determination, or formal organizational conformance statement/i, `${artifact} must require one formal-status notice`);
+  assert.match(text, /WCAG perspective[^]*conformance judgement report/i, `${artifact} must treat a WCAG-perspective inspection request as a report request`);
+  assert.match(text, /must not say[^]*WCAG適合は判定していません/i, `${artifact} must prohibit the contradictory opening disclaimer`);
+  assert.match(text, /Do not create separate self-check and public-report modes/i, `${artifact} must use one report format`);
+}
+
 test("AI reviewer prompt contract preserves the agent-to-human evidence boundary", () => {
   const codexBody = codexReviewerBody(read("codex/agents/information-accessibility-reviewer.toml"));
   const claudeBody = claudeReviewerBody(read("claude/agents/information-accessibility-reviewer.md"));
@@ -51,6 +61,7 @@ test("AI reviewer prompt contract preserves the agent-to-human evidence boundary
   assert.ok(claudeBody, "Claude reviewer body must be extractable");
   assert.equal(normalize(codexBody), normalize(claudeBody), "Codex and Claude reviewer bodies must remain normalized-equal");
   assertAiHumanBoundary(codexBody, "reviewer instructions");
+  assertReportJudgementContract(codexBody, "reviewer instructions");
 });
 
 test("shared skill prompt contract preserves the agent-to-human evidence boundary", () => {
@@ -59,6 +70,17 @@ test("shared skill prompt contract preserves the agent-to-human evidence boundar
 
   assert.deepEqual(Buffer.from(codexSkill), Buffer.from(claudeSkill), "Codex and Claude SKILL.md files must remain byte-for-byte equal");
   assertAiHumanBoundary(codexSkill, "shared skill instructions");
+  assertReportJudgementContract(codexSkill, "shared skill instructions");
+});
+
+test("audit report template uses one format and the four fixed judgement labels", () => {
+  const template = read("codex/skills/information-accessibility-practice/assets/audit-report.template.md");
+  assert.match(template, /^# WCAG検査レポート/mu);
+  assert.equal((template.match(/第三者認証、法的判断、または組織による正式な適合表明ではありません/gu) ?? []).length, 1);
+  assert.match(template, /総合判定: 適合 \/ 不適合 \/ 要確認 \/ 未確認/u);
+  assert.match(template, /判定欄には「適合」「不適合」「要確認」「未確認」のいずれか一つだけ/u);
+  assert.match(template, /適用対象外は判定欄へ入れず/u);
+  assert.doesNotMatch(template, /self-check|public report|公開向け|セルフチェック用/iu);
 });
 
 test("README reserves profile outcomes for external human review and keeps AI output as a handoff", () => {

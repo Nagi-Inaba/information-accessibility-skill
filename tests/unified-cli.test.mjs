@@ -126,7 +126,7 @@ test("assessment, validation, and report commands preserve existing runtime beha
 
   const rendered = runCli(["report", "--input", assessment, "--output", report]);
   assert.equal(rendered.status, 0, rendered.stderr || rendered.stdout);
-  assert.match(fs.readFileSync(report, "utf8"), /^# Accessibility Audit Report/mu);
+  assert.match(fs.readFileSync(report, "utf8"), /^# WCAG検査レポート/mu);
 
   const overwrite = runCli([
     "assessment",

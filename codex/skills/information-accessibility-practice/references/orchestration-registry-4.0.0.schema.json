@@ -1,13 +1,13 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:information-accessibility:orchestration-registry:5.0.0",
+  "$id": "urn:information-accessibility:orchestration-registry:4.0.0",
   "title": "Extensible Information Accessibility Audit Orchestration Registry",
   "type": "object",
   "additionalProperties": false,
   "required": ["$schema", "schema_version", "roles", "artifact_types", "transitions"],
   "properties": {
     "$schema": { "const": "./orchestration-registry.schema.json" },
-    "schema_version": { "const": "5.0.0" },
+    "schema_version": { "const": "4.0.0" },
     "roles": {
       "type": "array",
       "minItems": 7,

@@ -1,6 +1,6 @@
 # Standards Assessment
 
-Use this reference only when the user asks for standards-based evaluation, evidence records, procurement support, or conformance wording. Keep the five-gate participation review as a separate result.
+Use this reference when the user asks for a WCAG/JIS/ATAG inspection, standards-based evaluation, evidence records, procurement support, or conformance wording. A request to inspect from a WCAG perspective includes criterion-level and overall report judgements; do not answer that no WCAG judgement is being made and then provide a WCAG findings report.
 
 ## 1. Select The Profile
 
@@ -49,6 +49,8 @@ Use exactly one outcome for each requirement:
 - `cant_tell`: available evidence cannot support a result; state what evidence is missing.
 
 Never infer `pass` from absence of an automated finding. Never hide `not_tested` or `cant_tell` in an average score.
+
+The human-readable report uses exactly four judgement labels: `pass` becomes `適合`, `fail` becomes `不適合`, `cant_tell` becomes `要確認`, and `not_tested` becomes `未確認`. Put `not_applicable` and its rationale in a separate section. The overall report judgement is the first applicable result in this order: any `fail`, any `cant_tell`, any `not_tested`, otherwise `pass`. The formal-status notice appears once near the start of the report; do not add `暫定` to individual judgements.
 
 For every `fail`, add an `assessment.findings` record. Use `P0`, `P1`, or `P2`; reference the failed requirement ID; and record the exact location, affected users, observation, remediation, and retest method. The validator rejects a new-style record that contains a failed result without a linked finding. A finding may omit requirement IDs only when it documents a participation issue that has no corresponding standards result.
 
@@ -113,7 +115,7 @@ node <skill_root>/scripts/validate-assessment.mjs <assessment.json>
 node <skill_root>/scripts/render-audit-report.mjs --input <assessment.json> --output <report.md>
 ```
 
-The renderer refuses invalid input and existing output files. It reports failures, untested items, `cant_tell` items, claim eligibility, structured findings, and required retests without inferring conformance.
+The renderer refuses invalid input and existing output files. It produces the unified Japanese inspection report with the four fixed judgement labels, structured findings, limitations, improvements, and required retests. Formal claim eligibility remains in the machine-readable validator result and is not repeated as a second disclaimer in the report.
 
 ## Non-Goals
 

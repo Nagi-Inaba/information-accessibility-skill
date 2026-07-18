@@ -1,114 +1,95 @@
-# Accessibility Audit Report
+# WCAG検査レポート
 
-> Status: draft / reviewed / final
-> This report applies only to the target, version, scope, environment, and date stated below.
+> 注意：このレポートでは、改善判断のために「適合」「不適合」などの判定語を使用します。これらは記載した対象・範囲・環境・確認日時・証拠に基づく検査結果であり、第三者認証、法的判断、または組織による正式な適合表明ではありません。
 
-## 1. Audit Identity
+## 1. 総合判定
 
-- Target:
-- Version / commit:
-- URLs / files:
-- Audit profile:
-- Audit dates:
-- Evaluator:
-- Independent review:
-- Evidence record:
+- 総合判定: 適合 / 不適合 / 要確認 / 未確認
+- 適合:
+- 不適合:
+- 要確認:
+- 未確認:
+- 適用対象外:
 
-## 2. Executive Summary
+総合判定は、不適合、要確認、未確認、適合の順で決定する。適用対象外は総合判定に含めない。
 
-- Overall result: Do not use a generic pass/fail or compliance label.
-- P0 findings:
-- P1 findings:
-- P2 findings:
-- Untested requirements:
-- Indeterminate requirements:
-- Highest claim tier allowed by the validator:
-- Required human decisions:
+## 2. 検査対象
 
-## 3. Scope
+- 対象:
+- 版・コミット:
+- URL・ファイル:
+- 適用プロファイル:
+- 確認日:
+- 確認者:
+- 証拠レベル:
 
-### Included
+## 3. 対象範囲
 
-- [Included target]
+### 含む範囲
 
-### Excluded
+-
 
-- [Excluded target and rationale]
+### 除外した範囲
 
-### Complete User Processes
+-
 
-- [Complete user process]
+### 一連の利用手順
 
-### Third-Party Content
+-
 
-- [Third-party content and responsibility boundary]
+### 第三者コンテンツ
 
-## 4. Test Environment
+-
 
-| Layer | Product / version | Configuration or purpose |
-| --- | --- | --- |
-| OS |  |  |
-| Browser / renderer |  |  |
-| Assistive technology |  |  |
-| Input mode |  |  |
-| Automated screening |  | Supporting evidence only |
+## 4. 検査環境
 
-## 5. Method
+| 項目 | 記録内容 |
+| --- | --- |
+| OS |  |
+| ブラウザー・表示環境 |  |
+| 支援技術 |  |
+| 入力方法 |  |
+| 自動検査 |  |
 
-Describe sampling, full-page boundaries, complete-process coverage, manual checks, keyboard tests, browser accessibility-tree inspection, assistive-technology tests, document structure checks, and automated screening. Link the machine-readable assessment record.
+## 5. 達成基準別の判定
 
-## 6. Findings
+判定欄には「適合」「不適合」「要確認」「未確認」のいずれか一つだけを記載する。「暫定」などの語を判定へ付け加えない。
 
-For each failed result, create a structured record in `assessment.findings` before rendering. It must include the priority, related requirement ID, location, affected users, observation, remediation, and verification method.
+| 達成基準 | 判定 | 確認箇所 | 根拠・未確認事項 |
+| --- | --- | --- | --- |
+|  |  |  |  |
 
-| ID | Priority | Requirement / check | Location | Affected users | Observation | Remediation | Verification |
+### 適用対象外とした達成基準
+
+適用対象外は判定欄へ入れず、理由とともに別に記載する。
+
+| 達成基準 | 理由 |
+| --- | --- |
+|  |  |
+
+## 6. 指摘事項と改善案
+
+| ID | 優先度 | 達成基準 | 箇所 | 影響を受ける利用者 | 確認内容 | 改善案 | 再確認方法 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 |  |  |  |  |  |  |  |  |
 
-## 7. Profile Coverage
+## 7. 対象範囲と判定件数
 
-| Result | Registered profile requirements | Supporting screening checks |
-| --- | ---: | ---: |
-| Pass |  |  |
-| Fail |  |  |
-| Not applicable |  |  |
-| Not tested |  |  |
-| Cannot tell |  |  |
+| 結果 | 件数 |
+| --- | ---: |
+| 適合 |  |
+| 不適合 |  |
+| 要確認 |  |
+| 未確認 |  |
+| 適用対象外 |  |
 
-List missing catalog IDs and confirm whether every profile requirement has a recorded row. Catalog coverage is not the same as completed evaluation.
+## 8. 制約と残る確認事項
 
-For `jp-public-web`, also report the two registered groups separately:
+-
+- 結果は、記載した対象の版・範囲・環境・証拠を越えて適用しない。
 
-| Result | JIS X 8341-3:2016 A/AA (38) | Added WCAG 2.2 A/AA (18) |
-| --- | ---: | ---: |
-| Pass |  |  |
-| Fail |  |  |
-| Not applicable |  |  |
-| Not tested |  |  |
-| Cannot tell |  |  |
+## 9. 改善と再確認
 
-## 8. Participation Coverage
-
-| Gate | Result | Evidence / limitation |
-| --- | --- | --- |
-| Find |  |  |
-| Receive |  |  |
-| Understand |  |  |
-| Participate |  |  |
-| Continue |  |  |
-
-## 9. Limitations And Residual Risk
-
-- [Limitation or residual risk]
-- Automated tools do not prove absence of accessibility barriers.
-- Results do not extend beyond the recorded target version and scope.
-
-## 10. Remediation And Retest
-
-| Action | Owner | Due | Retest method | Status |
+| 改善事項 | 担当 | 期限 | 再確認方法 | 状態 |
 | --- | --- | --- | --- | --- |
 |  |  |  |  |  |
-
-## 11. Claim Statement
-
-Insert only the exact wording accepted by `validate-assessment.mjs`. Put target-specific detail in this report, not by editing the registered claim template.

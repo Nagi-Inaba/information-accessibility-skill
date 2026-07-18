@@ -26,6 +26,18 @@ When an AI agent performs a review with this package:
 - Only a separate external human review workflow may record profile requirement outcomes or E2/evaluated_subset after the named criterion procedure and target-specific manual or hybrid evidence, plus a human mapping of the registered requirement.
 - The schema and validator cannot prove a reviewer's human identity; they only check record consistency.
 
+## Report Judgement Contract
+
+The report judgement vocabulary is exactly `適合`, `不適合`, `要確認`, and `未確認`. Map internal outcomes as follows: `pass` to `適合`, `fail` to `不適合`, `cant_tell` to `要確認`, and `not_tested` to `未確認`. List `not_applicable` in a separate section with its rationale; it must never appear in the judgement column.
+
+Determine the overall report judgement in this order: if any `fail` exists, use `不適合`; otherwise, if any `cant_tell` exists, use `要確認`; otherwise, if any `not_tested` exists, use `未確認`; otherwise use `適合`. Do not append `暫定` or any other qualifier to a judgement label.
+
+Place a single notice near the start of the report stating that the report labels are inspection results for the recorded target and evidence, not a third-party certification, legal determination, or formal organizational conformance statement. Do not repeat that caveat on every row or at the end of the report.
+
+Treat a request to inspect from a WCAG perspective as a request for a WCAG conformance judgement report. Start with the report and its overall judgement; the response must not say `WCAG適合は判定していません` while proceeding to report WCAG findings. Do not create separate self-check and public-report modes. Use the same report structure and judgement vocabulary for every audience.
+
+An AI agent may record these four report-only judgements from the evidence it actually inspected. That report projection does not change `mapping_status`, does not create a human-verified profile outcome, and does not raise the evidence level or claim tier. Formal organizational claim controls remain in the machine-readable assessment and claim guard.
+
 ## Agent-Supported Run Overview
 
 Use the reviewer as the orchestrator when a review needs registered role artifacts. Select the E1 inspector for read-only screening observations, the human queue planner for procedure-bound questions that a person must review, and the remediation planner for candidate improvements. These AI roles do not record profile outcomes or authorize target changes.
@@ -62,7 +74,7 @@ Do not split the five gates into separate workflows. They are shared evaluation 
 
 1. Choose the review mode:
    - Use participation review by default.
-   - Use standards assessment only when the target, profile, scope, and available evidence are explicit.
+   - When the request names WCAG, JIS, ATAG, a standards profile, or asks for a standards-based inspection, use standards assessment from the start and produce the report format in this skill.
 
 2. Define the object under review:
    - Artifact: event plan, announcement, venue page, form, slide, PDF, video, transcript, website, SNS flow, support portal, or onboarding path.
@@ -163,7 +175,7 @@ For planning:
 | After |  |  |  |  |
 ```
 
-For standards assessment, return the validated JSON record plus a short human-readable summary. Lead with failed, untested, and indeterminate requirements; do not replace requirement outcomes with a percentage score.
+For standards assessment, return the validated JSON record and the full report in `assets/audit-report.template.md`. Lead with the overall judgement and the criterion-level table. Use only the four report labels defined above; do not replace requirement outcomes with a percentage score.
 
 ## Guardrails
 

@@ -33,7 +33,7 @@ function schemaErrors(value, schemaName) {
 
 function validAuditRun() {
   return {
-    schema_version: "5.0.0",
+    schema_version: "6.0.0",
     run_id: runId,
     supersedes_run_id: null,
     status: "initialized",
@@ -69,7 +69,7 @@ function validAuditRun() {
     },
     resource_versions: {
       standards_registry_version: "1.0.0",
-      orchestration_registry_version: "4.0.0",
+      orchestration_registry_version: "5.0.0",
       orchestration_registry_sha256: sha256,
       criteria_catalog_sha256: sha256,
       criterion_procedures_sha256: sha256,
@@ -96,14 +96,18 @@ function validRunArtifact() {
 
 function validScreeningPayload() {
   return {
-    schema_version: "1.0.0",
+    schema_version: "2.0.0",
     observations: [{
       requirement_id: "SCREEN-AXE-SERIOUS",
       evidence_level: "E1",
       method: "Automated scan followed by read-only inspection",
       location: "target/index.html#main",
       observation: "A candidate issue requires human review.",
-      captured_at: createdAt
+      captured_at: createdAt,
+      profile_requirement_id: "WCAG-2.2-SC-1.1.1",
+      report_outcome: "cant_tell",
+      applicability: "undetermined",
+      report_rationale: "The available evidence is insufficient for a report judgement."
     }]
   };
 }
@@ -206,14 +210,17 @@ test("current queue and remediation schemas are version 2 while frozen version 1
   assert.notDeepEqual(await schemaErrors(legacyRemediationValue, "remediation-plan.schema.json"), []);
 });
 
-test("versioned contracts freeze prior runs while run 5, registry 4, and envelope 2 are current", async () => {
+test("versioned contracts freeze prior runs while run 6, registry 5, and envelope 2 are current", async () => {
   const versions = [
-    ["orchestration-registry.json", "schema_version", "4.0.0"],
+    ["orchestration-registry.json", "schema_version", "5.0.0"],
+    ["orchestration-registry-4.0.0.json", "schema_version", "4.0.0"],
     ["orchestration-registry-3.0.0.json", "schema_version", "3.0.0"],
     ["orchestration-registry-2.0.0.json", "schema_version", "2.0.0"],
-    ["orchestration-registry.schema.json", "schema", "4.0.0"],
+    ["orchestration-registry.schema.json", "schema", "5.0.0"],
+    ["orchestration-registry-4.0.0.schema.json", "schema", "4.0.0"],
     ["orchestration-registry-2.0.0.schema.json", "schema", "2.0.0"],
-    ["audit-run.schema.json", "schema", "5.0.0"],
+    ["audit-run.schema.json", "schema", "6.0.0"],
+    ["audit-run-5.0.0.schema.json", "schema", "5.0.0"],
     ["audit-run-4.0.0.schema.json", "schema", "4.0.0"],
     ["audit-run-3.0.0.schema.json", "schema", "3.0.0"],
     ["fix-authorization.schema.json", "schema", "2.0.0"],
@@ -586,19 +593,23 @@ test("the orchestration registry fixes the complete role, artifact, and transiti
   assert.deepEqual(registry.artifact_types, [
     {
       id: "audit-run",
-      latest_schema_version: "5.0.0",
+      latest_schema_version: "6.0.0",
       schema_versions: [
         { version: "1.0.0", schema_file: "audit-run-1.0.0.schema.json", mode: "read_only" },
         { version: "2.0.0", schema_file: "audit-run-2.0.0.schema.json", mode: "read_only" },
         { version: "3.0.0", schema_file: "audit-run-3.0.0.schema.json", mode: "read_only" },
         { version: "4.0.0", schema_file: "audit-run-4.0.0.schema.json", mode: "read_only" },
-        { version: "5.0.0", schema_file: "audit-run.schema.json", schema_sha256: "8cafbb4e31b37144895d4bed9ecc52cff0f158018002c1ae384ac48ee44b77d2", mode: "current" }
+        { version: "5.0.0", schema_file: "audit-run-5.0.0.schema.json", mode: "read_only" },
+        { version: "6.0.0", schema_file: "audit-run.schema.json", schema_sha256: "9809a64eeb9b93394cf0213e7291e8bdf489853f6e8d660a6756cae32f2178a4", mode: "current" }
       ]
     },
     {
       id: "screening-observations",
-      latest_schema_version: "1.0.0",
-      schema_versions: [{ version: "1.0.0", schema_file: "screening-observations.schema.json", schema_sha256: "f72f3bba32171f55935a39c6d94cc996cb8ebbbec940db2f423608c6949a1ff2", mode: "current" }]
+      latest_schema_version: "2.0.0",
+      schema_versions: [
+        { version: "1.0.0", schema_file: "screening-observations-1.0.0.schema.json", mode: "read_only" },
+        { version: "2.0.0", schema_file: "screening-observations.schema.json", schema_sha256: "c1d50902738383184fe5ca27831f65f8f6926214bc7370a4ada6752b326033fa", mode: "current" }
+      ]
     },
     {
       id: "human-review-queue",
@@ -746,7 +757,7 @@ test("the immutable audit-run schema accepts a bounded initial run", async () =>
   assert.deepEqual(await schemaErrors(validAuditRun(), "audit-run.schema.json"), []);
 });
 
-test("audit-run 5 permissions grant only authorized verification command execution with authorized source writes", async () => {
+test("audit-run 6 permissions grant only authorized verification command execution with authorized source writes", async () => {
   const denied = validAuditRun();
   assert.deepEqual(await schemaErrors(denied, "audit-run.schema.json"), []);
 
@@ -912,6 +923,25 @@ test("AI-authored payloads cannot carry profile outcomes or elevated screening e
   const badId = validScreeningPayload();
   badId.observations[0].requirement_id = "WCAG-2.2-SC-1.1.1";
   assert.notDeepEqual(await schemaErrors(badId, "screening-observations.schema.json"), []);
+
+  for (const field of ["profile_requirement_id", "report_outcome", "applicability", "report_rationale"]) {
+    const partialProjection = validScreeningPayload();
+    delete partialProjection.observations[0][field];
+    assert.notDeepEqual(await schemaErrors(partialProjection, "screening-observations.schema.json"), [], `missing ${field}`);
+  }
+
+  const unmappedOutcome = validScreeningPayload();
+  unmappedOutcome.observations[0].profile_requirement_id = null;
+  assert.notDeepEqual(await schemaErrors(unmappedOutcome, "screening-observations.schema.json"), []);
+
+  const notApplicableFailure = validScreeningPayload();
+  notApplicableFailure.observations[0].applicability = "not_applicable";
+  notApplicableFailure.observations[0].report_outcome = "fail";
+  assert.notDeepEqual(await schemaErrors(notApplicableFailure, "screening-observations.schema.json"), []);
+
+  const undeterminedPass = validScreeningPayload();
+  undeterminedPass.observations[0].report_outcome = "pass";
+  assert.notDeepEqual(await schemaErrors(undeterminedPass, "screening-observations.schema.json"), []);
 
   for (const [value, schemaName] of [
     [validHumanQueuePayload(), "human-review-queue.schema.json"],

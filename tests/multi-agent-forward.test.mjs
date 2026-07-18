@@ -119,7 +119,7 @@ test("installed CLIs carry a local public-like fixture through the read-only age
   ]);
   assertSucceeded(create);
   const run0 = readJson(runFiles[0]);
-  assert.equal(run0.schema_version, "5.0.0");
+  assert.equal(run0.schema_version, "6.0.0");
   assert.equal(run0.permissions.network, "allowlisted");
   assert.equal(run0.permissions.interaction, "read_only");
   assert.equal(run0.permissions.source_write, "denied");
@@ -243,28 +243,21 @@ test("installed CLIs carry a local public-like fixture through the read-only age
   const rendered = runNode(cli.render, ["--run", runFiles[3], "--assessment", mergedFile, "--output", reportFile]);
   assertSucceeded(rendered);
   const report = fs.readFileSync(reportFile, "utf8");
-  const observed = section(report, "## Observed / 観測", "## Improvement / 改善");
-  const improvement = section(report, "## Improvement / 改善", "## Human review / 人が確認");
-  const humanReview = section(report, "## Human review / 人が確認", "## Coverage counts");
+  const judgements = section(report, "## 3. 達成基準別の判定", "## 4. 改善事項");
+  const improvement = section(report, "## 4. 改善事項", "## 5. 今後の確認事項");
+  const pending = section(report, "## 5. 今後の確認事項", "## 6. 対象範囲と検査環境");
   for (const token of ["WAYFINDING-MAP", "SESSION-DETAILS-CONTROL", "SUPPORT-PREFERENCES-GROUP"]) {
-    assert.match(observed, new RegExp(token, "u"));
+    assert.doesNotMatch(judgements, new RegExp(token, "u"));
     assert.match(improvement, new RegExp(token, "u"));
-    assert.match(humanReview, new RegExp(token, "u"));
+    assert.match(pending, new RegExp(token, "u"));
   }
-  assert.match(report, /### Profile outcome counts/u);
-  assert.match(report, /### Screening outcome counts/u);
-  const profileCounts = section(report, "### Profile outcome counts", "### Screening outcome counts");
-  const screeningCounts = section(report, "### Screening outcome counts", "### Catalog coverage count");
-  for (const [outcome, count] of [["pass", 0], ["fail", 0], ["not_applicable", 0], ["not_tested", 55], ["cant_tell", 0]]) {
-    const renderedOutcome = outcome.replaceAll("_", "\\\\_");
-    assert.match(profileCounts, new RegExp(`\\| ${renderedOutcome} \\| ${count} \\|`, "u"));
-  }
-  for (const [outcome, count] of [["pass", 0], ["fail", 0], ["not_applicable", 0], ["not_tested", 0], ["cant_tell", 3]]) {
-    const renderedOutcome = outcome.replaceAll("_", "\\\\_");
-    assert.match(screeningCounts, new RegExp(`\\| ${renderedOutcome} \\| ${count} \\|`, "u"));
-  }
-  assert.match(report, /Catalog coverage: 55 recorded of 55/u);
-  assert.match(report, /Evaluation coverage: 0 human-reviewed of 55/u);
+  assert.match(report, /- 総合判定: 要確認/u);
+  assert.match(report, /- 適合: 0/u);
+  assert.match(report, /- 不適合: 0/u);
+  assert.match(report, /- 要確認: 3/u);
+  assert.match(report, /- 未確認: 52/u);
+  assert.match(report, /登録済み達成基準: 55\/55/u);
+  assert.match(report, /人による確認済み達成基準: 0\/55/u);
   for (const internal of [
     runId,
     ...finalRun.artifacts.flatMap((item) => [item.artifact_id, item.producer_role]),

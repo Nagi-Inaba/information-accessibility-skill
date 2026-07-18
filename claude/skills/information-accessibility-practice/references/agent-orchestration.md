@@ -24,7 +24,7 @@ After a completed change, `create-audit-run.mjs --supersedes-run <old-run.json>`
 
 The current read-only boundary is a behavioral contract, not a complete tool sandbox. Agent instructions prohibit target writes, authentication, forms, and state-changing interaction. They do not by themselves provide an operating-system or browser enforcement boundary.
 
-`audit-run` schema version 5.0.0 and orchestration registry 4.0.0 define the current run-backed flow. Runs 1 and 2 remain bound to registry 1, run 3 remains bound to registry 2, and run 4 remains bound to registry 3; all four prior run versions are read-only. The reviewer dispatches applicable specialists, the orchestrator materializes and registers candidates, `merge-audit-artifacts.mjs` produces the assessment, and `render-audit-report.mjs` with `--run` `<run.json>`, `--assessment` `<merged.json>`, and `--output` `<new-report.md>` creates the public report through stable and safe runtime checks.
+`audit-run` schema version 6.0.0 and orchestration registry 5.0.0 define the current run-backed flow. Runs 1 and 2 remain bound to registry 1, run 3 to registry 2, run 4 to registry 3, and run 5 to registry 4; all five prior run versions are read-only. The reviewer dispatches applicable specialists, the orchestrator materializes and registers candidates, `merge-audit-artifacts.mjs` produces the assessment, and `render-audit-report.mjs` with `--run` `<run.json>`, `--assessment` `<merged.json>`, and `--output` `<new-report.md>` creates the public report through stable and safe runtime checks.
 
 ## Public reporting boundary
 
