@@ -114,6 +114,24 @@ references/
 4. バリデータでカタログ被覆と実評価被覆を別々に確認する。
 5. 検証済みのレコードから、所見、未検証、使える主張上限を含むMarkdown監査報告を生成する。
 
+### run-backedワークフロー
+
+複数の役割で進める場合は、読み取り専用のrunを作成し、`screening-observations`、`human-review-queue`、`remediation-plan`の順に候補を登録します。
+各登録で新しいrunファイルを作り、直前のrunと対象ファイルは書き換えません。
+その後、未評価のプロファイル行を持つE0評価と、登録した全artifactをmergeし、`--run`と`--assessment`を指定して公開用報告を生成します。
+
+公開用報告は、`Observed / 観測`、`Improvement / 改善`、`Human review / 人が確認`を分けて表示します。
+プロファイル結果、スクリーニング結果、カタログ被覆、実評価被覆の件数も別々に記録します。
+run ID、artifact ID、役割ID、遷移履歴、ローカルパスは内部のrunに残し、公開用報告には出力しません。
+観測と改善候補は、人が確認するまで合否や適合性の根拠にはなりません。
+
+役割分担、artifactの順序、停止条件、外部の人手レビューとの境界は、[Codex向けagent orchestrationリファレンス](codex/skills/information-accessibility-practice/references/agent-orchestration.md)と[Claude向けagent orchestrationリファレンス](claude/skills/information-accessibility-practice/references/agent-orchestration.md)にまとめています。
+run-backedの公開用報告だけを生成する最小コマンドは次のとおりです。
+
+```powershell
+node .\codex\skills\information-accessibility-practice\scripts\render-audit-report.mjs --run .\audit-run.json --assessment .\merged-assessment.json --output .\public-report.md
+```
+
 ```powershell
 node .\codex\skills\information-accessibility-practice\scripts\generate-assessment.mjs --profile web-modern --output .\audit.json
 node .\codex\skills\information-accessibility-practice\scripts\show-requirement.mjs --profile web-modern --id WCAG-2.2-SC-1.1.1 --format markdown

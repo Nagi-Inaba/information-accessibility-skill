@@ -1,0 +1,44 @@
+{
+  "schema_version": "2.0.0",
+  "items": [
+    {
+      "remediation_id": "REM-IMGALT01",
+      "basis": "unverified_screening_candidate",
+      "requirement_id": "SCREEN-WAYFINDING-MAP",
+      "source_artifact_ids": ["ART-SCREEN-PUBLIC-FIXTURE"],
+      "priority": "P1",
+      "location": "[data-audit-token=WAYFINDING-MAP]",
+      "affected_users": ["People who use text alternatives"],
+      "issue": "WAYFINDING-MAP may need an equivalent description of the route information.",
+      "proposed_change": "After human review, add a concise text alternative or nearby equivalent route description.",
+      "verification": "A person compares the visible route information with the available text alternative in the rendered page.",
+      "residual_limitation": "A person has not yet inspected WAYFINDING-MAP in the rendered page."
+    },
+    {
+      "remediation_id": "REM-KEYONLY1",
+      "basis": "unverified_screening_candidate",
+      "requirement_id": "SCREEN-SESSION-DETAILS-CONTROL",
+      "source_artifact_ids": ["ART-SCREEN-PUBLIC-FIXTURE"],
+      "priority": "P1",
+      "location": "[data-audit-token=SESSION-DETAILS-CONTROL]",
+      "affected_users": ["Keyboard users"],
+      "issue": "SESSION-DETAILS-CONTROL may need an equivalent keyboard activation path.",
+      "proposed_change": "After human interaction testing, use a native button or provide equivalent keyboard activation behavior.",
+      "verification": "A person operates SESSION-DETAILS-CONTROL with keyboard input and confirms the same state change as pointer activation.",
+      "residual_limitation": "A person has not yet interaction-tested SESSION-DETAILS-CONTROL."
+    },
+    {
+      "remediation_id": "REM-GROUP001",
+      "basis": "unverified_screening_candidate",
+      "requirement_id": "SCREEN-SUPPORT-PREFERENCES-GROUP",
+      "source_artifact_ids": ["ART-SCREEN-PUBLIC-FIXTURE"],
+      "priority": "P2",
+      "location": "[data-audit-token=SUPPORT-PREFERENCES-GROUP]",
+      "affected_users": ["People who navigate form controls with assistive technology"],
+      "issue": "SUPPORT-PREFERENCES-GROUP may need an explicit programmatic group name and relationship.",
+      "proposed_change": "After human inspection, use an appropriate native grouping structure or an equivalent programmatic relationship.",
+      "verification": "A person inspects SUPPORT-PREFERENCES-GROUP in browser accessibility information and confirms the group name and relationships.",
+      "residual_limitation": "A person has not yet inspected the rendered structure of SUPPORT-PREFERENCES-GROUP."
+    }
+  ]
+}

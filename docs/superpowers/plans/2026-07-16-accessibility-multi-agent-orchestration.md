@@ -12,7 +12,7 @@ Codex and Claude distributions are generated or synchronized from one agent mani
 
 ## Global Constraints
 
-- Start from branch `codex/m4-agent-human-boundary` at commit `37d87de875450a4be06b2224f1fa49e248769747`.
+- Work in an isolated branch or worktree with all prerequisite milestones applied.
 - Preserve the public agent identifier `information-accessibility-reviewer` and the current request patterns.
 - Keep `assessment-record.schema.json` at version `1.0.0`; orchestration metadata belongs in separate records.
 - Start every new orchestration schema at `1.0.0`; a new required field, removed field, or semantic change requires a new schema version and explicit validator dispatch.
@@ -34,10 +34,10 @@ Codex and Claude distributions are generated or synchronized from one agent mani
 
 ## Baseline Evidence
 
-- `node --test .\tests\*.test.mjs` passes 45 of 45 tests at `37d87de`.
-- `node .\scripts\verify-package.mjs` passes with 24 shared skill files, 22 parsed JSON files, and equal Codex/Claude reviewer bodies.
-- `node .\scripts\build-criteria-catalog.mjs --verified-at 2026-07-14 --check` performs live fetches and reports `Generated catalog is stale` on 2026-07-16.
-- The stale result is not a failed accessibility contract; it proves that routine verification and primary-source refresh currently share one non-reproducible command.
+- `node --test .\tests\*.test.mjs` passes before implementation begins.
+- `node .\scripts\verify-package.mjs` passes with equal Codex and Claude reviewer bodies and all declared package files validated.
+- Catalog freshness is checked separately from the reproducible offline catalog verification command.
+- A catalog freshness warning is not an accessibility-contract failure; primary-source refresh remains an explicit candidate-producing operation.
 
 ## Planned File Structure
 
@@ -720,7 +720,7 @@ git add shared/agents codex/agents claude/agents tests/agent-role-contracts.test
 git commit -m "feat: split accessibility audit read-only roles"
 ```
 
-**Implemented:** The initial role split was committed at `29c1b81`. Runtime contract hardening and the run-backed public report were completed through `99acd2c`. Specialists now return candidate envelope JSON and cannot write artifact files; only the orchestrator materializes and registers candidates. Current run 3.0.0 binds queue/remediation payload version 2 to exact registered evidence, while legacy versions remain read-only. The public report validates run, assessment, and registered artifact bytes and rejects internal orchestration identifiers. Final verification: 196 tests, 194 pass, 0 fail, and 2 Windows `EPERM` symlink tests skipped rather than counted as verified. Independent Task 6 spec and code-quality review approved with no findings.
+**Current capability:** Specialists return candidate envelope JSON and cannot write artifact files; only the orchestrator materializes and registers candidates. Current run contracts bind queue and remediation payloads to exact registered evidence, while legacy versions remain read-only. The public report validates run, assessment, and registered artifact bytes and rejects internal orchestration identifiers.
 
 ### Task 7: Install And Roll Back Multiple Agents From The Manifest
 
@@ -793,7 +793,7 @@ git add scripts/install-codex.ps1 tests/install-codex.test.mjs README.md
 git commit -m "feat: install accessibility agent set atomically"
 ```
 
-**Implemented:** Manifest-selected installation was completed through `96d731f`. Default installation deploys the four read-only agents, preserves unrelated agents, supports verified backup and rollback of only managed destinations, rejects path overlap and reparse redirection before `-WhatIf` or staging, and handles a fresh nonexistent `CodexHome`. Partial-copy failures restore original bytes and remove installer-owned transaction residue. Final verification: 207 tests, 205 pass, 0 fail, and 2 Windows `EPERM` symlink tests skipped rather than counted as verified. Independent code-quality and security reviews approved with no findings.
+**Current capability:** Manifest-selected installation deploys the four read-only agents by default, preserves unrelated agents, supports verified backup and rollback of only managed destinations, rejects path overlap and reparse redirection before `-WhatIf` or staging, and handles a fresh nonexistent `CodexHome`. Partial-copy failures restore original bytes and remove installer-owned transaction residue.
 
 ### Task 8: Add The Opt-In Authorized Fixer
 
@@ -969,12 +969,12 @@ git commit -m "feat: add opt-in authorized accessibility fixer"
 - Report CLI: use the installed `render-audit-report.mjs` run-backed mode with the exact registered artifact set.
 - Denial test: fixer requested without authorization and no fixture bytes change.
 
-- [ ] **Step 1: Create a minimal generic fixture with known screenable and human-only questions**
+- [x] **Step 1: Create a minimal generic fixture with known screenable and human-only questions**
 
 Include one informative image with no text alternative, one custom keyboard-sensitive control, and one visually grouped structure whose programmatic relationship requires human inspection.
 Do not label the fixture as conformant or nonconformant in source comments.
 
-- [ ] **Step 2: Write the end-to-end failing test**
+- [x] **Step 2: Write the end-to-end failing test**
 
 ```js
 test("read-only orchestration preserves profile outcomes and produces three public categories", () => {
@@ -990,34 +990,34 @@ test("read-only orchestration preserves profile outcomes and produces three publ
 });
 ```
 
-- [ ] **Step 3: Run the test before adding orchestration guidance**
+- [x] **Step 3: Run the test before adding orchestration guidance**
 
 Run: `node --test .\tests\multi-agent-forward.test.mjs`
 
 Expected: FAIL because the skill does not yet route through role artifacts.
 
-- [ ] **Step 4: Update the skill's core workflow without duplicating role details**
+- [x] **Step 4: Update the skill's core workflow without duplicating role details**
 
 Keep the role selection and artifact sequence in `SKILL.md`.
 Link to `references/agent-orchestration.md` for schemas, state transitions, CLI commands, and failure recovery.
 Do not copy each agent prompt into the skill.
 
-- [ ] **Step 5: Render the three public result categories from assessment data**
+- [x] **Step 5: Render the three public result categories from assessment data**
 
-Add a backward-compatible orchestration report renderer instead of changing `render-audit-report.mjs`.
+Extend the existing run-backed mode in `render-audit-report.mjs` without changing its standalone-input behavior or creating a duplicate renderer.
 Validate the run, assessment, and remediation artifact before rendering and refuse an existing output.
 Add report sections for observed screening evidence, improvement items, and human confirmation required.
 Derive observations from `screening_check` results, improvements from validated remediation-plan items, and human confirmation from profile `not_tested` and `cant_tell` rows.
 Keep profile outcomes, screening outcomes, catalog coverage, and evaluation coverage as separate counts.
 Do not expose producer roles, run IDs, internal artifact paths, or state-transition history.
 
-- [ ] **Step 6: Verify the denial and public-report boundaries**
+- [x] **Step 6: Verify the denial and public-report boundaries**
 
 Hash every fixture file before and after the unauthorized-fix test.
 Require identical hashes.
 Require the internal run to retain producer roles and artifact hashes while the public report omits them.
 
-- [ ] **Step 7: Run every verification gate**
+- [x] **Step 7: Run every verification gate**
 
 Run: `node .\scripts\build-criteria-catalog.mjs --check`
 
@@ -1029,7 +1029,7 @@ Expected: PASS with no stale generated files.
 
 Run: `node --test .\tests\*.test.mjs`
 
-Expected: all tests pass, including the original 45 tests.
+Expected: all tests pass, including every pre-existing regression test.
 
 Run: `node .\scripts\verify-package.mjs`
 
@@ -1039,12 +1039,12 @@ Run: `git diff --check`
 
 Expected: no output and exit code 0.
 
-- [ ] **Step 8: Perform independent outward-language and architecture reviews**
+- [x] **Step 8: Perform independent outward-language and architecture reviews**
 
 The outward-language review must reject branch names, development history, target-specific private evidence, and author-directed wording in reusable public artifacts.
 The architecture review must confirm that a new read-only role can be added through one manifest body, one registry role, one payload schema, and tests without changing existing specialist prompts.
 
-- [ ] **Step 9: Commit the integrated read-only workflow**
+- [x] **Step 9: Commit the integrated read-only workflow**
 
 ```powershell
 git add tests/fixtures tests/multi-agent-forward.test.mjs codex/skills/information-accessibility-practice claude/skills/information-accessibility-practice README.md
@@ -1070,7 +1070,7 @@ M4-3 runs after Task 7 and before Task 8.
 SC 2.1.1 and SC 4.1.2 must appear in the human-review queue without changing any agent prompt; that is the first extension proof for the registry-driven design.
 M5 E3 evidence work starts only after Task 9 because E3 requires the run manifest and human evidence handoff to be stable.
 
-**M4-3 implemented:** Commits `5447363..863b4ab` added original human-review procedures for WCAG 2.2 SC 2.1.1 and SC 4.1.2 through the criterion procedure catalog and generated skill mirrors only. Existing exact lookup produced two available bindings, and a two-item queue registered with `2/2/0` coverage without runtime, queue-schema, or agent-prompt changes. SC 4.1.2 separately tests accessibility-interface programmatic setting and change notification. Final verification: 210 tests, 208 pass, 0 fail, and 2 Windows `EPERM` symlink tests skipped rather than counted as verified. Independent code and standards reviews approved with no findings.
+**M4-3 capability:** The criterion procedure catalog and generated skill mirrors provide human-review procedures for WCAG 2.2 SC 2.1.1 and SC 4.1.2. Exact lookup produces the two available bindings, and a two-item queue registers complete coverage without runtime, queue-schema, or agent-prompt changes. SC 4.1.2 separately tests accessibility-interface programmatic setting and change notification.
 
 ## Maintenance Acceptance Criteria
 

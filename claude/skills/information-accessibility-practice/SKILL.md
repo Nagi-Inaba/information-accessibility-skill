@@ -26,6 +26,14 @@ When an AI agent performs a review with this package:
 - Only a separate external human review workflow may record profile requirement outcomes or E2/evaluated_subset after the named criterion procedure and target-specific manual or hybrid evidence, plus a human mapping of the registered requirement.
 - The schema and validator cannot prove a reviewer's human identity; they only check record consistency.
 
+## Agent-Supported Run Overview
+
+Use the reviewer as the orchestrator when a review needs registered role artifacts. Select the E1 inspector for read-only screening observations, the human queue planner for procedure-bound questions that a person must review, and the remediation planner for candidate improvements. These AI roles do not record profile outcomes or authorize target changes.
+
+The default artifact sequence is `screening-observations` -> `human-review-queue` -> `remediation-plan`. The orchestrator materializes and registers each candidate before using it as an input. Read [`references/agent-orchestration.md`](references/agent-orchestration.md) for schemas, transitions, CLI usage, authorization boundaries, and recovery behavior; do not duplicate the role prompts in a run plan.
+
+When registered artifacts have been merged into an assessment, use the run-backed report route described there. It validates the run, assessment, and registered artifact bytes, then publishes the Observed / 観測, Improvement / 改善, and Human review / 人が確認 categories without the internal run and role metadata. Keep standalone `--input` reporting for assessments that are not backed by an audit run.
+
 ## Core Model
 
 Check every artifact or workflow against five gates:
@@ -89,7 +97,7 @@ Do not split the five gates into separate workflows. They are shared evaluation 
    - Record the evidence level from E0 to E5 and keep `participation_coverage` separate from standards results.
    - Run `node <skill_root>/scripts/validate-assessment.mjs <assessment.json>` before proposing claim wording.
 
-6. Run `node <skill_root>/scripts/validate-assessment.mjs <assessment.json>` and inspect both `catalog_coverage` and `evaluation_coverage`. A complete catalog row set does not mean a completed audit. Then run `node <skill_root>/scripts/render-audit-report.mjs --input <assessment.json> --output <report.md>` to create the standalone report; it refuses invalid records and existing output files.
+6. Run `node <skill_root>/scripts/validate-assessment.mjs <assessment.json>` and inspect both `catalog_coverage` and `evaluation_coverage`. A complete catalog row set does not mean a completed audit. Use `render-audit-report.mjs --input` for a standalone assessment, or the run-backed report route for a merged assessment with registered artifacts. Both routes refuse invalid records and existing output files.
 
 7. Produce a concise review or fill `assets/audit-report.template.md`:
    - `P0`: blocks participation or excludes a group from the core information.

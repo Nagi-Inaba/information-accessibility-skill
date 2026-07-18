@@ -70,6 +70,10 @@ function writeJson(file, value) {
   fs.writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`, "utf8");
 }
 
+function readJson(file) {
+  return JSON.parse(fs.readFileSync(file, "utf8"));
+}
+
 function reportRunFixture(temp) {
   const artifactRoot = path.join(temp, "artifacts");
   fs.mkdirSync(artifactRoot);
@@ -302,7 +306,7 @@ test("run-backed renderer reports verified, pending, and unverified work without
 
     assert.equal(result.status, 0, result.stderr || result.stdout);
     const report = fs.readFileSync(output, "utf8");
-    assert.match(report, /Confirmed conformance points/i);
+    assert.match(report, /Human-reviewed requirements recorded as met/i);
     assert.match(report, /WCAG-2\.2-SC-1\.3\.1/);
     assert.match(report, /Verified failures/i);
     assert.match(report, /WCAG-2\.2-SC-1\.1\.1/);
@@ -314,6 +318,9 @@ test("run-backed renderer reports verified, pending, and unverified work without
     assert.match(report, /SCREEN-FIRST/);
     assert.match(report, /A human reviewer has not yet confirmed this observation\./);
     assert.match(report, /Evidence and claim limits/i);
+    assert.match(report, /Audit date: 2026-07-17/i);
+    assert.match(report, /Standards registry version: 1\.0\.0/i);
+    assert.doesNotMatch(report, /Confirmed conformance points/i);
     for (const internal of [fixture.run.run_id, "ART-HUMAN-REPORT", "producer_role", "e1_inspector", "External Reviewer", "remediation_ready", "verified_failure", "unverified_screening_candidate", "human_verified", "reference_only"]) {
       assert.equal(report.includes(internal), false, `public report leaked internal term: ${internal}`);
     }
@@ -457,48 +464,379 @@ test("run-backed renderer rejects internal control metadata embedded in register
   }
 });
 
-test("run-backed renderer rejects bare registry and mapping identifiers embedded in registered remediation text", () => {
-  const temp = fs.mkdtempSync(path.join(os.tmpdir(), "a11y-run-backed-bare-internal-metadata-"));
+test("run-backed public model permits ordinary workflow words such as screened", () => {
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), "a11y-run-backed-ordinary-state-word-"));
   try {
     const fixture = reportRunFixture(temp);
-    const renderer = path.join(skill, "scripts/render-audit-report.mjs");
-    const remediationFile = fixture.artifactFiles.get("ART-REMEDIATION-REPORT");
-    const remediation = JSON.parse(fs.readFileSync(remediationFile, "utf8"));
-    remediation.payload.items[0].residual_limitation = "The item was screened by orchestrator after initialized input remained unverified.";
-    writeJson(remediationFile, remediation);
-    const remediationEntry = fixture.run.artifacts.find((entry) => entry.artifact_id === remediation.artifact_id);
-    remediationEntry.sha256 = resourcesSha256(remediationFile);
-    writeJson(fixture.runFile, fixture.run);
-
+    fixture.run.target.name = "Screened community service";
+    fixture.assessment.assessment.target.name = fixture.run.target.name;
+    const envelopesById = new Map([...fixture.artifactFiles].map(([artifactId, file]) => [artifactId, readJson(file)]));
+    const screen = envelopesById.get("ART-SCREEN-REPORT");
+    screen.payload.observations[0].observation = "The screened page still needs a person to inspect its heading structure.";
     const resources = loadAuditResources(skill);
-    resources.artifact_snapshots_by_id = new Map([...fixture.artifactFiles].map(([artifactId, file]) => {
-      const bytes = fs.readFileSync(file);
-      return [artifactId, { bytes, sha256: resourcesSha256(file) }];
+
+    const report = renderRunBackedReport(buildPublicReportModel({
+      run: fixture.run,
+      assessment: fixture.assessment,
+      envelopesById,
+      resources
     }));
-    const artifacts = [...fixture.artifactFiles.values()].map((file) => JSON.parse(fs.readFileSync(file, "utf8")));
-    const baseline = generateAssessment("web-modern", {
-      targetName: fixture.run.target.name,
-      targetVersion: fixture.run.target.version_or_commit,
-      targetRefs: fixture.run.target.urls_or_files,
-      evaluator: "Audit orchestrator",
-      evaluatedAt: "2026-07-17"
+
+    assert.match(report, /Screened community service/);
+    assert.match(report, /The screened page still needs a person to inspect its heading structure\./);
+  } finally {
+    fs.rmSync(temp, { recursive: true, force: true });
+  }
+});
+
+test("run-backed public model still rejects IDs, role names, and registered artifact paths", () => {
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), "a11y-run-backed-internal-identifiers-"));
+  try {
+    const fixture = reportRunFixture(temp);
+    const resources = loadAuditResources(skill);
+    const internalValues = [
+      fixture.run.run_id,
+      fixture.run.artifacts[0].artifact_id,
+      fixture.run.artifacts[0].producer_role,
+      fixture.run.artifact_root,
+      fixture.run.artifacts[0].path,
+      resources.orchestrationRegistry.roles.find((role) => role.agent_id)?.agent_id,
+      "ART-FOREIGN-LEAK"
+    ];
+
+    for (const internalValue of internalValues) {
+      const envelopesById = new Map([...fixture.artifactFiles].map(([artifactId, file]) => [artifactId, readJson(file)]));
+      envelopesById.get("ART-SCREEN-REPORT").payload.observations[0].observation = `Internal value ${internalValue} must not be public.`;
+      assert.throws(() => buildPublicReportModel({
+        run: fixture.run,
+        assessment: fixture.assessment,
+        envelopesById,
+        resources
+      }), /internal control metadata/i, `internal value was permitted: ${internalValue}`);
+    }
+  } finally {
+    fs.rmSync(temp, { recursive: true, force: true });
+  }
+});
+
+test("run-backed public model withholds local paths, branch-like values, and machine names while retaining safe public context", () => {
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), "a11y-run-backed-public-redaction-"));
+  try {
+    const fixture = reportRunFixture(temp);
+    const sensitive = {
+      branch: "internal/example-branch",
+      windows: "C:\\Users\\Example\\private\\page.html",
+      posix: "/home/example/private/page.html",
+      unc: "\\\\fileserver\\team\\private.html",
+      fileUrl: "file:///Users/example/private/page.html",
+      machine: "Example-PC",
+      unsafeUrl: "https://user:secret@example.invalid/checkout?token=private#internal",
+      embeddedWindows: "DOM snapshot: C:\\Users\\Example\\private\\page.html",
+      leadingUnsafeUrl: " https://user:secret@example.invalid/private",
+      malformedUrl: "https://user:secret@",
+      multiUrlLocation: "Primary: https://example.com/a; mirror: https://user:secret@example.invalid/private"
+    };
+    fixture.run.target.version_or_commit = sensitive.branch;
+    fixture.run.target.urls_or_files = [
+      "https://example.com/accessibility",
+      sensitive.windows,
+      sensitive.posix,
+      sensitive.unc,
+      sensitive.fileUrl,
+      sensitive.unsafeUrl,
+      sensitive.leadingUnsafeUrl,
+      sensitive.malformedUrl
+    ];
+    fixture.run.scope = {
+      included: ["Public checkout", sensitive.windows, sensitive.embeddedWindows],
+      excluded: [sensitive.posix],
+      complete_processes: ["Checkout"],
+      third_party_content: ["Hosted payment widget", sensitive.unc],
+      full_pages_reviewed: false
+    };
+    fixture.run.environment = {
+      os: ["Windows 11", sensitive.machine],
+      browsers: ["Chrome 126"],
+      assistive_technologies: ["NVDA 2025"],
+      input_modes: ["Keyboard"]
+    };
+    fixture.assessment.assessment.target = structuredClone(fixture.run.target);
+    fixture.assessment.assessment.scope = structuredClone(fixture.run.scope);
+    fixture.assessment.assessment.environment = structuredClone(fixture.run.environment);
+    const envelopesById = new Map([...fixture.artifactFiles].map(([artifactId, file]) => [artifactId, readJson(file)]));
+    envelopesById.get("ART-SCREEN-REPORT").payload.observations[0].location = sensitive.multiUrlLocation;
+    const passEvidence = envelopesById.get("ART-HUMAN-REPORT").payload.reviews[1].target_specific_evidence;
+    passEvidence[0].location = sensitive.posix;
+    passEvidence[1].location = sensitive.leadingUnsafeUrl;
+    passEvidence.push({ ...structuredClone(passEvidence[0]), location: sensitive.malformedUrl });
+    passEvidence.push({ ...structuredClone(passEvidence[0]), location: sensitive.embeddedWindows });
+    envelopesById.get("ART-REMEDIATION-REPORT").payload.items[0].location = sensitive.fileUrl;
+    fixture.assessment.assessment.findings[0].location = sensitive.unc;
+    const resources = loadAuditResources(skill);
+
+    const report = renderRunBackedReport(buildPublicReportModel({
+      run: fixture.run,
+      assessment: fixture.assessment,
+      envelopesById,
+      resources
+    }));
+
+    for (const value of Object.values(sensitive)) {
+      assert.equal(report.includes(value), false, `public report leaked: ${value}`);
+      assert.equal(report.includes(value.trim()), false, `public report leaked normalized value: ${value.trim()}`);
+    }
+    assert.match(report, /https:\/\/example\.com\/accessibility/);
+    for (const value of ["Public checkout", "Checkout", "Hosted payment widget", "Windows 11", "Chrome 126", "NVDA 2025", "Keyboard"]) {
+      assert.match(report, new RegExp(value, "u"));
+    }
+    assert.match(report, /Withheld from public report/);
+  } finally {
+    fs.rmSync(temp, { recursive: true, force: true });
+  }
+});
+
+test("run-backed public model recursively withholds sensitive values from every public string", () => {
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), "a11y-run-backed-recursive-public-redaction-"));
+  try {
+    const fixture = reportRunFixture(temp);
+    const privatePath = "C:\\Users\\Example\\PrivateClient\\observation.txt";
+    const privateSentence = `Evidence saved at ${privatePath}`;
+    const commaPrivateSentence = `Evidence path,${privatePath}`;
+    const relativeTargetRef = "src/private-client/page.html";
+    const relativeSecretFile = "client/secrets.env";
+    const relativePrivateDirectory = "client/private";
+    const safePublicUrl = "https://www.w3.org/WAI/WCAG22/Understanding/non-text-content/";
+    const productName = "Screened Community Portal";
+
+    fixture.run.target.name = productName;
+    fixture.run.target.urls_or_files = [safePublicUrl, relativeTargetRef];
+    fixture.run.environment.os = ["Windows 11", "Windows 11 on CLIENT-WS042"];
+    fixture.run.environment.browsers = ["Chrome 126", "Node.js 22", "PDF.js 4.2"];
+    fixture.run.environment.input_modes = ["Keyboard", "WCAG/JIS/EN comparison"];
+    fixture.assessment.assessment.target = structuredClone(fixture.run.target);
+    fixture.assessment.assessment.environment = structuredClone(fixture.run.environment);
+    fixture.assessment.assessment.findings[0].observation = privateSentence;
+    fixture.assessment.assessment.limitations.push(privateSentence, relativeSecretFile, relativePrivateDirectory);
+    fixture.assessment.assessment.claim.proposed_wording = commaPrivateSentence;
+
+    const envelopesById = new Map([...fixture.artifactFiles].map(([artifactId, file]) => [artifactId, readJson(file)]));
+    envelopesById.get("ART-SCREEN-REPORT").payload.observations[0].observation = privateSentence;
+    envelopesById.get("ART-HUMAN-REPORT").payload.reviews[1].rationale = privateSentence;
+    const remediation = envelopesById.get("ART-REMEDIATION-REPORT").payload.items[0];
+    remediation.issue = privateSentence;
+    remediation.proposed_change = privateSentence;
+    remediation.verification = privateSentence;
+    remediation.owner = privateSentence;
+    remediation.residual_limitation = privateSentence;
+
+    const report = renderRunBackedReport(buildPublicReportModel({
+      run: fixture.run,
+      assessment: fixture.assessment,
+      envelopesById,
+      resources: loadAuditResources(skill)
+    }));
+
+    for (const sensitive of [privatePath, privateSentence, commaPrivateSentence, "PrivateClient", relativeTargetRef, relativeSecretFile, relativePrivateDirectory, "CLIENT-WS042"]) {
+      assert.equal(report.includes(sensitive), false, `public report leaked recursive sensitive value: ${sensitive}`);
+    }
+    assert.match(report, /Withheld from public report/);
+    assert.match(report, /https:\/\/www\.w3\.org\/WAI\/WCAG22\/Understanding\/non-text-content\//);
+    assert.match(report, /Screened Community Portal/);
+    assert.match(report, /Windows 11/);
+    assert.match(report, /Node\.js 22/);
+    assert.match(report, /PDF\.js 4\.2/);
+    assert.match(report, /WCAG\/JIS\/EN comparison/);
+  } finally {
+    fs.rmSync(temp, { recursive: true, force: true });
+  }
+});
+
+test("run-backed public model withholds non-public network hosts in target refs and free text", () => {
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), "a11y-run-backed-public-host-boundary-"));
+  try {
+    const fixture = reportRunFixture(temp);
+    const resources = loadAuditResources(skill);
+    const safeW3cUrl = "https://www.w3.org/WAI/WCAG22/Understanding/non-text-content/";
+    const safeExampleUrl = "https://example.com/accessibility/";
+    const safeHttpExampleUrl = "http://example.com/accessibility/";
+    const unsafeUrls = [
+      "http://127.0.0.1:4173/private/",
+      "http://localhost:3000/",
+      "https://portal.corp.local/audit/",
+      "http://intranet/private/",
+      "http://192.168.1.12/audit/",
+      "http://10.20.30.40/audit/",
+      "http://172.16.5.4/audit/",
+      "http://169.254.169.254/latest/",
+      "https://portal.corp.lan/audit/",
+      "https://audit-worker-01.internal/audit/",
+      "https://service.localhost/audit/",
+      "https://audit.company.corp/private/",
+      "https://router.home.arpa/admin/",
+      "https://example.invalid/private/",
+      "https://service.test/private/",
+      "https://internal.example/private/",
+      "http://auditbox.localdomain/",
+      "http://[::1]/private/",
+      "http://[fc00::1]/private/",
+      "http://[fd12:3456::1]/private/",
+      "http://[fe80::1]/private/",
+      "http://[::ffff:127.0.0.1]/private/"
+    ];
+    const renderCase = ({ targetRefs = [safeW3cUrl], observation = "The screened page needs review.", os = ["Windows 11"], browsers = ["Chrome 126"] } = {}) => {
+      fixture.run.target.urls_or_files = targetRefs;
+      fixture.run.environment = {
+        os,
+        browsers,
+        assistive_technologies: ["NVDA 2025"],
+        input_modes: ["Keyboard"]
+      };
+      fixture.assessment.assessment.target = structuredClone(fixture.run.target);
+      fixture.assessment.assessment.environment = structuredClone(fixture.run.environment);
+      const envelopesById = new Map([...fixture.artifactFiles].map(([artifactId, file]) => [artifactId, readJson(file)]));
+      envelopesById.get("ART-SCREEN-REPORT").payload.observations[0].observation = observation;
+      return renderRunBackedReport(buildPublicReportModel({
+        run: fixture.run,
+        assessment: fixture.assessment,
+        envelopesById,
+        resources
+      }));
+    };
+
+    for (const relativeFile of [
+      "reports/acme-audit.md",
+      "evidence/screenshots/checkout.png",
+      "notes/findings.md",
+      "ClientApp/Report.md",
+      "feature/acme-private",
+      "bin/audit",
+      "config/app.properties",
+      "config/.dockerignore",
+      "Node.js/PDF.js/",
+      "Node.js/PDF.js\\"
+    ]) {
+      const report = renderCase({ observation: `The internal file was ${relativeFile}` });
+      assert.equal(report.includes(relativeFile), false, `relative file was published: ${relativeFile}`);
+    }
+
+    for (const branchText of [
+      "Tested feature/acme-private branch.",
+      "Checked release/client-alpha branch.",
+      "Tested the main branch.",
+      "Validated develop branch.",
+      "Checked branch feature/acme-private.",
+      "Validated branch: main.",
+      "Validated branch acme-private.",
+      "Validated acme-private branch.",
+      "Checked git branch clientalpha.",
+      "The branch is open. Validated branch acme-private.",
+      "The bank branch is open. Checked acme-private branch."
+    ]) {
+      const report = renderCase({ observation: branchText });
+      assert.equal(report.includes(branchText), false, `branch token was published: ${branchText}`);
+    }
+
+    const safeReport = renderCase({
+      targetRefs: [safeW3cUrl, safeExampleUrl, safeHttpExampleUrl],
+      observation: `Compared (Node.js/PDF.js) behavior. Compared 'WCAG/JIS/EN' mappings. The outcomes were pass/fail/unknown and input/output/error. CSS button::before. Keep button::after. At 10:30:00 the ratio was 1:2. The branch is open. Several branch offices are open. The bank branch is open. The main branch office is open. The device is available. This device is compatible. The machine is learning. The host is a reviewer. The screened comparison uses ISO14289, SECTION508, and ${safeW3cUrl}`,
+      browsers: ["Chrome 126", "Node.js 22", "PDF.js 4.2"]
     });
-    baseline.assessment.scope = structuredClone(fixture.run.scope);
-    baseline.assessment.environment = structuredClone(fixture.run.environment);
-    const assessment = mergeArtifacts({ run: fixture.run, assessment: baseline, artifacts, registries: resources });
-    writeJson(fixture.assessmentFile, assessment);
+    for (const safeValue of [safeW3cUrl, safeExampleUrl, safeHttpExampleUrl, "Compared \\(Node.js/PDF.js\\) behavior.", "Compared 'WCAG/JIS/EN' mappings.", "pass/fail/unknown", "input/output/error", "CSS button::before.", "button::after", "10:30:00", "1:2", "The branch is open.", "Several branch offices are open.", "The bank branch is open.", "The main branch office is open.", "The device is available.", "This device is compatible.", "The machine is learning.", "The host is a reviewer.", "ISO14289", "SECTION508", "Node.js 22", "PDF.js 4.2", "screened"]) {
+      assert.match(safeReport, new RegExp(safeValue.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&"), "iu"));
+    }
 
-    const output = path.join(temp, "bare-internal-metadata.md");
-    const result = spawnSync(process.execPath, [
-      renderer,
-      "--run", fixture.runFile,
-      "--assessment", fixture.assessmentFile,
-      "--output", output
-    ], { encoding: "utf8" });
+    for (const unsafeUrl of unsafeUrls) {
+      const host = new URL(unsafeUrl).hostname.replace(/^\[|\]$/gu, "");
+      const targetReport = renderCase({ targetRefs: [safeW3cUrl, unsafeUrl] });
+      assert.equal(targetReport.includes(host), false, `non-public target host was published: ${host}`);
+      const freeTextReport = renderCase({ observation: `The screened endpoint was ${unsafeUrl}` });
+      assert.equal(freeTextReport.includes(host), false, `non-public free-text host was published: ${host}`);
+    }
 
-    assert.notEqual(result.status, 0);
-    assert.match(result.stderr || result.stdout, /internal control metadata/i);
-    assert.equal(fs.existsSync(output), false);
+    const nestedUnsafeUrl = "https://example.com/http://localhost:3000/private/";
+    const nestedTargetReport = renderCase({ targetRefs: [safeW3cUrl, nestedUnsafeUrl] });
+    assert.equal(nestedTargetReport.includes("localhost"), false, "nested non-public target host was published");
+    const nestedFreeTextReport = renderCase({ observation: `The screened endpoint was ${nestedUnsafeUrl}` });
+    assert.equal(nestedFreeTextReport.includes("localhost"), false, "nested non-public free-text host was published");
+
+    for (const privateHostText of [
+      "audit-worker-01.corp.internal",
+      "audit-worker-01.internal",
+      "localhost",
+      "127.0.0.1",
+      "fd12:3456::1",
+      "fe80::1",
+      "::1"
+    ]) {
+      const report = renderCase({ observation: `The screened worker was ${privateHostText}` });
+      assert.equal(report.includes(privateHostText), false, `non-public host text was published: ${privateHostText}`);
+    }
+
+    for (const [context, hostname] of [
+      ["Windows 11 on acme123", "acme123"],
+      ["macOS on buildhost", "buildhost"],
+      ["hostname is audit-worker-01", "audit-worker-01"],
+      ["host: audit-worker-02", "audit-worker-02"],
+      ["The host is audit-worker-01.", "audit-worker-01"],
+      ["device is printer01", "printer01"],
+      ["machine is acme123", "acme123"]
+    ]) {
+      const machineReport = renderCase({ os: [context] });
+      assert.equal(machineReport.includes(hostname), false, `context hostname was published: ${hostname}`);
+      assert.match(machineReport, /Withheld from public report/);
+    }
+
+  } finally {
+    fs.rmSync(temp, { recursive: true, force: true });
+  }
+});
+
+test("run-backed target versions allow immutable release tokens and withhold branch names", () => {
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), "a11y-run-backed-public-version-redaction-"));
+  try {
+    const fixture = reportRunFixture(temp);
+    const resources = loadAuditResources(skill);
+    const renderVersion = (version) => {
+      fixture.run.target.version_or_commit = version;
+      fixture.assessment.assessment.target.version_or_commit = version;
+      return renderRunBackedReport(buildPublicReportModel({
+        run: fixture.run,
+        assessment: fixture.assessment,
+        envelopesById: new Map([...fixture.artifactFiles].map(([artifactId, file]) => [artifactId, readJson(file)])),
+        resources
+      }));
+    };
+
+    for (const branch of ["main", "master", "develop", "dev", "trunk", "HEAD", "feature/private-client"]) {
+      const report = renderVersion(branch);
+      const versionLine = report.split(/\r?\n/u).find((line) => line.startsWith("- Version or commit:"));
+      assert.equal(versionLine, "- Version or commit: Withheld from public report", `branch-like version was published: ${branch}`);
+    }
+    for (const immutableVersion of ["1.2.3", "v2.4.0", "2026-07-18", "release-2026.07", "a1b2c3d4e5f6"]) {
+      const report = renderVersion(immutableVersion);
+      const versionLine = report.split(/\r?\n/u).find((line) => line.startsWith("- Version or commit:"));
+      assert.equal(versionLine, `- Version or commit: ${immutableVersion}`);
+    }
+  } finally {
+    fs.rmSync(temp, { recursive: true, force: true });
+  }
+});
+
+test("run-backed category wording does not imply positive conformance", () => {
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), "a11y-run-backed-claim-wording-"));
+  try {
+    const fixture = reportRunFixture(temp);
+    const envelopesById = new Map([...fixture.artifactFiles].map(([artifactId, file]) => [artifactId, readJson(file)]));
+    const report = renderRunBackedReport(buildPublicReportModel({
+      run: fixture.run,
+      assessment: fixture.assessment,
+      envelopesById,
+      resources: loadAuditResources(skill)
+    }));
+
+    assert.match(report, /Human-reviewed requirements recorded as met/);
+    assert.doesNotMatch(report, /Confirmed conformance points/i);
+    assert.doesNotMatch(report, /No confirmed conformance points/i);
   } finally {
     fs.rmSync(temp, { recursive: true, force: true });
   }

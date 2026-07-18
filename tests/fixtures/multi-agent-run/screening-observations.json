@@ -1,0 +1,29 @@
+{
+  "schema_version": "1.0.0",
+  "observations": [
+    {
+      "requirement_id": "SCREEN-WAYFINDING-MAP",
+      "evidence_level": "E1",
+      "method": "Static HTML inspection",
+      "location": "[data-audit-token=WAYFINDING-MAP]",
+      "observation": "The WAYFINDING-MAP image is informative in the surrounding arrival content and has no alt attribute; a person must determine the appropriate text alternative.",
+      "captured_at": "2026-07-18T01:00:01Z"
+    },
+    {
+      "requirement_id": "SCREEN-SESSION-DETAILS-CONTROL",
+      "evidence_level": "E1",
+      "method": "Static HTML and JavaScript inspection",
+      "location": "[data-audit-token=SESSION-DETAILS-CONTROL]",
+      "observation": "The SESSION-DETAILS-CONTROL element is focusable, while the installed script registers only a click handler; keyboard behavior needs human interaction testing.",
+      "captured_at": "2026-07-18T01:00:02Z"
+    },
+    {
+      "requirement_id": "SCREEN-SUPPORT-PREFERENCES-GROUP",
+      "evidence_level": "E1",
+      "method": "Static HTML inspection",
+      "location": "[data-audit-token=SUPPORT-PREFERENCES-GROUP]",
+      "observation": "SUPPORT-PREFERENCES-GROUP is presented as one visual group; its programmatic relationship needs inspection with browser accessibility information.",
+      "captured_at": "2026-07-18T01:00:03Z"
+    }
+  ]
+}

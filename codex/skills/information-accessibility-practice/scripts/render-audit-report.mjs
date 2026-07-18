@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { isIP } from "node:net";
 import path from "node:path";
 import process from "node:process";
 import { isDeepStrictEqual } from "node:util";
@@ -270,21 +271,6 @@ function addString(values, value) {
   if (typeof value === "string" && value.length > 0) values.add(value);
 }
 
-function collectSchemaEnumValues(schema, propertyNames, values) {
-  if (!schema || typeof schema !== "object") return;
-  if (Array.isArray(schema)) {
-    for (const item of schema) collectSchemaEnumValues(item, propertyNames, values);
-    return;
-  }
-  for (const [name, value] of Object.entries(schema)) {
-    if (propertyNames.has(name) && value && typeof value === "object") {
-      for (const item of value.enum ?? []) addString(values, item);
-      addString(values, value.const);
-    }
-    collectSchemaEnumValues(value, propertyNames, values);
-  }
-}
-
 function collectSchemaIdPatterns(schema, patterns) {
   if (!schema || typeof schema !== "object") return;
   if (Array.isArray(schema)) {
@@ -323,25 +309,21 @@ function internalControlTerms({ run, envelopesById, resources }) {
   const terms = new Set();
   addString(terms, run.run_id);
   addString(terms, run.supersedes_run_id);
-  addString(terms, run.status);
+  addString(terms, run.artifact_root);
   for (const artifact of run.artifacts ?? []) {
     addString(terms, artifact.artifact_id);
-    addString(terms, artifact.artifact_type);
     addString(terms, artifact.producer_role);
+    addString(terms, artifact.path);
   }
   for (const entry of run.history ?? []) {
-    addString(terms, entry.from);
-    addString(terms, entry.to);
     addString(terms, entry.actor_role);
     for (const artifactId of entry.artifact_ids ?? []) addString(terms, artifactId);
   }
   for (const record of envelopesById.values()) {
     const envelope = envelopeFromRecord(record);
     addString(terms, envelope?.artifact_id);
-    addString(terms, envelope?.artifact_type);
     addString(terms, envelope?.run_id);
     addString(terms, envelope?.producer?.role_id);
-    addString(terms, envelope?.producer?.producer_kind);
     for (const input of envelope?.inputs ?? []) {
       addString(terms, input?.artifact_id);
       addString(terms, input?.run_id);
@@ -350,16 +332,6 @@ function internalControlTerms({ run, envelopesById, resources }) {
   for (const role of resources?.orchestrationRegistry?.roles ?? []) {
     addString(terms, role.id);
     addString(terms, role.agent_id);
-  }
-  for (const transition of resources?.orchestrationRegistry?.transitions ?? []) {
-    addString(terms, transition.from);
-    addString(terms, transition.to);
-    for (const type of transition.required_artifact_types ?? []) addString(terms, type);
-  }
-  const schemaPropertyNames = new Set(["basis", "mapping_status", "requested_tier"]);
-  collectSchemaEnumValues(resources?.assessmentSchema, schemaPropertyNames, terms);
-  for (const schemas of resources?.payloadSchemas?.values?.() ?? []) {
-    for (const schema of schemas.values()) collectSchemaEnumValues(schema, schemaPropertyNames, terms);
   }
   return terms;
 }
@@ -388,11 +360,251 @@ function assertPublicReportModelHasNoInternalControlMetadata(model, context) {
   });
 }
 
+const publicWithheldLabel = "Withheld from public report";
+
+function isLocalPathLike(value) {
+  if (typeof value !== "string") return false;
+  const normalized = value.trim();
+  return /\bfile:(?:\/{0,2})/iu.test(normalized)
+    || /[A-Za-z]:[\\/]/u.test(normalized)
+    || /\\\\[^\s\\]/u.test(normalized)
+    || /^\/\//u.test(normalized)
+    || /[^:]\/\/[^\/\s]/u.test(normalized)
+    || /(?:^|[^A-Za-z0-9])\/(?!\/)[^\s]/u.test(normalized)
+    || /(?:^|[^A-Za-z0-9])(?:~[\\/]|\.{1,2}[\\/])/u.test(normalized);
+}
+
+function isMachineSpecificEnvironmentValue(value) {
+  if (typeof value !== "string") return false;
+  const normalized = value.trim();
+  const ipv4Tokens = normalized.match(/\b(?:\d{1,3}\.){3}\d{1,3}\b/gu) ?? [];
+  const ipv6Tokens = normalized.match(/(?<![A-Za-z0-9_:-])(?:[0-9A-Fa-f]{0,4}:){2,7}[0-9A-Fa-f]{0,4}(?![A-Za-z0-9_:-])/gu) ?? [];
+  const hostnameTokens = normalized.match(/\b[A-Za-z0-9](?:[A-Za-z0-9-]{0,62}\.)+[A-Za-z0-9-]{1,63}\b/gu) ?? [];
+  const contextualHostname = /\b(?:(?:Windows(?:\s+\d+(?:\.\d+)*)?|macOS(?:\s+\d+(?:\.\d+)*)?|Linux(?:\s+\d+(?:\.\d+)*)?|Android(?:\s+\d+(?:\.\d+)*)?|iOS(?:\s+\d+(?:\.\d+)*)?)\s+on\s+[A-Za-z0-9][A-Za-z0-9.-]*|(?:hostname|host|machine|device)\s*[:=]\s*[A-Za-z0-9][A-Za-z0-9.-]*|hostname\s+is\s+[A-Za-z0-9][A-Za-z0-9.-]*)\b/iu;
+  const identifierIsHostname = [...normalized.matchAll(/\b(?:host|machine|device)\s+is\s+([A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?)\b/giu)]
+    .some((match) => /[0-9.-]/u.test(match[1]));
+  return /\blocalhost\b/iu.test(normalized)
+    || hostnameTokens.some((token) => hasReservedHostnameSuffix(token))
+    || ipv4Tokens.some((token) => isNonPublicIpv4(token))
+    || ipv6Tokens.some((token) => isIP(token) === 6 && isNonPublicIpv6(token))
+    || contextualHostname.test(normalized)
+    || identifierIsHostname
+    || /\b(?:DESKTOP|LAPTOP)-[A-Za-z0-9-]+\b/iu.test(normalized)
+    || /\b[A-Za-z0-9][A-Za-z0-9._-]*-(?:PC|MAC|LAPTOP|DESKTOP|WS[0-9A-Z-]{2,})\b/iu.test(normalized)
+    || /\b(?:WIN|MAC|HOST)-[A-Za-z0-9-]{3,}\b/iu.test(normalized)
+    || /\b[A-Za-z0-9][A-Za-z0-9_-]*\.(?:local|lan)\b/iu.test(normalized);
+}
+
+const reservedHostnameSuffixes = [
+  "local",
+  "lan",
+  "internal",
+  "localhost",
+  "invalid",
+  "test",
+  "example",
+  "corp",
+  "localdomain",
+  "home.arpa"
+];
+
+function hasReservedHostnameSuffix(hostname) {
+  const normalized = hostname.toLowerCase().replace(/\.$/u, "");
+  return reservedHostnameSuffixes.some((suffix) => normalized === suffix || normalized.endsWith(`.${suffix}`));
+}
+
+function isNonPublicIpv4(hostname) {
+  const octets = hostname.split(".").map((part) => Number.parseInt(part, 10));
+  if (octets.length !== 4 || octets.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) return true;
+  const [first, second, third] = octets;
+  return first === 0
+    || first === 10
+    || first === 127
+    || (first === 100 && second >= 64 && second <= 127)
+    || (first === 169 && second === 254)
+    || (first === 172 && second >= 16 && second <= 31)
+    || (first === 192 && second === 168)
+    || (first === 192 && second === 0 && (third === 0 || third === 2))
+    || (first === 198 && (second === 18 || second === 19 || (second === 51 && third === 100)))
+    || (first === 203 && second === 0 && third === 113)
+    || first >= 224;
+}
+
+function expandIpv6(hostname) {
+  const normalized = hostname.toLowerCase().replace(/^\[|\]$/gu, "").split("%", 1)[0];
+  const halves = normalized.split("::");
+  if (halves.length > 2) return null;
+  const left = halves[0] ? halves[0].split(":") : [];
+  const right = halves.length === 2 && halves[1] ? halves[1].split(":") : [];
+  const missing = halves.length === 2 ? 8 - left.length - right.length : 0;
+  const parts = [...left, ...Array.from({ length: missing }, () => "0"), ...right];
+  if (parts.length !== 8 || parts.some((part) => !/^[0-9a-f]{1,4}$/u.test(part))) return null;
+  return parts.map((part) => Number.parseInt(part, 16));
+}
+
+function isNonPublicIpv6(hostname) {
+  const parts = expandIpv6(hostname);
+  if (!parts) return true;
+  const allZero = parts.every((part) => part === 0);
+  const loopback = parts.slice(0, 7).every((part) => part === 0) && parts[7] === 1;
+  const ipv4Mapped = parts.slice(0, 5).every((part) => part === 0) && parts[5] === 0xffff;
+  const ipv4Compatible = parts.slice(0, 6).every((part) => part === 0) && !allZero && !loopback;
+  if (ipv4Mapped || ipv4Compatible) {
+    const ipv4 = `${parts[6] >> 8}.${parts[6] & 0xff}.${parts[7] >> 8}.${parts[7] & 0xff}`;
+    if (isNonPublicIpv4(ipv4)) return true;
+  }
+  return allZero
+    || loopback
+    || (parts[0] & 0xfe00) === 0xfc00
+    || (parts[0] & 0xffc0) === 0xfe80
+    || (parts[0] & 0xffc0) === 0xfec0
+    || (parts[0] & 0xff00) === 0xff00
+    || (parts[0] === 0x2001 && parts[1] === 0x0db8);
+}
+
+function isNonPublicHostname(hostname) {
+  const normalized = hostname.toLowerCase().replace(/^\[|\]$/gu, "").replace(/\.$/u, "");
+  const ipVersion = isIP(normalized);
+  if (ipVersion === 4) return isNonPublicIpv4(normalized);
+  if (ipVersion === 6) return isNonPublicIpv6(normalized);
+  return normalized === "localhost"
+    || !normalized.includes(".")
+    || hasReservedHostnameSuffix(normalized);
+}
+
+function isBranchLikeVersion(value) {
+  return typeof value === "string" && /[\\/]/u.test(value.trim());
+}
+
+function publicUrlOrFile(value) {
+  const normalized = value.trim();
+  if (normalized === publicWithheldLabel) return normalized;
+  if (!/^https?:\/\//iu.test(normalized)) return publicWithheldLabel;
+  const afterInitialScheme = normalized.replace(/^https?:\/\//iu, "");
+  if (/https?:\/\//iu.test(afterInitialScheme)) return publicWithheldLabel;
+  try {
+    const parsed = new URL(normalized);
+    if (!["http:", "https:"].includes(parsed.protocol)
+        || parsed.username
+        || parsed.password
+        || parsed.search
+        || parsed.hash
+        || isNonPublicHostname(parsed.hostname)) {
+      return publicWithheldLabel;
+    }
+    return normalized;
+  } catch {
+    return publicWithheldLabel;
+  }
+}
+
+// Extend this allowlist only for stable public semantic sequences that use slash as prose, not paths.
+const publicSafeSlashSequences = new Set([
+  "Node.js/PDF.js",
+  "WCAG/JIS/EN",
+  "pass/fail/unknown",
+  "input/output/error"
+]);
+
+function hasUnsafeSlashToken(value) {
+  const slashTokens = value.match(/\S*[\\/]\S*/gu) ?? [];
+  const leadingWrappers = new Set(["(", "[", "{", "\"", "'", "“", "‘"]);
+  const trailingWrappersAndPunctuation = new Set([")", "]", "}", "\"", "'", "”", "’", ".", ",", ";", ":", "!", "?"]);
+  return slashTokens.some((token) => {
+    let start = 0;
+    let end = token.length;
+    while (start < end && leadingWrappers.has(token[start])) start += 1;
+    while (end > start && trailingWrappersAndPunctuation.has(token[end - 1])) end -= 1;
+    return !publicSafeSlashSequences.has(token.slice(start, end));
+  });
+}
+
+function hasBranchReference(value) {
+  const knownBranchNames = new Set(["main", "master", "develop", "dev", "trunk", "head"]);
+  const isBranchIdentifier = (token) => knownBranchNames.has(token.toLowerCase()) || /[0-9._\\/-]/u.test(token);
+  const explicitLabel = value.match(/\bbranch\s*[:=]\s*([A-Za-z0-9](?:[A-Za-z0-9._\\/-]*[A-Za-z0-9])?)\b/iu);
+  const gitBranch = value.match(/\bgit\s+branch\s+([A-Za-z0-9](?:[A-Za-z0-9._\\/-]*[A-Za-z0-9])?)\b/iu);
+  const prefixBranches = value.matchAll(/\bbranch\s+([A-Za-z0-9](?:[A-Za-z0-9._\\/-]*[A-Za-z0-9])?)\b/giu);
+  const suffixBranches = value.matchAll(/\b([A-Za-z0-9](?:[A-Za-z0-9._\\/-]*[A-Za-z0-9])?)\s+branch\b(?!\s+offices?\b)/giu);
+  return Boolean(explicitLabel || gitBranch)
+    || [...prefixBranches].some((match) => isBranchIdentifier(match[1]))
+    || [...suffixBranches].some((match) => isBranchIdentifier(match[1]));
+}
+
+function sanitizePublicString(value) {
+  const normalized = value.trim();
+  if (normalized === publicWithheldLabel) return normalized;
+  const httpPattern = /\bhttps?:\/\/\S+/giu;
+  const httpUrls = [...normalized.matchAll(httpPattern)].map((match) => match[0]);
+  if (httpUrls.some((httpUrl) => publicUrlOrFile(httpUrl) === publicWithheldLabel)) return publicWithheldLabel;
+  const textWithoutHttpUrls = normalized.replace(httpPattern, " ");
+  if (/\bhttps?:/iu.test(textWithoutHttpUrls)
+      || isLocalPathLike(textWithoutHttpUrls)
+      || hasUnsafeSlashToken(textWithoutHttpUrls)
+      || hasBranchReference(textWithoutHttpUrls)
+      || isMachineSpecificEnvironmentValue(textWithoutHttpUrls)) {
+    return publicWithheldLabel;
+  }
+  return normalized;
+}
+
+function sanitizePublicVersion(value) {
+  const normalized = value.trim();
+  if (normalized === publicWithheldLabel) return normalized;
+  if (sanitizePublicString(normalized) === publicWithheldLabel
+      || /^(?:main|master|develop|dev|trunk|HEAD)$/iu.test(normalized)
+      || /[\\/]/u.test(normalized)) {
+    return publicWithheldLabel;
+  }
+  const semanticVersion = /^v?\d+(?:\.\d+){1,3}(?:-[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?(?:\+[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?$/u;
+  const releaseNumber = /^(?:release|rel)[-_]v?\d+(?:[._-]\d+){0,3}$/iu;
+  const calendarDate = /^\d{4}[-.]\d{2}[-.]\d{2}$/u;
+  const commitHash = /^[a-f0-9]{7,64}$/iu;
+  return [semanticVersion, releaseNumber, calendarDate, commitHash].some((pattern) => pattern.test(normalized))
+    ? normalized
+    : publicWithheldLabel;
+}
+
+function sanitizePublicModelStrings(value, pathParts = []) {
+  if (typeof value === "string") {
+    if (pathParts[0] === "target" && pathParts[1] === "urls_or_files") return publicUrlOrFile(value);
+    if (pathParts[0] === "target" && pathParts[1] === "version_or_commit") return sanitizePublicVersion(value);
+    return sanitizePublicString(value);
+  }
+  if (Array.isArray(value)) {
+    return value.map((item, index) => sanitizePublicModelStrings(item, [...pathParts, index]));
+  }
+  if (value && typeof value === "object") {
+    return Object.fromEntries(Object.entries(value)
+      .map(([key, item]) => [key, sanitizePublicModelStrings(item, [...pathParts, key])]));
+  }
+  return value;
+}
+
+function publicLocation(value) {
+  return sanitizePublicString(value);
+}
+
+function publicText(value, { branchLike = false, environment = false } = {}) {
+  const sanitized = sanitizePublicString(value);
+  if (sanitized === publicWithheldLabel
+      || (branchLike && isBranchLikeVersion(sanitized))
+      || (environment && isMachineSpecificEnvironmentValue(sanitized))) return publicWithheldLabel;
+  return sanitized;
+}
+
+function publicEvidence(evidence) {
+  return evidence.map((entry) => ({
+    ...structuredClone(entry),
+    location: publicLocation(entry.location)
+  }));
+}
+
 function publicFinding(finding) {
   if (!finding) return null;
   return {
     priority: finding.priority,
-    location: finding.location,
+    location: publicLocation(finding.location),
     affected_users: structuredClone(finding.affected_users),
     observation: finding.observation,
     remediation: finding.remediation,
@@ -422,6 +634,13 @@ function publicClaimTier(requestedTier) {
     evaluated_subset: "Evaluated subset",
     organization_ready: "Organization-ready evidence"
   })[requestedTier] ?? "Not recorded";
+}
+
+function outcomeCountsFor(results) {
+  return Object.fromEntries(outcomes.map((outcome) => [
+    outcome,
+    results.filter((result) => result.outcome === outcome).length
+  ]));
 }
 
 export function validateRunBackedAssessment({ run, assessment, envelopesById, resources }) {
@@ -547,6 +766,10 @@ export function validateRunBackedAssessment({ run, assessment, envelopesById, re
 
 export function buildPublicReportModel({ run, assessment, envelopesById, resources }) {
   const evidence = collectRunEvidence(envelopesById);
+  const profileResults = assessment.assessment.results.filter((result) => result.requirement_kind === "profile_requirement");
+  const screeningResults = assessment.assessment.results.filter((result) => result.requirement_kind === "screening_check");
+  const expectedProfileCount = resources?.standardsRegistry?.profiles
+    ?.find((profile) => profile.id === run.profile.id)?.requirement_ids?.length ?? profileResults.length;
   const reviewedIds = new Set(evidence.humanReviews.map((review) => review.requirement_id));
   const resultByRequirement = new Map(assessment.assessment.results.map((result) => [result.requirement_id, result]));
   const findingById = uniqueMap(assessment.assessment.findings ?? [], "id", "assessment finding ID");
@@ -560,7 +783,7 @@ export function buildPublicReportModel({ run, assessment, envelopesById, resourc
     .map((review) => ({
       requirement_id: review.requirement_id,
       rationale: review.rationale,
-      evidence: review.target_specific_evidence
+      evidence: publicEvidence(review.target_specific_evidence)
     })));
   const recordedHumanChecks = sortedByRequirement(evidence.humanReviews.map((review) => ({
     requirement_id: review.requirement_id,
@@ -586,6 +809,7 @@ export function buildPublicReportModel({ run, assessment, envelopesById, resourc
         .sort((left, right) => left.remediation_id.localeCompare(right.remediation_id, "en"));
       return (remediations.length ? remediations : [null]).map((remediation) => ({
         ...observation,
+        location: publicLocation(observation.location),
         remediation: publicRemediationReference(remediation),
         assessment_outcome: resultByRequirement.get(observation.requirement_id)?.outcome
       }));
@@ -598,7 +822,7 @@ export function buildPublicReportModel({ run, assessment, envelopesById, resourc
       requirement_id: item.requirement_id,
       evidence_status: item.basis === "verified_failure" ? "Verified failure" : "Unverified screening candidate",
       priority: item.priority,
-      location: item.location,
+      location: publicLocation(item.location),
       affected_users: item.affected_users,
       issue: item.issue,
       proposed_change: item.proposed_change,
@@ -607,10 +831,27 @@ export function buildPublicReportModel({ run, assessment, envelopesById, resourc
       residual_limitation: item.residual_limitation
     }));
   const model = {
-    target: structuredClone(run.target),
+    target: {
+      name: publicText(run.target.name),
+      version_or_commit: publicText(run.target.version_or_commit, { branchLike: true }),
+      urls_or_files: run.target.urls_or_files.map(publicUrlOrFile)
+    },
     profile: structuredClone(run.profile),
-    scope: structuredClone(run.scope),
-    environment: structuredClone(run.environment),
+    scope: {
+      included: run.scope.included.map((value) => publicText(value)),
+      excluded: run.scope.excluded.map((value) => publicText(value)),
+      complete_processes: run.scope.complete_processes.map((value) => publicText(value)),
+      third_party_content: run.scope.third_party_content.map((value) => publicText(value)),
+      full_pages_reviewed: run.scope.full_pages_reviewed
+    },
+    environment: {
+      os: run.environment.os.map((value) => publicText(value, { environment: true })),
+      browsers: run.environment.browsers.map((value) => publicText(value, { environment: true })),
+      assistive_technologies: run.environment.assistive_technologies.map((value) => publicText(value, { environment: true })),
+      input_modes: run.environment.input_modes.map((value) => publicText(value, { environment: true }))
+    },
+    evaluatedAt: assessment.assessment.evaluated_at,
+    standardsRegistryVersion: resources?.standardsRegistry?.schema_version ?? "Not recorded",
     recordedHumanChecks,
     confirmedPoints,
     verifiedFailures,
@@ -624,10 +865,18 @@ export function buildPublicReportModel({ run, assessment, envelopesById, resourc
     },
     evidenceLevel: assessment.assessment.evidence_level,
     reviewedCount: evidence.humanReviews.length,
-    screeningCount: evidence.screeningObservations.length
+    screeningCount: evidence.screeningObservations.length,
+    profileOutcomeCounts: outcomeCountsFor(profileResults),
+    screeningOutcomeCounts: outcomeCountsFor(screeningResults),
+    catalogCoverage: { recorded: profileResults.length, expected: expectedProfileCount },
+    evaluationCoverage: {
+      humanReviewed: profileResults.filter((result) => result.mapping_status === "human_verified").length,
+      expected: expectedProfileCount
+    }
   };
-  assertPublicReportModelHasNoInternalControlMetadata(model, { run, envelopesById, resources });
-  return model;
+  const sanitizedModel = sanitizePublicModelStrings(model);
+  assertPublicReportModelHasNoInternalControlMetadata(sanitizedModel, { run, envelopesById, resources });
+  return sanitizedModel;
 }
 
 function publicTable(headers, rows, emptyMessage) {
@@ -658,6 +907,8 @@ export function renderRunBackedReport(model) {
     `- Version or commit: ${cell(model.target.version_or_commit)}`,
     `- URLs or files: ${cell(model.target.urls_or_files.join(", ") || "Not recorded")}`,
     `- Profile: ${cell(model.profile.id)}`,
+    `- Audit date: ${cell(model.evaluatedAt)}`,
+    `- Standards registry version: ${cell(model.standardsRegistryVersion)}`,
     `- Included: ${cell(model.scope.included.join(", ") || "Not recorded")}`,
     `- Excluded: ${cell(model.scope.excluded.join(", ") || "None recorded")}`,
     `- Complete user processes: ${cell(model.scope.complete_processes.join(", ") || "None recorded")}`,
@@ -668,23 +919,17 @@ export function renderRunBackedReport(model) {
     `- Assistive technologies: ${cell(model.environment.assistive_technologies.join(", ") || "Not recorded")}`,
     `- Input modes: ${cell(model.environment.input_modes.join(", ") || "Not recorded")}`,
     "",
-    "## Recorded human checks",
+    "## Observed / 観測",
     "",
-    publicTable(
-      ["Requirement", "Recorded result", "Rationale"],
-      model.recordedHumanChecks.map((item) => [item.requirement_id, outcomeLabel(item.outcome), item.rationale]),
-      "No completed human checks were recorded."
-    ),
-    "",
-    "## Confirmed conformance points",
+    "### Human-reviewed requirements recorded as met",
     "",
     publicTable(
       ["Requirement", "Human-review rationale", "Recorded evidence"],
       model.confirmedPoints.map((item) => [item.requirement_id, item.rationale, item.evidence.map((entry) => `${entry.location}: ${entry.observation}`).join("; ")]),
-      "No confirmed conformance points were recorded."
+      "No human-reviewed requirements were recorded as met."
     ),
     "",
-    "## Verified failures",
+    "### Verified failures",
     "",
     publicTable(
       ["Requirement", "Priority", "Location", "Affected users", "Issue", "Proposed change"],
@@ -699,20 +944,7 @@ export function renderRunBackedReport(model) {
       "No verified failures were recorded."
     ),
     "",
-    "## Pending human checks",
-    "",
-    publicTable(
-      ["Requirement", "Procedure availability", "Human actions", "Cannot-determine conditions"],
-      model.pendingHumanChecks.map((item) => [
-        item.requirement_id,
-        item.procedure_availability,
-        item.human_actions.join("; "),
-        item.cant_tell_conditions.join("; ")
-      ]),
-      "No pending human checks were recorded."
-    ),
-    "",
-    "## Unverified screening candidates",
+    "### Unverified screening candidates",
     "",
     "> The entries in this section are leads for human review. They are not failures and do not support a conformance claim.",
     "",
@@ -728,7 +960,9 @@ export function renderRunBackedReport(model) {
       "No unverified screening candidates were recorded."
     ),
     "",
-    "## Remediation",
+    "## Improvement / 改善",
+    "",
+    "### Remediation",
     "",
     publicTable(
       ["Evidence status", "Requirement", "Priority", "Location", "Affected users", "Issue", "Proposed change", "Owner", "Residual limitation"],
@@ -746,13 +980,72 @@ export function renderRunBackedReport(model) {
       "No remediation items were recorded."
     ),
     "",
-    "## Retest",
+    "### Retest",
     "",
     publicTable(
       ["Requirement", "Retest method", "Owner"],
       model.remediation.map((item) => [item.requirement_id, item.verification, item.owner ?? "Not assigned"]),
       "No retest methods were recorded."
     ),
+    "",
+    "## Human review / 人が確認",
+    "",
+    "> Screening entries remain questions for a person to confirm. They are not recorded profile results.",
+    "",
+    "### Candidate observations to confirm",
+    "",
+    publicTable(
+      ["Check", "Location", "Question for human review"],
+      model.screeningCandidates.map((item) => [item.requirement_id, item.location, item.observation]),
+      "No candidate observations are waiting for human confirmation."
+    ),
+    "",
+    "### Recorded human checks",
+    "",
+    publicTable(
+      ["Requirement", "Recorded result", "Rationale"],
+      model.recordedHumanChecks.map((item) => [item.requirement_id, outcomeLabel(item.outcome), item.rationale]),
+      "No completed human checks were recorded."
+    ),
+    "",
+    "### Pending human checks",
+    "",
+    publicTable(
+      ["Requirement", "Procedure availability", "Human actions", "Cannot-determine conditions"],
+      model.pendingHumanChecks.map((item) => [
+        item.requirement_id,
+        item.procedure_availability,
+        item.human_actions.join("; "),
+        item.cant_tell_conditions.join("; ")
+      ]),
+      "No pending human checks were recorded."
+    ),
+    "",
+    "## Coverage counts",
+    "",
+    "### Profile outcome counts",
+    "",
+    publicTable(
+      ["Outcome", "Count"],
+      outcomes.map((outcome) => [outcome, model.profileOutcomeCounts[outcome]]),
+      "No profile rows were recorded."
+    ),
+    "",
+    "### Screening outcome counts",
+    "",
+    publicTable(
+      ["Outcome", "Count"],
+      outcomes.map((outcome) => [outcome, model.screeningOutcomeCounts[outcome]]),
+      "No screening rows were recorded."
+    ),
+    "",
+    "### Catalog coverage count",
+    "",
+    `- Catalog coverage: ${model.catalogCoverage.recorded} recorded of ${model.catalogCoverage.expected} expected profile requirements.`,
+    "",
+    "### Evaluation coverage count",
+    "",
+    `- Evaluation coverage: ${model.evaluationCoverage.humanReviewed} human-reviewed of ${model.evaluationCoverage.expected} expected profile requirements.`,
     "",
     "## Evidence and claim limits",
     "",

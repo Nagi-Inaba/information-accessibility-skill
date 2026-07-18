@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Community open day</title>
+    <style>
+      body { font-family: system-ui, sans-serif; line-height: 1.5; margin: 0 auto; max-width: 48rem; padding: 2rem; }
+      img { display: block; max-width: 100%; }
+      .details-control { border: 1px solid #245; border-radius: 0.25rem; cursor: pointer; display: inline-block; padding: 0.5rem 0.75rem; }
+      .support-preferences { border-left: 0.35rem solid #476; margin-top: 2rem; padding: 0.5rem 1rem 1rem; }
+      .group-title { display: block; font-size: 1.25rem; font-weight: 700; margin-bottom: 0.5rem; }
+      [hidden] { display: none; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Community open day</h1>
+      <p>Visit the library, join a short workshop, and learn how to request participation support.</p>
+    </header>
+
+    <main>
+      <section aria-labelledby="arrival-heading">
+        <h2 id="arrival-heading">Arrival information</h2>
+        <img
+          data-audit-token="WAYFINDING-MAP"
+          src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='640' height='240'%3E%3Crect width='640' height='240' fill='%23e8eef5'/%3E%3Cpath d='M40 190 L220 80 L400 150 L590 45' stroke='%23245' stroke-width='12' fill='none'/%3E%3Ccircle cx='590' cy='45' r='18' fill='%23b24'/%3E%3C/svg%3E">
+        <p>The main entrance opens at 9:30. Staff will be available at the welcome desk.</p>
+      </section>
+
+      <section aria-labelledby="sessions-heading">
+        <h2 id="sessions-heading">Sessions</h2>
+        <div
+          class="details-control"
+          role="button"
+          tabindex="0"
+          data-audit-token="SESSION-DETAILS-CONTROL"
+          aria-expanded="false"
+          aria-controls="session-details">Show session details</div>
+        <div id="session-details" hidden>
+          <p>The orientation starts at 10:00 in the first-floor meeting room.</p>
+        </div>
+      </section>
+
+      <section class="support-preferences" data-audit-token="SUPPORT-PREFERENCES-GROUP">
+        <span class="group-title">Support preferences</span>
+        <label><input type="checkbox" name="support" value="captioning"> Live captions</label>
+        <label><input type="checkbox" name="support" value="quiet-space"> Quiet space</label>
+        <label><input type="checkbox" name="support" value="step-free"> Step-free route</label>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>
