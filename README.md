@@ -1,4 +1,6 @@
-# Information Accessibility Skill and Agent
+日本語 | [English](README.en.md)
+
+# 情報アクセシビリティ監査スキル／エージェント
 
 任意の対象について、範囲固定、実査、証拠記録、所見、改善、再検査までを行う、Codex / Claude 向けの汎用アクセシビリティ監査スキル／エージェントです。
 
