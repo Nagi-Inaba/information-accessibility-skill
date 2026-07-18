@@ -2,16 +2,17 @@ import path from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
 
-import { assertNewOutputPath, createAuditRun, writeNewJson } from "./lib/audit-run.mjs";
+import { assertNewOutputPath, assertStableFile, createAuditRun, readStableFile, writeNewJson } from "./lib/audit-run.mjs";
 
 function parseArgs(argv) {
   const options = { targetRefs: [] };
   const repeatable = new Set(["--target-ref"]);
+  const optional = new Set(["--supersedes-run"]);
   const map = new Map([
     ["--run-id", "runId"], ["--profile", "profile"], ["--target-name", "targetName"],
     ["--target-version", "targetVersion"], ["--target-ref", "targetRefs"],
     ["--artifact-root", "artifactRoot"], ["--network", "network"],
-    ["--interaction", "interaction"], ["--source-write", "sourceWrite"], ["--output", "output"]
+    ["--interaction", "interaction"], ["--source-write", "sourceWrite"], ["--supersedes-run", "supersedesRunFile"], ["--output", "output"]
   ]);
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
@@ -26,7 +27,7 @@ function parseArgs(argv) {
     index += 1;
   }
   for (const [flag, key] of map) {
-    if (!repeatable.has(flag) && options[key] === undefined) throw new Error(`${flag} is required`);
+    if (!repeatable.has(flag) && !optional.has(flag) && options[key] === undefined) throw new Error(`${flag} is required`);
   }
   if (!options.targetRefs.length) throw new Error("--target-ref is required");
   return options;
@@ -36,7 +37,24 @@ export function main(argv = process.argv.slice(2)) {
   const options = parseArgs(argv);
   const output = path.resolve(options.output);
   assertNewOutputPath(output);
-  const run = createAuditRun({ ...options, runFile: output });
+  let predecessor;
+  if (options.supersedesRunFile) {
+    const snapshot = readStableFile(options.supersedesRunFile, { label: "superseded audit run" });
+    let value;
+    try {
+      value = JSON.parse(snapshot.bytes.toString("utf8").replace(/^\uFEFF/u, ""));
+    } catch (error) {
+      throw new Error(`Invalid JSON in superseded audit run: ${error.message}`);
+    }
+    predecessor = { value, snapshot };
+  }
+  const run = createAuditRun({
+    ...options,
+    runFile: output,
+    supersedesRun: predecessor?.value,
+    supersedesRunFile: predecessor?.snapshot.path
+  });
+  if (predecessor) assertStableFile(predecessor.snapshot, "superseded audit run");
   writeNewJson(output, run);
   process.stdout.write(`${JSON.stringify({ status: "PASS", run_id: run.run_id, output })}\n`);
 }

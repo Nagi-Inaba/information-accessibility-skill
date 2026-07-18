@@ -22,6 +22,11 @@ function pathKey(value) {
   return process.platform === "win32" ? normalized.toLowerCase() : normalized;
 }
 
+function isWithinPath(parent, candidate) {
+  const relative = path.relative(path.resolve(parent), path.resolve(candidate));
+  return relative === "" || (!path.isAbsolute(relative) && relative !== ".." && !relative.startsWith(`..${path.sep}`));
+}
+
 function compareText(left, right) {
   return left.localeCompare(right, "en");
 }
@@ -475,6 +480,53 @@ function validateRegisteredArtifactEntries(run, errors, { requireNormalizedPaths
   return artifactsById;
 }
 
+function envelopeFromRecord(record) {
+  return record?.envelope ?? record;
+}
+
+function validateChangeRecordAuthorizationBinding(changeRecord, artifactsById, envelopesById, errors) {
+  if (changeRecord?.artifact_type !== "change-record") return;
+  const payload = changeRecord.payload ?? {};
+  const authorizationRef = payload.authorization_artifact ?? {};
+  const authorizationEntry = artifactsById.get(authorizationRef.artifact_id);
+  const authorization = envelopeFromRecord(envelopesById.get(authorizationRef.artifact_id));
+  if (!authorizationEntry || authorizationEntry.artifact_type !== "fix-authorization" || authorization?.artifact_type !== "fix-authorization") {
+    errors.push("change-record authorization_artifact must reference a registered fix-authorization artifact.");
+    return;
+  }
+  if (authorizationEntry.sha256 !== authorizationRef.sha256) {
+    errors.push("change-record authorization_artifact SHA-256 must match the registered fix-authorization artifact.");
+  }
+  const authorizationInput = (Array.isArray(changeRecord.inputs) ? changeRecord.inputs : []).filter((input) => input?.artifact_id === authorizationRef.artifact_id);
+  if (authorizationInput.length !== 1 || authorizationInput[0]?.sha256 !== authorizationRef.sha256) {
+    errors.push("change-record must contain exactly one input matching authorization_artifact by ID and SHA-256.");
+  }
+  if (payload.authorization_id !== authorization.payload?.authorization_id) {
+    errors.push("change-record authorization_id must match the referenced fix authorization.");
+  }
+  const bindings = Array.isArray(authorization.payload?.change_bindings) ? authorization.payload.change_bindings : [];
+  for (const [index, changedFile] of (Array.isArray(payload.changed_files) ? payload.changed_files : []).entries()) {
+    const exact = bindings.some((binding) => binding?.path === changedFile?.path
+      && binding?.operation === changedFile?.operation
+      && binding?.expected_before_sha256 === changedFile?.before_sha256
+      && binding?.expected_after_sha256 === changedFile?.after_sha256);
+    if (!exact) errors.push(`change-record changed_files[${index}] does not match an exact authorization change binding.`);
+  }
+  const authorizedCommands = new Map((Array.isArray(authorization.payload?.verification_commands)
+    ? authorization.payload.verification_commands
+    : []).map((command) => [command?.command_id, command]));
+  for (const [index, result] of (Array.isArray(payload.command_results) ? payload.command_results : []).entries()) {
+    const authorized = authorizedCommands.get(result?.command_id);
+    if (!authorized) {
+      errors.push(`change-record command_results[${index}] is not an authorized verification command ID.`);
+    } else if (result?.executable !== authorized.executable
+        || result?.cwd !== authorized.cwd
+        || !isDeepStrictEqual(result?.args, authorized.args)) {
+      errors.push(`change-record command_results[${index}] executable, args, and cwd must match the authorized verification command.`);
+    }
+  }
+}
+
 function validateArtifactEnvelopeSemantics(run, resources, artifactsById, envelopesById, errors) {
   for (const [artifactId, record] of envelopesById) {
     const artifact = record?.envelope ?? record;
@@ -500,6 +552,7 @@ function validateArtifactEnvelopeSemantics(run, resources, artifactsById, envelo
       if (!allowedInputTypes.has(registered.artifact_type)) errors.push(`Producer role ${String(role?.id)} does not allow input type ${registered.artifact_type}.`);
       if (registered.created_at > artifact?.created_at) errors.push(`Artifact input was created after its consumer: ${artifactId} -> ${String(input?.artifact_id)}.`);
     }
+    validateChangeRecordAuthorizationBinding(artifact, artifactsById, envelopesById, errors);
   }
 }
 
@@ -902,11 +955,12 @@ export function createAuditRun(options) {
   const network = normalizePermission(options.network, { local_read_only: "allowlisted", allowlisted: "allowlisted", none: "denied", denied: "denied" }, "network");
   const interaction = normalizePermission(options.interaction, { safe_read_only: "read_only", read_only: "read_only", human_supervised: "human_supervised" }, "interaction");
   const sourceWrite = normalizePermission(options.sourceWrite, { none: "denied", denied: "denied", authorized_only: "authorized_only" }, "source-write");
+  if (options.supersedesRunId && !options.supersedesRun) throw new Error("A naked supersedesRunId is not accepted; provide a validated supersedes run file.");
   const permissions = canonicalPermissions({ network, interaction, source_write: sourceWrite });
   const run = {
     schema_version: resources.auditRunSchema.properties.schema_version.const,
     run_id: options.runId,
-    supersedes_run_id: options.supersedesRunId ?? null,
+    supersedes_run_id: options.supersedesRun?.run_id ?? null,
     status: "initialized",
     target: { name: options.targetName, version_or_commit: options.targetVersion, urls_or_files: targetRefs },
     profile: { id: profile.id, registry_version: resources.standardsRegistry.schema_version },
@@ -919,6 +973,24 @@ export function createAuditRun(options) {
     history: [],
     limitations: ["The environment was not declared; no profile outcome has been recorded."]
   };
+  if (options.supersedesRun) {
+    if (!options.supersedesRunFile) throw new Error("supersedesRunFile is required for fresh retest initialization.");
+    const predecessorValidation = validateAuditRun(options.supersedesRun, { skillRoot, runFile: options.supersedesRunFile });
+    if (!predecessorValidation.valid) throw new Error(`Invalid superseded audit run:\n- ${predecessorValidation.errors.join("\n- ")}`);
+    if (options.supersedesRun.schema_version !== "4.0.0") throw new Error("Fresh retest predecessor must be current audit-run 4.0.0.");
+    if (options.supersedesRun.status !== "retest_required") throw new Error("Fresh retest predecessor status must be retest_required.");
+    if (run.run_id === options.supersedesRun.run_id) throw new Error("Fresh retest run ID must differ from the predecessor run ID.");
+    if (sourceWrite !== "denied") throw new Error("Fresh retest source-write permission must be denied.");
+    if (fs.readdirSync(artifactRoot).length !== 0) throw new Error("Fresh retest artifact root must be empty.");
+    const oldRoot = predecessorValidation.artifactRoot;
+    const rootsOverlap = isWithinPath(oldRoot, artifactRoot) || isWithinPath(artifactRoot, oldRoot);
+    if (rootsOverlap) throw new Error("Fresh retest artifact root must differ from and not overlap the predecessor artifact root.");
+    if (run.target.name !== options.supersedesRun.target.name) throw new Error("Fresh retest target name must match the predecessor.");
+    if (run.target.version_or_commit === options.supersedesRun.target.version_or_commit) throw new Error("Fresh retest target version must change from the predecessor.");
+    if (!isDeepStrictEqual(run.target.urls_or_files, options.supersedesRun.target.urls_or_files)) throw new Error("Fresh retest target references must match the predecessor.");
+    if (!isDeepStrictEqual(run.profile, options.supersedesRun.profile)) throw new Error("Fresh retest profile must match the predecessor.");
+    if (!isDeepStrictEqual(run.scope, options.supersedesRun.scope)) throw new Error("Fresh retest scope must match the predecessor.");
+  }
   const validation = validateAuditRun(run, { skillRoot, runFile });
   if (!validation.valid) throw new Error(`Invalid initialized audit run:\n- ${validation.errors.join("\n- ")}`);
   return run;
@@ -937,6 +1009,10 @@ export function registerArtifact(run, artifact, options = {}) {
   assertCurrentOperationalRun(run, validation.resources, "Artifact registration");
   const artifactPath = resolveInside(validation.artifactRoot, options.artifactFile);
   const relativePath = path.relative(validation.artifactRoot, artifactPath).split(path.sep).join("/");
+  const relativeSegments = relativePath.split("/");
+  if (relativeSegments.includes(".fix-consumption") || relativeSegments.some((segment) => segment.includes("pending-change-record"))) {
+    throw new Error(`Internal fixer runtime evidence is not registerable as a completed artifact: ${relativePath}`);
+  }
   if (run.artifacts.some((entry) => pathKey(registeredArtifactPath(validation.artifactRoot, entry)) === pathKey(artifactPath))) {
     throw new Error(`Duplicate artifact path: ${relativePath}`);
   }
@@ -960,6 +1036,11 @@ export function registerArtifact(run, artifact, options = {}) {
     if (!registered) throw new Error(`Artifact input is missing or not registered: ${input.artifact_id}`);
     if (registered.sha256 !== input.sha256) throw new Error(`Artifact input SHA-256 hash mismatch: ${input.artifact_id}`);
     if (!allowedInputTypes.has(registered.artifact_type)) throw new Error(`Producer role ${role.id} does not allow input type ${registered.artifact_type}`);
+  }
+  const authorizationBindingErrors = [];
+  validateChangeRecordAuthorizationBinding(installedArtifact, artifactsById, validation.envelopesById, authorizationBindingErrors);
+  if (authorizationBindingErrors.length > 0) {
+    throw new Error(`Invalid change-record authorization binding:\n- ${authorizationBindingErrors.join("\n- ")}`);
   }
   const outgoing = validation.resources.orchestrationRegistry.transitions.filter((transition) => transition.from === run.status && transition.required_artifact_types.includes(installedArtifact.artifact_type));
   const incomingCurrent = validation.resources.orchestrationRegistry.transitions.some((transition) => transition.to === run.status && transition.required_artifact_types.includes(installedArtifact.artifact_type));

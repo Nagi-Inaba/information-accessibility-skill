@@ -239,6 +239,12 @@ function fixAuthorizationPayload() {
     source_root: "C:\\work\\target",
     allowed_paths: ["index.html"],
     allowed_operations: ["modify"],
+    change_bindings: [{
+      path: "index.html",
+      operation: "modify",
+      expected_before_sha256: "a".repeat(64),
+      expected_after_sha256: "b".repeat(64)
+    }],
     verification_commands: [{ command_id: "VERIFY-001", executable: "npm", args: ["test"], cwd: "." }],
     remediation_artifact: { artifact_id: "ART-REMEDIATION-001", sha256: "a".repeat(64) }
   };
@@ -465,6 +471,49 @@ function makeVerifiedFailureRemediationRun(artifactRoot, profileOutcome = "fail"
   };
 }
 
+function makeRetestRequiredRun(artifactRoot) {
+  const fixture = makeScreeningRemediationRun(artifactRoot);
+  fixture.run.permissions = authorizedInitialRun(artifactRoot).permissions;
+  const authorizationPayload = fixAuthorizationPayload();
+  authorizationPayload.remediation_artifact.sha256 = sha256File(fixture.remediationFile);
+  const authorization = artifactEnvelope({
+    artifactId: "ART-AUTHORIZATION-001",
+    artifactType: "fix-authorization",
+    roleId: "declared_authorizer",
+    producerKind: "external_requester",
+    createdAt: "2026-07-17T12:00:05Z",
+    inputs: [{ artifact_id: fixture.remediation.artifact_id, run_id: runId, sha256: sha256File(fixture.remediationFile) }],
+    payload: authorizationPayload
+  });
+  authorization.producer.origin = "external_input";
+  const authorizationFile = path.join(artifactRoot, "authorization.json");
+  writeJson(authorizationFile, authorization);
+  const change = artifactEnvelope({
+    artifactId: "ART-CHANGE-001",
+    artifactType: "change-record",
+    roleId: "authorized_fixer",
+    createdAt: "2026-07-17T12:00:06Z",
+    inputs: [
+      { artifact_id: fixture.remediation.artifact_id, run_id: runId, sha256: sha256File(fixture.remediationFile) },
+      { artifact_id: authorization.artifact_id, run_id: runId, sha256: sha256File(authorizationFile) }
+    ],
+    payload: changePayload(authorization.artifact_id, sha256File(authorizationFile))
+  });
+  const changeFile = path.join(artifactRoot, "change.json");
+  writeJson(changeFile, change);
+  fixture.run.status = "retest_required";
+  fixture.run.artifacts.push(
+    registerEntry(artifactRoot, authorizationFile, authorization),
+    registerEntry(artifactRoot, changeFile, change)
+  );
+  fixture.run.artifacts.sort((left, right) => left.artifact_id.localeCompare(right.artifact_id));
+  fixture.run.history.push(
+    { from: "remediation_ready", to: "fix_authorized", at: authorization.created_at, actor_role: "declared_authorizer", artifact_ids: [authorization.artifact_id] },
+    { from: "fix_authorized", to: "retest_required", at: change.created_at, actor_role: "authorized_fixer", artifact_ids: [change.artifact_id] }
+  );
+  return { ...fixture, authorization, authorizationFile, change, changeFile };
+}
+
 function rewriteFixtureArtifact(fixture, artifact, file) {
   writeJson(file, artifact);
   fixture.run.artifacts.find((entry) => entry.artifact_id === artifact.artifact_id).sha256 = sha256File(file);
@@ -633,6 +682,121 @@ test("run 4 initialization couples authorized source writes to authorized verifi
     allowed_actions: ["execute_authorized_verification_commands", "inspect_without_mutation", "write_authorized_files"],
     forbidden_actions: ["execute_unapproved_commands", "network_access"]
   });
+}));
+
+test("fresh retest initialization validates its predecessor and copies no prior evidence", (t) => withTemp(t, ({ temp, artifactRoot }) => {
+  const predecessor = makeRetestRequiredRun(artifactRoot);
+  const predecessorFile = path.join(temp, "predecessor-run.json");
+  writeJson(predecessorFile, predecessor.run);
+  const newArtifactRoot = path.join(temp, "retest-artifacts");
+  fs.mkdirSync(newArtifactRoot);
+  const output = path.join(temp, "retest-run.json");
+  const newRunId = "RUN-20260718T120000Z-RETEST01";
+  const result = runNode(createRun, [
+    "--run-id", newRunId,
+    "--profile", "web-modern",
+    "--target-name", "Local fixture",
+    "--target-version", "fixture-v2",
+    "--target-ref", "http://127.0.0.1:4173/",
+    "--artifact-root", newArtifactRoot,
+    "--network", "local_read_only",
+    "--interaction", "safe_read_only",
+    "--source-write", "none",
+    "--supersedes-run", predecessorFile,
+    "--output", output
+  ]);
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const run = readJson(output);
+  assert.equal(run.supersedes_run_id, predecessor.run.run_id);
+  assert.equal(run.run_id, newRunId);
+  assert.equal(run.status, "initialized");
+  assert.equal(run.target.name, predecessor.run.target.name);
+  assert.equal(run.target.version_or_commit, "fixture-v2");
+  assert.deepEqual(run.target.urls_or_files, predecessor.run.target.urls_or_files);
+  assert.deepEqual(run.profile, predecessor.run.profile);
+  assert.deepEqual(run.scope, predecessor.run.scope);
+  assert.deepEqual(run.artifacts, []);
+  assert.deepEqual(run.history, []);
+  assert.equal(run.permissions.source_write, "denied");
+  assert.equal(run.permissions.command_execution, "denied");
+  assert.deepEqual(run.resource_versions, resourceVersions());
+  assert.deepEqual(fs.readdirSync(newArtifactRoot), []);
+
+  const crossRunOutput = path.join(temp, "cross-run.json");
+  const copiedOldArtifact = path.join(newArtifactRoot, "copied-old-screen.json");
+  fs.copyFileSync(predecessor.screenFile, copiedOldArtifact);
+  const crossRun = runNode(registerArtifact, ["--run", output, "--artifact", copiedOldArtifact, "--output", crossRunOutput]);
+  assertRejected(crossRun, /run[_ -]?id|same run|does not match/i);
+  assert.equal(fs.existsSync(crossRunOutput), false);
+}));
+
+test("fresh retest initialization rejects invalid predecessor and scope/root reuse", (t) => withTemp(t, ({ temp, artifactRoot }) => {
+  const predecessor = makeRetestRequiredRun(artifactRoot);
+  const predecessorFile = path.join(temp, "predecessor-run.json");
+  writeJson(predecessorFile, predecessor.run);
+  const baseArgs = [
+    "--run-id", "RUN-20260718T120000Z-RETEST02",
+    "--profile", "web-modern",
+    "--target-name", "Local fixture",
+    "--target-version", "fixture-v2",
+    "--target-ref", "http://127.0.0.1:4173/",
+    "--network", "local_read_only",
+    "--interaction", "safe_read_only",
+    "--source-write", "none",
+    "--supersedes-run", predecessorFile
+  ];
+  const cases = [];
+  const sameVersionRoot = path.join(temp, "same-version-artifacts");
+  fs.mkdirSync(sameVersionRoot);
+  cases.push([[...baseArgs.map((value, index, values) => values[index - 1] === "--target-version" ? "fixture-v1" : value), "--artifact-root", sameVersionRoot, "--output", path.join(temp, "same-version.json")], /version.*change|different.*version/i]);
+  cases.push([[...baseArgs, "--artifact-root", artifactRoot, "--output", path.join(temp, "same-root.json")], /artifact.*root|different|overlap|empty/i]);
+  const dotPrefixedChild = path.join(artifactRoot, "..retest");
+  fs.mkdirSync(dotPrefixedChild);
+  cases.push([[...baseArgs, "--artifact-root", dotPrefixedChild, "--output", path.join(temp, "dot-child.json")], /artifact.*root|different|overlap/i]);
+  const nonempty = path.join(temp, "nonempty-artifacts");
+  fs.mkdirSync(nonempty);
+  fs.writeFileSync(path.join(nonempty, "old.json"), "{}\n", "utf8");
+  cases.push([[...baseArgs, "--artifact-root", nonempty, "--output", path.join(temp, "nonempty.json")], /artifact.*empty|must be empty/i]);
+  const mismatchRoot = path.join(temp, "mismatch-artifacts");
+  fs.mkdirSync(mismatchRoot);
+  cases.push([[...baseArgs.map((value, index, values) => values[index - 1] === "--target-name" ? "Other target" : value), "--artifact-root", mismatchRoot, "--output", path.join(temp, "mismatch.json")], /target.*match|name.*predecessor/i]);
+
+  for (const [args, pattern] of cases) assertRejected(runNode(createRun, args), pattern);
+
+  const invalid = initialRun(artifactRoot);
+  writeJson(predecessorFile, invalid);
+  const invalidRoot = path.join(temp, "invalid-predecessor-artifacts");
+  fs.mkdirSync(invalidRoot);
+  assertRejected(runNode(createRun, [...baseArgs, "--artifact-root", invalidRoot, "--output", path.join(temp, "invalid-predecessor.json")]), /retest_required|predecessor.*status/i);
+}));
+
+test("change-record registration enforces the referenced authorization change binding", (t) => withTemp(t, ({ temp, artifactRoot }) => {
+  const fixture = makeRetestRequiredRun(artifactRoot);
+  fixture.run.status = "fix_authorized";
+  fixture.run.artifacts = fixture.run.artifacts.filter((entry) => entry.artifact_id !== fixture.change.artifact_id);
+  fixture.run.history = fixture.run.history.slice(0, -1);
+  const runFile = path.join(temp, "fix-authorized-run.json");
+  writeJson(runFile, fixture.run);
+  const cases = [
+    ["path", (value) => { value.payload.changed_files[0].path = "other.html"; }],
+    ["operation", (value) => { value.payload.changed_files[0].operation = "delete"; value.payload.changed_files[0].after_sha256 = null; }],
+    ["before hash", (value) => { value.payload.changed_files[0].before_sha256 = "d".repeat(64); }],
+    ["after hash", (value) => { value.payload.changed_files[0].after_sha256 = "e".repeat(64); }],
+    ["authorization id", (value) => { value.payload.authorization_id = "AUTH-20260717-OTHER001"; }],
+    ["command id", (value) => { value.payload.command_results[0].command_id = "VERIFY-OTHER"; }],
+    ["command args", (value) => { value.payload.command_results[0].args = ["run", "other"]; }]
+  ];
+  for (const [label, mutate] of cases) {
+    const forged = structuredClone(fixture.change);
+    mutate(forged);
+    const file = path.join(artifactRoot, `forged-${label.replaceAll(" ", "-")}.json`);
+    writeJson(file, forged);
+    assert.throws(
+      () => registerArtifactRecord(fixture.run, forged, { skillRoot, runFile, artifactFile: file }),
+      /authorization|change binding|authorized command|changed_files/i,
+      label
+    );
+  }
 }));
 
 test("audit-run dispatch maps runs 1/2 to registry 1, run 3 to registry 2, and only run 4 to registry 3", (t) => withTemp(t, ({ temp, artifactRoot }) => {

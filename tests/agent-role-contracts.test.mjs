@@ -210,20 +210,21 @@ test("remediation planner preserves verified and unverified bases without editin
   assert.match(body, /do not add fields[^]*remediation-plan\.schema\.json/i);
 });
 
-test("orchestration reference states the current behavioral boundary and future mechanical gates", () => {
+test("orchestration reference states the current authorized-fix and residual enforcement boundaries", () => {
   const body = read("codex/skills/information-accessibility-practice/references/agent-orchestration.md");
 
   assert.match(body, /behavioral contract[^]*not[^]*complete tool sandbox/i);
   assert.match(body, /allowlisted executable[^]*allowlisted arguments/i);
-  assert.match(body, /pre-execution[^]*artifact_root[^]*write gate/i);
-  assert.match(body, /target-derived commands[^]*never[^]*executed/i);
-  assert.match(body, /deny[^]*(?:authentication|authenticate)[^]*form[^]*state-changing/i);
-  assert.match(body, /malicious fixture[^]*target[^]*out-of-scope[^]*hashes[^]*unchanged/i);
-  assert.match(body, /denial proof[^]*execution gate/i);
-  assert.match(body, /Future public-report hardening[^]*privacy scan[^]*local paths[^]*private URLs[^]*person names[^]*sensitive evidence/i);
+  assert.match(body, /independently supplied source root[^]*exact change binding[^]*expected before SHA-256[^]*expected after SHA-256/i);
+  assert.match(body, /global single-use ledger[^]*outside the cloneable run artifact tree/i);
+  assert.match(body, /directory identity[^]*create[^]*replacement[^]*deletion/i);
+  assert.match(body, /non-registerable pending filename[^]*only after lease release succeeds/i);
+  assert.match(body, /quarantine guard[^]*manual reconciliation/i);
+  assert.match(body, /fresh retest run[^]*copies no prior artifacts[^]*evidence/i);
+  assert.match(body, /not yet provide[^]*privacy scan[^]*private URLs[^]*person names[^]*sensitive evidence/i);
   assert.doesNotMatch(body, /Task 8B|Task 9/i);
   assert.match(body, /public report[^]*(?:must not|never)[^]*(?:internal agent|run IDs|orchestration history|state history)/i);
-  assert.match(body, /future acceptance criteria[^]*(?:not yet implemented|not an implemented guarantee)/i);
+  assert.match(body, /not a kernel sandbox[^]*unrestricted local filesystem control/i);
 });
 
 test("all agent bodies separate installed control-plane CLIs from untrusted command content", () => {

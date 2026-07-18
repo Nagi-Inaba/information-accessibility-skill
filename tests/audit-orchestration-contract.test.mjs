@@ -254,6 +254,12 @@ function validFixAuthorizationPayload() {
     source_root: "C:\\work\\target",
     allowed_paths: ["index.html"],
     allowed_operations: ["modify"],
+    change_bindings: [{
+      path: "index.html",
+      operation: "modify",
+      expected_before_sha256: sha256,
+      expected_after_sha256: "b".repeat(64)
+    }],
     verification_commands: [{
       command_id: "VERIFY-001",
       executable: "node",
@@ -617,7 +623,7 @@ test("the orchestration registry fixes the complete role, artifact, and transiti
       latest_schema_version: "2.0.0",
       schema_versions: [
         { version: "1.0.0", schema_file: "fix-authorization-1.0.0.schema.json", mode: "read_only" },
-        { version: "2.0.0", schema_file: "fix-authorization.schema.json", mode: "current" }
+        { version: "2.0.0", schema_file: "fix-authorization.schema.json", schema_sha256: "8dfb9241a6f75d5dd9225d3f8b7e57ea2f3b8e3e6ac442a9493ed0a80a2b0cb7", mode: "current" }
       ]
     },
     {
@@ -974,6 +980,15 @@ test("fix authorization 2 requires declared identity, absolute source root, boun
     ["traversal allowed path", (value) => { value.allowed_paths[0] = "target/../../outside.html"; }],
     ["duplicate allowed path", (value) => { value.allowed_paths.push(value.allowed_paths[0]); }],
     ["unknown operation", (value) => { value.allowed_operations[0] = "rename"; }],
+    ["missing exact change binding", (value) => { delete value.change_bindings; }],
+    ["create binding with before hash", (value) => {
+      value.allowed_operations = ["create"];
+      value.change_bindings[0] = { path: "index.html", operation: "create", expected_before_sha256: sha256, expected_after_sha256: "b".repeat(64) };
+    }],
+    ["delete binding with after hash", (value) => {
+      value.allowed_operations = ["delete"];
+      value.change_bindings[0] = { path: "index.html", operation: "delete", expected_before_sha256: sha256, expected_after_sha256: "b".repeat(64) };
+    }],
     ["bad remediation hash", (value) => { value.remediation_artifact.sha256 = "1234"; }],
     ["authenticated identity claim", (value) => { value.identity_authenticated = true; }],
     ["AI authorizer kind", (value) => { value.authorizer_kind = "ai_agent"; }]
