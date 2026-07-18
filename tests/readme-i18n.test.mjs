@@ -62,6 +62,15 @@ test("README defaults to Japanese and provides a reciprocal English switch", () 
   assert.match(english, /^\[日本語\]\(README\.md\) \| English\n\n# Information Accessibility Audit Skill and Agent/u);
 });
 
+test("Japanese README explains the user journey before using participation terminology", () => {
+  const japanese = read("README.md");
+  const introduction = japanese.slice(0, japanese.indexOf("## できること"));
+
+  assert.doesNotMatch(introduction, /参加アクセシビリティ/u);
+  assert.match(introduction, /見つけ[^\n]*受け取[^\n]*理解[^\n]*目的の行動[^\n]*後から/u);
+  assert.match(japanese, /\*\*行動する（Participate）\*\*[^\n]*質問[^\n]*申込[^\n]*サービスの利用[^\n]*支援依頼[^\n]*イベントへの参加/u);
+});
+
 test("Japanese and English READMEs preserve structural and executable parity", () => {
   const japanese = read("README.md");
   const english = read("README.en.md");

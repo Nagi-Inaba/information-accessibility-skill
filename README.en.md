@@ -2,14 +2,15 @@
 
 # Information Accessibility Audit Skill and Agent
 
-This is a general-purpose accessibility audit skill and agent package for Codex and Claude. It can define scope, inspect a target, record evidence, report findings, propose improvements, and support retesting.
+This Codex and Claude package helps review whether people can find information, understand it, and use it to complete their intended actions. It supports scope definition, inspection, evidence records, improvement proposals, and retesting after changes.
 
-Websites, applications, documents, slides, videos, event announcements, and meeting operations can be reviewed as one journey, from finding the information to revisiting records after participation.
+It covers websites, applications, documents, slides, videos, event announcements, and meeting operations.
+Each review follows the whole journey: finding information, receiving and understanding it, completing the necessary action, and checking results or records later.
 The package provides both a natural-language entry through skills and agents and a CLI for repeating the same workflow under fixed conditions.
 
 Review results keep these two layers separate:
 
-1. **Participation accessibility**: Uses the five Find, Receive, Understand, Participate, and Continue perspectives to review the journey from discovery through later follow-up.
+1. **Five perspectives on using information**: Uses Find, Receive, Understand, Participate (act), and Continue (check later) to record the journey from discovery through intended action and follow-up.
 2. **Standards evidence records**: Store the target, standards profile, per-requirement outcomes, evidence strength, and allowed claim tier in JSON.
 
 `web-modern` initializes all 55 WCAG 2.2 Level A and AA requirements, while `jp-public-web` initializes 38 JIS X 8341-3:2016 Level A and AA requirements plus 18 additional WCAG requirements, for a total of 56.
@@ -270,6 +271,9 @@ For Claude:
 - Check community participation paths to ensure first-time participants can find the necessary location, schedule, materials, roles, contact points, and next actions without confusion.
 - Check accommodation-request workflows for the request method, deadline, available support, handoff to responsible staff, privacy handling, and on-the-day operation.
 - Identify constraints that require confirmation before implementation, including laws, venue conditions, contracts, personal information, and publication scope.
+
+When WCAG, JIS, ATAG, or another standard is requested, the following rules govern the evidence and the claims that may be made from it.
+
 - In reviews using WCAG, JIS, ATAG, or another specified standard, fix the target, version, scope, and environment, and record AI observations as `SCREEN-*` results or unverified handoffs. Only external human reviewers with requirement-specific procedures and target-specific manual or hybrid evidence record profile-requirement outcomes.
 - Separate automated and static checks as `screening_check` from standards requirements mapped to primary sources by a person as `profile_requirement`.
 - Classify automated or lightweight checks, requirement reviews, real-device and assistive-technology tests, and third-party audits as E0 through E5.
@@ -278,13 +282,13 @@ For Claude:
 
 ## Review perspectives
 
-Reviews primarily use the following five perspectives:
+Regardless of the target type, each review separates the information-use journey into these five perspectives:
 
-1. **Find**: Can the people who need the information find it?
-2. **Receive**: Can they receive it through multiple means, including vision, audio, text, assistive technology, and archives?
+1. **Find**: Can the people who need the information find it without confusion?
+2. **Receive**: Can they receive it through text, audio, images, assistive technology, or saved records in a form that works for them?
 3. **Understand**: Are the structure, sequence, wording, dates, links, colors, charts, and technical terms understandable?
-4. **Participate**: Can they ask questions, register, request accommodations, participate on the day, and take the next action?
-5. **Continue**: Can they later find summaries, materials, records, decisions, and next actions?
+4. **Act (Participate)**: Can they use the information to ask questions, register, use the service, request accommodations, attend an event, or complete another intended action?
+5. **Check later (Continue)**: Can they later find summaries, materials, records, decisions, and next actions?
 
 ## Example requests
 
