@@ -4,16 +4,51 @@
 
 This is a general-purpose accessibility audit skill and agent package for Codex and Claude. It can define scope, inspect a target, record evidence, report findings, propose improvements, and support retesting.
 
-It covers websites, applications, documents, slides, videos, event announcements, meeting operations, and community participation paths. It checks not only whether information exists, but whether the people who need it can find, receive, understand, participate in, and revisit it.
+Websites, applications, documents, slides, videos, event announcements, and meeting operations can be reviewed as one journey, from finding the information to revisiting records after participation.
+The package provides both a natural-language entry through skills and agents and a CLI for repeating the same workflow under fixed conditions.
 
-This version treats the following two layers separately:
+Review results keep these two layers separate:
 
-1. **Participation accessibility**: Reviews the overall participation experience through five gates: Find, Receive, Understand, Participate, and Continue.
-2. **Standards evidence records**: Records the target, standards profile, per-requirement outcomes, evidence strength, and claim ceiling in JSON.
+1. **Participation accessibility**: Uses the five Find, Receive, Understand, Participate, and Continue perspectives to review the journey from discovery through later follow-up.
+2. **Standards evidence records**: Store the target, standards profile, per-requirement outcomes, evidence strength, and allowed claim tier in JSON.
 
-`web-modern` can initialize all 55 WCAG 2.2 Level A and AA requirements as not evaluated. `jp-public-web` can do the same for 38 JIS X 8341-3:2016 Level A and AA requirements plus 18 additional WCAG requirements, for a total of 56. Target-specific evidence, catalog coverage, evaluated coverage, and the claim ceiling are validated separately. Requirement-specific procedures for human or hybrid review have been added for WCAG 2.2 SC 1.1.1, 1.3.1, 2.1.1, and 4.1.2, but executable test procedures for every requirement are not yet complete. The claim ceiling remains `evaluated_subset`; the package does not automatically determine conformance, compliance, or certification.
+`web-modern` initializes all 55 WCAG 2.2 Level A and AA requirements, while `jp-public-web` initializes 38 JIS X 8341-3:2016 Level A and AA requirements plus 18 additional WCAG requirements, for a total of 56.
+Target-specific evidence, catalog coverage, actual evaluation coverage, and the allowed claim tier are validated separately.
 
-## Contents
+## Capabilities
+
+- Review websites, apps, documents, videos, and event operations with checks suited to the target.
+- Organize barriers with affected users, observed evidence, remediation, and a retest method.
+- Start complete WCAG 2.2 or JIS X 8341-3 profile records with every requirement explicitly unevaluated.
+- Generate JSON records and Markdown reports while preserving untested, indeterminate, failed, and evidence-strength states.
+- Repeat validation and report generation through the CLI without overwriting existing artifacts by default.
+
+The package cannot automatically determine standards conformance.
+AI observations remain candidates or unverified records, while criterion outcomes require target-specific evidence and external human review.
+The current claim ceiling is `evaluated_subset`.
+
+## Choose a usage path
+
+| Goal | Entry point | Best use |
+| --- | --- | --- |
+| Identify barriers and possible improvements | Skill or agent | Describe the target and purpose in natural language |
+| Create WCAG or JIS records | Skill or agent plus CLI | Agree on scope, then preserve a complete checklist, evidence, and report |
+| Repeat the same checks | CLI | Use it for scheduled checks, CI, and handoff-ready artifacts |
+| Apply an authorized source change | Separate authorized fixer | Keep mutation outside the standard CLI and bind it to authorization and verification conditions |
+
+When unsure, describe the target and what you need to learn.
+
+```text
+Review this website for information accessibility, separating observed barriers, possible improvements, and items that require human verification.
+```
+
+If the CLI is installed, list the available operations with:
+
+```powershell
+accessibility-audit --help
+```
+
+## Package layout
 
 ```text
 codex/
@@ -111,7 +146,7 @@ references/
 
 The skill selects the reference files needed for the target and uses them as concrete review criteria.
 
-## Usage
+## Detailed usage
 
 ### Unified CLI
 
@@ -225,7 +260,7 @@ For Claude:
 2. Place `claude/agents/information-accessibility-reviewer.md` under the Claude `agents/` directory.
 3. Use `information-accessibility-reviewer` for the target to be reviewed for information accessibility.
 
-## Capabilities
+## Detailed review coverage
 
 - Review the readability of headings, labels, link names, keyboard operation, focus order, error presentation, state changes, and tables and charts in websites, applications, forms, and dashboards.
 - Review heading structure, reading order, link names, tables, image descriptions, chart summaries, and text extraction and reading order after PDF conversion in PDFs, Word documents, slides, and handouts.

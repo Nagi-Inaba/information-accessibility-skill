@@ -80,10 +80,12 @@ test("Japanese and English READMEs preserve structural and executable parity", (
   assert.doesNotMatch(english.replace(/^\[日本語\][^\n]*\n/u, ""), /[\u3040-\u30ff\u3400-\u9fff]/u);
 
   const headingPairs = [
-    ["内容", "Contents"],
-    ["参照ファイルの内容", "Reference files"],
-    ["使い方", "Usage"],
     ["できること", "Capabilities"],
+    ["使い方を選ぶ", "Choose a usage path"],
+    ["パッケージ構成", "Package layout"],
+    ["参照ファイル", "Reference files"],
+    ["詳しい使い方", "Detailed usage"],
+    ["対象別の確認範囲", "Detailed review coverage"],
     ["確認する観点", "Review perspectives"],
     ["依頼例", "Example requests"],
     ["出力例", "Example output"],
@@ -93,6 +95,10 @@ test("Japanese and English READMEs preserve structural and executable parity", (
   ];
   const japaneseSections = new Map(sections(japanese).map((section) => [section.title, section]));
   const englishSections = new Map(sections(english).map((section) => [section.title, section]));
+  assert.ok(japanese.indexOf("## できること") < japanese.indexOf("## パッケージ構成"));
+  assert.ok(japanese.indexOf("## 使い方を選ぶ") < japanese.indexOf("## パッケージ構成"));
+  assert.ok(english.indexOf("## Capabilities") < english.indexOf("## Package layout"));
+  assert.ok(english.indexOf("## Choose a usage path") < english.indexOf("## Package layout"));
   assert.equal(japaneseSections.size, headingPairs.length);
   assert.equal(englishSections.size, headingPairs.length);
   for (const [japaneseHeading, englishHeading] of headingPairs) {

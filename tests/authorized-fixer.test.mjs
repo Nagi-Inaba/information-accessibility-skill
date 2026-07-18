@@ -77,10 +77,10 @@ test("authorized fixer remains opt-in and declares every runtime trust boundary"
 test("public guidance describes the current read-only handoff without development history", () => {
   const readme = fs.readFileSync(path.join(root, "README.md"), "utf8");
   const orchestration = fs.readFileSync(path.join(references, "agent-orchestration.md"), "utf8");
-  for (const text of [readme, orchestration]) {
-    assert.match(text, /authorized fixer[^]*(?:read-only|generic command or write access)[^]*trusted (?:operator|orchestrator)/i);
-    assert.match(text, /-IncludeAuthorizedFixer/i);
-  }
+  assert.match(readme, /認可済み修正[^]*読み取り専用[^]*信頼された運用者/u);
+  assert.match(orchestration, /authorized fixer[^]*(?:read-only|generic command or write access)[^]*trusted (?:operator|orchestrator)/i);
+  assert.match(readme, /-IncludeAuthorizedFixer/i);
+  assert.match(orchestration, /-IncludeAuthorizedFixer/i);
   assert.doesNotMatch(readme, /Task\s+8|after Task|not yet included|not included yet/i);
 });
 

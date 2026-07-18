@@ -2,18 +2,53 @@
 
 # 情報アクセシビリティ監査スキル／エージェント
 
-任意の対象について、範囲固定、実査、証拠記録、所見、改善、再検査までを行う、Codex / Claude 向けの汎用アクセシビリティ監査スキル／エージェントです。
+情報アクセシビリティのレビューを、対象と範囲の整理から、実査、証拠記録、改善案、再確認まで支援するCodex / Claude向けパッケージです。
 
-Webサイト、アプリ、文書、スライド、動画、イベント案内、会議運営、コミュニティ導線などを対象に、「情報があるか」だけでなく、必要な人が見つけられるか、受け取れるか、理解できるか、参加できるか、後から確認できるかを確認します。
+Webサイト、アプリ、文書、スライド、動画、イベント案内、会議運営などについて、情報へたどり着くところから、参加後に記録を確認するところまでを一続きでレビューできます。
+自然言語でレビューを依頼する入口と、同じ条件で繰り返し実行するCLIの両方を収録しています。
 
-この版は、次の2層を分けて扱います。
+レビュー結果は、次の二つを分けて記録します。
 
-1. **参加アクセシビリティ**: Find / Receive / Understand / Participate / Continue の5ゲートで、参加体験全体をレビューする。
-2. **規格証拠レコード**: 対象、規格プロファイル、条項別結果、証拠強度、主張上限をJSONで記録する。
+1. **参加アクセシビリティ**：Find、Receive、Understand、Participate、Continueの5つの観点で、情報の発見から参加後の確認までを見る。
+2. **規格証拠レコード**：対象、規格プロファイル、条項別結果、証拠強度、表明できる範囲をJSONで残す。
 
-`web-modern` はWCAG 2.2 A/AAの55件、`jp-public-web` はJIS X 8341-3:2016 A/AAの38件と追加WCAG 18件（合計56件）を、未評価状態から漏れなく開始できます。対象固有の証拠、カタログ被覆、実評価被覆、主張上限を別々に検証します。WCAG 2.2 SC 1.1.1、1.3.1、2.1.1、4.1.2には人手／ハイブリッド用の条項別手順を追加しましたが、全条項に対する実行可能な試験手順は未完成です。主張上限は引き続き `evaluated_subset` であり、適合、準拠、認証を自動判定するものではありません。
+`web-modern`ではWCAG 2.2 A/AAの55件、`jp-public-web`ではJIS X 8341-3:2016 A/AAの38件と追加WCAG 18件（合計56件）を、すべて未評価の状態から開始できます。
+対象固有の証拠、カタログの収録範囲、実際に評価した範囲、表明できる上限を混同せずに検証します。
 
-## 内容
+## できること
+
+- Webサイト、アプリ、文書、動画、イベント運営などを、対象に合った確認項目でレビューする。
+- 見つかった障壁を、影響を受ける利用者、観測内容、改善案、再確認方法とともに整理する。
+- WCAG 2.2やJIS X 8341-3のプロファイルから、抜けのない評価記録を未評価状態で作成する。
+- 未評価、不明、失敗、証拠の強さを区別したまま、JSON記録とMarkdown報告書を生成する。
+- CLIを使い、同じ条件の検証や報告書生成を繰り返す。既存の成果物は既定で上書きしない。
+
+このパッケージだけで規格適合を自動判定することはできません。
+AIによる観測は候補または未検証の記録として残し、条項の合否には対象固有の証拠と外部の人手確認が必要です。
+現在の主張上限は`evaluated_subset`です。
+
+## 使い方を選ぶ
+
+| したいこと | 入口 | 向いている使い方 |
+| --- | --- | --- |
+| まず問題点や改善案を知りたい | スキル／エージェント | 対象と目的を自然言語で伝えてレビューを依頼する |
+| WCAGやJISの記録を作りたい | スキル／エージェントとCLI | 範囲を相談し、完全な検査票、証拠、報告書を残す |
+| 同じ条件で繰り返し検証したい | CLI | 定期検査、CI、引き継ぎ可能な成果物生成に使う |
+| 認可済みの修正を実行したい | 専用の認可済み修正機能 | 標準CLIとは分け、外部認可と検証条件を固定して扱う |
+
+迷った場合は、対象と知りたいことをそのまま依頼してください。
+
+```text
+このWebサイトを情報アクセシビリティの観点で確認し、観測できた問題、改善案、人による確認が必要な点を分けてください。
+```
+
+CLIを導入済みであれば、次のコマンドから利用できる操作を確認できます。
+
+```powershell
+accessibility-audit --help
+```
+
+## パッケージ構成
 
 ```text
 codex/
@@ -59,7 +94,7 @@ tests/install-codex.test.mjs
 tests/unified-cli.test.mjs
 ```
 
-各 skill には、実行時に読む参照ファイルが入っています。
+各スキルには、実行時に読む参照ファイルが入っています。
 
 ```text
 references/
@@ -81,7 +116,7 @@ references/
   source-basis.md
 ```
 
-## 参照ファイルの内容
+## 参照ファイル
 
 `development-accessibility.md` は、Webサイト、アプリ、フォーム、ダッシュボード、UI、開発タスクを見るための参照です。見出し、ラベル、リンク名、キーボード操作、フォーカス順、エラー表示、状態変化、表やグラフ、フォーム入力、モバイル表示などを確認します。
 
@@ -111,11 +146,11 @@ references/
 
 スキル本体は、対象に応じて必要な参照ファイルを選び、具体的な確認項目として使います。
 
-## 使い方
+## 詳しい使い方
 
 ### 統一CLI
 
-`accessibility-audit`は、監査run、評価レコード、登録済み成果物、報告書を扱う既存スクリプトの統一入口です。
+`accessibility-audit`は、監査実行記録（run）、評価レコード、登録済み成果物、報告書を扱う既存スクリプトの統一入口です。
 監査ロジックを再実装せず、固定されたスクリプトへ`shell: false`で引数を引き渡すため、個別CLIと同じ検証、上書き拒否、証拠境界が保たれます。
 
 スキルフォルダーからコマンドを導入します。
@@ -133,10 +168,10 @@ node .\codex\skills\information-accessibility-practice\scripts\accessibility-aud
 
 | コマンド | 用途 |
 | --- | --- |
-| `init` | 対象、版、範囲、権限を固定した新しい監査runを作る |
+| `init` | 対象、版、範囲、権限を固定した新しい監査実行記録を作る |
 | `assessment` | 全条項を`not_tested`で初期化した評価レコードを作る |
 | `requirement` | 指定した1条項と確認方法を表示する |
-| `validate-run` | 監査runを検証し、別ファイルへ検証結果を書く |
+| `validate-run` | 監査実行記録を検証し、別ファイルへ検証結果を書く |
 | `validate-assessment` | 評価レコードと主張上限を検証する |
 | `register` | 検証済み成果物を新しいrun版へ登録する |
 | `merge` | 登録済み成果物を新しい評価レコードへ統合する |
@@ -163,19 +198,19 @@ accessibility-audit report --input .\audit.json --output .\audit-report.md
 4. バリデータでカタログ被覆と実評価被覆を別々に確認する。
 5. 検証済みのレコードから、所見、未検証、使える主張上限を含むMarkdown監査報告を生成する。
 
-### run-backedワークフロー
+### 監査実行記録（run）を使うワークフロー
 
-複数の役割で進める場合は、読み取り専用のrunを作成し、`screening-observations`、`human-review-queue`、`remediation-plan`の順に候補を登録します。
-各登録で新しいrunファイルを作り、直前のrunと対象ファイルは書き換えません。
-その後、未評価のプロファイル行を持つE0評価と、登録した全artifactをmergeし、`--run`と`--assessment`を指定して公開用報告を生成します。
+複数の役割で進める場合は、読み取り専用の監査実行記録を作成し、`screening-observations`、`human-review-queue`、`remediation-plan`の順に成果物を登録します。
+登録するたびに新しい監査実行記録を作り、直前の記録と対象ファイルは書き換えません。
+その後、未評価のプロファイル行を持つE0評価と、登録したすべての成果物（artifact）を統合し、`--run`と`--assessment`を指定して公開用報告を生成します。
 
 公開用報告は、`Observed / 観測`、`Improvement / 改善`、`Human review / 人が確認`を分けて表示します。
 プロファイル結果、スクリーニング結果、カタログ被覆、実評価被覆の件数も別々に記録します。
 run ID、artifact ID、役割ID、遷移履歴、ローカルパスは内部のrunに残し、公開用報告には出力しません。
 観測と改善候補は、人が確認するまで合否や適合性の根拠にはなりません。
 
-役割分担、artifactの順序、停止条件、外部の人手レビューとの境界は、[Codex向けagent orchestrationリファレンス](codex/skills/information-accessibility-practice/references/agent-orchestration.md)と[Claude向けagent orchestrationリファレンス](claude/skills/information-accessibility-practice/references/agent-orchestration.md)にまとめています。
-run-backedの公開用報告だけを生成する最小コマンドは次のとおりです。
+役割分担、成果物の順序、停止条件、外部の人手レビューとの境界は、[Codex向けエージェント連携リファレンス](codex/skills/information-accessibility-practice/references/agent-orchestration.md)と[Claude向けエージェント連携リファレンス](claude/skills/information-accessibility-practice/references/agent-orchestration.md)にまとめています。
+監査実行記録から公開用報告だけを生成する最小コマンドは次のとおりです。
 
 ```powershell
 node .\codex\skills\information-accessibility-practice\scripts\render-audit-report.mjs --run .\audit-run.json --assessment .\merged-assessment.json --output .\public-report.md
@@ -217,7 +252,7 @@ powershell -ExecutionPolicy Bypass -File ".\scripts\install-codex.ps1"
 
 インストーラーは既存パスの最終パスとファイルIDを置換直前まで再検査し、同じ親ディレクトリ内の rename で切り替えます。ただし、別プロセスが同じファイル内容を同時に書き換える競合をOSレベルでロックするものではありません。インストール中は、別のインストーラーや手作業で同じスキルとエージェントを変更しないでください。
 
-authorized fixer `information-accessibility-authorized-fixer` は既定では導入されません。`-IncludeAuthorizedFixer` を明示した場合だけ導入されるread-onlyの引渡しエージェントであり、汎用コマンド権限や直接書込み権限を持ちません。外部認可、対象、変更内容、検証コマンドを確認して構造化された引渡しを作成し、実変更はtrusted operatorが決定的トランザクションruntimeを使って実行します。
+認可済み修正を扱う`information-accessibility-authorized-fixer`は、既定では導入されません。`-IncludeAuthorizedFixer`を明示した場合だけ導入される読み取り専用の引き渡しエージェントであり、汎用コマンドや対象への直接書き込みは許可されていません。外部認可、対象、変更内容、検証コマンドを確認して構造化された引き渡しを作り、実際の変更は信頼された運用者が決定的なトランザクション実行基盤を使って行います。
 
 Claude で使う場合:
 
@@ -225,7 +260,7 @@ Claude で使う場合:
 2. `claude/agents/information-accessibility-reviewer.md` を Claude の `agents/` 配下に配置する。
 3. 情報アクセシビリティを確認したい対象に対して `information-accessibility-reviewer` を使う。
 
-## できること
+## 対象別の確認範囲
 
 - Webサイト、アプリ、フォーム、ダッシュボードで、見出し、ラベル、リンク名、キーボード操作、フォーカス順、エラー表示、状態変化、表やグラフの読み取りやすさを確認する。
 - PDF、Word文書、スライド、配布資料で、見出し構造、読み上げ順、リンク名、表、画像説明、図表の要約、PDF化後のテキスト抽出や読み順を確認する。
