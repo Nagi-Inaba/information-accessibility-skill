@@ -6,14 +6,37 @@ This Codex and Claude package helps review whether people can find information, 
 
 It covers websites, applications, documents, slides, videos, event announcements, and meeting operations.
 Each review follows the whole journey: finding information, receiving and understanding it, completing the necessary action, and checking results or records later.
-The package provides both a natural-language entry through skills and agents and a CLI for repeating the same workflow under fixed conditions.
+
+## Check and improve your own product
+
+This package supports self-checks that compare your own website, application, or other product with WCAG or JIS success criteria, identify barriers, and guide improvements.
+It provides natural-language requests and a repeatable CLI so that people can begin reviewing products without being accessibility specialists.
+Results separate actionable improvements from items that need additional human review.
+
+These results are not third-party certification or a formal declaration of WCAG or JIS conformance.
+When formal conformance is the goal, the package can also organize the target, scope, environment, and evidence for each success criterion before human evaluation.
+The current results alone cannot support a conformance declaration.
+Human evaluation using the required procedures is still necessary.
 
 Review results keep these two layers separate:
 
 1. **Five perspectives on using information**: Uses Find, Receive, Understand, Participate (act), and Continue (check later) to record the journey from discovery through intended action and follow-up.
 2. **Standards evidence records**: Store the target, standards profile, per-requirement outcomes, evidence strength, and allowed claim tier in JSON.
 
-`web-modern` initializes all 55 WCAG 2.2 Level A and AA requirements, while `jp-public-web` initializes 38 JIS X 8341-3:2016 Level A and AA requirements plus 18 additional WCAG requirements, for a total of 56.
+`web-modern` covers the 55 Level A and AA success criteria in [WCAG 2.2](https://www.w3.org/TR/WCAG22/).
+A success criterion is a testable condition defined by the standard.
+
+`jp-public-web` covers the 38 Level A and AA success criteria in [JIS X 8341-3:2016 (public guidance by WAIC)](https://waic.jp/docs/jis2016/understanding/201604/).
+It also covers 18 Level A and AA success criteria introduced in WCAG 2.1 and 2.2.
+These criteria were not part of WCAG 2.0, on which the 2016 JIS profile is based.
+These 18 criteria are recorded separately from the 38 JIS criteria.
+
+The `jp-public-web` profile therefore contains 56 checks.
+The difference comes from Success Criterion 4.1.1, Parsing.
+JIS includes 4.1.1.
+[WCAG 2.2 removed this success criterion](https://www.w3.org/WAI/standards-guidelines/wcag/new-in-22/).
+
+Both profiles begin with every success criterion marked as not tested.
 Target-specific evidence, catalog coverage, actual evaluation coverage, and the allowed claim tier are validated separately.
 
 ## Capabilities
@@ -23,10 +46,6 @@ Target-specific evidence, catalog coverage, actual evaluation coverage, and the 
 - Start complete WCAG 2.2 or JIS X 8341-3 profile records with every requirement explicitly unevaluated.
 - Generate JSON records and Markdown reports while preserving untested, indeterminate, failed, and evidence-strength states.
 - Repeat validation and report generation through the CLI without overwriting existing artifacts by default.
-
-The package cannot automatically determine standards conformance.
-AI observations remain candidates or unverified records, while criterion outcomes require target-specific evidence and external human review.
-The current claim ceiling is `evaluated_subset`.
 
 ## Choose a usage path
 
@@ -381,6 +400,7 @@ Before applying a candidate to the authoritative catalog, a person must review t
 ## Claims and limitations
 
 This project provides evidence-oriented accessibility assessment records referencing WCAG 2.2 and JIS X 8341-3:2016. It references ATAG 2.0 Part B for authoring support. The project itself does not provide certification by W3C, JIS, ISO, Section 508, or any law or regulation.
+The current claim ceiling is `evaluated_subset`.
 
 The principal areas not currently implemented are:
 

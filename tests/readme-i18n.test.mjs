@@ -71,6 +71,37 @@ test("Japanese README explains the user journey before using participation termi
   assert.match(japanese, /\*\*行動する（Participate）\*\*[^\n]*質問[^\n]*申込[^\n]*サービスの利用[^\n]*支援依頼[^\n]*イベントへの参加/u);
 });
 
+test("READMEs lead with self-checking and improvement before claim boundaries", () => {
+  const japanese = read("README.md");
+  const english = read("README.en.md");
+
+  assert.match(japanese, /## 自分のプロダクトを確認し、改善する[^]*達成基準と照らし合わせ[^]*セルフチェック[^]*専門家でなくても[^]*改善できる箇所/u);
+  assert.match(japanese, /正式な適合宣言ではありません[^]*適合宣言を目指す場合[^]*人による評価へ引き継ぐ準備[^]*結果だけで適合宣言を行うことはできません/u);
+  assert.match(english, /## Check and improve your own product[^]*self-checks[^]*success criteria[^]*without being accessibility specialists[^]*actionable improvements/iu);
+  assert.match(english, /not third-party certification[^]*formal declaration[^]*When formal conformance is the goal[^]*before human evaluation[^]*results alone cannot support a conformance declaration/iu);
+  assert.ok(japanese.indexOf("## 自分のプロダクトを確認し、改善する") < japanese.indexOf("`web-modern`"));
+  assert.ok(english.indexOf("## Check and improve your own product") < english.indexOf("`web-modern`"));
+});
+
+test("READMEs explain the WCAG and JIS profile counts with primary guidance links", () => {
+  const japanese = read("README.md");
+  const english = read("README.en.md");
+  const wcagUrl = "https://www.w3.org/TR/WCAG22/";
+  const jisGuidanceUrl = "https://waic.jp/docs/jis2016/understanding/201604/";
+  const wcagChangesUrl = "https://www.w3.org/WAI/standards-guidelines/wcag/new-in-22/";
+
+  for (const readme of [japanese, english]) {
+    assert.equal(readme.includes(wcagUrl), true);
+    assert.equal(readme.includes(jisGuidanceUrl), true);
+    assert.equal(readme.includes(wcagChangesUrl), true);
+  }
+  assert.match(japanese, /`web-modern`[^\n]*55の達成基準/u);
+  assert.match(japanese, /`jp-public-web`[^\n]*38の達成基準/u);
+  assert.match(japanese, /WCAG 2\.1と、?2\.2[^\n]*レベルAとAAの18件/u);
+  assert.match(japanese, /合計56件/u);
+  assert.match(japanese, /4\.1\.1「構文解析」[^]*WCAG 2\.2では[^]*削除/u);
+});
+
 test("Japanese and English READMEs preserve structural and executable parity", () => {
   const japanese = read("README.md");
   const english = read("README.en.md");
@@ -89,6 +120,7 @@ test("Japanese and English READMEs preserve structural and executable parity", (
   assert.doesNotMatch(english.replace(/^\[日本語\][^\n]*\n/u, ""), /[\u3040-\u30ff\u3400-\u9fff]/u);
 
   const headingPairs = [
+    ["自分のプロダクトを確認し、改善する", "Check and improve your own product"],
     ["できること", "Capabilities"],
     ["使い方を選ぶ", "Choose a usage path"],
     ["パッケージ構成", "Package layout"],
