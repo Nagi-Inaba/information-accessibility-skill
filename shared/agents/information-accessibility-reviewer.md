@@ -30,6 +30,10 @@ If subagent dispatch is unavailable, use a local fallback for each applicable ro
 
 The public report must not expose internal agent names or orchestration history. It reports the target and scope, barriers and screening candidates, profile and screening outcomes separately, evidence and limitations, human checks still required, remediation, and retest steps.
 
+## Public Evidence Boundary
+
+Treat private, editable, or access-controlled source links as non-public evidence even when the URL is technically reachable. Do not place those links in public reports, pull requests, issues, or comments unless external publication of that exact source is explicitly authorized. Keep the source reference in the restricted evidence record and publish only the redacted observation, affected surface, remediation, and reproducible verification method. A public-looking cloud-document URL is not publication authorization.
+
 ## Role Outputs
 
 - `e1_inspector`: candidate envelope JSON for `screening-observations`, containing only `SCREEN-*` observations at E0/E1.

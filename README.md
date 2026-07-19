@@ -82,6 +82,7 @@ codex/
     scripts/accessibility-audit.mjs
     scripts/generate-assessment.mjs
     scripts/render-audit-report.mjs
+    scripts/show-screen-reader-checklist.mjs
     scripts/show-requirement.mjs
     scripts/validate-assessment.mjs
     references/
@@ -97,6 +98,7 @@ claude/
     scripts/accessibility-audit.mjs
     scripts/generate-assessment.mjs
     scripts/render-audit-report.mjs
+    scripts/show-screen-reader-checklist.mjs
     scripts/show-requirement.mjs
     scripts/validate-assessment.mjs
     references/
@@ -133,6 +135,9 @@ references/
   aria-html-review.md
   aria-review-rules.json
   aria-review-rules.schema.json
+  screen-reader-stateful-ui.md
+  screen-reader-ui-checks.json
+  screen-reader-ui-checks.schema.json
   assessment-record.schema.json
   source-basis.md
 ```
@@ -158,6 +163,8 @@ references/
 `show-requirement.mjs` は、指定した一つの規格項目と、その確認方法だけを表示します。部分カタログにある項目では人が行う確認手順も表示し、未掲載の場合は実行可能な条項別手順がないことを明記します。個別項目を評価するときはこのスクリプトを使い、全カタログをAIへ一度に読み込ませません。
 
 `aria-html-review.md` と `aria-review-rules.json` は、ARIA in HTMLとWAI-ARIAに基づく12件の補助検査を定めます。結果は必ず `SCREEN-ARIA-*` として記録し、WCAG 4.1.2などの合否へ自動では変換しません。
+
+`screen-reader-stateful-ui.md` と `screen-reader-ui-checks.json` は、モーダル、開閉パネル、ハンバーガーナビゲーション、メニューボタン、分割表示された論理テキストを確認する補助検査です。見た目、操作可能性、アクセシビリティツリーへの露出、フォーカスの4状態を突き合わせます。ソースやツリーだけで実際の読み上げ結果を断定せず、結果は `SCREEN-SR-*` として記録します。
 
 `assessment-record.schema.json` と `assessment-record.template.json` は、対象、確認範囲、環境、規格項目ごとの結果、P0/P1/P2に分類した問題、上記の5つの観点、証拠、結果として表明したい内容を分けて記録します。失敗とした規格項目には、問題の場所、影響を受ける人、確認できた事実、改善方法、再確認の方法を必ず紐付けます。
 
@@ -192,6 +199,7 @@ node .\codex\skills\information-accessibility-practice\scripts\accessibility-aud
 | `init` | 対象、版、範囲、権限を固定した新しい監査実行記録を作る |
 | `assessment` | 全条項を`not_tested`で初期化した評価レコードを作る |
 | `requirement` | 指定した1条項と確認方法を表示する |
+| `screen-reader-checklist` | 状態を持つUIと読み上げの補助チェックリストを表示する |
 | `validate-run` | 監査実行記録を検証し、別ファイルへ検証結果を書く |
 | `validate-assessment` | 評価記録と、結果として表明できる範囲を検証する |
 | `register` | 検証済み成果物を新しいrun版へ登録する |

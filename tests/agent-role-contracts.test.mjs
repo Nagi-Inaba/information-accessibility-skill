@@ -122,6 +122,8 @@ test("public reviewer remains the broad entry and orchestrates the current runti
   assert.match(body, /stable[^]*safe[^]*runtime/i);
   assert.match(body, /validated assessment/i);
   assert.match(body, /must not modify the audited target/i);
+  assert.match(body, /private[^]*editable[^]*access-controlled[^]*(?:pull requests|issues|comments)/i);
+  assert.match(body, /external publication[^]*explicitly authorized/i);
 });
 
 test("manifest keeps read-only specialists non-writing and grants write only to controlled roles", () => {
@@ -165,6 +167,10 @@ test("E1 inspector emits only schema-valid E0 or E1 SCREEN observations", () => 
   assert.match(body, /`read_allowlisted_resources`[^]*network[^]*allowlisted/i);
   assert.match(body, /`human_supervised_interaction`[^]*interaction[^]*human_supervised/i);
   assert.match(body, /navigate[^]*expand[^]*move_focus[^]*inspect[^]*examples[^]*not[^]*allowed_actions/i);
+  assert.match(body, /screen-reader-stateful-ui\.md/i);
+  assert.match(body, /visual state[^]*operability[^]*accessibility-tree exposure[^]*focus/i);
+  assert.match(body, /closed state[^]*(?:absent|not encountered)[^]*accessibility tree/i);
+  assert.match(body, /spoken output[^]*(?:not_tested|cant_tell)/i);
 });
 
 test("human queue planner translates every requirement lookup into the installed queue schema", () => {

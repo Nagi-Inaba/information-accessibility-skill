@@ -14,6 +14,11 @@ The five-gate participation model organizes practical accessibility review acros
 - WCAG-EM 1.0: https://www.w3.org/TR/WCAG-EM/
 - WAI-ARIA 1.2: https://www.w3.org/TR/wai-aria-1.2/
 - ARIA in HTML, W3C Recommendation 2026-04-15: https://www.w3.org/TR/html-aria/
+- ARIA Authoring Practices modal dialog pattern: https://www.w3.org/WAI/ARIA/apg/patterns/dialog-modal/
+- ARIA Authoring Practices disclosure pattern: https://www.w3.org/WAI/ARIA/apg/patterns/disclosure/
+- ARIA Authoring Practices menu button pattern: https://www.w3.org/WAI/ARIA/apg/patterns/menu-button/
+- WAI-ARIA 1.2 `aria-hidden`: https://www.w3.org/TR/wai-aria-1.2/#aria-hidden
+- WCAG 2.2 Understanding 1.3.1, Info and Relationships: https://www.w3.org/WAI/WCAG22/Understanding/info-and-relationships.html
 - W3C Accessibility Conformance Testing Rules: https://www.w3.org/WAI/standards-guidelines/act/rules/
 - WAIC JIS X 8341-3:2016 quick reference: https://waic.jp/resource/jis-x-8341-3-2016/
 - WAIC JIS test checklist example: https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html

@@ -24,6 +24,11 @@ const commands = new Map([
     summary: "Show one registered requirement and its review method.",
     usage: "accessibility-audit requirement --profile <id> --id <requirement-id> [--format json|markdown]"
   }],
+  ["screen-reader-checklist", {
+    script: "show-screen-reader-checklist.mjs",
+    summary: "Show supporting checks for stateful UI and screen-reader behavior.",
+    usage: "accessibility-audit screen-reader-checklist [--pattern modal-dialog|disclosure|menu-button|fragmented-text|all] [--format json|markdown]"
+  }],
   ["validate-run", {
     script: "validate-audit-run.mjs",
     summary: "Validate an immutable audit run and write a new validation record.",

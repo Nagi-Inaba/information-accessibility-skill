@@ -38,6 +38,12 @@ When HTML uses explicit roles or `aria-*` attributes, apply `aria-html-review.md
 
 When visual styling causes one logical phrase to be read or navigated as fragments, or the requested fix must preserve appearance while changing assistive output, apply `assistive-text-visual-separation.md`. Use it for numbers and units, stylized dates, split labels, badges, and similar read-as-one content. DOM or accessibility-tree fragmentation alone is not a defect. Do not use the pattern to hide interactive descendants or to replace chart descriptions.
 
+## Stateful UI And Screen Readers
+
+For modals, drawers, popups, hamburger navigation, disclosures, menu buttons, or responsive controls, apply `screen-reader-stateful-ui.md` and the `SCREEN-SR-*` checks in `screen-reader-ui-checks.json`. Select the interaction pattern before recommending ARIA: ordinary navigation that expands is usually a disclosure, while a menu button requires a composite menu keyboard model.
+
+Compare every closed and open state across visual state, operability, accessibility-tree exposure, and focus. Verify initial focus, background isolation and focus containment for modals, Escape behavior, focus return, collapsed-content absence, trigger state, and breakpoint transitions as applicable. Code and accessibility-tree inspection can identify structural candidates without audio playback, but actual announcements, pronunciation, and gesture navigation remain target screen-reader runtime evidence.
+
 ## Output For Code Work
 
 For implementation or code review, report findings like this:

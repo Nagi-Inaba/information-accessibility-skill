@@ -33,6 +33,7 @@ test("unified CLI exposes the safe audit control plane without a mutation comman
     "requirement",
     "validate-run",
     "validate-assessment",
+    "screen-reader-checklist",
     "register",
     "merge",
     "report",
@@ -85,6 +86,20 @@ test("requirement delegates to the installed requirement lookup", () => {
   const output = JSON.parse(result.stdout);
   assert.equal(output.profile.id, "web-modern");
   assert.equal(output.criterion.id, "WCAG-2.2-SC-1.1.1");
+});
+
+test("screen-reader checklist delegates to the installed supporting-check lookup", () => {
+  const result = runCli([
+    "screen-reader-checklist",
+    "--pattern", "menu-button",
+    "--format", "json"
+  ]);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const output = JSON.parse(result.stdout);
+  assert.equal(output.pattern, "menu-button");
+  assert.equal(output.claim_effect, "supporting_only");
+  assert.deepEqual(output.patterns.map((pattern) => pattern.id), ["menu-button"]);
 });
 
 test("control-plane commands route to their intended existing CLI contracts", () => {

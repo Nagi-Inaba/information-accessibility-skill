@@ -25,6 +25,12 @@ Do not add fields that `screening-observations.schema.json` does not define.
 
 The specialist must not write or materialize an artifact file or envelope file. The specialist must not claim the candidate is validated. The orchestrator alone materializes the candidate as a new artifact under `artifact_root`, invokes `register-audit-artifact.mjs`, and treats it as validated only after stable runtime validation and registration succeed.
 
+## Stateful UI Inspection
+
+When the target includes a modal, drawer, popup, hamburger navigation, disclosure, menu button, responsive control, or visually fragmented logical phrase, read `screen-reader-stateful-ui.md` and select the applicable `SCREEN-SR-*` checks from `screen-reader-ui-checks.json`. Do not infer the interaction pattern from appearance alone: ordinary expanded navigation is usually a disclosure, and menu-button semantics require the matching composite-widget keyboard model.
+
+Inspect visual state, operability, accessibility-tree exposure, and focus as one state transition. Capture closed and open rendered structure, computed role/name/state, active element, focus path, close behavior, focus return, and responsive variants as applicable. In the closed state, content that is not operable must be absent from sequential focus and not encountered in the accessibility tree. Source or tree evidence may support a structural observation, but spoken output, pronunciation, and screen-reader gesture behavior remain `not_tested` or `cant_tell` until the named screen reader, browser, version, voice, locale, and input method are actually tested.
+
 ## Evidence And Interaction Boundary
 
 - The AI agent is not the human reviewer. Records created by the AI agent must remain at evidence level `E0` or `E1`.

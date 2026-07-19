@@ -1,0 +1,211 @@
+{
+  "schema_version": "1.0.0",
+  "verified_at": "2026-07-19",
+  "status": "screening_checks",
+  "claim_effect": "supporting_only",
+  "sources": [
+    "https://www.w3.org/WAI/ARIA/apg/patterns/dialog-modal/",
+    "https://www.w3.org/WAI/ARIA/apg/patterns/disclosure/",
+    "https://www.w3.org/WAI/ARIA/apg/patterns/menu-button/",
+    "https://www.w3.org/TR/wai-aria-1.2/#aria-hidden",
+    "https://www.w3.org/WAI/WCAG22/Understanding/info-and-relationships.html"
+  ],
+  "invariant": "Visual state, operability, accessibility-tree exposure, and focus must describe the same current UI state.",
+  "patterns": [
+    {
+      "id": "modal-dialog",
+      "title": "Modal dialog, drawer, or full-screen popup",
+      "applicability": "Opening the surface makes the rest of the page unavailable until the surface closes.",
+      "source_urls": ["https://www.w3.org/WAI/ARIA/apg/patterns/dialog-modal/"],
+      "checks": [
+        {
+          "id": "SCREEN-SR-MODAL-NAMED",
+          "title": "The modal is exposed as one named dialog",
+          "expectation": "The open surface has dialog semantics and a useful accessible name; descriptive text is associated only when it remains concise.",
+          "code_inspection": ["Inspect the rendered dialog role and computed accessible name rather than relying on component names."],
+          "runtime_verification": ["Open the surface and confirm the target screen reader announces the dialog and its useful name once."],
+          "evidence_types": ["rendered_dom", "accessibility_tree", "assistive_technology_test"],
+          "cant_tell_when": ["The computed role or name cannot be inspected in the target browser."],
+          "human_review_required": true
+        },
+        {
+          "id": "SCREEN-SR-MODAL-CLOSED-ABSENT",
+          "title": "Closed modal content is absent",
+          "expectation": "When closed, dialog content and its controls are absent from sequential focus and the accessibility tree.",
+          "code_inspection": ["Check conditional rendering, hidden state, inertness, and focusability; opacity or off-screen positioning alone is insufficient."],
+          "runtime_verification": ["Before opening, navigate with keyboard and screen-reader commands and confirm no dialog descendant is encountered."],
+          "evidence_types": ["rendered_dom", "accessibility_tree", "keyboard_test", "assistive_technology_test"],
+          "cant_tell_when": ["The closed state or accessibility tree cannot be captured."],
+          "human_review_required": true
+        },
+        {
+          "id": "SCREEN-SR-MODAL-FOCUS-ENTRY",
+          "title": "Opening moves focus into the modal",
+          "expectation": "Opening places focus at a deliberate element inside the dialog where the task and context are understandable.",
+          "code_inspection": ["Trace every opening path, including responsive and selection-triggered paths, to its initial-focus behavior."],
+          "runtime_verification": ["Open through every trigger and record the active element and first screen-reader announcement."],
+          "evidence_types": ["source_trace", "active_element", "assistive_technology_test"],
+          "cant_tell_when": ["An opening path cannot be operated without prohibited state change."],
+          "human_review_required": true
+        },
+        {
+          "id": "SCREEN-SR-MODAL-BACKGROUND-ISOLATED",
+          "title": "Background content is unavailable while open",
+          "expectation": "Page content outside the modal is inert and not exposed as available interaction while the modal is open.",
+          "code_inspection": ["Inspect the modal implementation's background isolation, including portals and sibling roots."],
+          "runtime_verification": ["With the modal open, use keyboard and screen-reader navigation to confirm background controls cannot be reached."],
+          "evidence_types": ["rendered_dom", "accessibility_tree", "keyboard_test", "assistive_technology_test"],
+          "cant_tell_when": ["The complete page root or portal relationship cannot be inspected."],
+          "human_review_required": true
+        },
+        {
+          "id": "SCREEN-SR-MODAL-FOCUS-CONTAINED",
+          "title": "Keyboard focus remains within the modal",
+          "expectation": "Tab and Shift+Tab cycle through the modal without entering background content until the modal closes.",
+          "code_inspection": ["Inspect focus-trap behavior and all focusable descendants, including conditionally rendered controls."],
+          "runtime_verification": ["Traverse forward and backward beyond both focus boundaries and record the active element sequence."],
+          "evidence_types": ["focus_sequence", "keyboard_test"],
+          "cant_tell_when": ["The rendered focusable set is incomplete or the interaction cannot be performed."],
+          "human_review_required": true
+        },
+        {
+          "id": "SCREEN-SR-MODAL-ESCAPE-CLOSE",
+          "title": "Escape closes the modal",
+          "expectation": "Escape closes the modal unless a documented task-specific exception is necessary.",
+          "code_inspection": ["Inspect keyboard handlers and library defaults for nested or composed surfaces."],
+          "runtime_verification": ["Press Escape from representative controls and confirm the same close transition occurs."],
+          "evidence_types": ["keyboard_test", "state_transition"],
+          "cant_tell_when": ["Escape behavior depends on an untestable nested state."],
+          "human_review_required": true
+        },
+        {
+          "id": "SCREEN-SR-MODAL-FOCUS-RETURN",
+          "title": "Closing returns focus to a logical origin",
+          "expectation": "After close, focus returns to the opening control or another logical continuation when that control no longer exists.",
+          "code_inspection": ["Trace close-by-button, Escape, overlay, submit, and responsive-transition paths."],
+          "runtime_verification": ["Close through each supported route and record the resulting active element."],
+          "evidence_types": ["active_element", "state_transition", "keyboard_test"],
+          "cant_tell_when": ["The opening control is destroyed and no documented continuation target is available."],
+          "human_review_required": true
+        }
+      ]
+    },
+    {
+      "id": "disclosure",
+      "title": "Disclosure or hamburger navigation",
+      "applicability": "A button shows or hides ordinary page content without creating a modal interaction context.",
+      "source_urls": ["https://www.w3.org/WAI/ARIA/apg/patterns/disclosure/"],
+      "checks": [
+        {
+          "id": "SCREEN-SR-DISCLOSURE-TRIGGER",
+          "title": "The trigger is a named button",
+          "expectation": "The show/hide control is keyboard-operable and its accessible name communicates its purpose.",
+          "code_inspection": ["Prefer a native button and inspect its computed accessible name."],
+          "runtime_verification": ["Reach the trigger by keyboard and screen-reader navigation and activate it with Enter and Space."],
+          "evidence_types": ["rendered_dom", "accessibility_tree", "keyboard_test"],
+          "cant_tell_when": ["The trigger's computed role or name cannot be inspected."],
+          "human_review_required": true
+        },
+        {
+          "id": "SCREEN-SR-DISCLOSURE-STATE-SYNC",
+          "title": "Expanded state matches visibility",
+          "expectation": "The trigger's expanded state changes with the visual and accessibility-tree visibility of the controlled content.",
+          "code_inspection": ["Inspect the state source, aria-expanded value, controlled content, and optional aria-controls reference in both states."],
+          "runtime_verification": ["Toggle twice and record visual state, computed expanded state, and announced state after each activation."],
+          "evidence_types": ["rendered_dom", "accessibility_tree", "state_transition", "assistive_technology_test"],
+          "cant_tell_when": ["Only one of the open or closed states can be inspected."],
+          "human_review_required": true
+        },
+        {
+          "id": "SCREEN-SR-DISCLOSURE-CLOSED-ABSENT",
+          "title": "Collapsed content is not encountered",
+          "expectation": "Collapsed descendants are absent from sequential focus and screen-reader navigation.",
+          "code_inspection": ["Check the actual rendered hidden mechanism; visual clipping or opacity alone is insufficient."],
+          "runtime_verification": ["Navigate past the collapsed trigger and confirm hidden descendants are not encountered."],
+          "evidence_types": ["accessibility_tree", "keyboard_test", "assistive_technology_test"],
+          "cant_tell_when": ["The collapsed accessibility tree cannot be observed."],
+          "human_review_required": true
+        }
+      ]
+    },
+    {
+      "id": "menu-button",
+      "title": "Menu button and composite popup",
+      "applicability": "A button opens a menu of actions that uses menu and menuitem interaction semantics; ordinary site navigation is usually a disclosure instead.",
+      "source_urls": ["https://www.w3.org/WAI/ARIA/apg/patterns/menu-button/"],
+      "checks": [
+        {
+          "id": "SCREEN-SR-MENU-SEMANTIC-FIT",
+          "title": "Menu semantics fit the interaction",
+          "expectation": "Menu and menuitem roles are used only when the popup implements the corresponding composite-widget keyboard model.",
+          "code_inspection": ["Distinguish an application action menu from ordinary navigation links before selecting the pattern."],
+          "runtime_verification": ["Confirm the target screen reader identifies the control and popup in a way that matches the implemented keyboard behavior."],
+          "evidence_types": ["rendered_dom", "accessibility_tree", "keyboard_test", "assistive_technology_test"],
+          "cant_tell_when": ["The product's intended interaction model is undocumented."],
+          "human_review_required": true
+        },
+        {
+          "id": "SCREEN-SR-MENU-STATE-AND-FOCUS",
+          "title": "Opening state and focus move together",
+          "expectation": "Opening updates the trigger state and moves focus to the intended menu item or managed active descendant.",
+          "code_inspection": ["Inspect aria-haspopup, aria-expanded, popup naming, and the chosen focus-management strategy."],
+          "runtime_verification": ["Open by each supported key and record the announced state and focused or active item."],
+          "evidence_types": ["accessibility_tree", "active_element", "keyboard_test", "assistive_technology_test"],
+          "cant_tell_when": ["Managed focus or active-descendant state cannot be observed."],
+          "human_review_required": true
+        },
+        {
+          "id": "SCREEN-SR-MENU-CLOSE-RETURN",
+          "title": "Closing removes the popup and returns focus",
+          "expectation": "Escape closes the popup, removes its items from navigation, and returns focus to the menu button.",
+          "code_inspection": ["Trace close and item-activation paths and inspect the closed rendered state."],
+          "runtime_verification": ["Close with Escape and after representative activation, then record popup exposure and active element."],
+          "evidence_types": ["accessibility_tree", "active_element", "keyboard_test", "state_transition"],
+          "cant_tell_when": ["The activation path performs a prohibited or irreversible action."],
+          "human_review_required": true
+        }
+      ]
+    },
+    {
+      "id": "fragmented-text",
+      "title": "Visually fragmented logical text",
+      "applicability": "One logical phrase, such as a number and unit, is split into styled visual fragments and is reported or observed as separate navigation or reading units.",
+      "source_urls": [
+        "https://www.w3.org/TR/wai-aria-1.2/#aria-hidden",
+        "https://www.w3.org/WAI/WCAG22/Understanding/info-and-relationships.html"
+      ],
+      "checks": [
+        {
+          "id": "SCREEN-SR-TEXT-ONE-LOGICAL-PHRASE",
+          "title": "One equivalent phrase is exposed",
+          "expectation": "Assistive technology receives one complete phrase while decorative visual fragments are not exposed twice.",
+          "code_inspection": ["Inspect the hidden complete phrase, aria-hidden visual group, and absence of interactive descendants in that group."],
+          "runtime_verification": ["Navigate by the affected granularity and confirm the phrase is encountered once as a meaningful unit."],
+          "evidence_types": ["rendered_dom", "accessibility_tree", "assistive_technology_test"],
+          "cant_tell_when": ["No reported fragmentation or target assistive-technology requirement can be reproduced or established."],
+          "human_review_required": true
+        },
+        {
+          "id": "SCREEN-SR-TEXT-SHARED-SOURCE",
+          "title": "Visual and assistive text share one data source",
+          "expectation": "Visible fragments and the assistive phrase are derived from the same value and formatting rules.",
+          "code_inspection": ["Trace updates, signs, separators, units, locale variants, and responsive variants to a shared input."],
+          "runtime_verification": ["Change representative values and confirm both visual and assistive representations update consistently."],
+          "evidence_types": ["source_trace", "component_test", "update_test"],
+          "cant_tell_when": ["The rendering inputs or formatting rules are unavailable."],
+          "human_review_required": true
+        },
+        {
+          "id": "SCREEN-SR-TEXT-PRONUNCIATION-TESTED",
+          "title": "Spoken pronunciation remains a runtime result",
+          "expectation": "Pronunciation is verified with the target screen reader, voice, browser, version, and locale rather than inferred from source or the accessibility tree.",
+          "code_inspection": ["Record structure as verified separately from pronunciation and do not promote the former into the latter."],
+          "runtime_verification": ["Record the exact spoken result and environment for representative values and punctuation."],
+          "evidence_types": ["assistive_technology_test", "environment_record", "spoken_output_note"],
+          "cant_tell_when": ["The target screen reader, voice, browser, version, or locale is unavailable."],
+          "human_review_required": true
+        }
+      ]
+    }
+  ]
+}

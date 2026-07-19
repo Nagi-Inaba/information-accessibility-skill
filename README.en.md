@@ -81,6 +81,7 @@ codex/
     scripts/accessibility-audit.mjs
     scripts/generate-assessment.mjs
     scripts/render-audit-report.mjs
+    scripts/show-screen-reader-checklist.mjs
     scripts/show-requirement.mjs
     scripts/validate-assessment.mjs
     references/
@@ -96,6 +97,7 @@ claude/
     scripts/accessibility-audit.mjs
     scripts/generate-assessment.mjs
     scripts/render-audit-report.mjs
+    scripts/show-screen-reader-checklist.mjs
     scripts/show-requirement.mjs
     scripts/validate-assessment.mjs
     references/
@@ -132,6 +134,9 @@ references/
   aria-html-review.md
   aria-review-rules.json
   aria-review-rules.schema.json
+  screen-reader-stateful-ui.md
+  screen-reader-ui-checks.json
+  screen-reader-ui-checks.schema.json
   assessment-record.schema.json
   source-basis.md
 ```
@@ -157,6 +162,8 @@ references/
 `show-requirement.mjs` returns only one specified requirement and its corresponding audit method. For requirements in the partial catalog, it also returns the requirement-specific human-review procedure; for requirements not included, it explicitly reports the procedure's absence. Use this script when evaluating an individual requirement instead of loading the full catalog into model context.
 
 `aria-html-review.md` and `aria-review-rules.json` define 12 supplementary checks based on ARIA in HTML and WAI-ARIA. Their results are always recorded as `SCREEN-ARIA-*` and are not automatically converted into outcomes for WCAG 4.1.2 or other requirements.
+
+`screen-reader-stateful-ui.md` and `screen-reader-ui-checks.json` define supporting checks for modals, disclosures, hamburger navigation, menu buttons, and visually fragmented logical text. They compare visual state, operability, accessibility-tree exposure, and focus. Source or tree inspection does not prove spoken output, and results remain `SCREEN-SR-*` observations.
 
 `assessment-record.schema.json` and `assessment-record.template.json` keep the target, scope, environment, per-requirement outcomes, structured P0/P1/P2 findings, five gates, evidence, and requested claims separate. Every failed requirement must link to a finding with a location, affected users, observation, remediation, and retest method.
 
@@ -191,6 +198,7 @@ node .\codex\skills\information-accessibility-practice\scripts\accessibility-aud
 | `init` | Create a new audit run with a fixed target, version, scope, and permissions |
 | `assessment` | Create a complete assessment with every requirement initialized as `not_tested` |
 | `requirement` | Show one registered requirement and its review method |
+| `screen-reader-checklist` | Show supporting checks for stateful UI and screen-reader behavior |
 | `validate-run` | Validate an audit run and write a separate validation record |
 | `validate-assessment` | Validate an assessment and its claim ceiling |
 | `register` | Register a validated artifact in a new run version |

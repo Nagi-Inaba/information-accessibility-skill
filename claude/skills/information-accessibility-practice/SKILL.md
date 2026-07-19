@@ -64,6 +64,7 @@ Choose the target before reviewing. Load only the relevant reference when detail
 
 - **Software, UI, web app, app, form, dashboard, workflow, or repository work**: read `references/development-accessibility.md`.
 - **A visual treatment causes one logical phrase to be read or navigated as fragments, or there is an explicit requirement to preserve appearance while changing screen-reader output**: also read `references/assistive-text-visual-separation.md`.
+- **A modal, drawer, popup, hamburger navigation, disclosure, menu button, or responsive control changes what is visible or operable**: also read `references/screen-reader-stateful-ui.md` and use `references/screen-reader-ui-checks.json`. Keep visual state, operability, accessibility-tree exposure, and focus synchronized.
 - **Documents, PDFs, reports, Word files, slide decks, lecture materials, handouts, announcement graphics, or presentation scripts**: read `references/document-slide-accessibility.md`.
 - **Events, meetings, seminars, community operations, community onboarding, public participation, or civic information**: read `references/event-community-accessibility.md`.
 - **WCAG, JIS, ATAG, standards-based assessment, procurement evidence, or any conformance wording**: read `references/standards-assessment.md` and `references/standards-registry.json`. For a specific registered requirement, run `node <skill_root>/scripts/show-requirement.mjs --profile <profile-id> --id <requirement-id>`; when it returns a criterion-specific procedure, use it as the human-review procedure. When it reports `not_available`, retain the generic playbook and primary-source boundary. Do not load the full criteria and method catalogs into context.
@@ -93,6 +94,7 @@ Do not split the five gates into separate workflows. They are shared evaluation 
 
 4. Review the five gates. Prefer concrete tests over generic advice:
    - Inspect headings, labels, links, alt text, PDF text, reading order, focus order, and screen-reader-facing names.
+   - For stateful UI, compare closed and open rendered DOM, accessibility tree, active element, keyboard path, and screen-reader output. A closed surface must not leave descendants exposed or focusable; an announced control must be operable in that state.
    - Check whether video/audio has captions, transcript, summary, and clear archive location.
    - Check whether the same information is not color-only, audio-only, image-only, hover-only, gesture-only, or insider-channel-only.
    - Check whether event support requests move from form to responsible staff with privacy boundaries.
