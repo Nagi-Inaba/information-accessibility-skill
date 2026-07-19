@@ -63,6 +63,7 @@ Add a sixth governance question when the work touches public events, politics, l
 Choose the target before reviewing. Load only the relevant reference when detail is needed:
 
 - **Software, UI, web app, app, form, dashboard, workflow, or repository work**: read `references/development-accessibility.md`.
+- **A visual treatment causes one logical phrase to be read or navigated as fragments, or there is an explicit requirement to preserve appearance while changing screen-reader output**: also read `references/assistive-text-visual-separation.md`.
 - **Documents, PDFs, reports, Word files, slide decks, lecture materials, handouts, announcement graphics, or presentation scripts**: read `references/document-slide-accessibility.md`.
 - **Events, meetings, seminars, community operations, community onboarding, public participation, or civic information**: read `references/event-community-accessibility.md`.
 - **WCAG, JIS, ATAG, standards-based assessment, procurement evidence, or any conformance wording**: read `references/standards-assessment.md` and `references/standards-registry.json`. For a specific registered requirement, run `node <skill_root>/scripts/show-requirement.mjs --profile <profile-id> --id <requirement-id>`; when it returns a criterion-specific procedure, use it as the human-review procedure. When it reports `not_available`, retain the generic playbook and primary-source boundary. Do not load the full criteria and method catalogs into context.

@@ -36,6 +36,8 @@ Treat accessibility as whether users can complete the information journey:
 
 When HTML uses explicit roles or `aria-*` attributes, apply `aria-html-review.md` and `aria-review-rules.json`. Record each result as a `screening_check` with its `SCREEN-ARIA-*` identifier. These checks can expose likely semantic defects, but they remain supporting evidence: do not automatically convert them into a pass or fail for WCAG 4.1.2 or any other profile requirement. Confirm the element's native semantics, computed accessibility tree, keyboard behavior, state changes, and accessible name before a person maps evidence to a criterion.
 
+When visual styling causes one logical phrase to be read or navigated as fragments, or the requested fix must preserve appearance while changing assistive output, apply `assistive-text-visual-separation.md`. Use it for numbers and units, stylized dates, split labels, badges, and similar read-as-one content. DOM or accessibility-tree fragmentation alone is not a defect. Do not use the pattern to hide interactive descendants or to replace chart descriptions.
+
 ## Output For Code Work
 
 For implementation or code review, report findings like this:
