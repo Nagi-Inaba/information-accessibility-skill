@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
@@ -6,6 +7,8 @@ import { lookupRequirement } from "../codex/skills/information-accessibility-pra
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const skill = path.join(root, "codex/skills/information-accessibility-practice");
+const proceduresPath = path.join(skill, "references", "criterion-procedures.json");
+const procedures = JSON.parse(fs.readFileSync(proceduresPath, "utf8"));
 
 function procedureFor(requirementId) {
   const result = lookupRequirement("web-modern", requirementId, skill);
@@ -45,6 +48,109 @@ test("SC 1.3.1 exposes a human review procedure with pass, fail, and cant_tell c
   assert.equal(procedure.counterexamples.cant_tell.length > 0, true);
   assert.ok(procedure.cant_tell_when.some((condition) => /relationship|linearized|accessibility tree/i.test(condition)));
   assert.match(procedure.ai_boundary, /must not record a profile outcome/i);
+});
+
+test("SC 3.1.1 exposes a human review procedure with pass, fail, and cant_tell counterexamples", () => {
+  const procedure = procedureFor("WCAG-2.2-SC-3.1.1");
+
+  assert.equal(procedure.requirement_id, "WCAG-2.2-SC-3.1.1");
+  assert.equal(procedure.procedure_kind, "human_manual_or_hybrid");
+  assert.equal(procedure.automation_role, "supporting_only");
+  assert.ok(procedure.primary_sources.includes("https://www.w3.org/TR/WCAG22/#language-of-page"));
+  assert.ok(procedure.applicability_steps.some((step) => /default human language|page-level language/i.test(step)));
+  assert.match(procedure.applicability_steps.join(" "), /separate SC 3\.1\.2/i);
+  assert.ok(procedure.expected_results.some((result) => /language|announcement|decla/i.test(result)));
+  assert.ok(procedure.required_evidence_types.includes("browser_inspection"));
+  assert.ok(procedure.required_evidence_types.includes("manual_observation"));
+  assert.equal(procedure.counterexamples.pass.length > 0, true);
+  assert.equal(procedure.counterexamples.fail.length > 0, true);
+  assert.equal(procedure.counterexamples.cant_tell.length > 0, true);
+  assert.ok(procedure.cant_tell_when.some((condition) => /programmatic|language|dynamic/i.test(condition)));
+  assert.match(procedure.ai_boundary, /must not record a profile outcome/i);
+});
+
+test("SC 2.4.1 exposes a mechanism-neutral manual review procedure with pass, fail, and cant_tell counterexamples", () => {
+  const procedure = procedureFor("WCAG-2.2-SC-2.4.1");
+
+  assert.equal(procedure.requirement_id, "WCAG-2.2-SC-2.4.1");
+  assert.equal(procedure.procedure_kind, "human_manual_or_hybrid");
+  assert.equal(procedure.automation_role, "supporting_only");
+  assert.ok(procedure.primary_sources.includes("https://www.w3.org/TR/WCAG22/#bypass-blocks"));
+  assert.ok(procedure.applicability_steps.some((step) => /repeat|page set|page|template/i.test(step)));
+  assert.ok(procedure.procedure_steps.some((step) => /skip|heading|region|bypass/i.test(step)));
+  assert.match(procedure.procedure_steps.join(" "), /do not require a skip link/i);
+  assert.ok(procedure.expected_results.some((result) => /bypass|focus|content/i.test(result)));
+  assert.ok(procedure.required_evidence_types.includes("browser_inspection"));
+  assert.ok(procedure.required_evidence_types.includes("manual_observation"));
+  assert.equal(procedure.required_evidence_types.includes("keyboard_test"), false);
+  assert.equal(procedure.counterexamples.pass.length > 0, true);
+  assert.equal(procedure.counterexamples.fail.length > 0, true);
+  assert.equal(procedure.counterexamples.cant_tell.length > 0, true);
+  assert.ok(procedure.cant_tell_when.some((condition) => /navigation mode|page set|repeat/i.test(condition)));
+  assert.match(procedure.ai_boundary, /must not record a profile outcome/i);
+});
+
+test("SC 3.3.2 exposes a human review procedure with pass, fail, and cant_tell counterexamples", () => {
+  const procedure = procedureFor("WCAG-2.2-SC-3.3.2");
+
+  assert.equal(procedure.requirement_id, "WCAG-2.2-SC-3.3.2");
+  assert.equal(procedure.procedure_kind, "human_manual_or_hybrid");
+  assert.equal(procedure.automation_role, "supporting_only");
+  assert.ok(procedure.primary_sources.includes("https://www.w3.org/TR/WCAG22/#labels-or-instructions"));
+  assert.ok(procedure.applicability_steps.some((step) => /control|instruction|placeholder|format/i.test(step)));
+  assert.ok(procedure.procedure_steps.some((step) => /label|instruction|error|format/i.test(step)));
+  assert.match(procedure.procedure_steps.join(" "), /separate evidence for SC 1\.3\.1.*SC 4\.1\.2/i);
+  assert.ok(procedure.expected_results.some((result) => /instruction|label|format|available/i.test(result)));
+  assert.ok(procedure.required_evidence_types.includes("browser_inspection"));
+  assert.ok(procedure.required_evidence_types.includes("manual_observation"));
+  assert.equal(procedure.counterexamples.pass.length > 0, true);
+  assert.equal(procedure.counterexamples.fail.length > 0, true);
+  assert.equal(procedure.counterexamples.cant_tell.length > 0, true);
+  assert.ok(procedure.cant_tell_when.some((condition) => /control|placeholder|metadata|state/i.test(condition)));
+  assert.match(procedure.ai_boundary, /must not record a profile outcome/i);
+});
+
+test("SC 1.4.4 exposes a human review procedure with pass, fail, and cant_tell counterexamples", () => {
+  const procedure = procedureFor("WCAG-2.2-SC-1.4.4");
+
+  assert.equal(procedure.requirement_id, "WCAG-2.2-SC-1.4.4");
+  assert.equal(procedure.procedure_kind, "human_manual_or_hybrid");
+  assert.equal(procedure.automation_role, "supporting_only");
+  assert.ok(procedure.primary_sources.includes("https://www.w3.org/TR/WCAG22/#resize-text"));
+  assert.ok(procedure.applicability_steps.some((step) => /text size|viewport|overflow|reflow|scal/i.test(step)));
+  assert.ok(procedure.procedure_steps.some((step) => /zoom|text size|reflow|overflow|clipping/i.test(step)));
+  assert.match(procedure.procedure_steps.join(" "), /not automatic failures.*criterion/i);
+  assert.match(procedure.procedure_steps.join(" "), /SC 1\.4\.10/i);
+  assert.ok(procedure.expected_results.some((result) => /reduced|readable|overlap|clipping|usable/i.test(result)));
+  assert.ok(procedure.required_evidence_types.includes("browser_inspection"));
+  assert.ok(procedure.required_evidence_types.includes("manual_observation"));
+  assert.equal(procedure.counterexamples.pass.length > 0, true);
+  assert.equal(procedure.counterexamples.fail.length > 0, true);
+  assert.equal(procedure.counterexamples.cant_tell.length > 0, true);
+  assert.ok(procedure.cant_tell_when.some((condition) => /zoom|scale|renderer|inspection/i.test(condition)));
+  assert.match(procedure.ai_boundary, /must not record a profile outcome/i);
+});
+
+test("catalog procedures include eight unique requirement IDs and match SC 3.1.1/2.4.1/3.3.2/1.4.4 additions", () => {
+  const requirementIds = procedures.procedures.map((procedure) => procedure.requirement_id);
+  const unique = new Set(requirementIds);
+  const expected = new Set([
+    "WCAG-2.2-SC-1.1.1",
+    "WCAG-2.2-SC-1.3.1",
+    "WCAG-2.2-SC-3.1.1",
+    "WCAG-2.2-SC-2.4.1",
+    "WCAG-2.2-SC-3.3.2",
+    "WCAG-2.2-SC-1.4.4",
+    "WCAG-2.2-SC-2.1.1",
+    "WCAG-2.2-SC-4.1.2"
+  ]);
+
+  assert.equal(requirementIds.length, procedures.procedures.length);
+  assert.equal(unique.size, procedures.procedures.length);
+  assert.equal(unique.size, 8);
+  for (const req of expected) {
+    assert.equal(unique.has(req), true, `missing requirement ${req}`);
+  }
 });
 
 test("SC 2.1.1 exposes a scoped keyboard-only human review procedure", () => {
@@ -153,7 +259,13 @@ test("lookup normalizes an unavailable criterion procedure into the exact generi
 
 test("lookup exposes exact versioned bindings sourced from both new criterion procedures", () => {
   const expectedRefs = new Map([
+    ["WCAG-2.2-SC-1.1.1", "criterion-procedures:1.0.0#wcag22-sc-1-1-1-non-text-content"],
     ["WCAG-2.2-SC-2.1.1", "criterion-procedures:1.0.0#wcag22-sc-2-1-1-keyboard"],
+    ["WCAG-2.2-SC-3.1.1", "criterion-procedures:1.0.0#wcag22-sc-3-1-1-language-of-page"],
+    ["WCAG-2.2-SC-2.4.1", "criterion-procedures:1.0.0#wcag22-sc-2-4-1-bypass-blocks"],
+    ["WCAG-2.2-SC-3.3.2", "criterion-procedures:1.0.0#wcag22-sc-3-3-2-labels-or-instructions"],
+    ["WCAG-2.2-SC-1.4.4", "criterion-procedures:1.0.0#wcag22-sc-1-4-4-resize-text"],
+    ["WCAG-2.2-SC-1.3.1", "criterion-procedures:1.0.0#wcag22-sc-1-3-1-info-and-relationships"],
     ["WCAG-2.2-SC-4.1.2", "criterion-procedures:1.0.0#wcag22-sc-4-1-2-name-role-value"]
   ]);
 

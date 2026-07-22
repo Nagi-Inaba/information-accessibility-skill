@@ -1,13 +1,23 @@
 {
-  "schema_version": "2.0.0",
+  "schema_version": "3.0.0",
   "observations": [
     {
       "requirement_id": "SCREEN-WAYFINDING-MAP",
       "evidence_level": "E1",
+      "signal_class": "candidate_issue",
+      "human_review_required": true,
       "method": "Static HTML inspection",
       "location": "[data-audit-token=WAYFINDING-MAP]",
       "observation": "The WAYFINDING-MAP image is informative in the surrounding arrival content and has no alt attribute; a person must determine the appropriate text alternative.",
       "captured_at": "2026-07-18T01:00:01Z",
+      "evidence_provenance": {
+        "collection_method": "static_inspection",
+        "tool_name": null,
+        "tool_version": null,
+        "rule_id": null,
+        "target_dom": "[data-audit-token=WAYFINDING-MAP]",
+        "viewport": null
+      },
       "profile_requirement_id": "WCAG-2.2-SC-1.1.1",
       "report_outcome": "cant_tell",
       "applicability": "undetermined",
@@ -16,10 +26,20 @@
     {
       "requirement_id": "SCREEN-SESSION-DETAILS-CONTROL",
       "evidence_level": "E1",
+      "signal_class": "inconclusive",
+      "human_review_required": true,
       "method": "Static HTML and JavaScript inspection",
       "location": "[data-audit-token=SESSION-DETAILS-CONTROL]",
       "observation": "The SESSION-DETAILS-CONTROL element is focusable, while the installed script registers only a click handler; keyboard behavior needs human interaction testing.",
       "captured_at": "2026-07-18T01:00:02Z",
+      "evidence_provenance": {
+        "collection_method": "static_inspection",
+        "tool_name": null,
+        "tool_version": null,
+        "rule_id": null,
+        "target_dom": "[data-audit-token=SESSION-DETAILS-CONTROL]",
+        "viewport": null
+      },
       "profile_requirement_id": "WCAG-2.2-SC-2.1.1",
       "report_outcome": "cant_tell",
       "applicability": "undetermined",
@@ -28,14 +48,24 @@
     {
       "requirement_id": "SCREEN-SUPPORT-PREFERENCES-GROUP",
       "evidence_level": "E1",
+      "signal_class": "no_automated_signal",
+      "human_review_required": true,
       "method": "Static HTML inspection",
       "location": "[data-audit-token=SUPPORT-PREFERENCES-GROUP]",
-      "observation": "SUPPORT-PREFERENCES-GROUP is presented as one visual group; its programmatic relationship needs inspection with browser accessibility information.",
+      "observation": "Static inspection found no conclusive relationship signal for SUPPORT-PREFERENCES-GROUP; its programmatic relationship still needs inspection with browser accessibility information.",
       "captured_at": "2026-07-18T01:00:03Z",
+      "evidence_provenance": {
+        "collection_method": "static_inspection",
+        "tool_name": null,
+        "tool_version": null,
+        "rule_id": null,
+        "target_dom": "[data-audit-token=SUPPORT-PREFERENCES-GROUP]",
+        "viewport": null
+      },
       "profile_requirement_id": "WCAG-2.2-SC-1.3.1",
       "report_outcome": "cant_tell",
       "applicability": "undetermined",
-      "report_rationale": "The programmatic relationship requires browser accessibility inspection."
+      "report_rationale": "Absence of a static-inspection signal is not a result; the programmatic relationship requires browser accessibility inspection."
     }
   ]
 }

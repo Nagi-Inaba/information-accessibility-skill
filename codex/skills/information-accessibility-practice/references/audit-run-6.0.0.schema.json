@@ -1,12 +1,12 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:information-accessibility:audit-run:7.0.0",
+  "$id": "urn:information-accessibility:audit-run:6.0.0",
   "title": "Immutable Information Accessibility Audit Run",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema_version", "run_id", "supersedes_run_id", "status", "target", "profile", "scope", "environment", "permissions", "resource_versions", "artifact_root", "artifacts", "history", "limitations"],
   "properties": {
-    "schema_version": { "const": "7.0.0" },
+    "schema_version": { "const": "6.0.0" },
     "run_id": { "$ref": "#/$defs/run_id" },
     "supersedes_run_id": { "type": ["string", "null"], "pattern": "^RUN-[0-9]{8}T[0-9]{6}Z-[A-Z0-9]{8}$" },
     "status": { "$ref": "#/$defs/status" },

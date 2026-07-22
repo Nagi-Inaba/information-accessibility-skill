@@ -74,14 +74,24 @@ function readOnlyRole(overrides = {}) {
 
 function screeningPayload() {
   return {
-    schema_version: "2.0.0",
+    schema_version: "3.0.0",
     observations: [{
       requirement_id: "SCREEN-EXTENSION",
       evidence_level: "E1",
+      signal_class: "inconclusive",
+      human_review_required: true,
       method: "Read-only structural inspection",
       location: "main",
       observation: "A structural relationship requires human review.",
       captured_at: createdAt,
+      evidence_provenance: {
+        collection_method: "static_inspection",
+        tool_name: null,
+        tool_version: null,
+        rule_id: null,
+        target_dom: "main",
+        viewport: null
+      },
       profile_requirement_id: null,
       report_outcome: null,
       applicability: "undetermined",
@@ -117,7 +127,11 @@ test("frozen orchestration contracts retain their normalized hashes across line-
     ["orchestration-registry-4.0.0.json", "04386c98acb727bbd5525aa8a6130a009aad6646144b586fe583362b900b5f34"],
     ["orchestration-registry-4.0.0.schema.json", "3154318524c69847154f369e8194e1ba960c91114afaf48793320ab0ee032a14"],
     ["audit-run-5.0.0.schema.json", "8cafbb4e31b37144895d4bed9ecc52cff0f158018002c1ae384ac48ee44b77d2"],
-    ["screening-observations-1.0.0.schema.json", "f72f3bba32171f55935a39c6d94cc996cb8ebbbec940db2f423608c6949a1ff2"]
+    ["screening-observations-1.0.0.schema.json", "f72f3bba32171f55935a39c6d94cc996cb8ebbbec940db2f423608c6949a1ff2"],
+    ["orchestration-registry-5.0.0.json", "e29b40d8f5fe05ed7687ae23224ad3db49b23025b59f249341c2b55f5db38836"],
+    ["orchestration-registry-5.0.0.schema.json", "dacec8cf20a22895541b5c8d19a8e28301d41c5e1a0412f3db57051b5f66ae93"],
+    ["audit-run-6.0.0.schema.json", "9809a64eeb9b93394cf0213e7291e8bdf489853f6e8d660a6756cae32f2178a4"],
+    ["screening-observations-2.0.0.schema.json", "c1d50902738383184fe5ca27831f65f8f6926214bc7370a4ada6752b326033fa"]
   ];
   for (const [frozen, expectedSha256] of frozenHashes) {
     assert.equal(sha256NormalizedText(path.join(references, frozen)), expectedSha256, frozen);
@@ -128,8 +142,9 @@ test("frozen orchestration contracts retain their normalized hashes across line-
   assert.equal(readJson(path.join(references, "audit-run-5.0.0.schema.json")).properties.schema_version.const, "5.0.0");
   assert.equal(readJson(path.join(references, "screening-observations-1.0.0.schema.json")).properties.schema_version.const, "1.0.0");
   assert.equal(readJson(path.join(references, "audit-artifact-envelope-1.0.0.schema.json")).properties.schema_version.const, "1.0.0");
-  assert.equal(readJson(path.join(references, "orchestration-registry.json")).schema_version, "5.0.0");
-  assert.equal(readJson(path.join(references, "audit-run.schema.json")).properties.schema_version.const, "6.0.0");
+  assert.equal(readJson(path.join(references, "orchestration-registry.json")).schema_version, "6.0.0");
+  assert.equal(readJson(path.join(references, "audit-run.schema.json")).properties.schema_version.const, "7.0.0");
+  assert.equal(readJson(path.join(references, "screening-observations.schema.json")).properties.schema_version.const, "3.0.0");
   assert.equal(readJson(path.join(references, "audit-artifact-envelope.schema.json")).properties.schema_version.const, "2.0.0");
 });
 
@@ -224,27 +239,27 @@ test("the audit-run control-plane manifest cannot redefine its version, schema f
       manifest.schema_versions.find((entry) => entry.mode === "current").schema_file = "audit-run-current.schema.json";
     }],
     ["unknown-version", (copiedSkill, manifest) => {
-      const nextSchemaFile = path.join(copiedSkill, "references/audit-run-7.0.0.schema.json");
+      const nextSchemaFile = path.join(copiedSkill, "references/audit-run-8.0.0.schema.json");
       const nextSchema = readJson(path.join(copiedSkill, "references/audit-run.schema.json"));
-      nextSchema.$id = "urn:information-accessibility:audit-run:7.0.0";
-      nextSchema.properties.schema_version.const = "7.0.0";
+      nextSchema.$id = "urn:information-accessibility:audit-run:8.0.0";
+      nextSchema.properties.schema_version.const = "8.0.0";
       writeJson(nextSchemaFile, nextSchema);
       manifest.schema_versions.find((entry) => entry.mode === "current").mode = "read_only";
       manifest.schema_versions.push({
-        version: "7.0.0",
-        schema_file: "audit-run-7.0.0.schema.json",
+        version: "8.0.0",
+        schema_file: "audit-run-8.0.0.schema.json",
         schema_sha256: sha256NormalizedText(nextSchemaFile),
         mode: "current"
       });
-      manifest.latest_schema_version = "7.0.0";
+      manifest.latest_schema_version = "8.0.0";
     }],
     ["mode", (copiedSkill, manifest) => {
-      const current = manifest.schema_versions.find((entry) => entry.version === "6.0.0");
-      const prior = manifest.schema_versions.find((entry) => entry.version === "5.0.0");
+      const current = manifest.schema_versions.find((entry) => entry.version === "7.0.0");
+      const prior = manifest.schema_versions.find((entry) => entry.version === "6.0.0");
       current.mode = "read_only";
       prior.mode = "current";
       prior.schema_sha256 = sha256NormalizedText(path.join(copiedSkill, `references/${prior.schema_file}`));
-      manifest.latest_schema_version = "5.0.0";
+      manifest.latest_schema_version = "6.0.0";
     }]
   ];
   for (const [name, mutate] of cases) {

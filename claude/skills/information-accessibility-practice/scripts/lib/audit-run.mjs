@@ -16,7 +16,8 @@ const auditRunRegistryCompatibility = new Map([
   ["3.0.0", "2.0.0"],
   ["4.0.0", "3.0.0"],
   ["5.0.0", "4.0.0"],
-  ["6.0.0", "5.0.0"]
+  ["6.0.0", "5.0.0"],
+  ["7.0.0", "6.0.0"]
 ]);
 const auditRunEnvelopeCompatibility = new Map([
   ["1.0.0", "1.0.0"],
@@ -24,34 +25,37 @@ const auditRunEnvelopeCompatibility = new Map([
   ["3.0.0", "1.0.0"],
   ["4.0.0", "1.0.0"],
   ["5.0.0", "2.0.0"],
-  ["6.0.0", "2.0.0"]
+  ["6.0.0", "2.0.0"],
+  ["7.0.0", "2.0.0"]
 ]);
 const currentAuditRunManifestContract = {
   id: "audit-run",
-  latest_schema_version: "6.0.0",
+  latest_schema_version: "7.0.0",
   schema_versions: [
     { version: "1.0.0", schema_file: "audit-run-1.0.0.schema.json", mode: "read_only" },
     { version: "2.0.0", schema_file: "audit-run-2.0.0.schema.json", mode: "read_only" },
     { version: "3.0.0", schema_file: "audit-run-3.0.0.schema.json", mode: "read_only" },
     { version: "4.0.0", schema_file: "audit-run-4.0.0.schema.json", mode: "read_only" },
     { version: "5.0.0", schema_file: "audit-run-5.0.0.schema.json", mode: "read_only" },
+    { version: "6.0.0", schema_file: "audit-run-6.0.0.schema.json", mode: "read_only" },
     {
-      version: "6.0.0",
+      version: "7.0.0",
       schema_file: "audit-run.schema.json",
-      schema_sha256: "9809a64eeb9b93394cf0213e7291e8bdf489853f6e8d660a6756cae32f2178a4",
+      schema_sha256: "8694b1307b1794523d8891d7312f302a44cd4b4b179e917b983b3b907089de16",
       mode: "current"
     }
   ]
 };
 const currentScreeningManifestContract = {
   id: "screening-observations",
-  latest_schema_version: "2.0.0",
+  latest_schema_version: "3.0.0",
   schema_versions: [
     { version: "1.0.0", schema_file: "screening-observations-1.0.0.schema.json", mode: "read_only" },
+    { version: "2.0.0", schema_file: "screening-observations-2.0.0.schema.json", mode: "read_only" },
     {
-      version: "2.0.0",
+      version: "3.0.0",
       schema_file: "screening-observations.schema.json",
-      schema_sha256: "c1d50902738383184fe5ca27831f65f8f6926214bc7370a4ada6752b326033fa",
+      schema_sha256: "e5cfd03bab3b1e6a173c640259d12feb013e855427c00ca882431f857e422d19",
       mode: "current"
     }
   ]
@@ -424,6 +428,8 @@ export function loadAuditResources(skillRoot = defaultSkillRoot) {
     orchestrationSchemaV3: "references/orchestration-registry-3.0.0.schema.json",
     orchestrationRegistryV4: "references/orchestration-registry-4.0.0.json",
     orchestrationSchemaV4: "references/orchestration-registry-4.0.0.schema.json",
+    orchestrationRegistryV5: "references/orchestration-registry-5.0.0.json",
+    orchestrationSchemaV5: "references/orchestration-registry-5.0.0.schema.json",
     envelopeSchema: "references/audit-artifact-envelope.schema.json",
     envelopeSchemaV1: "references/audit-artifact-envelope-1.0.0.schema.json",
     assessmentSchema: "references/assessment-record.schema.json",
@@ -437,7 +443,8 @@ export function loadAuditResources(skillRoot = defaultSkillRoot) {
     ["frozen 1.0.0", loaded.orchestrationRegistryV1, loaded.orchestrationSchemaV1],
     ["frozen 2.0.0", loaded.orchestrationRegistryV2, loaded.orchestrationSchemaV2],
     ["frozen 3.0.0", loaded.orchestrationRegistryV3, loaded.orchestrationSchemaV3],
-    ["frozen 4.0.0", loaded.orchestrationRegistryV4, loaded.orchestrationSchemaV4]
+    ["frozen 4.0.0", loaded.orchestrationRegistryV4, loaded.orchestrationSchemaV4],
+    ["frozen 5.0.0", loaded.orchestrationRegistryV5, loaded.orchestrationSchemaV5]
   ]) {
     const registryErrors = [];
     validateJsonSchema(registry.value, schema.value, "$", registryErrors);
@@ -445,7 +452,7 @@ export function loadAuditResources(skillRoot = defaultSkillRoot) {
   }
   const semanticErrors = validateOrchestrationRegistrySemantics(
     loaded.orchestrationRegistry.value,
-    loaded.orchestrationRegistryV4.value
+    loaded.orchestrationRegistryV5.value
   );
   if (semanticErrors.length) throw new Error(`Invalid installed orchestration registry semantics:\n- ${semanticErrors.join("\n- ")}`);
   const schemaManifests = new Map();
@@ -509,6 +516,7 @@ export function loadAuditResources(skillRoot = defaultSkillRoot) {
     loaded.orchestrationRegistryV2,
     loaded.orchestrationRegistryV3,
     loaded.orchestrationRegistryV4,
+    loaded.orchestrationRegistryV5,
     loaded.orchestrationRegistry
   ];
   const orchestrationRegistries = new Map(registryFiles.map((registry) => [
@@ -909,6 +917,30 @@ function validateHumanQueueBindings(envelopesById, profileId, resources, errors)
   }
 }
 
+function validateScreeningQueueCoverage(envelopesById, errors) {
+  for (const [screeningId, record] of envelopesById) {
+    const screening = record?.envelope ?? record;
+    if (screening?.artifact_type !== "screening-observations") continue;
+    const mappedRequirementIds = new Set((screening.payload?.observations ?? [])
+      .map((observation) => observation?.profile_requirement_id)
+      .filter((requirementId) => typeof requirementId === "string"));
+    if (mappedRequirementIds.size === 0) continue;
+
+    const queuedRequirementIds = new Set();
+    for (const queueRecord of envelopesById.values()) {
+      const queue = queueRecord?.envelope ?? queueRecord;
+      if (queue?.artifact_type !== "human-review-queue") continue;
+      if (!(queue.inputs ?? []).some((input) => input?.artifact_id === screeningId)) continue;
+      for (const item of queue.payload?.items ?? []) queuedRequirementIds.add(item?.requirement_id);
+    }
+    for (const requirementId of mappedRequirementIds) {
+      if (!queuedRequirementIds.has(requirementId)) {
+        errors.push(`Screening observation ${screeningId} mapped to ${requirementId} must be routed through an input-linked human-review-queue; an automated signal or no-signal observation is never a profile result.`);
+      }
+    }
+  }
+}
+
 function validateDeclaredHumanBindings(envelopesById, profileId, resources, errors) {
   for (const [artifactId, record] of envelopesById) {
     const artifact = record?.envelope ?? record;
@@ -1242,8 +1274,8 @@ export function createAuditRun(options) {
     if (!options.supersedesRunFile) throw new Error("supersedesRunFile is required for fresh retest initialization.");
     const predecessorValidation = validateAuditRun(options.supersedesRun, { skillRoot, runFile: options.supersedesRunFile });
     if (!predecessorValidation.valid) throw new Error(`Invalid superseded audit run:\n- ${predecessorValidation.errors.join("\n- ")}`);
-    if (!["5.0.0", "6.0.0"].includes(options.supersedesRun.schema_version)) {
-      throw new Error("Fresh retest predecessor must use supported audit-run schema_version 5.0.0 or 6.0.0.");
+    if (!["5.0.0", "6.0.0", "7.0.0"].includes(options.supersedesRun.schema_version)) {
+      throw new Error("Fresh retest predecessor must use supported audit-run schema_version 5.0.0, 6.0.0, or 7.0.0.");
     }
     if (options.supersedesRun.status !== "retest_required") throw new Error("Fresh retest predecessor status must be retest_required.");
     if (run.run_id === options.supersedesRun.run_id) throw new Error("Fresh retest run ID must differ from the predecessor run ID.");
@@ -1474,6 +1506,7 @@ export function mergeArtifacts({ run, assessment, artifacts, registries }) {
   }
   const bindingErrors = [];
   validateArtifactEnvelopeSemantics(run, resources, registered, suppliedEnvelopesById, bindingErrors);
+  validateScreeningQueueCoverage(suppliedEnvelopesById, bindingErrors);
   validateHumanQueueBindings(suppliedEnvelopesById, run.profile.id, resources, bindingErrors);
   validateDeclaredHumanBindings(suppliedEnvelopesById, run.profile.id, resources, bindingErrors);
   validateRemediationBindings(suppliedEnvelopesById, bindingErrors);

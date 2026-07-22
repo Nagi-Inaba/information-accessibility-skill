@@ -24,7 +24,7 @@ After a completed change, `create-audit-run.mjs --supersedes-run <old-run.json>`
 
 The current read-only boundary is a behavioral contract, not a complete tool sandbox. Agent instructions prohibit target writes, authentication, forms, and state-changing interaction. They do not by themselves provide an operating-system or browser enforcement boundary.
 
-`audit-run` schema version 6.0.0 and orchestration registry 5.0.0 define the current run-backed flow. Runs 1 and 2 remain bound to registry 1, run 3 to registry 2, run 4 to registry 3, and run 5 to registry 4; all five prior run versions are read-only. The reviewer dispatches applicable specialists, the orchestrator materializes and registers candidates, `merge-audit-artifacts.mjs` produces the assessment, and `render-audit-report.mjs` with `--run` `<run.json>`, `--assessment` `<merged.json>`, and `--output` `<new-report.md>` creates the public report through stable and safe runtime checks.
+`audit-run` schema version 7.0.0 and orchestration registry 6.0.0 define the current run-backed flow. Runs 1 and 2 remain bound to registry 1, run 3 to registry 2, run 4 to registry 3, run 5 to registry 4, and run 6 to registry 5; all six prior run versions are read-only. The reviewer dispatches applicable specialists, the orchestrator materializes and registers candidates, `merge-audit-artifacts.mjs` produces the assessment, and `render-audit-report.mjs` with `--run` `<run.json>`, `--assessment` `<merged.json>`, and `--output` `<new-report.md>` creates the public report through stable and safe runtime checks.
 
 ## Public reporting boundary
 
@@ -33,5 +33,7 @@ The public report must never expose internal agent identifiers, run IDs, orchest
 ## Residual enforcement boundary
 
 The runtime uses canonical-path, file-identity, hard-link, symlink, junction, stable-read, exclusive-create, no-overwrite hard-link publication, and atomic-rename checks available through the host Node.js and operating-system APIs. These controls reduce path substitution, replay, and partial-write risk, but they are not a kernel sandbox and do not defend against an administrator or another process with unrestricted local filesystem control. A quarantine guard therefore requires manual reconciliation rather than automated deletion.
+
+Screening payload version 3 distinguishes `candidate_issue`, `no_automated_signal`, and `inconclusive`, keeps `human_review_required` true, and stores structured evidence provenance. A mapped observation must appear in an input-linked human-review queue before merge. This constraint prevents both positive signals and absent automated signals from becoming implicit profile outcomes. Payload versions 1 and 2 remain readable through their frozen schemas but are not accepted for new artifacts under the current registry.
 
 Public-report generation does not yet provide a complete privacy scan for private URLs, person names, or sensitive evidence. Distribution remains subject to the documented public-report review boundary and an explicit publication review.

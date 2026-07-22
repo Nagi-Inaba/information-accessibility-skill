@@ -129,6 +129,8 @@ references/
   criteria-catalog.schema.json
   criterion-procedures.json
   criterion-procedures.schema.json
+  common-web-failure-patterns.json
+  common-web-failure-patterns.schema.json
   web-audit-methods.json
   web-audit-methods.schema.json
   aria-html-review.md
@@ -157,7 +159,9 @@ references/
 
 `web-audit-methods.json` routes each of the 55 or 56 rows to one of 14 audit playbooks containing applicability decisions, reproducible procedures, required evidence, and `cant_tell` conditions. Legacy JIS-specific 4.1.1, Parsing, has a separate procedure. Every row requires opening its primary source and Understanding resource; outcomes are not inferred from titles alone.
 
-`criterion-procedures.json` is a partial catalog for SC 1.1.1, SC 1.3.1, SC 2.1.1, and SC 4.1.2. It contains applicability conditions, procedures, expected results, required evidence, `cant_tell` conditions, counterexamples, and the boundary between AI and human review. Requirements absent from the catalog are not treated as executable, and every procedure requires external human review and target-specific evidence.
+`criterion-procedures.json` is a partial catalog for SC 1.1.1, SC 1.3.1, SC 1.4.4, SC 2.1.1, SC 2.4.1, SC 3.1.1, SC 3.3.2, and SC 4.1.2. It contains applicability conditions, procedures, expected results, required evidence, `cant_tell` conditions, counterexamples, and the boundary between AI and human review. Requirements absent from the catalog are not treated as executable, and every procedure requires external human review and target-specific evidence.
+
+`common-web-failure-patterns.json` contains eleven tool-independent patterns derived from the MIC April 2024 FAQ and rechecked against current W3C sources. Each pattern separates screening observation, human check, remediation, retest, candidate criterion, and claim boundary. Neither the presence nor absence of an automated signal becomes a profile outcome.
 
 `show-requirement.mjs` returns only one specified requirement and its corresponding audit method. For requirements in the partial catalog, it also returns the requirement-specific human-review procedure; for requirements not included, it explicitly reports the procedure's absence. Use this script when evaluating an individual requirement instead of loading the full catalog into model context.
 
@@ -228,7 +232,7 @@ Run an audit with a standards profile in this order:
 
 ### Run-backed workflow
 
-When several roles collaborate, create a read-only run and register candidates in this order: `screening-observations`, `human-review-queue`, and `remediation-plan`.
+When several roles collaborate, create a read-only run and register candidates in this order: `screening-observations`, `human-review-queue`, and `remediation-plan`. Screening records preserve the signal class and, when applicable, collection method, tool name and version, rule ID, target DOM reference, and viewport. A mapped observation remains in the human-review route even when there is no automated signal. An unmapped general observation remains an unverified `SCREEN-*` record.
 Each registration creates a new run file and does not modify the previous run or target files.
 Then merge an E0 assessment whose profile rows remain formally unevaluated with all registered artifacts, and generate the unified report by specifying `--run` and `--assessment`.
 

@@ -138,7 +138,7 @@ function assertRejected(result, pattern) {
 
 function initialRun(artifactRoot) {
   return {
-    schema_version: "6.0.0",
+    schema_version: "7.0.0",
     run_id: RUN_ID,
     supersedes_run_id: null,
     status: "initialized",
@@ -184,14 +184,24 @@ function initialRun(artifactRoot) {
 
 function screeningPayload() {
   return {
-    schema_version: "2.0.0",
+    schema_version: "3.0.0",
     observations: [{
       requirement_id: "SCREEN-FIRST",
       evidence_level: "E1",
+      signal_class: "inconclusive",
+      human_review_required: true,
       method: "DOM inspection",
       location: "main heading",
       observation: "Unverified observation for SCREEN-FIRST",
       captured_at: "2026-07-18T10:00:01Z",
+      evidence_provenance: {
+        collection_method: "static_inspection",
+        tool_name: null,
+        tool_version: null,
+        rule_id: null,
+        target_dom: "main heading",
+        viewport: null
+      },
       profile_requirement_id: null,
       report_outcome: null,
       applicability: "undetermined",

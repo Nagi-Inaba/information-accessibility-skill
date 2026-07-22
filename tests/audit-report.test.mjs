@@ -134,23 +134,33 @@ function reportRunFixture(temp) {
     payload
   });
   const screen = envelope("ART-SCREEN-REPORT", "screening-observations", "e1_inspector", [], {
-    schema_version: "2.0.0",
+    schema_version: "3.0.0",
     observations: [{
       requirement_id: "SCREEN-FIRST",
       evidence_level: "E1",
+      signal_class: "candidate_issue",
+      human_review_required: true,
       method: "Static DOM inspection",
       location: "Checkout heading",
       observation: "The heading structure may skip a level.",
       captured_at: created[0],
+      evidence_provenance: {
+        collection_method: "static_inspection",
+        tool_name: null,
+        tool_version: null,
+        rule_id: null,
+        target_dom: "main h1",
+        viewport: null
+      },
       profile_requirement_id: "WCAG-2.2-SC-2.4.2",
-      report_outcome: "fail",
-      applicability: "applicable",
-      report_rationale: "The inspected page title does not identify the page topic."
+      report_outcome: "cant_tell",
+      applicability: "undetermined",
+      report_rationale: "Static inspection raised a candidate issue that requires target-specific human review."
     }]
   }, created[0]);
   const screenFile = path.join(artifactRoot, "screen.json");
   writeJson(screenFile, screen);
-  const queueIds = ["WCAG-2.2-SC-1.1.1", "WCAG-2.2-SC-1.3.1", "WCAG-2.2-SC-2.1.1"];
+  const queueIds = ["WCAG-2.2-SC-1.1.1", "WCAG-2.2-SC-1.3.1", "WCAG-2.2-SC-2.1.1", "WCAG-2.2-SC-2.4.2"];
   const queueItems = queueIds.map((requirementId) => ({
     requirement_id: requirementId,
     ...lookupRequirement("web-modern", requirementId, skill).procedure_binding
@@ -246,7 +256,7 @@ function reportRunFixture(temp) {
   const artifactFiles = new Map([[screen.artifact_id, screenFile], [queue.artifact_id, queueFile], [human.artifact_id, humanFile], [remediation.artifact_id, remediationFile]]);
   const artifacts = [screen, queue, human, remediation];
   const run = {
-    schema_version: "6.0.0",
+    schema_version: "7.0.0",
     run_id: runId,
     supersedes_run_id: null,
     status: "remediation_ready",
@@ -356,7 +366,7 @@ test("run-backed renderer reports verified, pending, and unverified work without
     assert.match(report, /WCAG-2\.2-SC-2\.1\.1/);
     assert.match(report, /今後の確認事項/);
     assert.match(report, /SCREEN-FIRST/);
-    assert.match(report, /\| WCAG-2\.2-SC-2\.4\.2 \| 不適合 \| The inspected page title does not identify the page topic\. \|/);
+    assert.match(report, /\| WCAG-2\.2-SC-2\.4\.2 \| 要確認 \| Static inspection raised a candidate issue that requires target-specific human review\. \|/);
     const formalProfileRow = fixture.assessment.assessment.results.find((item) => item.requirement_id === "WCAG-2.2-SC-2.4.2");
     assert.equal(formalProfileRow.mapping_status, "unverified");
     assert.equal(formalProfileRow.outcome, "not_tested");

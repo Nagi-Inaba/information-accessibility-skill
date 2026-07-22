@@ -24,6 +24,8 @@ Return candidate envelope JSON shaped as `audit-artifact-envelope.schema.json` w
 
 Calculate procedure coverage from the emitted items: `total_requirements` equals the exact queue length, `available_procedures` counts available procedures, and `unavailable_procedures` counts unavailable procedures. The two availability counts must sum exactly to `total_requirements`. Do not add fields that `human-review-queue.schema.json` does not define.
 
+For each registered screening input, include every non-null `profile_requirement_id` from its observations in the queue. This applies equally to `candidate_issue`, `inconclusive`, and `no_automated_signal`. Omitting a mapped no-signal observation would incorrectly turn limited automation coverage into an implicit pass, so the runtime rejects that omission.
+
 The specialist must not write or materialize an artifact file or envelope file. The specialist must not claim the candidate is validated. The orchestrator alone materializes the candidate as a new artifact under `artifact_root`, invokes `register-audit-artifact.mjs`, and treats it as validated only after stable runtime validation, exact input-hash checks, and registration succeed.
 
 ## Evidence And Interaction Boundary

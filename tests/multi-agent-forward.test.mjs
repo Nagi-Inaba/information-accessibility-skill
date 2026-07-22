@@ -119,7 +119,7 @@ test("installed CLIs carry a local public-like fixture through the read-only age
   ]);
   assertSucceeded(create);
   const run0 = readJson(runFiles[0]);
-  assert.equal(run0.schema_version, "6.0.0");
+  assert.equal(run0.schema_version, "7.0.0");
   assert.equal(run0.permissions.network, "allowlisted");
   assert.equal(run0.permissions.interaction, "read_only");
   assert.equal(run0.permissions.source_write, "denied");
@@ -129,6 +129,7 @@ test("installed CLIs carry a local public-like fixture through the read-only age
   const screeningPayload = readJson(path.join(payloadFixture, "screening-observations.json"));
   const queueTemplate = readJson(path.join(payloadFixture, "human-review-queue.json"));
   const remediationPayload = readJson(path.join(payloadFixture, "remediation-plan.json"));
+  assert.equal(screeningPayload.observations.some((item) => item.signal_class === "no_automated_signal"), true);
   assert.ok(remediationPayload.items.every((item) => item.basis === "unverified_screening_candidate"));
 
   const screening = envelope({
@@ -148,6 +149,11 @@ test("installed CLIs carry a local public-like fixture through the read-only age
     assert.ok(requirement.procedure_binding, `missing procedure binding for ${requirementId}`);
     return { requirement_id: requirementId, ...requirement.procedure_binding };
   });
+  assert.deepEqual(
+    new Set(queueItems.map((item) => item.requirement_id)),
+    new Set(screeningPayload.observations.map((item) => item.profile_requirement_id)),
+    "candidate, inconclusive, and no-signal observations must all be routed to human review"
+  );
   const queue = envelope({
     artifactId: "ART-QUEUE-PUBLIC-FIXTURE",
     artifactType: "human-review-queue",
