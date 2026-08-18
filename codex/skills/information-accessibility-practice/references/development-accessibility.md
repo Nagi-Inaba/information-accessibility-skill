@@ -32,6 +32,18 @@ Treat accessibility as whether users can complete the information journey:
 - Automated lint/a11y tools as supporting evidence only; do not treat them as sufficient.
 - Screenshots or reproduction notes for P0/P1 findings.
 
+## Development-Site Report Contract
+
+When reviewing a development URL or local application, record the URL or path, profile, scope, complete processes, permitted operations, environment, evidence-retention boundary, and output location. For a clear read-only request, infer the safe defaults from `SKILL.md` and start the inspection without requiring the template. Use `assets/development-web-audit-request.template.md` when custom inputs or an irreversible change are in scope.
+
+Return three categories after a short scope-and-evidence-level statement:
+
+1. **Evidence-backed checks**: facts observed on the target. Distinguish human-verified profile requirement outcomes from `SCREEN-*` supporting checks; a `SCREEN-*` result is not a profile pass.
+2. **Actionable barriers and remediation**: every failure or material participation barrier with priority, exact location, affected users, observation, remediation, and retest method.
+3. **Human verification required**: each `not_tested` or `cant_tell` result with the reason it remains unresolved and the next test or evidence required.
+
+Do not modify the target or deployment unless the editable source, modification authority, permitted operations, and verification commands are explicit. Without them, return a remediation proposal and retest path only.
+
 ## ARIA Review
 
 When HTML uses explicit roles or `aria-*` attributes, apply `aria-html-review.md` and `aria-review-rules.json`. Record each result as a `screening_check` with its `SCREEN-ARIA-*` identifier. These checks can expose likely semantic defects, but they remain supporting evidence: do not automatically convert them into a pass or fail for WCAG 4.1.2 or any other profile requirement. Confirm the element's native semantics, computed accessibility tree, keyboard behavior, state changes, and accessible name before a person maps evidence to a criterion.
