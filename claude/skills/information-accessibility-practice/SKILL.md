@@ -72,11 +72,34 @@ Choose the target before reviewing. Load only the relevant reference when detail
 - **Source provenance or maintenance from new research**: read `references/source-basis.md`.
 Do not split the five gates into separate workflows. They are shared evaluation axes. Route by target surface because concrete checks, evidence, and fixes differ by target.
 
+## Short Web/CLI Request Defaults
+
+Treat a short request as a standards-aware Web inspection when it contains a Web URL or local Web target and asks to inspect, audit, check accessibility, or use the accessibility CLI. The user does not need to name WCAG, a profile, an evidence level, or an output directory.
+
+When those details are omitted, apply these safe defaults without asking the user to fill a template:
+
+- Profile: `web-modern` (WCAG 2.2 A/AA, 55 requirements).
+- Scope: only the page, screen, or state named by the user. “First screen” or “initial screen” means the loaded page and same-origin content embedded in that visible screen; do not follow links or widen the journey.
+- Operations: read-only loading, rendered DOM and accessibility-tree inspection, non-destructive keyboard interaction, and responsive viewport checks. Do not sign in, submit data, purchase, publish, edit the target, or trigger an external side effect.
+- Evidence: save reproducible local evidence under the current task's artifact/output directory when one is available; otherwise report the evidence inline.
+
+For this short-request path:
+
+1. Create a versioned audit run and generate the complete 55-row `web-modern` assessment through the installed CLI/runtime.
+2. Do not stop after generating an assessment whose 55 profile outcomes are all `not_tested`; that is initialization, not a completed inspection.
+3. Exercise every supported read-only check against the real target and register target-specific E0/E1 `SCREEN-*` evidence. Keep machine-readable profile rows at `mapping_status: "unverified"` and `outcome: "not_tested"` unless a separate external human result exists.
+4. Enumerate all 55 requirements exactly once in the report projection or the separate `not_applicable` section. Use the report vocabulary exactly: `適合`, `不適合`, `要確認`, and `未確認`. Give every `not_applicable` entry a concrete rationale. Use `未確認` only when the needed test was unavailable, and name the next test or evidence required.
+5. Finish with zero omitted requirements. Return the four report-category counts, the main barriers, the full 55-row projection, the evidence paths, and the next human checks.
+
+The optional development request template is for custom scope, named environments, retained evidence, or authorized remediation. Do not make it a prerequisite for a clear read-only inspection request.
+
 ## Workflow
 
 1. Choose the review mode:
    - Use participation review by default.
    - When the request names WCAG, JIS, ATAG, a standards profile, or asks for a standards-based inspection, use standards assessment from the start and produce the report format in this skill.
+   - Use the Short Web/CLI Request Defaults for a Web URL or local Web target paired with an accessibility inspection or CLI request.
+   - Use standards assessment when the user names a standards profile or when the Short Web/CLI defaults supply the missing profile, scope, operations, and evidence boundary.
 
 2. Define the object under review:
    - Artifact: event plan, announcement, venue page, form, slide, PDF, video, transcript, website, SNS flow, support portal, or onboarding path.
@@ -165,6 +188,37 @@ For a quick review:
 - Not checked:
 - Needs human/user confirmation:
 ```
+
+For a development-site request, use this report instead of collapsing observed facts, remediation, and unknowns into one list:
+
+```markdown
+## Scope and evidence level
+
+- Target, profile, included scope, performed operations, and evidence level:
+
+## Evidence-backed checks
+
+- Human-verified profile requirements:
+- `SCREEN-*` supporting checks (not criterion passes):
+
+## Actionable barriers and remediation
+
+| Priority | Location | Affected users | Observed evidence | Remediation | Retest |
+| --- | --- | --- | --- | --- | --- |
+
+## Human verification required
+
+- Untested or indeterminate item:
+- Why it remains unresolved:
+- Next evidence or test:
+
+## Claim boundary and artifacts
+
+- Allowed claim tier:
+- Validated assessment record and generated report:
+```
+
+Use `assets/development-web-audit-request.template.md` only when custom scope, environment, evidence retention, or authorized remediation requires additional inputs. Do not modify a target unless its editable source, modification authority, permitted operations, and verification commands are all explicit. Return this structure without overclaiming conformance.
 
 For planning:
 

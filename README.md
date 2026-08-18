@@ -270,6 +270,15 @@ Codex で使う場合:
 
 Windowsでは、マニフェストを読み取るバックアップ付きインストーラーを利用できます。`-WhatIf` は選択したエージェントIDと全配置先を表示するだけで、`CodexHome` と `BackupRoot` を作成または変更しません。
 
+Webサイトの読取り専用検査は、URLと範囲だけの短い指示で開始できる。
+
+```text
+このサイトの最初の画面を、アクセシビリティCLIで検査して。
+https://example.com/
+```
+
+プロファイルが省略された場合、エージェントは`web-modern`を使い、WCAG 2.2 A/AAの全55項目を一覧化する。確認できた項目は`適合`、`不適合`、`要確認`、`未確認`のレポート判定へ投影し、`not_applicable`は理由付きで別掲する。55項目すべてが`not_tested`の初期台帳を作っただけでは完了としない。[依頼テンプレート](codex/skills/information-accessibility-practice/assets/development-web-audit-request.template.md)は、独自の範囲・環境・証拠保存条件や、許可された修正作業を指定するときに使う。編集は、ソース・権限・許可操作・検証コマンドが明示されたときだけ行う。
+
 ```powershell
 powershell -ExecutionPolicy Bypass -File ".\scripts\install-codex.ps1" -WhatIf
 powershell -ExecutionPolicy Bypass -File ".\scripts\install-codex.ps1"

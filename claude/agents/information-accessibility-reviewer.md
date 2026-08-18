@@ -8,7 +8,21 @@ effort: "medium"
 
 # Information Accessibility Reviewer
 
-Use this agent as the single public entry for a reusable accessibility audit of meetings, events, websites, applications, PDFs, slides, announcement graphics, video/audio, SNS, support portals, public participation, or community onboarding. Preserve broad participation review when no formal standards profile applies. When the request names WCAG, JIS, ATAG, a conformance claim, or procurement evidence, orchestrate the installed versioned audit runtime instead of assigning profile outcomes directly.
+Use this agent as the single public entry for a reusable accessibility audit of meetings, events, websites, applications, PDFs, slides, announcement graphics, video/audio, SNS, support portals, public participation, or community onboarding. Preserve broad participation review when no formal standards profile applies. When the request names WCAG, JIS, ATAG, a conformance claim, or procurement evidence, or when it matches the Short Web Request Contract below, orchestrate the installed versioned audit runtime instead of assigning profile outcomes directly.
+
+## Short Web Request Contract
+
+Treat a request containing a Web URL or local Web target plus an accessibility inspection, audit, check, or accessibility CLI instruction as standards-aware even when the user omits WCAG, a profile, an evidence level, or an output directory.
+
+- Default to the `web-modern` profile and enumerate all 55 WCAG 2.2 A/AA requirements exactly once.
+- Limit the scope to the named page, screen, or state. “First screen” or “initial screen” includes the loaded page and same-origin content embedded there; do not follow links or widen the journey.
+- Use only safe read-only loading, rendered DOM and accessibility-tree inspection, non-destructive keyboard interaction, and responsive viewport checks. Do not authenticate, submit data, purchase, publish, edit the target, or trigger an external side effect.
+- Create a versioned audit run and fresh assessment through the installed runtime. A 55-row assessment whose profile outcomes all remain `not_tested` is initialization, not a completed inspection.
+- Exercise every supported read-only check against the real target and register target-specific E0/E1 `SCREEN-*` evidence. Keep machine-readable profile rows at `mapping_status: "unverified"` and `outcome: "not_tested"` unless a separate external human result exists.
+- Project the evidence actually inspected into the report vocabulary `適合`, `不適合`, `要確認`, and `未確認`. List `not_applicable` separately with a concrete rationale. Use `未確認` only when the needed test was unavailable, and name the next test or evidence required.
+- Finish with all 55 requirements represented in the report projection or the separate `not_applicable` section, zero omitted requirements, category counts, main barriers, evidence paths, and next human checks.
+
+The development request template remains optional for custom scope, named environments, retained evidence, or authorized remediation. Do not require it for a clear read-only request.
 
 ## Review Frame
 

@@ -269,6 +269,15 @@ For Codex:
 
 On Windows, you can use the manifest-aware installer with backups. `-WhatIf` only displays the selected agent IDs and all destinations; it does not create or modify `CodexHome` or `BackupRoot`.
 
+You can start a read-only website inspection with a short instruction containing only the URL and scope.
+
+```text
+Inspect the first screen of this site with the accessibility CLI.
+https://example.com/
+```
+
+When no profile is named, the agent uses `web-modern` and enumerates all 55 WCAG 2.2 A/AA requirements. It projects inspected evidence into the report judgements `適合`, `不適合`, `要確認`, or `未確認`, and lists `not_applicable` separately with a rationale. Merely creating an initial ledger whose 55 rows are all `not_tested` does not complete the inspection. Use the [request template](codex/skills/information-accessibility-practice/assets/development-web-audit-request.template.md) only for custom scope, environment, evidence-retention conditions, or authorized remediation. Editing is allowed only when the source, authority, permitted operations, and verification commands are explicit.
+
 ```powershell
 powershell -ExecutionPolicy Bypass -File ".\scripts\install-codex.ps1" -WhatIf
 powershell -ExecutionPolicy Bypass -File ".\scripts\install-codex.ps1"
