@@ -4,6 +4,10 @@ on:
   push:
     branches:
       - fix/issue-36-empty-coverage-judgement
+  pull_request:
+    branches:
+      - main
+    types: [opened, synchronize, reopened]
 
 permissions:
   contents: write
