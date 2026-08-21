@@ -1,0 +1,144 @@
+name: Finalize issue 7
+on:
+  push:
+    branches: [feat/issue-7-requirements-browser]
+permissions:
+  contents: write
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/issue-7-requirements-browser
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Add human-readable requirements browser
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          script = r'''import fs from "node:fs";
+          import path from "node:path";
+          import process from "node:process";
+          import { fileURLToPath, pathToFileURL } from "node:url";
+          import { recordsForProfile } from "./lib/profile-registry.mjs";
+
+          const skillRoot = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
+          function readJson(name) { return JSON.parse(fs.readFileSync(path.join(skillRoot, "references", name), "utf8")); }
+          function text(value) { return typeof value === "string" ? value : ""; }
+          function titleFor(record) { return record.name_ja ?? record.title_ja ?? record.japanese_name ?? record.name ?? record.title ?? record.english_name ?? record.id; }
+          function englishTitleFor(record) { return record.name_en ?? record.title_en ?? record.english_name ?? record.name ?? record.title ?? ""; }
+          function criterionNumber(record) { return record.success_criterion ?? record.criterion ?? record.id.match(/SC-([0-9]+(?:\.[0-9]+){2})$/u)?.[1] ?? ""; }
+          function sourceFor(record) { return record.normative_url ?? record.checklist_source_url ?? record.profile_source_url ?? null; }
+          function parse(argv) {
+            const out = { args: [] };
+            for (let i = 0; i < argv.length; i += 1) {
+              const arg = argv[i];
+              if (["--profile", "--level"].includes(arg)) out[arg.slice(2).replace(/-/gu, "_")] = argv[++i];
+              else if (arg === "--json") out.json = true;
+              else out.args.push(arg);
+            }
+            return out;
+          }
+          export function requirementRows(profileId) {
+            const registry = readJson("standards-registry.json");
+            const catalog = readJson("criteria-catalog.json");
+            const profile = registry.profiles.find((item) => item.id === profileId);
+            if (!profile || profile.assessment_configuration?.active !== true) throw new Error(`Unknown or inactive profile: ${profileId}`);
+            return recordsForProfile({ profile, catalog }).map((record) => ({
+              id: record.id,
+              number: criterionNumber(record),
+              title: titleFor(record),
+              title_en: englishTitleFor(record),
+              level: record.level ?? null,
+              method_key: record.method_key ?? null,
+              source: sourceFor(record)
+            }));
+          }
+          function render(rows) {
+            return ["NUMBER\tLEVEL\tTITLE\tID", ...rows.map((row) => `${row.number}\t${row.level ?? "-"}\t${row.title}\t${row.id}`)].join("\n");
+          }
+          function main() {
+            const options = parse(process.argv.slice(2));
+            const command = options.args.shift();
+            const profile = options.profile ?? "web-modern";
+            let rows = requirementRows(profile);
+            if (options.level) rows = rows.filter((row) => row.level === options.level);
+            if (command === "list") {
+              // keep all filtered rows
+            } else if (command === "search" || command === "show") {
+              const query = options.args.join(" ").trim();
+              if (!query) throw new Error(`${command} requires a number, ID, or keyword`);
+              const normalized = query.normalize("NFKC").toLocaleLowerCase();
+              rows = rows.filter((row) => [row.id, row.number, row.title, row.title_en, row.method_key]
+                .filter(Boolean).some((value) => text(value).normalize("NFKC").toLocaleLowerCase().includes(normalized)));
+              if (command === "show" && rows.length !== 1) throw new Error(`Expected exactly one requirement, found ${rows.length}`);
+            } else {
+              throw new Error("Usage: requirements <list|search|show> [query] [--profile ID] [--level A|AA] [--json]");
+            }
+            if (options.json) console.log(JSON.stringify({ profile, requirements: rows }, null, 2));
+            else console.log(render(rows));
+          }
+          if (process.argv[1] && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url) {
+            try { main(); } catch (error) { console.error(error.message); process.exitCode = 1; }
+          }
+          '''
+
+          for base in ["codex", "claude"]:
+            root = Path(base) / "skills/information-accessibility-practice"
+            cli = root / "scripts/accessibility-audit.mjs"
+            text = cli.read_text()
+            old = 'const commandScripts = {'
+            new = 'const commandScripts = {\n  requirements: "requirements.mjs",'
+            if old not in text: raise SystemExit(f"command map marker missing: {cli}")
+            cli.write_text(text.replace(old, new, 1))
+            (root / "scripts/requirements.mjs").write_text(script)
+
+          Path("tests/requirements-browser.test.mjs").write_text(r'''import assert from "node:assert/strict";
+          import { spawnSync } from "node:child_process";
+          import path from "node:path";
+          import test from "node:test";
+
+          const cli = path.resolve("codex/skills/information-accessibility-practice/scripts/accessibility-audit.mjs");
+          const run = (...args) => spawnSync(process.execPath, [cli, "requirements", ...args, "--json"], { encoding: "utf8" });
+
+          test("requirements list exposes the complete active profile without internal-ID knowledge", () => {
+            const result = run("list", "--profile", "web-modern");
+            assert.equal(result.status, 0, result.stderr);
+            const value = JSON.parse(result.stdout);
+            assert.equal(value.requirements.length, 55);
+            assert.ok(value.requirements.every((row) => row.id && row.number && row.source));
+          });
+
+          test("requirements show resolves a success-criterion number", () => {
+            const result = run("show", "1.1.1", "--profile", "web-modern");
+            assert.equal(result.status, 0, result.stderr);
+            const value = JSON.parse(result.stdout);
+            assert.equal(value.requirements.length, 1);
+            assert.equal(value.requirements[0].number, "1.1.1");
+          });
+
+          test("requirements search finds human-readable keywords", () => {
+            const result = run("search", "focus", "--profile", "web-modern");
+            assert.equal(result.status, 0, result.stderr);
+            assert.ok(JSON.parse(result.stdout).requirements.length > 0);
+          });
+          ''')
+          PY
+      - name: Verify
+        run: |
+          node --test tests/requirements-browser.test.mjs tests/unified-cli.test.mjs
+          node scripts/verify-package.mjs
+      - name: Commit verified change
+        shell: bash
+        run: |
+          rm .github/workflows/one-shot-issue7.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- codex/skills/information-accessibility-practice/scripts/accessibility-audit.mjs claude/skills/information-accessibility-practice/scripts/accessibility-audit.mjs codex/skills/information-accessibility-practice/scripts/requirements.mjs claude/skills/information-accessibility-practice/scripts/requirements.mjs tests/requirements-browser.test.mjs .github/workflows/one-shot-issue7.yml
+          git commit -m "feat: add a human-readable requirements browser"
+          git push origin HEAD:feat/issue-7-requirements-browser
