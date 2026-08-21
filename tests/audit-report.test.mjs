@@ -18,7 +18,8 @@ import {
   buildPublicReportModel,
   overallReportJudgement,
   reportJudgementForOutcome,
-  renderRunBackedReport
+  renderRunBackedReport,
+  renderAuditReport
 } from "../codex/skills/information-accessibility-practice/scripts/render-audit-report.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -92,6 +93,16 @@ function assertUnifiedJudgementReport(report, expectedOverall) {
     assert.ok(judgement, `判定行には4種類の判定語のいずれかが必要です: ${line}`);
   }
 }
+
+test("standalone report exposes the requested and guarded claim range", () => {
+  const record = reviewedRecord();
+  const validation = validate(record);
+  assert.equal(validation.valid, true);
+  const report = renderAuditReport(record, validation);
+  assert.match(report, /### 表明可能な範囲/);
+  assert.match(report, /要求した表明レベル:/);
+  assert.match(report, /証拠から許される上限:/);
+});
 
 test("report judgement vocabulary and overall priority are fixed", () => {
   assert.equal(reportJudgementForOutcome("pass"), "適合");
