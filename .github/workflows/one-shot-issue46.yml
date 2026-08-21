@@ -1,0 +1,179 @@
+name: Finalize issue 46
+on:
+  push:
+    branches: [ci/issue-46-source-monitor]
+permissions:
+  contents: write
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ci/issue-46-source-monitor
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Add source monitor
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          monitor = r'''import fs from "node:fs";
+          import path from "node:path";
+          import process from "node:process";
+          import { fileURLToPath, pathToFileURL } from "node:url";
+
+          const repo = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
+          const allowedHosts = new Set(["www.w3.org", "w3.org", "waic.jp", "www.digital.go.jp", "digital.go.jp"]);
+
+          function collectUrls(value, urls = new Set()) {
+            if (typeof value === "string") {
+              if (/^https:\/\//iu.test(value)) {
+                try {
+                  const parsed = new URL(value);
+                  if (allowedHosts.has(parsed.hostname.toLowerCase())) urls.add(parsed.href);
+                } catch {
+                  // invalid URL is ignored here and remains covered by package validation
+                }
+              }
+              return urls;
+            }
+            if (Array.isArray(value)) for (const item of value) collectUrls(item, urls);
+            else if (value && typeof value === "object") for (const item of Object.values(value)) collectUrls(item, urls);
+            return urls;
+          }
+
+          export function officialSourceUrls() {
+            const files = [
+              "codex/skills/information-accessibility-practice/references/standards-registry.json",
+              "codex/skills/information-accessibility-practice/references/criteria-catalog.json",
+              "codex/skills/information-accessibility-practice/references/criterion-procedures.json",
+              "codex/skills/information-accessibility-practice/references/web-audit-methods.json"
+            ];
+            const urls = new Set();
+            for (const relative of files) collectUrls(JSON.parse(fs.readFileSync(path.join(repo, relative), "utf8")), urls);
+            return [...urls].sort();
+          }
+
+          async function inspect(url) {
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), 20000);
+            try {
+              let response = await fetch(url, { method: "HEAD", redirect: "manual", signal: controller.signal, headers: { "user-agent": "information-accessibility-source-monitor/1" } });
+              if (response.status === 405 || response.status === 501) {
+                response = await fetch(url, { method: "GET", redirect: "manual", signal: controller.signal, headers: { "user-agent": "information-accessibility-source-monitor/1", range: "bytes=0-0" } });
+              }
+              return {
+                url,
+                status: response.status,
+                ok: response.status >= 200 && response.status < 400,
+                redirect_location: response.headers.get("location"),
+                etag: response.headers.get("etag"),
+                last_modified: response.headers.get("last-modified"),
+                content_type: response.headers.get("content-type")
+              };
+            } catch (error) {
+              return { url, status: null, ok: false, error: error.name === "AbortError" ? "timeout" : error.message };
+            } finally {
+              clearTimeout(timer);
+            }
+          }
+
+          function parse(argv) {
+            const options = {};
+            for (let i = 0; i < argv.length; i += 1) {
+              if (argv[i] === "--output") options.output = argv[++i];
+              else if (argv[i] === "--dry-run") options.dryRun = true;
+              else throw new Error(`Unknown argument: ${argv[i]}`);
+            }
+            return options;
+          }
+
+          async function main() {
+            const options = parse(process.argv.slice(2));
+            const urls = officialSourceUrls();
+            if (options.dryRun) {
+              console.log(JSON.stringify({ sources: urls }, null, 2));
+              return;
+            }
+            if (!options.output) throw new Error("--output is required unless --dry-run is used");
+            const results = [];
+            for (const url of urls) results.push(await inspect(url));
+            const report = { checked_at: new Date().toISOString(), source_count: urls.length, failures: results.filter((item) => !item.ok).length, results };
+            fs.writeFileSync(path.resolve(options.output), `${JSON.stringify(report, null, 2)}\n`, { encoding: "utf8", flag: "wx" });
+            console.log(JSON.stringify({ source_count: report.source_count, failures: report.failures }));
+            if (report.failures > 0) process.exitCode = 1;
+          }
+
+          if (process.argv[1] && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url) {
+            main().catch((error) => { console.error(error.message); process.exitCode = 2; });
+          }
+          '''
+
+          scheduled = '''name: Monitor official accessibility sources
+
+          on:
+            schedule:
+              - cron: "0 1 * * 1"
+            workflow_dispatch:
+
+          permissions:
+            contents: read
+
+          jobs:
+            monitor:
+              runs-on: ubuntu-latest
+              timeout-minutes: 20
+              steps:
+                - uses: actions/checkout@v4
+                - uses: actions/setup-node@v4
+                  with:
+                    node-version: 20
+                - name: Check official source status and metadata
+                  id: monitor
+                  continue-on-error: true
+                  run: node scripts/monitor-official-sources.mjs --output source-monitor.json
+                - name: Upload source-monitor report
+                  if: always()
+                  uses: actions/upload-artifact@v4
+                  with:
+                    name: official-source-monitor
+                    path: source-monitor.json
+                    if-no-files-found: error
+                - name: Fail after preserving evidence
+                  if: steps.monitor.outcome == 'failure'
+                  run: exit 1
+          '''
+
+          Path("scripts/monitor-official-sources.mjs").write_text(monitor)
+          Path(".github/workflows/source-monitor.yml").write_text(scheduled)
+          Path("tests/source-monitor.test.mjs").write_text(r'''import assert from "node:assert/strict";
+          import { spawnSync } from "node:child_process";
+          import test from "node:test";
+
+          test("source monitor dry-run derives only approved official HTTPS sources without network access", () => {
+            const result = spawnSync(process.execPath, ["scripts/monitor-official-sources.mjs", "--dry-run"], { encoding: "utf8" });
+            assert.equal(result.status, 0, result.stderr);
+            const urls = JSON.parse(result.stdout).sources;
+            assert.ok(urls.length > 20);
+            assert.ok(urls.every((url) => /^https:\/\//u.test(url)));
+            assert.ok(urls.every((url) => ["www.w3.org", "w3.org", "waic.jp", "www.digital.go.jp", "digital.go.jp"].includes(new URL(url).hostname)));
+          });
+          ''')
+          PY
+      - name: Verify offline behavior
+        run: |
+          node --test tests/source-monitor.test.mjs
+          node scripts/verify-package.mjs
+      - name: Commit verified change
+        shell: bash
+        run: |
+          rm .github/workflows/one-shot-issue46.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- scripts/monitor-official-sources.mjs .github/workflows/source-monitor.yml tests/source-monitor.test.mjs .github/workflows/one-shot-issue46.yml
+          git commit -m "ci: monitor official accessibility source metadata"
+          git push origin HEAD:ci/issue-46-source-monitor
