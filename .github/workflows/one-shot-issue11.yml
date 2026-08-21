@@ -1,0 +1,234 @@
+name: Finalize issue 11
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: issue-11-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  implement-and-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/issue-11-init-scope-environment
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Add init configuration support
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          config_schema = r'''{
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$id": "https://example.invalid/information-accessibility/audit-init-config.schema.json",
+            "title": "Audit initialization scope and environment",
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "scope": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["included", "excluded", "complete_processes", "third_party_content", "full_pages_reviewed"],
+                "properties": {
+                  "included": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+                  "excluded": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+                  "complete_processes": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+                  "third_party_content": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+                  "full_pages_reviewed": { "type": "boolean" }
+                }
+              },
+              "environment": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["os", "browsers", "assistive_technologies", "input_modes"],
+                "properties": {
+                  "os": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+                  "browsers": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+                  "assistive_technologies": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+                  "input_modes": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+                }
+              }
+            }
+          }
+          '''
+
+          for base in ["codex", "claude"]:
+              root = Path(base) / "skills/information-accessibility-practice"
+              (root / "references/audit-init-config.schema.json").write_text(config_schema)
+
+              cli = root / "scripts/create-audit-run.mjs"
+              text = cli.read_text()
+              import_marker = 'import { assertNewOutputPath, assertStableFile, createAuditRun, readStableFile, writeNewJson } from "./lib/audit-run.mjs";\n'
+              replacement_import = import_marker + 'import { validateJsonSchema } from "./lib/json-schema.mjs";\n'
+              if text.count(import_marker) != 1:
+                  raise SystemExit(f"create-run import marker missing: {cli}")
+              text = text.replace(import_marker, replacement_import, 1)
+              text = text.replace('  const optional = new Set(["--supersedes-run"]);', '  const optional = new Set(["--supersedes-run", "--config"]);')
+              map_marker = '["--interaction", "interaction"], ["--source-write", "sourceWrite"], ["--supersedes-run", "supersedesRunFile"], ["--output", "output"]'
+              map_replacement = '["--interaction", "interaction"], ["--source-write", "sourceWrite"], ["--supersedes-run", "supersedesRunFile"], ["--config", "configFile"], ["--output", "output"]'
+              if text.count(map_marker) != 1:
+                  raise SystemExit(f"create-run argument map marker missing: {cli}")
+              text = text.replace(map_marker, map_replacement, 1)
+
+              marker = '  let predecessor;\n'
+              config_block = '''  let config;
+              let configSnapshot;
+              if (options.configFile) {
+                configSnapshot = readStableFile(options.configFile, { label: "audit initialization config" });
+                try {
+                  config = JSON.parse(configSnapshot.bytes.toString("utf8").replace(/^\\uFEFF/u, ""));
+                } catch (error) {
+                  throw new Error(`Invalid JSON in audit initialization config: ${error.message}`);
+                }
+                const schema = JSON.parse(readStableFile(path.join(path.dirname(path.dirname(fileURLToPath(import.meta.url))), "references", "audit-init-config.schema.json"), { label: "audit initialization config schema" }).bytes.toString("utf8"));
+                const errors = [];
+                validateJsonSchema(config, schema, "$", errors);
+                if (errors.length > 0) throw new Error(`Invalid audit initialization config:\\n- ${errors.join("\\n- ")}`);
+                if (!config.scope && !config.environment) throw new Error("Audit initialization config must contain scope or environment.");
+              }
+              let predecessor;
+              '''
+              if text.count(marker) != 1:
+                  raise SystemExit(f"predecessor marker missing: {cli}")
+              text = text.replace(marker, config_block, 1)
+              create_marker = '''    supersedesRun: predecessor?.value,
+                supersedesRunFile: predecessor?.snapshot.path
+              });'''
+              create_replacement = '''    supersedesRun: predecessor?.value,
+                supersedesRunFile: predecessor?.snapshot.path,
+                scope: config?.scope,
+                environment: config?.environment
+              });'''
+              if text.count(create_marker) != 1:
+                  raise SystemExit(f"create-run call marker missing: {cli}")
+              text = text.replace(create_marker, create_replacement, 1)
+              stable_marker = '  if (predecessor) assertStableFile(predecessor.snapshot, "superseded audit run");\n'
+              stable_replacement = stable_marker + '  if (configSnapshot) assertStableFile(configSnapshot, "audit initialization config");\n'
+              if text.count(stable_marker) != 1:
+                  raise SystemExit(f"stable marker missing: {cli}")
+              cli.write_text(text.replace(stable_marker, stable_replacement, 1))
+
+              library = root / "scripts/lib/audit-run.mjs"
+              text = library.read_text()
+              old = '''    scope: { included: targetRefs, excluded: [], complete_processes: [], third_party_content: [], full_pages_reviewed: false },
+                environment: { os: ["not_declared"], browsers: [], assistive_technologies: [], input_modes: [] },'''
+              new = '''    scope: structuredClone(options.scope ?? options.supersedesRun?.scope ?? { included: targetRefs, excluded: [], complete_processes: [], third_party_content: [], full_pages_reviewed: false }),
+                environment: structuredClone(options.environment ?? options.supersedesRun?.environment ?? { os: ["not_declared"], browsers: [], assistive_technologies: [], input_modes: [] }),'''
+              if text.count(old) != 1:
+                  raise SystemExit(f"default scope/environment block missing: {library}")
+              library.write_text(text.replace(old, new, 1))
+
+          Path("tests/audit-init-config.test.mjs").write_text(r'''import assert from "node:assert/strict";
+          import fs from "node:fs";
+          import os from "node:os";
+          import path from "node:path";
+          import { spawnSync } from "node:child_process";
+          import test from "node:test";
+          import { fileURLToPath } from "node:url";
+
+          const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+          const script = path.join(root, "codex/skills/information-accessibility-practice/scripts/create-audit-run.mjs");
+
+          test("audit init records declared scope and environment from a validated config", () => {
+            const temp = fs.mkdtempSync(path.join(os.tmpdir(), "audit-config-"));
+            const artifacts = path.join(temp, "artifacts");
+            fs.mkdirSync(artifacts);
+            const configPath = path.join(temp, "config.json");
+            const output = path.join(temp, "run.json");
+            const config = {
+              scope: {
+                included: ["Checkout page"],
+                excluded: ["Payment provider iframe"],
+                complete_processes: ["Complete checkout"],
+                third_party_content: ["Payment provider iframe"],
+                full_pages_reviewed: true
+              },
+              environment: {
+                os: ["Windows 11"],
+                browsers: ["Chrome 140"],
+                assistive_technologies: ["NVDA 2026.2"],
+                input_modes: ["keyboard"]
+              }
+            };
+            fs.writeFileSync(configPath, JSON.stringify(config));
+            const result = spawnSync(process.execPath, [
+              script,
+              "--run-id", "RUN-20260822T000000Z-CONFIG01",
+              "--profile", "web-modern",
+              "--target-name", "Example",
+              "--target-version", "v1",
+              "--target-ref", "https://example.invalid/checkout",
+              "--artifact-root", artifacts,
+              "--network", "denied",
+              "--interaction", "read_only",
+              "--source-write", "denied",
+              "--config", configPath,
+              "--output", output
+            ], { encoding: "utf8" });
+            assert.equal(result.status, 0, result.stderr);
+            const run = JSON.parse(fs.readFileSync(output, "utf8"));
+            assert.deepEqual(run.scope, config.scope);
+            assert.deepEqual(run.environment, config.environment);
+          });
+
+          test("audit init rejects malformed config before creating a run", () => {
+            const temp = fs.mkdtempSync(path.join(os.tmpdir(), "audit-bad-config-"));
+            const artifacts = path.join(temp, "artifacts");
+            fs.mkdirSync(artifacts);
+            const configPath = path.join(temp, "config.json");
+            const output = path.join(temp, "run.json");
+            fs.writeFileSync(configPath, JSON.stringify({ environment: { os: "Windows" } }));
+            const result = spawnSync(process.execPath, [
+              script,
+              "--run-id", "RUN-20260822T000000Z-CONFIG02",
+              "--profile", "web-modern",
+              "--target-name", "Example",
+              "--target-version", "v1",
+              "--target-ref", "https://example.invalid/",
+              "--artifact-root", artifacts,
+              "--network", "denied",
+              "--interaction", "read_only",
+              "--source-write", "denied",
+              "--config", configPath,
+              "--output", output
+            ], { encoding: "utf8" });
+            assert.notEqual(result.status, 0);
+            assert.match(result.stderr, /Invalid audit initialization config/);
+            assert.equal(fs.existsSync(output), false);
+          });
+          ''')
+          PY
+      - name: Verify
+        shell: bash
+        run: |
+          node --test tests/audit-init-config.test.mjs tests/audit-orchestration-cli.test.mjs tests/audit-orchestration-contract.test.mjs
+          node scripts/verify-package.mjs
+          node scripts/build-criteria-catalog.mjs --check
+      - name: Commit verified change
+        shell: bash
+        run: |
+          rm .github/workflows/one-shot-issue11.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- \
+            codex/skills/information-accessibility-practice/references/audit-init-config.schema.json \
+            claude/skills/information-accessibility-practice/references/audit-init-config.schema.json \
+            codex/skills/information-accessibility-practice/scripts/create-audit-run.mjs \
+            claude/skills/information-accessibility-practice/scripts/create-audit-run.mjs \
+            codex/skills/information-accessibility-practice/scripts/lib/audit-run.mjs \
+            claude/skills/information-accessibility-practice/scripts/lib/audit-run.mjs \
+            tests/audit-init-config.test.mjs \
+            .github/workflows/one-shot-issue11.yml
+          git commit -m "feat: declare audit scope and environment at initialization"
+          git push origin HEAD:feat/issue-11-init-scope-environment
