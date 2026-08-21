@@ -1,0 +1,218 @@
+name: Finalize issue 12
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: issue-12-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  implement-and-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/issue-12-cli-discovery
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Improve CLI discovery
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          for base in ["codex", "claude"]:
+              cli = Path(base) / "skills/information-accessibility-practice/scripts/accessibility-audit.mjs"
+              text = cli.read_text()
+              root_marker = 'const scriptRoot = path.dirname(fileURLToPath(import.meta.url));\n'
+              root_replacement = root_marker + '''const skillRoot = path.dirname(scriptRoot);
+              const readJson = (file) => JSON.parse(fs.readFileSync(file, "utf8").replace(/^\\uFEFF/u, ""));
+              const packageInfo = readJson(path.join(skillRoot, "package.json"));
+              const standardsRegistry = readJson(path.join(skillRoot, "references", "standards-registry.json"));
+              '''
+              if text.count(root_marker) != 1:
+                  raise SystemExit(f"CLI root marker missing: {cli}")
+              text = text.replace(root_marker, root_replacement, 1)
+
+              text = text.replace('usage: "accessibility-audit assessment --profile <id> [assessment options]"', 'usage: "accessibility-audit assessment --profile <id> [--target-name <name> --target-version <version> --target-ref <url|file> --evaluator <name> --evaluated-at <YYYY-MM-DD>] [--output <new-assessment.json>]"')
+              text = text.replace('usage: "accessibility-audit report --input <assessment.json> --output <new-report.md>"', 'usage: "accessibility-audit report (--input <assessment.json> [--output <new-report.md>] | --run <run.json> --assessment <assessment.json> --output <new-report.md>)"')
+              command_end = '  ["retest", {\n    script: "create-audit-run.mjs",\n    summary: "Create a fresh audit run from a completed authorized-change predecessor.",\n    usage: "accessibility-audit retest --supersedes-run <old-run.json> [all init options for the new target version]",\n    requiredFlag: "--supersedes-run"\n  }]\n]);'
+              command_replacement = '  ["retest", {\n    script: "create-audit-run.mjs",\n    summary: "Create a fresh audit run from a completed authorized-change predecessor.",\n    usage: "accessibility-audit retest --supersedes-run <old-run.json> [all init options for the new target version]",\n    requiredFlag: "--supersedes-run"\n  }],\n  ["profiles", { internal: true, summary: "List installed assessment profiles and their activation state.", usage: "accessibility-audit profiles [--format text|json]" }],\n  ["doctor", { internal: true, summary: "Inspect the installed CLI, Node runtime, profiles, and required package files.", usage: "accessibility-audit doctor [--format text|json]" }]\n]);'
+              if text.count(command_end) != 1:
+                  raise SystemExit(f"command map tail missing: {cli}")
+              text = text.replace(command_end, command_replacement, 1)
+
+              help_marker = 'function writeError(message) {\n'
+              helpers = r'''function selectedFormat(args) {
+                const index = args.indexOf("--format");
+                if (index < 0) return "text";
+                const value = args[index + 1];
+                if (!["text", "json"].includes(value)) throw new Error("--format must be text or json");
+                if (args.length !== 2) throw new Error("Only --format is supported for this command");
+                return value;
+              }
+
+              function profilesOutput(args) {
+                const format = selectedFormat(args);
+                const profiles = standardsRegistry.profiles.map((profile) => ({
+                  id: profile.id,
+                  display_name: profile.display_name,
+                  active: profile.assessment_configuration?.active === true,
+                  requirement_count: profile.requirement_ids?.length ?? 0,
+                  implementation_status: profile.implementation_status,
+                  claim_ceiling: profile.claim_rules?.claim_ceiling ?? null
+                }));
+                if (format === "json") return `${JSON.stringify({ registry_version: standardsRegistry.schema_version, profiles }, null, 2)}\n`;
+                return `${profiles.map((profile) => `${profile.id}\t${profile.active ? "active" : "inactive"}\t${profile.requirement_count}\t${profile.display_name}`).join("\n")}\n`;
+              }
+
+              function doctorOutput(args) {
+                const format = selectedFormat(args);
+                const required = [
+                  "package.json",
+                  "references/standards-registry.json",
+                  "references/criteria-catalog.json",
+                  "references/assessment-record.schema.json",
+                  "scripts/accessibility-audit.mjs"
+                ];
+                const files = required.map((relative) => ({ relative, present: fs.existsSync(path.join(skillRoot, relative)) }));
+                const result = {
+                  status: files.every((file) => file.present) && Number.parseInt(process.versions.node.split(".")[0], 10) >= 20 ? "PASS" : "FAIL",
+                  cli_version: packageInfo.version,
+                  node_version: process.versions.node,
+                  skill_root: skillRoot,
+                  standards_registry_version: standardsRegistry.schema_version,
+                  active_profiles: standardsRegistry.profiles.filter((profile) => profile.assessment_configuration?.active).map((profile) => profile.id),
+                  files
+                };
+                if (format === "json") return `${JSON.stringify(result, null, 2)}\n`;
+                return [
+                  `Status: ${result.status}`,
+                  `CLI: ${result.cli_version}`,
+                  `Node: ${result.node_version}`,
+                  `Standards registry: ${result.standards_registry_version}`,
+                  `Active profiles: ${result.active_profiles.join(", ") || "none"}`,
+                  ...files.map((file) => `${file.present ? "OK" : "MISSING"}: ${file.relative}`)
+                ].join("\n") + "\n";
+              }
+
+              function writeError(message) {
+              '''
+              if text.count(help_marker) != 1:
+                  raise SystemExit(f"writeError marker missing: {cli}")
+              text = text.replace(help_marker, helpers, 1)
+
+              main_marker = '''  if (argv.length === 0 || argv[0] === "--help" || argv[0] === "-h") {
+                process.stdout.write(`${helpText()}\\n`);
+                return 0;
+              }
+
+              const [command, ...args] = argv;'''
+              main_replacement = '''  if (argv.length === 0 || argv[0] === "--help" || argv[0] === "-h") {
+                process.stdout.write(`${helpText()}\\n`);
+                return 0;
+              }
+              if (argv[0] === "--version" || argv[0] === "-V") {
+                process.stdout.write(`${packageInfo.version}\\n`);
+                return 0;
+              }
+
+              const [command, ...args] = argv;'''
+              if text.count(main_marker) != 1:
+                  raise SystemExit(f"main marker missing: {cli}")
+              text = text.replace(main_marker, main_replacement, 1)
+
+              internal_marker = '''  if (definition.requiredFlag && !args.includes(definition.requiredFlag)) {
+                writeError(`${command} requires ${definition.requiredFlag}.`);
+                writeError(`Usage: ${definition.usage}`);
+                return 2;
+              }
+
+              return runCommand(definition, args);'''
+              internal_replacement = '''  if (definition.requiredFlag && !args.includes(definition.requiredFlag)) {
+                writeError(`${command} requires ${definition.requiredFlag}.`);
+                writeError(`Usage: ${definition.usage}`);
+                return 2;
+              }
+              if (definition.internal) {
+                try {
+                  process.stdout.write(command === "profiles" ? profilesOutput(args) : doctorOutput(args));
+                  return 0;
+                } catch (error) {
+                  writeError(error instanceof Error ? error.message : String(error));
+                  return 2;
+                }
+              }
+
+              return runCommand(definition, args);'''
+              if text.count(internal_marker) != 1:
+                  raise SystemExit(f"dispatch marker missing: {cli}")
+              cli.write_text(text.replace(internal_marker, internal_replacement, 1))
+
+          Path("tests/cli-discovery.test.mjs").write_text(r'''import assert from "node:assert/strict";
+          import path from "node:path";
+          import { spawnSync } from "node:child_process";
+          import test from "node:test";
+          import { fileURLToPath } from "node:url";
+
+          const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+          const cli = path.join(root, "codex/skills/information-accessibility-practice/scripts/accessibility-audit.mjs");
+          const run = (...args) => spawnSync(process.execPath, [cli, ...args], { encoding: "utf8" });
+
+          test("CLI exposes version and active profile discovery", () => {
+            const version = run("--version");
+            assert.equal(version.status, 0, version.stderr);
+            assert.match(version.stdout, /^0\.1\.0/u);
+            const profiles = run("profiles", "--format", "json");
+            assert.equal(profiles.status, 0, profiles.stderr);
+            const value = JSON.parse(profiles.stdout);
+            assert.ok(value.profiles.some((profile) => profile.id === "web-modern" && profile.active && profile.requirement_count === 55));
+            assert.ok(value.profiles.some((profile) => profile.id === "authoring-agent" && !profile.active));
+          });
+
+          test("doctor reports installed runtime contracts", () => {
+            const result = run("doctor", "--format", "json");
+            assert.equal(result.status, 0, result.stderr);
+            const value = JSON.parse(result.stdout);
+            assert.equal(value.status, "PASS");
+            assert.ok(value.active_profiles.includes("web-modern"));
+            assert.ok(value.files.every((file) => file.present));
+          });
+
+          test("report and assessment help expose concrete interfaces", () => {
+            const report = run("report", "--help");
+            assert.equal(report.status, 0);
+            assert.match(report.stdout, /--run <run\.json> --assessment <assessment\.json>/u);
+            const assessment = run("assessment", "--help");
+            assert.equal(assessment.status, 0);
+            for (const flag of ["--target-name", "--target-version", "--target-ref", "--evaluator", "--evaluated-at"]) assert.match(assessment.stdout, new RegExp(flag));
+          });
+          ''')
+          PY
+      - name: Verify
+        shell: bash
+        run: |
+          node --test tests/cli-discovery.test.mjs tests/unified-cli.test.mjs
+          node scripts/verify-package.mjs
+          node scripts/build-criteria-catalog.mjs --check
+      - name: Commit verified change
+        shell: bash
+        run: |
+          rm .github/workflows/one-shot-issue12.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- \
+            codex/skills/information-accessibility-practice/scripts/accessibility-audit.mjs \
+            claude/skills/information-accessibility-practice/scripts/accessibility-audit.mjs \
+            tests/cli-discovery.test.mjs \
+            .github/workflows/one-shot-issue12.yml
+          git commit -m "feat: add CLI version profiles and doctor discovery"
+          git push origin HEAD:feat/issue-12-cli-discovery
