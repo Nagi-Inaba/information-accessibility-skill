@@ -24,6 +24,12 @@ const outcomeLabels = {
   cant_tell: "要確認"
 };
 
+export function reportTitleForProfile(profileId) {
+  return profileId === "jp-public-web"
+    ? "# JIS X 8341-3:2016＋追加WCAG検査レポート"
+    : "# WCAG検査レポート";
+}
+
 export function reportJudgementForOutcome(outcome) {
   return outcomeLabels[outcome] ?? null;
 }
@@ -124,7 +130,7 @@ export function renderAuditReport(record, validation) {
     .map((result) => [result.requirement_id, result.notes || "適用対象外とした理由の記録なし"]);
 
   const lines = [
-    "# WCAG検査レポート",
+    reportTitleForProfile(assessment.profile.id),
     "",
     reportNotice,
     "",
@@ -989,7 +995,7 @@ export function renderRunBackedReport(model) {
   const reportCounts = model.reportOutcomeCounts ?? model.profileOutcomeCounts ?? {};
   const evidenceStatus = (value) => value === "Verified failure" ? "確認済みの不適合" : "要確認の候補";
   const lines = [
-    "# WCAG検査レポート",
+    reportTitleForProfile(model.profile.id),
     "",
     reportNotice,
     "",
