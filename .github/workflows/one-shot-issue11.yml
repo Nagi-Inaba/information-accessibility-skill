@@ -1,0 +1,98 @@
+name: Finalize issue 11
+on:
+  push:
+    branches: [feat/issue-11-run-scope-environment]
+permissions:
+  contents: write
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/issue-11-run-scope-environment
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Allow declared scope and environment
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          for base in ["codex", "claude"]:
+            path = Path(base) / "skills/information-accessibility-practice/scripts/lib/audit-run.mjs"
+            text = path.read_text()
+            updated = re.sub(
+              r'(export function createAuditRun\(\{.*?\btarget,)',
+              r'\1\n  scope,\n  environment,',
+              text,
+              count=1,
+              flags=re.S
+            )
+            if updated == text: raise SystemExit(f"createAuditRun signature marker missing: {path}")
+            pattern = r'''scope:\s*\{\s*included:\s*target\.urls_or_files,\s*excluded:\s*\[\],\s*complete_processes:\s*\[\],\s*third_party_content:\s*\[\],\s*full_pages_reviewed:\s*false\s*\},\s*environment:\s*\{\s*os:\s*\["not_declared"\],\s*browsers:\s*\[\],\s*assistive_technologies:\s*\[\],\s*input_modes:\s*\[\]\s*\}'''
+            replacement = '''scope: scope ?? {\n      included: target.urls_or_files,\n      excluded: [],\n      complete_processes: [],\n      third_party_content: [],\n      full_pages_reviewed: false\n    },\n    environment: environment ?? {\n      os: ["not_declared"],\n      browsers: [],\n      assistive_technologies: [],\n      input_modes: []\n    }'''
+            updated, count = re.subn(pattern, replacement, updated, count=1, flags=re.S)
+            if count != 1: raise SystemExit(f"scope/environment marker missing: {path}")
+            path.write_text(updated)
+
+          Path("tests/audit-run-scope-environment.test.mjs").write_text(r'''import assert from "node:assert/strict";
+          import fs from "node:fs";
+          import os from "node:os";
+          import path from "node:path";
+          import test from "node:test";
+          import { fileURLToPath } from "node:url";
+          import { createAuditRun, loadAuditResources } from "../codex/skills/information-accessibility-practice/scripts/lib/audit-run.mjs";
+
+          const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+          const skill = path.join(root, "codex/skills/information-accessibility-practice");
+
+          test("createAuditRun preserves explicitly declared scope and environment", () => {
+            const artifactRoot = fs.mkdtempSync(path.join(os.tmpdir(), "audit-run-config-"));
+            const scope = {
+              included: ["Checkout page"],
+              excluded: ["Payment provider iframe"],
+              complete_processes: ["Complete checkout"],
+              third_party_content: ["Payment provider"],
+              full_pages_reviewed: true
+            };
+            const environment = {
+              os: ["Windows 11"],
+              browsers: ["Chrome 128"],
+              assistive_technologies: ["NVDA 2026.1"],
+              input_modes: ["keyboard"]
+            };
+            const run = createAuditRun({
+              runId: "RUN-20260822T000000Z-CONFIG01",
+              target: { name: "Example", version_or_commit: "v1", urls_or_files: ["https://example.invalid/"] },
+              profileId: "web-modern",
+              artifactRoot,
+              network: "denied",
+              interaction: "read_only",
+              sourceWrite: "denied",
+              resources: loadAuditResources(skill),
+              createdAt: "2026-08-22T00:00:00Z",
+              scope,
+              environment
+            });
+            assert.deepEqual(run.scope, scope);
+            assert.deepEqual(run.environment, environment);
+          });
+          ''')
+          PY
+      - name: Verify
+        run: |
+          node --test tests/audit-run-scope-environment.test.mjs tests/audit-orchestration-contract.test.mjs
+          node scripts/verify-package.mjs
+      - name: Commit verified change
+        shell: bash
+        run: |
+          rm .github/workflows/one-shot-issue11.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- codex/skills/information-accessibility-practice/scripts/lib/audit-run.mjs claude/skills/information-accessibility-practice/scripts/lib/audit-run.mjs tests/audit-run-scope-environment.test.mjs .github/workflows/one-shot-issue11.yml
+          git commit -m "feat: preserve declared audit scope and environment"
+          git push origin HEAD:feat/issue-11-run-scope-environment
