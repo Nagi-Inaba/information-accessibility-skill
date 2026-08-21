@@ -4,6 +4,10 @@ on:
   push:
     branches:
       - fix/issue-24-additional-wcag-screening-id
+  pull_request:
+    branches:
+      - main
+    types: [opened, synchronize, reopened]
 
 permissions:
   contents: write
