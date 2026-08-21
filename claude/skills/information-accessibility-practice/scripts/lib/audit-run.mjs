@@ -121,6 +121,31 @@ function inspectRealComponents(target, { type, label = "path" } = {}) {
   return { absolute, stats };
 }
 
+export function prepareSafeOutputDirectory(directory) {
+  const absolute = path.resolve(directory);
+  const parsed = path.parse(absolute);
+  let current = parsed.root;
+  for (const part of absolute.slice(parsed.root.length).split(path.sep).filter(Boolean)) {
+    const next = path.join(current, part);
+    try {
+      const stats = fs.lstatSync(next);
+      if (stats.isSymbolicLink() || !stats.isDirectory()) {
+        throw new Error(`Unsafe output directory component: ${next}`);
+      }
+      const real = fs.realpathSync.native(next);
+      if (pathKey(real) !== pathKey(next)) {
+        throw new Error(`Unsafe output directory reparse traversal from ${next} to ${real}`);
+      }
+    } catch (error) {
+      if (error.code !== "ENOENT") throw error;
+      fs.mkdirSync(next, { mode: 0o700 });
+      inspectRealComponents(next, { type: "directory", label: "output directory" });
+    }
+    current = next;
+  }
+  return absolute;
+}
+
 function inspectSafeOutput(output) {
   const absolute = path.resolve(output);
   try {
@@ -129,7 +154,8 @@ function inspectSafeOutput(output) {
   } catch (error) {
     if (error.code !== "ENOENT") throw error;
   }
-  const parent = inspectRealComponents(path.dirname(absolute), { type: "directory", label: "output parent" });
+  const parentPath = prepareSafeOutputDirectory(path.dirname(absolute));
+  const parent = inspectRealComponents(parentPath, { type: "directory", label: "output parent" });
   return { absolute, parentIdentity: directoryIdentity(fs.statSync(parent.absolute, { bigint: true })) };
 }
 
