@@ -1,0 +1,153 @@
+name: Finalize issue 20
+on:
+  push:
+    branches: [feat/issue-20-summary-report]
+permissions:
+  contents: write
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/issue-20-summary-report
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Add concise report summary renderer
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          script = r'''import fs from "node:fs";
+          import path from "node:path";
+          import process from "node:process";
+          import { fileURLToPath, pathToFileURL } from "node:url";
+          import { writeNewText } from "./lib/audit-run.mjs";
+          import { validateAssessment } from "./validate-assessment.mjs";
+          import { overallReportJudgement } from "./render-audit-report.mjs";
+
+          const skillRoot = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
+          const readJson = (file) => JSON.parse(fs.readFileSync(file, "utf8").replace(/^\uFEFF/u, ""));
+          const reference = (name) => readJson(path.join(skillRoot, "references", name));
+          const cell = (value) => String(value ?? "").replace(/\|/gu, "\\|").replace(/\r?\n/gu, " ").trim();
+
+          export function renderAuditSummary(record, validation) {
+            if (!validation?.valid) throw new Error("Assessment record must pass validation before a summary can be rendered.");
+            const assessment = record.assessment;
+            const guard = validation.guard;
+            const counts = guard.profile_outcome_counts;
+            const findings = [...(assessment.findings ?? [])].sort((a, b) => ["P0", "P1", "P2"].indexOf(a.priority) - ["P0", "P1", "P2"].indexOf(b.priority));
+            const lines = [
+              "# アクセシビリティ検査サマリー",
+              "",
+              `- 総合判定: ${overallReportJudgement(counts)}`,
+              `- 対象: ${cell(assessment.target.name)}`,
+              `- 適用プロファイル: ${cell(assessment.profile.id)}`,
+              `- 証拠レベル: ${cell(assessment.evidence_level)}`,
+              `- 登録件数: ${guard.catalog_coverage.recorded}/${guard.catalog_coverage.expected}`,
+              `- 人による確認済み: ${guard.evaluation_coverage.human_verified}`,
+              `- 表明可能な上限: ${cell(guard.max_tier)}`,
+              "",
+              "## 主要な指摘",
+              ""
+            ];
+            if (findings.length === 0) lines.push("指摘事項は記録されていません。未確認項目がないことを意味しません。");
+            else {
+              lines.push("| 優先度 | 箇所 | 影響を受ける利用者 | 問題 | 改善案 |", "| --- | --- | --- | --- | --- |");
+              for (const finding of findings) lines.push(`| ${cell(finding.priority)} | ${cell(finding.location)} | ${cell(finding.affected_users.join(", "))} | ${cell(finding.observation)} | ${cell(finding.remediation)} |`);
+            }
+            lines.push(
+              "",
+              "## 次の確認",
+              "",
+              `- 要確認: ${counts.cant_tell ?? 0}`,
+              `- 未確認: ${counts.not_tested ?? 0}`,
+              `- 不適合: ${counts.fail ?? 0}`,
+              "- 全達成基準と詳細証拠はfull reportで確認してください。",
+              ""
+            );
+            return lines.join("\n");
+          }
+
+          function parse(argv) {
+            const options = {};
+            for (let i = 0; i < argv.length; i += 1) {
+              if (argv[i] === "--input") options.input = argv[++i];
+              else if (argv[i] === "--output") options.output = argv[++i];
+              else throw new Error(`Unknown argument: ${argv[i]}`);
+            }
+            if (!options.input || !options.output) throw new Error("--input and --output are required");
+            return options;
+          }
+
+          function main() {
+            const options = parse(process.argv.slice(2));
+            const record = readJson(path.resolve(options.input));
+            const validation = validateAssessment(record, reference("standards-registry.json"), reference("assessment-record.schema.json"), reference("criteria-catalog.json"), reference("web-audit-methods.json"));
+            const summary = renderAuditSummary(record, validation);
+            const output = writeNewText(path.resolve(options.output), summary);
+            console.log(JSON.stringify({ status: "PASS", output }));
+          }
+
+          if (process.argv[1] && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url) {
+            try { main(); } catch (error) { console.error(error.message); process.exitCode = 1; }
+          }
+          '''
+
+          for base in ["codex", "claude"]:
+            root = Path(base) / "skills/information-accessibility-practice"
+            cli = root / "scripts/accessibility-audit.mjs"
+            text = cli.read_text()
+            old = 'const commandScripts = {'
+            new = 'const commandScripts = {\n  summary: "render-audit-summary.mjs",'
+            if old not in text: raise SystemExit(f"command map marker missing: {cli}")
+            cli.write_text(text.replace(old, new, 1))
+            (root / "scripts/render-audit-summary.mjs").write_text(script)
+
+          Path("tests/audit-summary.test.mjs").write_text(r'''import assert from "node:assert/strict";
+          import fs from "node:fs";
+          import os from "node:os";
+          import path from "node:path";
+          import { spawnSync } from "node:child_process";
+          import test from "node:test";
+          import { generateAssessment } from "../codex/skills/information-accessibility-practice/scripts/generate-assessment.mjs";
+
+          const cli = path.resolve("codex/skills/information-accessibility-practice/scripts/accessibility-audit.mjs");
+
+          test("summary renderer exposes decisions and next actions without printing all 55 rows", () => {
+            const temp = fs.mkdtempSync(path.join(os.tmpdir(), "audit-summary-"));
+            const input = path.join(temp, "assessment.json");
+            const output = path.join(temp, "summary.md");
+            fs.writeFileSync(input, JSON.stringify(generateAssessment("web-modern", {
+              targetName: "Example",
+              targetVersion: "v1",
+              targetRefs: ["https://example.invalid/"],
+              evaluator: "Reviewer",
+              evaluatedAt: "2026-08-22"
+            })), "utf8");
+            const result = spawnSync(process.execPath, [cli, "summary", "--input", input, "--output", output], { encoding: "utf8" });
+            assert.equal(result.status, 0, result.stderr);
+            const summary = fs.readFileSync(output, "utf8");
+            assert.match(summary, /総合判定/u);
+            assert.match(summary, /表明可能な上限/u);
+            assert.match(summary, /次の確認/u);
+            assert.doesNotMatch(summary, /WCAG-2\.2-SC-1\.1\.1/u);
+          });
+          ''')
+          PY
+      - name: Verify
+        run: |
+          node --test tests/audit-summary.test.mjs tests/unified-cli.test.mjs
+          node scripts/verify-package.mjs
+      - name: Commit verified change
+        shell: bash
+        run: |
+          rm .github/workflows/one-shot-issue20.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- codex/skills/information-accessibility-practice/scripts/accessibility-audit.mjs claude/skills/information-accessibility-practice/scripts/accessibility-audit.mjs codex/skills/information-accessibility-practice/scripts/render-audit-summary.mjs claude/skills/information-accessibility-practice/scripts/render-audit-summary.mjs tests/audit-summary.test.mjs .github/workflows/one-shot-issue20.yml
+          git commit -m "feat: add a concise audit summary renderer"
+          git push origin HEAD:feat/issue-20-summary-report
