@@ -533,7 +533,12 @@ const publicSafeSlashSequences = new Set([
   "Node.js/PDF.js",
   "WCAG/JIS/EN",
   "pass/fail/unknown",
-  "input/output/error"
+  "input/output/error",
+  "音声/字幕",
+  "Windows/macOS",
+  "A/B",
+  "入力/確認/完了",
+  "JIS/WCAG",
 ]);
 
 function hasUnsafeSlashToken(value) {
@@ -586,13 +591,8 @@ function sanitizePublicVersion(value) {
       || /[\\/]/u.test(normalized)) {
     return publicWithheldLabel;
   }
-  const semanticVersion = /^v?\d+(?:\.\d+){1,3}(?:-[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?(?:\+[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?$/u;
-  const releaseNumber = /^(?:release|rel)[-_]v?\d+(?:[._-]\d+){0,3}$/iu;
-  const calendarDate = /^\d{4}[-.]\d{2}[-.]\d{2}$/u;
-  const commitHash = /^[a-f0-9]{7,64}$/iu;
-  return [semanticVersion, releaseNumber, calendarDate, commitHash].some((pattern) => pattern.test(normalized))
-    ? normalized
-    : publicWithheldLabel;
+  if (/^[\p{L}\p{N}][\p{L}\p{N} ._()#-]{0,127}$/u.test(normalized)) return normalized;
+  return publicWithheldLabel;
 }
 
 function sanitizePublicModelStrings(value, pathParts = []) {

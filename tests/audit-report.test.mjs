@@ -508,6 +508,12 @@ test("run-backed renderer rejects internal control metadata embedded in register
   }
 });
 
+test("run-backed public model preserves ordinary slash prose and public release labels", () => {
+  for (const value of ["音声/字幕", "Windows/macOS", "A/B", "入力/確認/完了", "JIS/WCAG"]) {
+    assert.doesNotMatch(value, /Withheld from public report/);
+  }
+});
+
 test("run-backed public model permits ordinary workflow words such as screened", () => {
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), "a11y-run-backed-ordinary-state-word-"));
   try {
