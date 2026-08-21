@@ -332,7 +332,7 @@ export function validateAssessment(record, registry, schema, criteriaCatalog, au
     }
   }
 
-  const blockingOutcomes = ["fail", "not_tested", "cant_tell"].filter((outcome) => outcomeCounts[outcome] > 0);
+  const blockingOutcomes = ["fail", "not_tested", "cant_tell"].filter((outcome) => profileOutcomeCounts[outcome] > 0);
   if (blockingOutcomes.length > 0 && tierOrder.indexOf(maxTier) > tierOrder.indexOf("evaluated_subset")) {
     maxTier = "evaluated_subset";
   }

@@ -84,6 +84,14 @@ test("E1 evidence can be screened", () => {
   assert.equal(result.guard.max_tier, "screened");
 });
 
+test("screening outcomes are not formal profile claim blockers", () => {
+  const value = record();
+  value.assessment.results = [screeningResult()];
+  const result = validate(value);
+  assert.equal(result.guard.screening_outcome_counts.cant_tell, 1);
+  assert.deepEqual(result.guard.blocking_outcomes, []);
+});
+
 test("not_tested blocks conformance requests", () => {
   const value = record();
   value.assessment.evidence_level = "E2";
