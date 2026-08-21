@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "web_inspection_required", "web_inspection_recommended", "capabilities"],
+  "properties": {
+    "schema_version": { "const": "1.0.0" },
+    "web_inspection_required": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
+    "web_inspection_recommended": { "type": "array", "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
+    "capabilities": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "provider", "description"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "provider": { "enum": ["installed_cli", "host_required", "external_human_or_host"] },
+          "description": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  }
+}

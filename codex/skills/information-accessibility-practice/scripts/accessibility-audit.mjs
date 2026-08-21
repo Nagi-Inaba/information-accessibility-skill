@@ -29,7 +29,12 @@ const commands = new Map([
     summary: "Show supporting checks for stateful UI and screen-reader behavior.",
     usage: "accessibility-audit screen-reader-checklist [--pattern modal-dialog|disclosure|menu-button|fragmented-text|all] [--format json|markdown]"
   }],
-  ["validate-run", {
+  ["capabilities", {
+      script: "show-runtime-capabilities.mjs",
+      summary: "Preflight browser and assistive-technology capabilities required for Web inspection.",
+      usage: "accessibility-audit capabilities [--provided <capability-id>]... [--require-web] [--format json|markdown]"
+    }],
+      ["validate-run", {
     script: "validate-audit-run.mjs",
     summary: "Validate an immutable audit run and write a new validation record.",
     usage: "accessibility-audit validate-run --input <run.json> --output <new-validation.json>"

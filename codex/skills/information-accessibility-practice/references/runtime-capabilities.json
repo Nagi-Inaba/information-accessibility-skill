@@ -1,0 +1,14 @@
+{
+  "schema_version": "1.0.0",
+  "web_inspection_required": ["network_fetch", "browser_dom", "accessibility_tree", "keyboard_input", "responsive_viewport"],
+  "web_inspection_recommended": ["screen_reader_runtime"],
+  "capabilities": [
+    { "id": "record_control_plane", "provider": "installed_cli", "description": "Create, validate, register, merge, and report audit records." },
+    { "id": "network_fetch", "provider": "host_required", "description": "Load the named target within an enforced network policy." },
+    { "id": "browser_dom", "provider": "host_required", "description": "Inspect the rendered DOM rather than source text alone." },
+    { "id": "accessibility_tree", "provider": "host_required", "description": "Inspect computed roles, names, states, and relationships." },
+    { "id": "keyboard_input", "provider": "host_required", "description": "Exercise focus movement and keyboard-only operation." },
+    { "id": "responsive_viewport", "provider": "host_required", "description": "Inspect reflow and responsive variants at named viewports." },
+    { "id": "screen_reader_runtime", "provider": "external_human_or_host", "description": "Record actual assistive-technology behavior where required." }
+  ]
+}
