@@ -1,0 +1,77 @@
+name: Finalize issue 3
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+permissions:
+  contents: write
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/issue-3-safe-assessment-output
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Apply fix and tests
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          for base in ["codex", "claude"]:
+              p = Path(base) / "skills/information-accessibility-practice/scripts/generate-assessment.mjs"
+              text = p.read_text()
+              text = text.replace('import { profileConfiguration, recordsForProfile } from "./lib/profile-registry.mjs";\n', 'import { profileConfiguration, recordsForProfile } from "./lib/profile-registry.mjs";\nimport { writeNewText } from "./lib/audit-run.mjs";\n')
+              old = '''  const output = path.resolve(options.output);\n  if (fs.existsSync(output)) throw new Error(`Refusing to overwrite existing file: ${output}`);\n  fs.mkdirSync(path.dirname(output), { recursive: true });\n  fs.writeFileSync(output, serialized, "utf8");\n  console.log(JSON.stringify({ status: "PASS", profile: options.profileId, output, requirements: record.assessment.results.length }));'''
+              new = '''  const output = writeNewText(path.resolve(options.output), serialized);\n  console.log(JSON.stringify({ status: "PASS", profile: options.profileId, output, requirements: record.assessment.results.length }));'''
+              if old not in text: raise SystemExit(f"unexpected generator shape: {p}")
+              p.write_text(text.replace(old, new, 1))
+          Path("tests/generate-assessment-output-safety.test.mjs").write_text(r'''import assert from "node:assert/strict";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { spawnSync } from "node:child_process";
+import test from "node:test";
+import { fileURLToPath } from "node:url";
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const script = path.join(root, "codex/skills/information-accessibility-practice/scripts/generate-assessment.mjs");
+const common = [script, "--profile", "web-modern", "--target-name", "Example", "--target-version", "v1", "--target-ref", "https://example.invalid/", "--evaluator", "Reviewer", "--evaluated-at", "2026-08-22"];
+
+test("generate-assessment never overwrites an existing output", () => {
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), "assessment-safe-"));
+  const output = path.join(temp, "audit.json");
+  fs.writeFileSync(output, "sentinel\n");
+  const result = spawnSync(process.execPath, [...common, "--output", output], { encoding: "utf8" });
+  assert.notEqual(result.status, 0);
+  assert.equal(fs.readFileSync(output, "utf8"), "sentinel\n");
+});
+
+test("generate-assessment rejects a symlinked output parent", { skip: process.platform === "win32" }, () => {
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), "assessment-link-"));
+  const real = path.join(temp, "real");
+  const link = path.join(temp, "link");
+  fs.mkdirSync(real);
+  fs.symlinkSync(real, link, "dir");
+  const result = spawnSync(process.execPath, [...common, "--output", path.join(link, "audit.json")], { encoding: "utf8" });
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /symbolic link|reparse|Unsafe output parent/i);
+  assert.equal(fs.existsSync(path.join(real, "audit.json")), false);
+});
+''')
+          PY
+      - name: Verify
+        run: |
+          node --test tests/generate-assessment-output-safety.test.mjs
+          node scripts/verify-package.mjs
+      - name: Commit
+        shell: bash
+        run: |
+          rm .github/workflows/one-shot-issue3.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- codex/skills/information-accessibility-practice/scripts/generate-assessment.mjs claude/skills/information-accessibility-practice/scripts/generate-assessment.mjs tests/generate-assessment-output-safety.test.mjs .github/workflows/one-shot-issue3.yml
+          git commit -m "fix: use safe exclusive writer for assessment output"
+          git push origin HEAD:fix/issue-3-safe-assessment-output
