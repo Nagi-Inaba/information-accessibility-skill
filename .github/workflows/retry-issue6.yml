@@ -1,0 +1,121 @@
+name: Retry issue 6 quickstart
+
+on:
+  push:
+    branches: [docs/issue-6-five-minute-quickstart]
+
+permissions:
+  contents: write
+
+jobs:
+  docs-and-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: docs/issue-6-five-minute-quickstart
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Add guided quickstart
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          guide = r'''# Getting started / はじめに
+
+This guide gives a new user one short path through the package without requiring knowledge of its internal schemas or agent graph.
+このガイドは、内部スキーマやエージェント構成を先に理解しなくても、最初の1回を実行できるようにするものです。
+
+## 1. Choose the result you need / 欲しい結果を選ぶ
+
+| Goal / 目的 | Entry / 入口 | Result / 成果物 |
+| --- | --- | --- |
+| Find likely barriers and improvement ideas / 問題候補と改善案を知る | Natural-language skill or reviewer agent / 自然言語のスキル・reviewer | Review summary and human follow-up / レビュー要約と人による追加確認 |
+| Create a standards ledger / 規格台帳を作る | `assessment` | JSON with every profile row initialized as `not_tested` |
+| Preserve a multi-step audit trail / 監査工程を追跡する | `init` → artifacts → `merge` → `report` | Immutable run chain, merged assessment, report |
+
+The CLI is a record and validation control plane. It does not open a browser or obtain an accessibility tree by itself.
+CLIは記録・検証のcontrol planeであり、それ単体でブラウザーを開いたりaccessibility treeを取得したりはしません。
+
+## 2. Five-minute standalone path / 5分で試すstandalone経路
+
+Run from the repository root. The example creates a complete WCAG 2.2 A/AA ledger whose 55 rows remain explicitly untested, validates it, and renders a guarded report.
+リポジトリルートで実行します。55件をすべて未確認として含む台帳を作り、検証し、制約付きレポートへ変換します。
+
+```powershell
+node .\codex\skills\information-accessibility-practice\scripts\generate-assessment.mjs --profile web-modern --target-name "Example Site" --target-version "2026-08-22" --target-ref "https://example.com/" --evaluator "Accessibility Reviewer" --evaluated-at "2026-08-22" --output .\audit.json
+node .\codex\skills\information-accessibility-practice\scripts\validate-assessment.mjs .\audit.json
+node .\codex\skills\information-accessibility-practice\scripts\render-audit-report.mjs --input .\audit.json --output .\audit-report.md
+```
+
+Expected files / 生成物:
+
+- `audit.json`: complete profile ledger; initialization is not completed inspection / 完全な規格台帳。初期化は検査完了ではない
+- `audit-report.md`: human-readable report showing `未確認` until evidence is added / 証拠追加前は未確認と示すレポート
+
+## 3. When to use run-backed auditing / run-backedを使う場合
+
+Use a run when you need immutable target metadata, explicit permissions, registered evidence artifacts, external human review, remediation provenance, or retest history.
+対象・権限・証拠artifact・外部人手review・改善履歴・再検査を追跡したい場合にrunを使います。
+
+1. Create an existing empty artifact directory and initialize the run.
+2. Create the baseline assessment for the same target and profile.
+3. Materialize and register screening, queue, human-review, and remediation artifacts as applicable.
+4. Merge only registered artifacts into a new assessment.
+5. Validate and render the public report.
+
+The complete control-plane contract is documented in:
+詳細な契約は次を参照してください。
+
+- [`agent-orchestration.md`](../codex/skills/information-accessibility-practice/references/agent-orchestration.md)
+- [`standards-assessment.md`](../codex/skills/information-accessibility-practice/references/standards-assessment.md)
+- [`development-web-audit-request.template.md`](../codex/skills/information-accessibility-practice/assets/development-web-audit-request.template.md)
+
+## 4. Evidence boundary / 証拠の境界
+
+- AI and automated tools may create E0/E1 screening observations.
+- A profile requirement becomes evaluated only through an external human review using the applicable procedure and target-specific evidence.
+- Missing, uncertain, and not-applicable states remain visible; they are never converted to pass by omission.
+- The generated report is not third-party certification or a formal organizational conformance statement.
+
+AI・自動処理はE0/E1のscreeningを作れます。規格条項の評価は、対象固有の証拠を伴う外部人手reviewによってのみ記録します。未確認や不明を省略して適合へ変換しません。
+'''
+          Path("docs").mkdir(exist_ok=True)
+          Path("docs/getting-started.md").write_text(guide)
+          for filename, heading, addition in [
+            ("README.md", "## 使い方を選ぶ\n", "## 使い方を選ぶ\n\n### 5分で試す\n\n初回は、[はじめに／Getting started](docs/getting-started.md)のstandalone経路を使うと、台帳生成、検証、レポート生成までを一続きで確認できます。\n"),
+            ("README.en.md", "## Choose a usage path\n", "## Choose a usage path\n\n### Try it in five minutes\n\nFor a first run, follow the standalone path in [Getting started / はじめに](docs/getting-started.md) to create a ledger, validate it, and render a report as one sequence.\n")
+          ]:
+              path = Path(filename)
+              text = path.read_text()
+              if "docs/getting-started.md" not in text:
+                  if text.count(heading) != 1: raise SystemExit(f"heading changed: {filename}")
+                  path.write_text(text.replace(heading, addition, 1))
+          Path("tests/getting-started-doc.test.mjs").write_text(r'''import assert from "node:assert/strict";
+          import fs from "node:fs";
+          import path from "node:path";
+          import test from "node:test";
+          test("READMEs expose the same five-minute path", () => {
+            for (const file of ["README.md", "README.en.md"]) assert.match(fs.readFileSync(file, "utf8"), /docs\/getting-started\.md/u);
+          });
+          test("getting-started links and identity flags are complete", () => {
+            const text = fs.readFileSync("docs/getting-started.md", "utf8");
+            for (const flag of ["--profile", "--target-name", "--target-version", "--target-ref", "--evaluator", "--evaluated-at", "--output"]) assert.match(text, new RegExp(flag));
+            for (const link of [...text.matchAll(/\[[^\]]+\]\((?<target>\.\.[^)]+)\)/gu)].map((match) => match.groups.target)) assert.equal(fs.existsSync(path.resolve("docs", link)), true, link);
+          });
+          ''')
+          PY
+      - name: Verify docs
+        run: |
+          node --test tests/getting-started-doc.test.mjs tests/readme-i18n.test.mjs
+          node scripts/verify-package.mjs
+      - name: Commit verified change
+        run: |
+          rm .github/workflows/one-shot-issue6.yml .github/workflows/retry-issue6.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- README.md README.en.md docs/getting-started.md tests/getting-started-doc.test.mjs .github/workflows/one-shot-issue6.yml .github/workflows/retry-issue6.yml
+          git commit -m "docs: add a five-minute guided quickstart"
+          git push origin HEAD:docs/issue-6-five-minute-quickstart
