@@ -1,0 +1,192 @@
+name: Finalize issue 8
+on:
+  push:
+    branches: [docs/issue-8-architecture-overview]
+permissions:
+  contents: write
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: docs/issue-8-architecture-overview
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Add architecture overview and glossary
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          ja = '''# アーキテクチャ概要と用語集
+
+## 全体フロー
+
+```mermaid
+flowchart TD
+  A[対象と依頼] --> B[reviewer / skill]
+  B --> C[audit run と初期 assessment]
+  C --> D[E0/E1 screening observations]
+  D --> E[human review queue]
+  E --> F[外部の人による条項別確認]
+  D --> G[remediation plan]
+  F --> G
+  G --> H[merge]
+  H --> I[validate]
+  I --> J[public report]
+  G --> K[許可された変更]
+  K --> L[新しい retest run]
+```
+
+CLIは監査記録を管理するcontrol planeです。browser DOM、accessibility tree、keyboard操作、screen reader実機はhost capabilityです。
+
+## 三つの入口
+
+| 入口 | 用途 | 主な成果物 |
+| --- | --- | --- |
+| 自然言語レビュー | まず障壁と改善案を知る | 会話上の観測、改善案、人手確認事項 |
+| standalone assessment | 一つのJSON台帳を作る | assessment、validation、Markdown report |
+| run-backed workflow | 複数工程の証拠と履歴を追う | audit run、artifact群、merged assessment、public report |
+
+## 役割と境界
+
+| 役割 | 作成するもの | できないこと |
+| --- | --- | --- |
+| reviewer | runの調整、最終的な引き渡し | AIだけでprofile outcomeを確定しない |
+| E1 inspector | `SCREEN-*`観測 | WCAG/JISのpass/failを人手確認済みとして記録しない |
+| human queue planner | 人が確認する手順一覧 | 人の代わりに結果を作らない |
+| external human reviewer | 条項別の対象固有証拠とoutcome | identityは別途認証されない限りself-declared |
+| remediation planner | 改善案と再確認方法 | 未検証候補を確認済みfindingへ昇格しない |
+| authorized fixer | 許可内容の定型handoff | generic commandや無許可書込みを行わない |
+
+## 成果物の関係
+
+| 成果物 | 作成者 | 次の入力 | 公開可否 |
+| --- | --- | --- | --- |
+| audit run | orchestrator | すべてのartifact | 内部。public reportへ必要最小限だけ投影 |
+| assessment | generator / merge | validator、renderer | 公開前にprivacy reviewが必要 |
+| screening observations | E1 inspector | queue、remediation、report projection | raw evidenceは原則内部 |
+| human review queue | queue planner | external human review | 人への作業票として共有可能 |
+| declared human review | external human | merge、report | reviewer情報の公開範囲を確認 |
+| remediation plan | remediation planner | merge、fix、retest | 対象固有情報を確認して共有 |
+| public report | renderer | 利害関係者 | 公開用sanitization後に共有 |
+
+## 用語集
+
+- **profile requirement**: WCAG/JIS等の登録済み条項。人による対象固有証拠がない限り評価済みにしない。
+- **screening check / `SCREEN-*`**: AI・自動・軽量検査の補助観測。profile outcomeとは別物。
+- **E0〜E5**: 参照のみから法務・調達dossierまでの証拠強度。
+- **claim tier**: 記録から表明できる範囲。証拠を超えて上げない。
+- **artifact**: runへ登録されるversioned JSON成果物。
+- **run-backed**: artifact hash、producer、transitionをaudit runへ結び付ける経路。
+- **standalone**: 単一assessmentを直接validate/renderする簡易経路。
+- **report-only judgement**: AI screeningを公開レポート上で整理する表示。machine-readable profile outcomeではない。
+'''
+          en = '''# Architecture overview and glossary
+
+## End-to-end flow
+
+```mermaid
+flowchart TD
+  A[Target and request] --> B[reviewer / skill]
+  B --> C[audit run and initial assessment]
+  C --> D[E0/E1 screening observations]
+  D --> E[human review queue]
+  E --> F[external criterion review]
+  D --> G[remediation plan]
+  F --> G
+  G --> H[merge]
+  H --> I[validate]
+  I --> J[public report]
+  G --> K[authorized change]
+  K --> L[new retest run]
+```
+
+The CLI is the audit-record control plane. Browser DOM, accessibility-tree access, keyboard operation, and real screen-reader execution are host capabilities.
+
+## Three entry paths
+
+| Entry | Purpose | Main outputs |
+| --- | --- | --- |
+| Natural-language review | Find barriers and remediation ideas first | observations, remediation ideas, human-review items |
+| Standalone assessment | Maintain one JSON ledger | assessment, validation, Markdown report |
+| Run-backed workflow | Track evidence and history across stages | audit run, artifacts, merged assessment, public report |
+
+## Roles and boundaries
+
+| Role | Produces | Must not do |
+| --- | --- | --- |
+| reviewer | orchestration and final handoff | confirm profile outcomes from AI evidence alone |
+| E1 inspector | `SCREEN-*` observations | present WCAG/JIS pass/fail as human-verified |
+| human queue planner | review procedures | fabricate human outcomes |
+| external human reviewer | target-specific evidence and outcomes | imply authenticated identity without separate assurance |
+| remediation planner | remediation and retest instructions | promote unverified candidates to verified findings |
+| authorized fixer | structured authorization handoff | execute generic commands or unauthorized writes |
+
+## Artifact relationships
+
+| Artifact | Producer | Used by | Publication |
+| --- | --- | --- | --- |
+| audit run | orchestrator | every artifact | internal; only minimum safe context reaches the public report |
+| assessment | generator / merge | validator, renderer | requires privacy review before publication |
+| screening observations | E1 inspector | queue, remediation, report projection | raw evidence is normally internal |
+| human review queue | queue planner | external human review | suitable as a review worksheet |
+| declared human review | external human | merge, report | review publication of reviewer information |
+| remediation plan | remediation planner | merge, fix, retest | review target-specific details before sharing |
+| public report | renderer | stakeholders | share after public sanitization |
+
+## Glossary
+
+- **profile requirement**: a registered WCAG/JIS requirement; it is not evaluated without target-specific human evidence.
+- **screening check / `SCREEN-*`**: supporting AI, automated, or lightweight observation; it is not a profile outcome.
+- **E0–E5**: evidence strength from reference-only guidance to a legal or procurement dossier.
+- **claim tier**: the strongest registered wording supported by the evidence.
+- **artifact**: a versioned JSON output registered to a run.
+- **run-backed**: the path that binds artifact hashes, producers, and transitions to an audit run.
+- **standalone**: the simpler path that directly validates and renders one assessment.
+- **report-only judgement**: a public presentation of AI screening; not a machine-readable profile outcome.
+'''
+          Path("docs").mkdir(exist_ok=True)
+          Path("docs/architecture.md").write_text(ja)
+          Path("docs/architecture.en.md").write_text(en)
+
+          changes = {
+            "README.md": ('## パッケージ構成', '## 仕組みを理解する\n\nスキル、エージェント、CLI、各JSON成果物、人手確認の関係は[アーキテクチャ概要と用語集](docs/architecture.md)で確認できます。\n\n## パッケージ構成'),
+            "README.en.md": ('## Package layout', '## Understand the system\n\nSee the [architecture overview and glossary](docs/architecture.en.md) for the relationship between the skill, agents, CLI, JSON artifacts, and human review.\n\n## Package layout')
+          }
+          for name, (old, new) in changes.items():
+            path = Path(name)
+            text = path.read_text()
+            if old not in text: raise SystemExit(f"README marker missing: {name}")
+            path.write_text(text.replace(old, new, 1))
+
+          Path("tests/architecture-docs.test.mjs").write_text('''import assert from "node:assert/strict";
+          import fs from "node:fs";
+          import test from "node:test";
+
+          for (const file of ["docs/architecture.md", "docs/architecture.en.md"]) {
+            test(`${file} explains the complete artifact and human-review flow`, () => {
+              const text = fs.readFileSync(file, "utf8");
+              for (const term of ["screening observations", "human review queue", "remediation plan", "public report", "standalone", "run-backed", "claim tier", "SCREEN-*"]) {
+                assert.match(text.toLowerCase(), new RegExp(term.toLowerCase().replace(/[.*+?^${}()|[\\]\\]/g, "\\$&")));
+              }
+            });
+          }
+          ''')
+          PY
+      - name: Verify
+        run: |
+          node --test tests/architecture-docs.test.mjs tests/readme-i18n.test.mjs
+          node scripts/verify-package.mjs
+      - name: Commit verified change
+        shell: bash
+        run: |
+          rm .github/workflows/one-shot-issue8.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- README.md README.en.md docs/architecture.md docs/architecture.en.md tests/architecture-docs.test.mjs .github/workflows/one-shot-issue8.yml
+          git commit -m "docs: explain the audit architecture and artifact flow"
+          git push origin HEAD:docs/issue-8-architecture-overview
