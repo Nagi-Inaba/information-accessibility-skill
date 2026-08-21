@@ -1,12 +1,18 @@
 name: Finalize issue 18
 
 on:
+  push:
+    branches: [feat/issue-18-profile-aware-reports]
   pull_request:
     branches: [main]
     types: [opened, synchronize, reopened]
 
 permissions:
   contents: write
+
+concurrency:
+  group: issue-18-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   implement-and-verify:
@@ -55,28 +61,34 @@ jobs:
               if 'function reportTitleForProfile' not in text:
                   if text.count(marker) != 1: raise SystemExit(f"title helper marker missing: {report}")
                   text = text.replace(marker, helper + marker, 1)
-              text = text.replace('    "# WCAG検査レポート",', '    reportTitleForProfile(assessment.profile.id),', 1)
 
-              model_marker = '  const model = {\n'
+              if 'reportTitleForProfile(assessment.profile.id)' not in text:
+                  standalone_title = '    "# WCAG検査レポート",\n'
+                  if text.count(standalone_title) < 2: raise SystemExit(f"report title markers missing: {report}")
+                  text = text.replace(standalone_title, '    reportTitleForProfile(assessment.profile.id),\n', 1)
+
               profile_lookup = '  const profileDefinition = resources?.standardsRegistry?.profiles?.find((profile) => profile.id === run.profile.id);\n  const reportGroupsForProfile = reportGroupCounts(profileDefinition, reportProjection.checks, reportProjection.notApplicable);\n'
               if profile_lookup not in text:
-                  if text.count(model_marker) != 1: raise SystemExit(f"public model marker missing: {report}")
-                  text = text.replace(model_marker, profile_lookup + model_marker, 1)
+                  marker = '  const model = {\n'
+                  if text.count(marker) != 1: raise SystemExit(f"public model marker missing: {report}")
+                  text = text.replace(marker, profile_lookup + marker, 1)
+
               old_profile = '    profile: structuredClone(run.profile),\n'
               new_profile = '    profile: { ...structuredClone(run.profile), display_name: profileDefinition?.display_name ?? run.profile.id, report_groups: reportGroupsForProfile.groups },\n'
               if new_profile not in text:
                   if text.count(old_profile) != 1: raise SystemExit(f"model profile marker missing: {report}")
                   text = text.replace(old_profile, new_profile, 1)
+
               coverage_marker = '    reportOutcomeCounts: reportProjection.counts,\n'
-              coverage_addition = coverage_marker + '    reportGroupOutcomeCounts: reportGroupsForProfile.counts,\n'
               if 'reportGroupOutcomeCounts:' not in text:
                   if text.count(coverage_marker) != 1: raise SystemExit(f"group count model marker missing: {report}")
-                  text = text.replace(coverage_marker, coverage_addition, 1)
+                  text = text.replace(coverage_marker, coverage_marker + '    reportGroupOutcomeCounts: reportGroupsForProfile.counts,\n', 1)
 
-              run_title = '    "# WCAG検査レポート",\n'
-              if run_title not in text: raise SystemExit(f"run-backed title marker missing: {report}")
-              text = text.replace(run_title, '    reportTitleForProfile(model.profile.id),\n', 1)
-              section_marker = '    "## 2. 検査対象",\n'
+              if 'reportTitleForProfile(model.profile.id)' not in text:
+                  run_title = '    "# WCAG検査レポート",\n'
+                  if text.count(run_title) != 1: raise SystemExit(f"run-backed title marker missing: {report}")
+                  text = text.replace(run_title, '    reportTitleForProfile(model.profile.id),\n', 1)
+
               group_section = '''    ...(model.profile.report_groups?.length > 1 ? [
                 "### プロファイル区分別件数",
                 "",
@@ -87,6 +99,7 @@ jobs:
               ] : []),
               '''
               if group_section not in text:
+                  section_marker = '    "## 2. 検査対象",\n'
                   if text.count(section_marker) != 1: raise SystemExit(f"group section marker missing: {report}")
                   text = text.replace(section_marker, group_section + section_marker, 1)
               report.write_text(text)
