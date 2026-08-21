@@ -7,6 +7,10 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const scriptRoot = path.dirname(fileURLToPath(import.meta.url));
+const skillRoot = path.dirname(scriptRoot);
+const readJson = (file) => JSON.parse(fs.readFileSync(file, "utf8").replace(/^\uFEFF/u, ""));
+const packageInfo = readJson(path.join(skillRoot, "package.json"));
+const standardsRegistry = readJson(path.join(skillRoot, "references", "standards-registry.json"));
 
 const commands = new Map([
   ["init", {
@@ -17,7 +21,7 @@ const commands = new Map([
   ["assessment", {
     script: "generate-assessment.mjs",
     summary: "Create a complete not-tested assessment for an active profile.",
-    usage: "accessibility-audit assessment --profile <id> [assessment options]"
+    usage: "accessibility-audit assessment --profile <id> [--target-name <name> --target-version <version> --target-ref <url|file> --evaluator <name> --evaluated-at <YYYY-MM-DD>] [--output <new-assessment.json>]"
   }],
   ["requirement", {
     script: "show-requirement.mjs",
@@ -52,14 +56,25 @@ const commands = new Map([
   ["report", {
     script: "render-audit-report.mjs",
     summary: "Render a new guarded Markdown report from a validated assessment.",
-    usage: "accessibility-audit report --input <assessment.json> --output <new-report.md>"
+    usage: "accessibility-audit report (--input <assessment.json> [--output <new-report.md>] | --run <run.json> --assessment <assessment.json> --output <new-report.md>)"
   }],
   ["retest", {
     script: "create-audit-run.mjs",
     summary: "Create a fresh audit run from a completed authorized-change predecessor.",
     usage: "accessibility-audit retest --supersedes-run <old-run.json> [all init options for the new target version]",
     requiredFlag: "--supersedes-run"
+  }],
+  ["profiles", {
+    internal: true,
+    summary: "List installed assessment profiles and their activation state.",
+    usage: "accessibility-audit profiles [--format text|json]"
+  }],
+  ["doctor", {
+    internal: true,
+    summary: "Inspect the installed CLI, Node runtime, profiles, and required package files.",
+    usage: "accessibility-audit doctor [--format text|json]"
   }]
+
 ]);
 
 function helpText() {
@@ -77,6 +92,58 @@ function helpText() {
     "It does not evaluate conformance by itself and does not expose target mutation.",
     "Run accessibility-audit <command> --help for command-specific usage."
   ].join("\n");
+}
+
+function selectedFormat(args) {
+  if (args.length === 0) return "text";
+  if (args.length !== 2 || args[0] !== "--format" || !["text", "json"].includes(args[1])) {
+    throw new Error("Use --format text or --format json");
+  }
+  return args[1];
+}
+
+function profilesOutput(args) {
+  const format = selectedFormat(args);
+  const profiles = standardsRegistry.profiles.map((profile) => ({
+    id: profile.id,
+    display_name: profile.display_name,
+    active: profile.assessment_configuration?.active === true,
+    requirement_count: profile.requirement_ids?.length ?? 0,
+    implementation_status: profile.implementation_status,
+    claim_ceiling: profile.claim_rules?.claim_ceiling ?? null
+  }));
+  if (format === "json") return `${JSON.stringify({ registry_version: standardsRegistry.schema_version, profiles }, null, 2)}\n`;
+  return `${profiles.map((profile) => `${profile.id}\t${profile.active ? "active" : "inactive"}\t${profile.requirement_count}\t${profile.display_name}`).join("\n")}\n`;
+}
+
+function doctorOutput(args) {
+  const format = selectedFormat(args);
+  const required = [
+    "package.json",
+    "references/standards-registry.json",
+    "references/criteria-catalog.json",
+    "references/assessment-record.schema.json",
+    "scripts/accessibility-audit.mjs"
+  ];
+  const files = required.map((relative) => ({ relative, present: fs.existsSync(path.join(skillRoot, relative)) }));
+  const result = {
+    status: files.every((file) => file.present) && Number.parseInt(process.versions.node.split(".")[0], 10) >= 20 ? "PASS" : "FAIL",
+    cli_version: packageInfo.version,
+    node_version: process.versions.node,
+    skill_root: skillRoot,
+    standards_registry_version: standardsRegistry.schema_version,
+    active_profiles: standardsRegistry.profiles.filter((profile) => profile.assessment_configuration?.active).map((profile) => profile.id),
+    files
+  };
+  if (format === "json") return `${JSON.stringify(result, null, 2)}\n`;
+  return [
+    `Status: ${result.status}`,
+    `CLI: ${result.cli_version}`,
+    `Node: ${result.node_version}`,
+    `Standards registry: ${result.standards_registry_version}`,
+    `Active profiles: ${result.active_profiles.join(", ") || "none"}`,
+    ...files.map((file) => `${file.present ? "OK" : "MISSING"}: ${file.relative}`)
+  ].join("\n") + "\n";
 }
 
 function writeError(message) {
@@ -105,6 +172,11 @@ export function main(argv = process.argv.slice(2)) {
     return 0;
   }
 
+  if (argv[0] === "--version" || argv[0] === "-V") {
+    process.stdout.write(`${packageInfo.version}\n`);
+    return 0;
+  }
+
   const [command, ...args] = argv;
   if (["fix", "apply-fix", "apply-authorized-fix"].includes(command)) {
     writeError("Target mutation is not available from the standard CLI. Use the separately authorized fixer runtime with an exact validated authorization.");
@@ -127,6 +199,16 @@ export function main(argv = process.argv.slice(2)) {
     writeError(`${command} requires ${definition.requiredFlag}.`);
     writeError(`Usage: ${definition.usage}`);
     return 2;
+  }
+
+  if (definition.internal) {
+    try {
+      process.stdout.write(command === "profiles" ? profilesOutput(args) : doctorOutput(args));
+      return 0;
+    } catch (error) {
+      writeError(error instanceof Error ? error.message : String(error));
+      return 2;
+    }
   }
 
   return runCommand(definition, args);
