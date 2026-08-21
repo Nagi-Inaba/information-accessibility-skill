@@ -1,0 +1,111 @@
+name: Finalize issue 9
+on:
+  push:
+    branches: [examples/issue-9-standalone-e2e]
+permissions:
+  contents: write
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: examples/issue-9-standalone-e2e
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Add executable standalone example
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          root = Path("examples/standalone-web-ledger")
+          root.mkdir(parents=True, exist_ok=True)
+          root.joinpath("README.md").write_text('''# Standalone Web ledger example
+
+This example creates a complete 55-row `web-modern` assessment ledger, validates it, and renders a Markdown report.
+
+```sh
+node examples/standalone-web-ledger/run.mjs ./example-output
+```
+
+Generated files:
+
+- `assessment.json`: the machine-readable standards ledger
+- `validation.json`: validation and claim-guard output
+- `audit-report.md`: the human-readable report
+
+Every profile row begins as `not_tested`. This example verifies the workflow wiring; it does not inspect the live page and does not support a formal conformance statement.
+''')
+          root.joinpath("run.mjs").write_text(r'''import fs from "node:fs";
+          import path from "node:path";
+          import process from "node:process";
+          import { spawnSync } from "node:child_process";
+          import { fileURLToPath } from "node:url";
+
+          const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+          const skill = path.join(repo, "codex/skills/information-accessibility-practice");
+          const outputRoot = path.resolve(process.argv[2] ?? path.join(repo, "example-output"));
+          if (fs.existsSync(outputRoot)) throw new Error(`Refusing to reuse existing output directory: ${outputRoot}`);
+          fs.mkdirSync(outputRoot, { recursive: false });
+
+          const assessment = path.join(outputRoot, "assessment.json");
+          const validation = path.join(outputRoot, "validation.json");
+          const report = path.join(outputRoot, "audit-report.md");
+          const run = (script, args) => {
+            const result = spawnSync(process.execPath, [path.join(skill, "scripts", script), ...args], { encoding: "utf8" });
+            if (result.status !== 0) throw new Error(`${script} failed: ${result.stderr || result.stdout}`);
+            return result.stdout;
+          };
+
+          run("generate-assessment.mjs", [
+            "--profile", "web-modern",
+            "--target-name", "Example Site",
+            "--target-version", "fixture-v1",
+            "--target-ref", "https://example.invalid/",
+            "--evaluator", "Example Reviewer",
+            "--evaluated-at", "2026-08-22",
+            "--output", assessment
+          ]);
+          fs.writeFileSync(validation, run("validate-assessment.mjs", [assessment]), "utf8");
+          run("render-audit-report.mjs", ["--input", assessment, "--output", report]);
+          console.log(JSON.stringify({ assessment, validation, report }, null, 2));
+          ''')
+
+          Path("tests/standalone-example.test.mjs").write_text(r'''import assert from "node:assert/strict";
+          import fs from "node:fs";
+          import os from "node:os";
+          import path from "node:path";
+          import { spawnSync } from "node:child_process";
+          import test from "node:test";
+
+          test("standalone example runs end to end and produces a complete untested ledger", () => {
+            const parent = fs.mkdtempSync(path.join(os.tmpdir(), "a11y-example-"));
+            const output = path.join(parent, "out");
+            const result = spawnSync(process.execPath, ["examples/standalone-web-ledger/run.mjs", output], { encoding: "utf8" });
+            assert.equal(result.status, 0, result.stderr);
+            const assessment = JSON.parse(fs.readFileSync(path.join(output, "assessment.json"), "utf8"));
+            const validation = JSON.parse(fs.readFileSync(path.join(output, "validation.json"), "utf8"));
+            const report = fs.readFileSync(path.join(output, "audit-report.md"), "utf8");
+            assert.equal(assessment.assessment.results.length, 55);
+            assert.ok(assessment.assessment.results.every((row) => row.outcome === "not_tested"));
+            assert.equal(validation.valid, true);
+            assert.match(report, /未確認/u);
+          });
+          ''')
+          PY
+      - name: Verify
+        run: |
+          node --test tests/standalone-example.test.mjs
+          node scripts/verify-package.mjs
+      - name: Commit verified change
+        shell: bash
+        run: |
+          rm .github/workflows/one-shot-issue9.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- examples/standalone-web-ledger/README.md examples/standalone-web-ledger/run.mjs tests/standalone-example.test.mjs .github/workflows/one-shot-issue9.yml
+          git commit -m "examples: add a runnable standalone audit workflow"
+          git push origin HEAD:examples/issue-9-standalone-e2e
