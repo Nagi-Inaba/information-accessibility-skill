@@ -1,0 +1,179 @@
+name: Finalize issue 19
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+
+jobs:
+  implement-and-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/issue-19-report-evidence-source
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Add row-level evidence provenance
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          helpers = r'''function resultEvidenceProvenance(result) {
+            if (result.mapping_status === "human_verified") {
+              return { source: "外部人手レビュー", evidence_level: "E2+" };
+            }
+            if (result.outcome === "not_tested" && (result.evidence?.length ?? 0) === 0) {
+              return { source: "未実施", evidence_level: "E0" };
+            }
+            return { source: "限定的スクリーニング", evidence_level: "E1以下" };
+          }
+
+          const evidenceLegend = "> 判定の出所: 外部人手レビューは対象固有の手動・ハイブリッド証拠、AIスクリーニングはE0/E1の限定観測、未実施は証拠なしを示します。AIスクリーニングの表示はprofile outcomeではありません。";
+
+          '''
+
+          for base in ["codex", "claude"]:
+              report = Path(base) / "skills/information-accessibility-practice/scripts/render-audit-report.mjs"
+              text = report.read_text()
+              marker = 'export function reportJudgementForOutcome(outcome) {\n'
+              if 'function resultEvidenceProvenance' not in text:
+                  if text.count(marker) != 1: raise SystemExit(f"provenance helper marker missing: {report}")
+                  text = text.replace(marker, helpers + marker, 1)
+
+              old_rows = '''    .map((result) => [
+                result.requirement_id,
+                reportJudgementForOutcome(result.outcome),
+                resultRationale(result)
+              ]);'''
+              new_rows = '''    .map((result) => {
+                const provenance = resultEvidenceProvenance(result);
+                return [
+                  result.requirement_id,
+                  reportJudgementForOutcome(result.outcome),
+                  provenance.source,
+                  provenance.evidence_level,
+                  resultRationale(result)
+                ];
+              });'''
+              if new_rows not in text:
+                  if text.count(old_rows) != 1: raise SystemExit(f"standalone judgement rows missing: {report}")
+                  text = text.replace(old_rows, new_rows, 1)
+              old_headers = 'publicTable(["達成基準", "判定", "根拠・未確認事項"], judgementRows, "判定対象の達成基準はありません。"),'
+              new_headers = 'publicTable(["達成基準", "判定", "判定の出所", "証拠レベル", "根拠・未確認事項"], judgementRows, "判定対象の達成基準はありません。"),'
+              if new_headers not in text:
+                  if text.count(old_headers) != 1: raise SystemExit(f"standalone headers missing: {report}")
+                  text = text.replace(old_headers, new_headers, 1)
+
+              notice_marker = '    reportNotice,\n    "",\n'
+              notice_addition = '    reportNotice,\n    "",\n    evidenceLegend,\n    "",\n'
+              if text.count(evidenceLegend := '    evidenceLegend,\n') == 0:
+                  if text.count(notice_marker) != 2: raise SystemExit(f"report notice count changed: {report}")
+                  text = text.replace(notice_marker, notice_addition, 2)
+
+              if 'export function buildReportProjection' not in text:
+                  text = text.replace('function buildReportProjection(profileResults, screeningObservations) {', 'export function buildReportProjection(profileResults, screeningObservations) {', 1)
+
+              human_row = '''      const row = {
+                requirement_id: result.requirement_id,
+                outcome: result.outcome,
+                rationale: resultRationale(result),
+                applicability: result.outcome === "not_applicable" ? "not_applicable" : "applicable"
+              };'''
+              human_new = '''      const row = {
+                requirement_id: result.requirement_id,
+                outcome: result.outcome,
+                rationale: resultRationale(result),
+                applicability: result.outcome === "not_applicable" ? "not_applicable" : "applicable",
+                judgement_source: "external_human_review",
+                evidence_level: "E2+"
+              };'''
+              if 'judgement_source: "external_human_review"' not in text:
+                  if text.count(human_row) != 1: raise SystemExit(f"human projection row missing: {report}")
+                  text = text.replace(human_row, human_new, 1)
+
+              missing_row = '      checks.push({ requirement_id: result.requirement_id, outcome: "not_tested", rationale: "この検査では確認していません。", applicability: "undetermined" });'
+              missing_new = '      checks.push({ requirement_id: result.requirement_id, outcome: "not_tested", rationale: "この検査では確認していません。", applicability: "undetermined", judgement_source: "not_performed", evidence_level: "E0" });'
+              if missing_new not in text:
+                  if text.count(missing_row) != 1: raise SystemExit(f"missing projection row missing: {report}")
+                  text = text.replace(missing_row, missing_new, 1)
+
+              ai_row = '''    const row = {
+                requirement_id: result.requirement_id,
+                outcome: observation.report_outcome,
+                rationale: observation.report_rationale,
+                applicability: observation.applicability
+              };'''
+              ai_new = '''    const row = {
+                requirement_id: result.requirement_id,
+                outcome: observation.report_outcome,
+                rationale: observation.report_rationale,
+                applicability: observation.applicability,
+                judgement_source: "ai_screening",
+                evidence_level: observation.evidence_level
+              };'''
+              if 'judgement_source: "ai_screening"' not in text:
+                  if text.count(ai_row) != 1: raise SystemExit(f"AI projection row missing: {report}")
+                  text = text.replace(ai_row, ai_new, 1)
+
+              run_headers = '["達成基準・検査項目", "判定", "根拠・未確認事項"],\n      reportChecks.map((item) => [item.requirement_id, reportJudgementForOutcome(item.outcome), item.rationale]),'
+              run_new = '["達成基準・検査項目", "判定", "判定の出所", "証拠レベル", "根拠・未確認事項"],\n      reportChecks.map((item) => [\n        item.requirement_id,\n        reportJudgementForOutcome(item.outcome),\n        ({ external_human_review: "外部人手レビュー", ai_screening: "AIスクリーニング", not_performed: "未実施" })[item.judgement_source] ?? "不明",\n        item.evidence_level ?? "E0",\n        item.rationale\n      ]),'
+              if '({ external_human_review:' not in text:
+                  if text.count(run_headers) != 1: raise SystemExit(f"run-backed headers missing: {report}")
+                  text = text.replace(run_headers, run_new, 1)
+              report.write_text(text)
+
+          Path("tests/report-evidence-source.test.mjs").write_text(r'''import assert from "node:assert/strict";
+          import test from "node:test";
+          import { buildReportProjection } from "../codex/skills/information-accessibility-practice/scripts/render-audit-report.mjs";
+
+          const base = (id) => ({
+            requirement_id: id,
+            requirement_kind: "profile_requirement",
+            mapping_status: "unverified",
+            outcome: "not_tested",
+            evidence: [],
+            notes: "Not yet evaluated."
+          });
+
+          test("projection distinguishes human, AI, and unperformed rows", () => {
+            const human = { ...base("WCAG-2.2-SC-1.1.1"), mapping_status: "human_verified", outcome: "pass", evidence: [{ type: "manual_observation", location: "x", observation: "y", captured_at: "2026-08-22T00:00:00Z" }], notes: "Reviewed" };
+            const aiTarget = base("WCAG-2.2-SC-2.4.7");
+            const unperformed = base("WCAG-2.2-SC-3.3.1");
+            const projection = buildReportProjection([human, aiTarget, unperformed], [{
+              requirement_id: "SCREEN-FOCUS",
+              profile_requirement_id: "WCAG-2.2-SC-2.4.7",
+              evidence_level: "E1",
+              report_outcome: "fail",
+              applicability: "applicable",
+              report_rationale: "Focus indicator was not visible."
+            }]);
+            const byId = new Map(projection.checks.map((row) => [row.requirement_id, row]));
+            assert.equal(byId.get("WCAG-2.2-SC-1.1.1").judgement_source, "external_human_review");
+            assert.equal(byId.get("WCAG-2.2-SC-1.1.1").evidence_level, "E2+");
+            assert.equal(byId.get("WCAG-2.2-SC-2.4.7").judgement_source, "ai_screening");
+            assert.equal(byId.get("WCAG-2.2-SC-2.4.7").evidence_level, "E1");
+            assert.equal(byId.get("WCAG-2.2-SC-3.3.1").judgement_source, "not_performed");
+            assert.equal(byId.get("WCAG-2.2-SC-3.3.1").evidence_level, "E0");
+          });
+          ''')
+          PY
+      - name: Verify
+        run: |
+          node --test tests/report-evidence-source.test.mjs tests/audit-report.test.mjs
+          node scripts/verify-package.mjs
+          node scripts/build-criteria-catalog.mjs --check
+      - name: Commit verified change
+        run: |
+          rm .github/workflows/one-shot-issue19.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- codex/skills/information-accessibility-practice/scripts/render-audit-report.mjs claude/skills/information-accessibility-practice/scripts/render-audit-report.mjs tests/report-evidence-source.test.mjs .github/workflows/one-shot-issue19.yml
+          git commit -m "feat: show row-level evidence provenance in reports"
+          git push origin HEAD:feat/issue-19-report-evidence-source
