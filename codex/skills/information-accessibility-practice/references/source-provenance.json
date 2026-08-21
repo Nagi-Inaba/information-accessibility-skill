@@ -1,0 +1,122 @@
+{
+  "schema_version": "1.0.0",
+  "reviewed_at": "2026-08-22",
+  "notice": "The repository's MIT license covers original project code and original documentation. It does not relicense third-party standards, translations, guidance, names, or source material. This registry is a provenance aid, not legal advice; downstream users must verify the terms that apply to their intended use.",
+  "sources": [
+    {
+      "id": "w3c-accessibility-documents",
+      "publisher": "World Wide Web Consortium (W3C)",
+      "materials": [
+        "WCAG Recommendations and errata",
+        "WCAG Understanding documents",
+        "WAI-ARIA and ARIA in HTML references",
+        "ATAG references"
+      ],
+      "source_urls": [
+        "https://www.w3.org/TR/WCAG22/",
+        "https://www.w3.org/WAI/WCAG22/errata/",
+        "https://www.w3.org/TR/wai-aria/",
+        "https://www.w3.org/TR/ATAG20/"
+      ],
+      "imported_fields": [
+        "document and criterion identifiers",
+        "titles and conformance levels",
+        "publication and source URLs",
+        "status and relationship metadata"
+      ],
+      "terms_url": "https://www.w3.org/copyright/document-license-2023/",
+      "terms_summary": "Use the terms linked from each W3C document. The W3C Document License requires the original URL, copyright notice, and document status on copies or portions. The project stores identifiers and source-linked metadata and writes original procedural summaries; it does not present modified specification text as a W3C document.",
+      "attribution": "Identify W3C as publisher, retain the original document URL and status, and do not imply W3C endorsement, certification, or authorship of this project.",
+      "modification_status": "metadata_only",
+      "review_status": "documented"
+    },
+    {
+      "id": "waic-translated-w3c-documents",
+      "publisher": "Web Accessibility Infrastructure Committee (WAIC)",
+      "materials": [
+        "Japanese translations of W3C accessibility documents"
+      ],
+      "source_urls": [
+        "https://waic.jp/translations/WCAG22/",
+        "https://waic.jp/translations/ATAG20/"
+      ],
+      "imported_fields": [
+        "Japanese document and criterion titles",
+        "translation URLs",
+        "translation status references"
+      ],
+      "terms_url": "https://waic.jp/license-for-translated-documents/",
+      "terms_summary": "WAIC states that its W3C translations may be used under conditions modeled on the W3C Document License, including a link to the WAIC document, translator attribution, document status, and a statement that the English W3C document is authoritative. Verify the notice on the specific translation before reuse.",
+      "attribution": "Credit WAIC and any additional named translators, link to the WAIC translation, preserve the document status, and state that the official version is the English document on the W3C site.",
+      "modification_status": "metadata_only",
+      "review_status": "documented"
+    },
+    {
+      "id": "waic-jis-guidance",
+      "publisher": "Web Accessibility Infrastructure Committee (WAIC)",
+      "materials": [
+        "JIS X 8341-3:2016 understanding material",
+        "JIS testing and conformance-notation guidance",
+        "A/AA quick-reference metadata"
+      ],
+      "source_urls": [
+        "https://waic.jp/docs/jis2016/understanding/201604/",
+        "https://waic.jp/docs/jis2016/test-guidelines/202012/",
+        "https://waic.jp/docs/jis2016/compliance-guidelines/202104/"
+      ],
+      "imported_fields": [
+        "JIS criterion identifiers and Japanese titles",
+        "guidance and checklist URLs",
+        "testing and reporting method references"
+      ],
+      "terms_url": null,
+      "terms_summary": "The terms for WAIC guidance outside the translated-W3C-document license must be checked for the specific page or file. The project retains source links and limited metadata and does not assume that all WAIC guidance is covered by the translation license or by the project's MIT license.",
+      "attribution": "Identify WAIC as the source and retain the exact page URL. Review the source-specific notice before copying text, tables, or substantial portions.",
+      "modification_status": "metadata_only",
+      "review_status": "needs_source_specific_review"
+    },
+    {
+      "id": "digital-agency-accessibility-policy",
+      "publisher": "Digital Agency, Government of Japan",
+      "materials": [
+        "Digital Agency web accessibility policy",
+        "The additional 18 WCAG 2.2 A/AA target criteria used for www.digital.go.jp"
+      ],
+      "source_urls": [
+        "https://www.digital.go.jp/accessibility-statement",
+        "https://www.digital.go.jp/copyright-policy"
+      ],
+      "imported_fields": [
+        "policy target scope",
+        "additional criterion identifiers, titles, and levels",
+        "policy source URL"
+      ],
+      "terms_url": "https://www.digital.go.jp/copyright-policy",
+      "terms_summary": "The Digital Agency copyright policy states that Public Data License 1.0 applies unless otherwise specified. It requires source attribution and, for edited or processed content, disclosure that editing or processing was performed and identification of the responsible party. Check exclusions and page-specific notices before reuse.",
+      "attribution": "Cite the Digital Agency, the exact source page, and disclose any editing or processing. Do not present a project-generated profile as an unmodified Digital Agency publication.",
+      "modification_status": "metadata_only",
+      "review_status": "documented"
+    },
+    {
+      "id": "jis-x-8341-3-standard",
+      "publisher": "Japanese Industrial Standards Committee / Japanese Standards Association",
+      "materials": [
+        "JIS X 8341-3:2016 standard"
+      ],
+      "source_urls": [
+        "https://www.jisc.go.jp/app/jis/general/GnrJISSearch.html",
+        "https://waic.jp/docs/jis2016/understanding/201604/"
+      ],
+      "imported_fields": [
+        "standard identifier and version",
+        "criterion identifiers",
+        "technical relationship to WCAG 2.0 / ISO/IEC 40500:2012"
+      ],
+      "terms_url": null,
+      "terms_summary": "The project does not redistribute the JIS standard text. It records identifiers, source links, and original summaries. Obtain or view the standard through an authorized source and review applicable terms before reproducing standard content.",
+      "attribution": "Refer to the standard by its correct identifier and version and link to an authorized access route. Do not describe project summaries as the official JIS text.",
+      "modification_status": "source_not_redistributed",
+      "review_status": "source_not_redistributed"
+    }
+  ]
+}
