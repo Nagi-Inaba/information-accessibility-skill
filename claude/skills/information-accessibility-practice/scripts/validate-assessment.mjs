@@ -9,6 +9,7 @@ import {
   reportGroups
 } from "./lib/profile-registry.mjs";
 import { validateJsonSchema } from "./lib/json-schema.mjs";
+import { isCalendarDate, isRfc3339DateTime } from "./lib/date-time.mjs";
 
 const tierOrder = [
   "reference_only",
@@ -199,7 +200,7 @@ export function validateAssessment(record, registry, schema, criteriaCatalog, au
         for (const key of ["type", "location", "observation", "captured_at"]) {
           if (!hasText(evidence?.[key])) errors.push(`${prefix}.evidence[${evidenceIndex}].${key} is required`);
         }
-        if (hasText(evidence?.captured_at) && (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(evidence.captured_at) || Number.isNaN(Date.parse(evidence.captured_at)))) {
+        if (hasText(evidence?.captured_at) && !isRfc3339DateTime(evidence.captured_at)) {
           errors.push(`${prefix}.evidence[${evidenceIndex}].captured_at must be a parseable ISO 8601 date-time`);
         }
       });
@@ -353,10 +354,10 @@ export function validateAssessment(record, registry, schema, criteriaCatalog, au
   if ([assessment.target?.name, assessment.target?.version_or_commit, assessment.evaluator].some((value) => value === "REPLACE_ME")) {
     errors.push("Template placeholders must be replaced before validation.");
   }
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(assessment.evaluated_at ?? "")) errors.push("evaluated_at must be YYYY-MM-DD");
-  if (assessment.next_review_at !== null && !/^\d{4}-\d{2}-\d{2}$/.test(assessment.next_review_at ?? "")) {
-    errors.push("next_review_at must be YYYY-MM-DD or null");
-  }
+  if (!isCalendarDate(assessment.evaluated_at)) errors.push("evaluated_at must be a real calendar date in YYYY-MM-DD form");
+    if (assessment.next_review_at !== null && !isCalendarDate(assessment.next_review_at)) {
+      errors.push("next_review_at must be a real calendar date in YYYY-MM-DD form or null");
+    }
 
   const expectedRequirementIds = profile?.requirement_ids ?? [];
   const recordedRequirementIds = results
