@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/information-accessibility/audit-init-config.schema.json",
+  "title": "Audit initialization scope and environment",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["included", "excluded", "complete_processes", "third_party_content", "full_pages_reviewed"],
+      "properties": {
+        "included": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "excluded": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "complete_processes": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "third_party_content": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "full_pages_reviewed": { "type": "boolean" }
+      }
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["os", "browsers", "assistive_technologies", "input_modes"],
+      "properties": {
+        "os": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "browsers": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "assistive_technologies": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "input_modes": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+      }
+    }
+  }
+}
