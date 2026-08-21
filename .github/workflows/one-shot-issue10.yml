@@ -1,8 +1,7 @@
 name: Finalize issue 10
 on:
-  pull_request:
-    branches: [main]
-    types: [opened, synchronize, reopened]
+  push:
+    branches: [fix/issue-10-runnable-readme-example]
 permissions:
   contents: write
 jobs:
@@ -48,6 +47,6 @@ for (const file of ["README.md", "README.en.md"]) {
           rm .github/workflows/one-shot-issue10.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -- README.md README.en.md tests/readme-assessment-example.test.mjs .github/workflows/one-shot-issue10.yml
+          git add -A
           git commit -m "docs: make assessment quickstart executable"
           git push origin HEAD:fix/issue-10-runnable-readme-example
