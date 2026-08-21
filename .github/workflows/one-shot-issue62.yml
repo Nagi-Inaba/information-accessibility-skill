@@ -1,8 +1,7 @@
 name: Finalize issue 62
 on:
-  pull_request:
-    branches: [main]
-    types: [opened, synchronize, reopened]
+  push:
+    branches: [fix/issue-62-explicit-assessment-template-mode]
 permissions:
   contents: write
 jobs:
@@ -40,10 +39,8 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
-
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const script = path.join(root, "codex/skills/information-accessibility-practice/scripts/generate-assessment.mjs");
-
 test("record mode rejects missing identity before creating output", () => {
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), "assessment-mode-"));
   const output = path.join(temp, "audit.json");
@@ -52,7 +49,6 @@ test("record mode rejects missing identity before creating output", () => {
   assert.match(result.stderr, /Valid assessment creation requires/);
   assert.equal(fs.existsSync(output), false);
 });
-
 test("template mode explicitly creates placeholder output", () => {
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), "assessment-template-"));
   const output = path.join(temp, "audit.json");
@@ -61,7 +57,6 @@ test("template mode explicitly creates placeholder output", () => {
   assert.match(result.stdout, /TEMPLATE_CREATED/);
   assert.equal(JSON.parse(fs.readFileSync(output, "utf8")).assessment.target.name, "REPLACE_ME");
 });
-
 test("record mode with complete identity reports PASS", () => {
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), "assessment-valid-"));
   const output = path.join(temp, "audit.json");
@@ -80,6 +75,6 @@ test("record mode with complete identity reports PASS", () => {
           rm .github/workflows/one-shot-issue62.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -- codex/skills/information-accessibility-practice/scripts/generate-assessment.mjs claude/skills/information-accessibility-practice/scripts/generate-assessment.mjs tests/generate-assessment-mode.test.mjs .github/workflows/one-shot-issue62.yml
+          git add -A
           git commit -m "fix: separate assessment templates from valid record creation"
           git push origin HEAD:fix/issue-62-explicit-assessment-template-mode
