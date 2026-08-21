@@ -1,0 +1,82 @@
+name: Standards source monitor
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 3 * * 1"
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: standards-source-monitor
+  cancel-in-progress: false
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Monitor registered primary sources and errata
+        id: monitor
+        continue-on-error: true
+        run: node scripts/monitor-standard-sources.mjs --output source-monitor-result.json
+      - name: Upload immutable review candidate
+        if: always() && hashFiles('source-monitor-result.json') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: standards-source-monitor-${{ github.run_id }}
+          path: source-monitor-result.json
+          if-no-files-found: error
+          retention-days: 30
+      - name: Create or update an attention issue
+        if: steps.monitor.outcome == 'failure'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const title = '[Source monitor] Standards source requires review';
+            let result = null;
+            if (fs.existsSync('source-monitor-result.json')) {
+              result = JSON.parse(fs.readFileSync('source-monitor-result.json', 'utf8'));
+            }
+            const rows = result?.results?.filter((item) => item.attention_required) ?? [];
+            const body = [
+              'The scheduled standards source monitor found a retrieval failure, unexpected response, oversized source, or baseline hash change.',
+              '',
+              `Workflow run: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+              '',
+              ...(rows.length ? rows.map((item) => `- **${item.id}** — ${item.requested_url} — status: ${item.status ?? 'unavailable'} — ${item.error ?? (item.hash_changed ? 'hash changed' : item.too_large ? 'source exceeded byte limit' : 'HTTP response requires review')}`) : ['- The monitor did not produce a readable result file. Inspect the workflow logs.']),
+              '',
+              'Do not update the canonical catalog automatically. Open the primary source, classify the change, review licensing/provenance, generate a candidate, and submit a normal pull request.'
+            ].join('\n');
+            const {data: issues} = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              per_page: 100
+            });
+            const existing = issues.find((issue) => !issue.pull_request && issue.title === title);
+            if (existing) {
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing.number,
+                body
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                body
+              });
+            }
+      - name: Fail the workflow when review is required
+        if: steps.monitor.outcome == 'failure'
+        run: exit 1
