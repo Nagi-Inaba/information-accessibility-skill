@@ -1,0 +1,49 @@
+name: Finalize issue 47
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+permissions:
+  contents: write
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/issue-47-profile-only-claim-blockers
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Apply fix
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          old='const blockingOutcomes = ["fail", "not_tested", "cant_tell"].filter((outcome) => outcomeCounts[outcome] > 0);'
+          new='const blockingOutcomes = ["fail", "not_tested", "cant_tell"].filter((outcome) => profileOutcomeCounts[outcome] > 0);'
+          for base in ['codex','claude']:
+            p=Path(base)/'skills/information-accessibility-practice/scripts/validate-assessment.mjs'
+            t=p.read_text()
+            if t.count(old)!=1: raise SystemExit(f'unexpected blocker shape: {p}')
+            p.write_text(t.replace(old,new,1))
+          p=Path('tests/claim-guard.test.mjs')
+          t=p.read_text()
+          marker='test("not_tested blocks conformance requests", () => {'
+          test='''test("screening outcomes are not formal profile claim blockers", () => {\n  const value = record();\n  value.assessment.results = [screeningResult()];\n  const result = validate(value);\n  assert.equal(result.guard.screening_outcome_counts.cant_tell, 1);\n  assert.deepEqual(result.guard.blocking_outcomes, []);\n});\n\n'''
+          if test not in t:
+            if marker not in t: raise SystemExit('test marker missing')
+            p.write_text(t.replace(marker,test+marker,1))
+          PY
+      - name: Verify
+        run: |
+          node --test tests/claim-guard.test.mjs
+          node scripts/verify-package.mjs
+      - name: Commit
+        run: |
+          rm .github/workflows/one-shot-issue47.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- codex/skills/information-accessibility-practice/scripts/validate-assessment.mjs claude/skills/information-accessibility-practice/scripts/validate-assessment.mjs tests/claim-guard.test.mjs .github/workflows/one-shot-issue47.yml
+          git commit -m "fix: derive claim blockers from profile outcomes"
+          git push origin HEAD:fix/issue-47-profile-only-claim-blockers
