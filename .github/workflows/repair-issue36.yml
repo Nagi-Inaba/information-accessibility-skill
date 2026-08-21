@@ -1,0 +1,140 @@
+name: Repair and finalize issue 36
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: repair-issue-36-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  repair-and-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/issue-36-empty-coverage-judgement
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Apply production fix
+        shell: bash
+        run: |
+          python - <<'PYCODE'
+          from pathlib import Path
+
+          paths = [
+              Path("codex/skills/information-accessibility-practice/scripts/validate-assessment.mjs"),
+              Path("claude/skills/information-accessibility-practice/scripts/validate-assessment.mjs"),
+          ]
+          anchor = "  const evaluatedRequirementCount = humanVerifiedRequirementIds.size;\n\n  return {\n"
+          replacement = """  const evaluatedRequirementCount = humanVerifiedRequirementIds.size;
+          const reportProfileOutcomeCounts = { ...profileOutcomeCounts };
+          reportProfileOutcomeCounts.not_tested += missingRequirementIds.length;
+          const reportProfileGroupOutcomeCounts = new Map(
+            [...profileGroupOutcomeCounts].map(([groupId, counts]) => [groupId, { ...counts }])
+          );
+          for (const requirementId of missingRequirementIds) {
+            try {
+              const group = groupForRequirement(profile, requirementId);
+              if (!reportProfileGroupOutcomeCounts.has(group)) {
+                reportProfileGroupOutcomeCounts.set(
+                  group,
+                  Object.fromEntries(registry.outcomes.map((outcome) => [outcome, 0]))
+                );
+              }
+              reportProfileGroupOutcomeCounts.get(group).not_tested += 1;
+            } catch (error) {
+              errors.push(`Missing profile requirement cannot be assigned to a report group: ${requirementId} (${error instanceof Error ? error.message : String(error)})`);
+            }
+          }
+
+          return {
+          """
+          old_counts = "      profile_outcome_counts: profileOutcomeCounts,\n      profile_group_outcome_counts: Object.fromEntries(profileGroupOutcomeCounts),\n"
+          new_counts = "      profile_outcome_counts: reportProfileOutcomeCounts,\n      profile_group_outcome_counts: Object.fromEntries(reportProfileGroupOutcomeCounts),\n"
+          for path in paths:
+              text = path.read_text()
+              if text.count(anchor) != 1 or text.count(old_counts) != 1:
+                  raise SystemExit(f"Unexpected source shape: {path}")
+              path.write_text(text.replace(anchor, replacement, 1).replace(old_counts, new_counts, 1))
+          PYCODE
+      - name: Add regression test
+        shell: bash
+        run: |
+          cat > tests/report-coverage-guard.test.mjs <<'TEST'
+          import assert from "node:assert/strict";
+          import fs from "node:fs";
+          import path from "node:path";
+          import test from "node:test";
+          import { fileURLToPath } from "node:url";
+
+          import { generateAssessment } from "../codex/skills/information-accessibility-practice/scripts/generate-assessment.mjs";
+          import { overallReportJudgement } from "../codex/skills/information-accessibility-practice/scripts/render-audit-report.mjs";
+          import { validateAssessment } from "../codex/skills/information-accessibility-practice/scripts/validate-assessment.mjs";
+
+          const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+          const skill = path.join(root, "codex/skills/information-accessibility-practice");
+          const readJson = (relative) => JSON.parse(fs.readFileSync(path.join(skill, relative), "utf8"));
+          const registry = readJson("references/standards-registry.json");
+          const schema = readJson("references/assessment-record.schema.json");
+          const catalog = readJson("references/criteria-catalog.json");
+          const methods = readJson("references/web-audit-methods.json");
+
+          test("missing profile rows remain visible as not tested", () => {
+            for (const recordedCount of [0, 1, 55]) {
+              const record = generateAssessment("web-modern", {
+                targetName: "Coverage fixture",
+                targetVersion: "v1",
+                evaluator: "Reviewer",
+                evaluatedAt: "2026-08-21"
+              });
+              record.assessment.results = record.assessment.results.slice(0, recordedCount);
+              const result = validateAssessment(record, registry, schema, catalog, methods);
+              assert.equal(result.valid, true, result.errors.join("\n"));
+              assert.equal(result.guard.catalog_coverage.recorded, recordedCount);
+              assert.equal(result.guard.catalog_coverage.expected, 55);
+              assert.equal(result.guard.profile_outcome_counts.not_tested, 55);
+              assert.equal(result.guard.profile_group_outcome_counts.wcag_2_2.not_tested, 55);
+              assert.equal(overallReportJudgement(result.guard.profile_outcome_counts), "未確認");
+            }
+          });
+          TEST
+      - name: Run focused regression test
+        run: node --test tests/report-coverage-guard.test.mjs
+      - name: Run package verification
+        run: node scripts/verify-package.mjs
+      - name: Run full Node suite and require only the known Linux path-message failure
+        shell: bash
+        run: |
+          set +e
+          node --test tests/*.test.mjs > /tmp/all-tests.log 2>&1
+          status=$?
+          set -e
+          cat /tmp/all-tests.log
+          test "$status" -eq 1
+          test "$(grep -Ec '^not ok [0-9]+ - ' /tmp/all-tests.log)" -eq 1
+          grep -F "validate-fix-authorization CLI rejects invalid target paths" /tmp/all-tests.log
+          grep -F "target file path must not contain ':'" /tmp/all-tests.log
+      - name: Check generated criteria catalog
+        run: node scripts/build-criteria-catalog.mjs --check
+      - name: Commit verified changes
+        shell: bash
+        run: |
+          rm .github/workflows/one-shot-issue36.yml .github/workflows/repair-issue36.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- \
+            codex/skills/information-accessibility-practice/scripts/validate-assessment.mjs \
+            claude/skills/information-accessibility-practice/scripts/validate-assessment.mjs \
+            tests/report-coverage-guard.test.mjs \
+            .github/workflows/one-shot-issue36.yml \
+            .github/workflows/repair-issue36.yml
+          git commit -m "fix: treat missing profile rows as untested"
+          git push origin HEAD:fix/issue-36-empty-coverage-judgement
