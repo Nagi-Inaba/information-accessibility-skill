@@ -293,8 +293,18 @@ powershell -ExecutionPolicy Bypass -File ".\scripts\install-codex.ps1"
 Claude で使う場合:
 
 1. `claude/skills/information-accessibility-practice/` を Claude の `skills/` 配下に配置する。
-2. `claude/agents/information-accessibility-reviewer.md` を Claude の `agents/` 配下に配置する。
-3. 情報アクセシビリティを確認したい対象に対して `information-accessibility-reviewer` を使う。
+2. `shared/agents/agent-manifest.json` で `install_by_default: true` の4件に対応する `.md` を、`claude/agents/` から Claude の `agents/` 配下へ配置する。
+3. 既定の4件は、`information-accessibility-reviewer`、`information-accessibility-e1-inspector`、`information-accessibility-human-queue-planner`、`information-accessibility-remediation-planner` である。
+4. specialist agentのdispatchに対応しない環境ではreviewerがlocal fallbackを使う。対応環境では4agentを配置し、役割別の成果物契約を維持する。
+5. 情報アクセシビリティを確認したい対象に対して `information-accessibility-reviewer` を使う。
+
+Unix系環境では、リポジトリルートから次のように既定agentをまとめてコピーできる。配置先は利用中のClaude環境に合わせて変更する。
+
+```sh
+for id in information-accessibility-reviewer information-accessibility-e1-inspector information-accessibility-human-queue-planner information-accessibility-remediation-planner; do
+  cp "claude/agents/${id}.md" "${CLAUDE_AGENTS_DIR:?set CLAUDE_AGENTS_DIR}/${id}.md"
+done
+```
 
 ## 対象別の確認範囲
 

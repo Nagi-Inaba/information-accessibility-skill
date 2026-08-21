@@ -292,8 +292,18 @@ The authorized fixer, `information-accessibility-authorized-fixer`, is not insta
 For Claude:
 
 1. Place `claude/skills/information-accessibility-practice/` under the Claude `skills/` directory.
-2. Place `claude/agents/information-accessibility-reviewer.md` under the Claude `agents/` directory.
-3. Use `information-accessibility-reviewer` for the target to be reviewed for information accessibility.
+2. From `claude/agents/`, place the four `.md` files corresponding to entries with `install_by_default: true` in `shared/agents/agent-manifest.json` under the Claude `agents/` directory.
+3. The four default agents are `information-accessibility-reviewer`, `information-accessibility-e1-inspector`, `information-accessibility-human-queue-planner`, and `information-accessibility-remediation-planner`.
+4. In a host that cannot dispatch specialist agents, the reviewer uses its local fallback. In a supported host, install all four agents so the role-specific artifact contracts remain available.
+5. Use `information-accessibility-reviewer` for the target to be reviewed for information accessibility.
+
+On Unix-like systems, copy all default agents from the repository root with the following command after setting the destination for your Claude environment.
+
+```sh
+for id in information-accessibility-reviewer information-accessibility-e1-inspector information-accessibility-human-queue-planner information-accessibility-remediation-planner; do
+  cp "claude/agents/${id}.md" "${CLAUDE_AGENTS_DIR:?set CLAUDE_AGENTS_DIR}/${id}.md"
+done
+```
 
 ## Detailed review coverage
 
