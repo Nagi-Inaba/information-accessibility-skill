@@ -1,0 +1,73 @@
+name: Finalize issue 52
+on:
+  push:
+    branches: [docs/issue-52-claude-default-agents]
+permissions:
+  contents: write
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: docs/issue-52-claude-default-agents
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Correct Claude installation instructions
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          replacements = {
+            "README.md": (
+              '''Claude で使う場合:\n\n1. `claude/skills/information-accessibility-practice/` を Claude の `skills/` 配下に配置する。\n2. `claude/agents/information-accessibility-reviewer.md` を Claude の `agents/` 配下に配置する。\n3. 情報アクセシビリティを確認したい対象に対して `information-accessibility-reviewer` を使う。''',
+              '''Claude で使う場合:\n\n1. `claude/skills/information-accessibility-practice/` を Claude の `skills/` 配下に配置する。\n2. `shared/agents/agent-manifest.json` で `install_by_default: true` のClaude用agent 4件を、Claudeの `agents/` 配下へ配置する。\n3. 既定の4件は、`information-accessibility-reviewer`、`information-accessibility-e1-inspector`、`information-accessibility-human-queue-planner`、`information-accessibility-remediation-planner` である。\n4. specialist agentを呼び出せないClaude環境では、reviewerが同じartifact契約を保ったlocal fallbackを使用する。ただしrole分離によるcontext isolationは利用できない。\n5. 情報アクセシビリティを確認したい対象に対して `information-accessibility-reviewer` を使う。'''
+            ),
+            "README.en.md": (
+              '''For Claude:\n\n1. Place `claude/skills/information-accessibility-practice/` under the Claude `skills/` directory.\n2. Place `claude/agents/information-accessibility-reviewer.md` under the Claude `agents/` directory.\n3. Use `information-accessibility-reviewer` for the target to be reviewed for information accessibility.''',
+              '''For Claude:\n\n1. Place `claude/skills/information-accessibility-practice/` under the Claude `skills/` directory.\n2. Place the four Claude agent files whose manifest entries use `install_by_default: true` under the Claude `agents/` directory.\n3. The four default agents are `information-accessibility-reviewer`, `information-accessibility-e1-inspector`, `information-accessibility-human-queue-planner`, and `information-accessibility-remediation-planner`.\n4. When a Claude host cannot dispatch specialist agents, the reviewer uses the local fallback while preserving the artifact contract; role-level context isolation is not available in that mode.\n5. Use `information-accessibility-reviewer` for the target to be reviewed for information accessibility.'''
+            )
+          }
+          for name, (old, new) in replacements.items():
+            path = Path(name)
+            text = path.read_text()
+            if old not in text: raise SystemExit(f"README marker missing: {name}")
+            path.write_text(text.replace(old, new, 1))
+
+          Path("tests/claude-install-docs.test.mjs").write_text('''import assert from "node:assert/strict";
+          import fs from "node:fs";
+          import test from "node:test";
+
+          const expected = [
+            "information-accessibility-reviewer",
+            "information-accessibility-e1-inspector",
+            "information-accessibility-human-queue-planner",
+            "information-accessibility-remediation-planner"
+          ];
+
+          for (const file of ["README.md", "README.en.md"]) {
+            test(`${file} documents every default Claude agent`, () => {
+              const text = fs.readFileSync(file, "utf8");
+              for (const id of expected) assert.match(text, new RegExp(id));
+              assert.match(text, /install_by_default/);
+              assert.match(text, /fallback/i);
+            });
+          }
+          ''')
+          PY
+      - name: Verify
+        run: |
+          node --test tests/claude-install-docs.test.mjs tests/readme-i18n.test.mjs tests/distribution-sync.test.mjs
+          node scripts/verify-package.mjs
+      - name: Commit verified change
+        shell: bash
+        run: |
+          rm .github/workflows/one-shot-issue52.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- README.md README.en.md tests/claude-install-docs.test.mjs .github/workflows/one-shot-issue52.yml
+          git commit -m "docs: install all default Claude agents"
+          git push origin HEAD:docs/issue-52-claude-default-agents
