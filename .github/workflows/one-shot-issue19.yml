@@ -1,12 +1,18 @@
 name: Finalize issue 19
 
 on:
+  push:
+    branches: [feat/issue-19-report-evidence-source]
   pull_request:
     branches: [main]
     types: [opened, synchronize, reopened]
 
 permissions:
   contents: write
+
+concurrency:
+  group: issue-19-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   implement-and-verify:
@@ -65,6 +71,7 @@ jobs:
               if new_rows not in text:
                   if text.count(old_rows) != 1: raise SystemExit(f"standalone judgement rows missing: {report}")
                   text = text.replace(old_rows, new_rows, 1)
+
               old_headers = 'publicTable(["達成基準", "判定", "根拠・未確認事項"], judgementRows, "判定対象の達成基準はありません。"),'
               new_headers = 'publicTable(["達成基準", "判定", "判定の出所", "証拠レベル", "根拠・未確認事項"], judgementRows, "判定対象の達成基準はありません。"),'
               if new_headers not in text:
@@ -73,12 +80,14 @@ jobs:
 
               notice_marker = '    reportNotice,\n    "",\n'
               notice_addition = '    reportNotice,\n    "",\n    evidenceLegend,\n    "",\n'
-              if text.count(evidenceLegend := '    evidenceLegend,\n') == 0:
+              if '    evidenceLegend,\n' not in text:
                   if text.count(notice_marker) != 2: raise SystemExit(f"report notice count changed: {report}")
                   text = text.replace(notice_marker, notice_addition, 2)
 
               if 'export function buildReportProjection' not in text:
-                  text = text.replace('function buildReportProjection(profileResults, screeningObservations) {', 'export function buildReportProjection(profileResults, screeningObservations) {', 1)
+                  marker = 'function buildReportProjection(profileResults, screeningObservations) {'
+                  if marker not in text: raise SystemExit(f"projection function marker missing: {report}")
+                  text = text.replace(marker, 'export ' + marker, 1)
 
               human_row = '''      const row = {
                 requirement_id: result.requirement_id,
