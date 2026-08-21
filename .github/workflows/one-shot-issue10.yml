@@ -1,0 +1,53 @@
+name: Finalize issue 10
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+permissions:
+  contents: write
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/issue-10-runnable-readme-example
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Make README examples runnable
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          for filename in ['README.md','README.en.md']:
+            p=Path(filename); t=p.read_text()
+            old='node ./codex/skills/information-accessibility-practice/scripts/generate-assessment.mjs --profile web-modern --output ./audit.json'
+            old_win='node .\\codex\\skills\\information-accessibility-practice\\scripts\\generate-assessment.mjs --profile web-modern --output <assessment.json>'
+            args='--profile web-modern --target-name "Example Site" --target-version "2026-08-22" --target-ref "https://example.com/" --evaluator "Accessibility Reviewer" --evaluated-at "2026-08-22"'
+            t=t.replace(old, f'node ./codex/skills/information-accessibility-practice/scripts/generate-assessment.mjs {args} --output ./audit.json')
+            t=t.replace(old_win, f'node .\\codex\\skills\\information-accessibility-practice\\scripts\\generate-assessment.mjs {args} --output .\\audit.json')
+            p.write_text(t)
+          Path('tests/readme-assessment-example.test.mjs').write_text(r'''import assert from "node:assert/strict";
+import fs from "node:fs";
+import test from "node:test";
+for (const file of ["README.md", "README.en.md"]) {
+  test(`${file} generate-assessment examples include valid identity inputs`, () => {
+    const text = fs.readFileSync(file, "utf8");
+    for (const flag of ["--target-name", "--target-version", "--target-ref", "--evaluator", "--evaluated-at"]) assert.match(text, new RegExp(flag));
+  });
+}
+''')
+          PY
+      - name: Verify
+        run: |
+          node --test tests/readme-assessment-example.test.mjs tests/readme-i18n.test.mjs
+          node scripts/verify-package.mjs
+      - name: Commit
+        run: |
+          rm .github/workflows/one-shot-issue10.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- README.md README.en.md tests/readme-assessment-example.test.mjs .github/workflows/one-shot-issue10.yml
+          git commit -m "docs: make assessment quickstart executable"
+          git push origin HEAD:fix/issue-10-runnable-readme-example
