@@ -1,0 +1,206 @@
+name: Finalize issue 17
+on:
+  push:
+    branches: [feat/issue-17-human-review-worksheet]
+permissions:
+  contents: write
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/issue-17-human-review-worksheet
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Add human review worksheet exporter
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          script = r'''import fs from "node:fs";
+          import path from "node:path";
+          import process from "node:process";
+          import { fileURLToPath, pathToFileURL } from "node:url";
+          import { writeNewText } from "./lib/audit-run.mjs";
+
+          function readJson(file) {
+            return JSON.parse(fs.readFileSync(path.resolve(file), "utf8").replace(/^\uFEFF/u, ""));
+          }
+
+          function cell(value) {
+            return String(value ?? "")
+              .replace(/&/gu, "&amp;")
+              .replace(/</gu, "&lt;")
+              .replace(/>/gu, "&gt;")
+              .replace(/\|/gu, "\\|")
+              .replace(/\r?\n/gu, "<br>")
+              .trim();
+          }
+
+          function queuePayload(record) {
+            const envelope = record?.envelope ?? record;
+            const payload = envelope?.artifact_type === "human-review-queue" ? envelope.payload : envelope?.payload ?? envelope;
+            if (!payload || !Array.isArray(payload.items)) throw new Error("Input must contain a human-review-queue payload with an items array");
+            return payload;
+          }
+
+          export function renderHumanReviewWorksheet(record, { title = "アクセシビリティ人手レビューワークシート" } = {}) {
+            const payload = queuePayload(record);
+            const lines = [
+              `# ${title}`,
+              "",
+              "> このワークシートは人による対象固有の確認を記録するためのものです。記入内容だけでreviewer identityが認証されるわけではありません。",
+              "",
+              `- 確認項目数: ${payload.items.length}`,
+              `- 手順あり: ${payload.procedure_coverage?.available_procedures ?? payload.items.filter((item) => item.procedure_availability === "available").length}`,
+              `- 汎用手順へ引き継ぎ: ${payload.procedure_coverage?.unavailable_procedures ?? payload.items.filter((item) => item.procedure_availability !== "available").length}`,
+              ""
+            ];
+
+            payload.items.forEach((item, index) => {
+              lines.push(
+                `## ${index + 1}. ${cell(item.requirement_id)}`,
+                "",
+                `- 手順の有無: ${cell(item.procedure_availability)}`,
+                `- 条項別手順: ${cell(item.procedure_ref ?? "なし")}`,
+                `- 汎用手順: ${cell(item.generic_method_ref ?? "なし")}`,
+                "",
+                "### 公式資料",
+                "",
+                ...(item.official_sources?.length ? item.official_sources.map((source) => `- ${cell(source)}`) : ["- 記録なし"]),
+                "",
+                "### 実施する確認",
+                "",
+                ...(item.human_actions?.length ? item.human_actions.map((action) => `- [ ] ${cell(action)}`) : ["- [ ] 対象固有の確認手順を記入する"]),
+                "",
+                "### 必要な証拠",
+                "",
+                ...(item.required_evidence_types?.length ? item.required_evidence_types.map((type) => `- [ ] ${cell(type)}: 箇所／状態／観測内容／取得時刻を記録`) : ["- [ ] 証拠型を記入する"]),
+                "",
+                "### 判断できない条件",
+                "",
+                ...(item.cant_tell_conditions?.length ? item.cant_tell_conditions.map((condition) => `- ${cell(condition)}`) : ["- 記録なし"]),
+                "",
+                "### 記入欄",
+                "",
+                "| 項目 | 記入内容 |",
+                "| --- | --- |",
+                "| 対象箇所・画面・状態 |  |",
+                "| 判定 | pass / fail / not_applicable / not_tested / cant_tell |",
+                "| 判定理由 |  |",
+                "| 証拠の種類 |  |",
+                "| 証拠の箇所 |  |",
+                "| 観測内容 |  |",
+                "| 取得日時（RFC 3339） |  |",
+                "| fail時の影響を受ける利用者 |  |",
+                "| fail時の問題概要 |  |",
+                "| fail時の優先度 | P0 / P1 / P2 |",
+                "",
+                "---",
+                ""
+              );
+            });
+            return `${lines.join("\n").trimEnd()}\n`;
+          }
+
+          function parse(argv) {
+            const options = {};
+            for (let index = 0; index < argv.length; index += 1) {
+              const arg = argv[index];
+              if (arg === "--queue") options.queue = argv[++index];
+              else if (arg === "--output") options.output = argv[++index];
+              else if (arg === "--title") options.title = argv[++index];
+              else throw new Error(`Unknown argument: ${arg}`);
+            }
+            if (!options.queue || !options.output) throw new Error("--queue and --output are required");
+            return options;
+          }
+
+          function main() {
+            const options = parse(process.argv.slice(2));
+            const worksheet = renderHumanReviewWorksheet(readJson(options.queue), options);
+            const output = writeNewText(path.resolve(options.output), worksheet);
+            console.log(JSON.stringify({ status: "PASS", output }));
+          }
+
+          if (process.argv[1] && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url) {
+            try { main(); } catch (error) { console.error(error.message); process.exitCode = 1; }
+          }
+          '''
+
+          for base in ["codex", "claude"]:
+            root = Path(base) / "skills/information-accessibility-practice"
+            cli = root / "scripts/accessibility-audit.mjs"
+            text = cli.read_text()
+            old = 'const commandScripts = {'
+            new = 'const commandScripts = {\n  "review-sheet": "export-human-review-worksheet.mjs",'
+            if old not in text: raise SystemExit(f"command map marker missing: {cli}")
+            cli.write_text(text.replace(old, new, 1))
+            (root / "scripts/export-human-review-worksheet.mjs").write_text(script)
+
+          Path("tests/human-review-worksheet.test.mjs").write_text(r'''import assert from "node:assert/strict";
+          import fs from "node:fs";
+          import os from "node:os";
+          import path from "node:path";
+          import { spawnSync } from "node:child_process";
+          import test from "node:test";
+
+          const cli = path.resolve("codex/skills/information-accessibility-practice/scripts/accessibility-audit.mjs");
+
+          test("review-sheet exports a human-readable worksheet from a queue payload", () => {
+            const temp = fs.mkdtempSync(path.join(os.tmpdir(), "human-review-sheet-"));
+            const queue = path.join(temp, "queue.json");
+            const output = path.join(temp, "worksheet.md");
+            fs.writeFileSync(queue, JSON.stringify({
+              schema_version: "2.0.0",
+              items: [{
+                requirement_id: "WCAG-2.2-SC-1.1.1",
+                procedure_availability: "available",
+                procedure_ref: "criterion-procedures:1.0.0#wcag22-sc-1-1-1-non-text-content",
+                generic_method_ref: null,
+                official_sources: ["https://www.w3.org/TR/WCAG22/#non-text-content"],
+                human_actions: ["Inspect the target-specific text alternative."],
+                required_evidence_types: ["manual_observation"],
+                cant_tell_conditions: ["The computed accessible name cannot be inspected."]
+              }],
+              procedure_coverage: { total_requirements: 1, available_procedures: 1, unavailable_procedures: 0 }
+            }), "utf8");
+            const result = spawnSync(process.execPath, [cli, "review-sheet", "--queue", queue, "--output", output], { encoding: "utf8" });
+            assert.equal(result.status, 0, result.stderr);
+            const worksheet = fs.readFileSync(output, "utf8");
+            assert.match(worksheet, /WCAG-2\.2-SC-1\.1\.1/u);
+            assert.match(worksheet, /公式資料/u);
+            assert.match(worksheet, /pass \/ fail \/ not_applicable/u);
+            assert.match(worksheet, /RFC 3339/u);
+            assert.match(worksheet, /影響を受ける利用者/u);
+          });
+
+          test("review-sheet refuses to overwrite an existing worksheet", () => {
+            const temp = fs.mkdtempSync(path.join(os.tmpdir(), "human-review-sheet-existing-"));
+            const queue = path.join(temp, "queue.json");
+            const output = path.join(temp, "worksheet.md");
+            fs.writeFileSync(queue, JSON.stringify({ schema_version: "2.0.0", items: [], procedure_coverage: { total_requirements: 0, available_procedures: 0, unavailable_procedures: 0 } }), "utf8");
+            fs.writeFileSync(output, "sentinel\n");
+            const result = spawnSync(process.execPath, [cli, "review-sheet", "--queue", queue, "--output", output], { encoding: "utf8" });
+            assert.notEqual(result.status, 0);
+            assert.equal(fs.readFileSync(output, "utf8"), "sentinel\n");
+          });
+          ''')
+          PY
+      - name: Verify
+        run: |
+          node --test tests/human-review-worksheet.test.mjs tests/unified-cli.test.mjs
+          node scripts/verify-package.mjs
+      - name: Commit verified change
+        shell: bash
+        run: |
+          rm .github/workflows/one-shot-issue17.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- codex/skills/information-accessibility-practice/scripts/accessibility-audit.mjs claude/skills/information-accessibility-practice/scripts/accessibility-audit.mjs codex/skills/information-accessibility-practice/scripts/export-human-review-worksheet.mjs claude/skills/information-accessibility-practice/scripts/export-human-review-worksheet.mjs tests/human-review-worksheet.test.mjs .github/workflows/one-shot-issue17.yml
+          git commit -m "feat: export human review worksheets from queue artifacts"
+          git push origin HEAD:feat/issue-17-human-review-worksheet
