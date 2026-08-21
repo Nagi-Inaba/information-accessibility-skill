@@ -19,7 +19,12 @@ const commands = new Map([
     summary: "Create a complete not-tested assessment for an active profile.",
     usage: "accessibility-audit assessment --profile <id> [assessment options]"
   }],
-  ["requirement", {
+  ["requirements", {
+      script: "requirements.mjs",
+      summary: "List, search, or show registered WCAG/JIS requirements without knowing internal IDs.",
+      usage: "accessibility-audit requirements <list|search|show> [query|SC] [--profile <id>] [--level A|AA] [--procedure available|unavailable] [--format json|markdown]"
+    }],
+      ["requirement", {
     script: "show-requirement.mjs",
     summary: "Show one registered requirement and its review method.",
     usage: "accessibility-audit requirement --profile <id> --id <requirement-id> [--format json|markdown]"
