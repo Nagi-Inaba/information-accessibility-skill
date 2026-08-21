@@ -1,0 +1,155 @@
+name: Finalize issue 6
+on:
+  push:
+    branches: [docs/issue-6-quickstart]
+permissions:
+  contents: write
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: docs/issue-6-quickstart
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Add focused quickstart
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          ja = '''# 5分クイックスタート
+
+## 30秒で分かること
+
+このパッケージには二つの入口があります。
+
+- **自然言語レビュー**: 対象を渡し、観測できた問題、改善案、人による確認事項を整理する。
+- **CLI監査記録**: 対象・範囲・環境・証拠をJSONへ固定し、検証済みのMarkdownレポートを作る。
+
+CLIは監査記録のcontrol planeです。URLを開くbrowser、accessibility tree、実機screen readerはhost側の能力が必要です。
+
+## 前提条件
+
+- Node.js 20以上
+- このrepositoryまたはversionを固定したrelease archive
+- live Web inspectionでは、browser／AX tree／keyboard capability
+
+## 最小のstandalone記録
+
+```sh
+node ./codex/skills/information-accessibility-practice/scripts/generate-assessment.mjs \\
+  --profile web-modern \\
+  --target-name "Example Site" \\
+  --target-version "2026-08-22" \\
+  --target-ref "https://example.com/" \\
+  --evaluator "Accessibility Reviewer" \\
+  --evaluated-at "2026-08-22" \\
+  --output ./audit.json
+node ./codex/skills/information-accessibility-practice/scripts/validate-assessment.mjs ./audit.json
+node ./codex/skills/information-accessibility-practice/scripts/render-audit-report.mjs --input ./audit.json --output ./audit-report.md
+```
+
+生成直後の55件は`not_tested`です。レポート生成成功は、実ページの検査完了や正式な適合宣言を意味しません。
+
+## どの入口を選ぶか
+
+| 目的 | 入口 | 主な成果物 |
+| --- | --- | --- |
+| まず障壁と改善案を知る | reviewer／skill | チャット上の観測・改善案・人手確認事項 |
+| 規格台帳を保存する | standalone CLI | assessment JSON、validation JSON、report Markdown |
+| 複数工程と証拠を追跡する | run-backed workflow | audit run、artifact群、merged assessment、public report |
+
+詳細はREADMEの「使い方を選ぶ」と、`references/standards-assessment.md`を参照してください。
+'''
+          en = '''# Five-minute quickstart
+
+## What this package does
+
+There are two entry paths.
+
+- **Natural-language review**: provide a target and receive observed barriers, remediation ideas, and items that require human review.
+- **CLI audit record**: freeze the target, scope, environment, and evidence in JSON and render a validated Markdown report.
+
+The CLI is an audit-record control plane. Opening a URL, inspecting a rendered DOM or accessibility tree, and running a real screen reader require host capabilities.
+
+## Prerequisites
+
+- Node.js 20 or later
+- This repository or a version-pinned release archive
+- Browser, accessibility-tree, and keyboard capabilities for live Web inspection
+
+## Minimal standalone record
+
+```sh
+node ./codex/skills/information-accessibility-practice/scripts/generate-assessment.mjs \\
+  --profile web-modern \\
+  --target-name "Example Site" \\
+  --target-version "2026-08-22" \\
+  --target-ref "https://example.com/" \\
+  --evaluator "Accessibility Reviewer" \\
+  --evaluated-at "2026-08-22" \\
+  --output ./audit.json
+node ./codex/skills/information-accessibility-practice/scripts/validate-assessment.mjs ./audit.json
+node ./codex/skills/information-accessibility-practice/scripts/render-audit-report.mjs --input ./audit.json --output ./audit-report.md
+```
+
+All 55 rows begin as `not_tested`. Successful report generation does not mean that the live page was inspected or that a formal conformance claim is supported.
+
+## Choose an entry path
+
+| Goal | Entry | Main outputs |
+| --- | --- | --- |
+| Find barriers and remediation ideas first | reviewer／skill | observations, remediation ideas, human-review items |
+| Save a standards ledger | standalone CLI | assessment JSON, validation JSON, report Markdown |
+| Track a multi-stage evidence chain | run-backed workflow | audit run, artifacts, merged assessment, public report |
+
+See the README entry-path table and `references/standards-assessment.md` for the detailed model.
+'''
+          Path("docs").mkdir(exist_ok=True)
+          Path("docs/getting-started.md").write_text(ja)
+          Path("docs/getting-started.en.md").write_text(en)
+
+          insertions = {
+            "README.md": ('## パッケージ構成', '## 5分で試す\n\n最初の実行手順、必要な前提、自然言語レビュー／standalone／run-backedの選び方は、[5分クイックスタート](docs/getting-started.md)にまとめています。\n\n## パッケージ構成'),
+            "README.en.md": ('## Package layout', '## Try it in five minutes\n\nSee the [five-minute quickstart](docs/getting-started.en.md) for prerequisites, the first runnable commands, and the difference between natural-language, standalone, and run-backed paths.\n\n## Package layout')
+          }
+          for name, (old, new) in insertions.items():
+            path = Path(name)
+            text = path.read_text()
+            if old not in text: raise SystemExit(f"section marker missing: {name}")
+            path.write_text(text.replace(old, new, 1))
+
+          Path("tests/getting-started-docs.test.mjs").write_text('''import assert from "node:assert/strict";
+          import fs from "node:fs";
+          import test from "node:test";
+
+          test("README links to a runnable quickstart before the package inventory", () => {
+            const ja = fs.readFileSync("README.md", "utf8");
+            const en = fs.readFileSync("README.en.md", "utf8");
+            assert.ok(ja.indexOf("docs/getting-started.md") < ja.indexOf("## パッケージ構成"));
+            assert.ok(en.indexOf("docs/getting-started.en.md") < en.indexOf("## Package layout"));
+            for (const file of ["docs/getting-started.md", "docs/getting-started.en.md"]) {
+              const text = fs.readFileSync(file, "utf8");
+              for (const flag of ["--profile", "--target-name", "--target-version", "--target-ref", "--evaluator", "--evaluated-at"]) assert.match(text, new RegExp(flag));
+              assert.match(text, /not_tested/);
+            }
+          });
+          ''')
+          PY
+      - name: Verify
+        run: |
+          node --test tests/getting-started-docs.test.mjs tests/readme-i18n.test.mjs
+          node scripts/verify-package.mjs
+      - name: Commit verified change
+        shell: bash
+        run: |
+          rm .github/workflows/one-shot-issue6.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- README.md README.en.md docs/getting-started.md docs/getting-started.en.md tests/getting-started-docs.test.mjs .github/workflows/one-shot-issue6.yml
+          git commit -m "docs: add a focused five-minute quickstart"
+          git push origin HEAD:docs/issue-6-quickstart
