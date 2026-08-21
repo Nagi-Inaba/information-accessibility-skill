@@ -1193,7 +1193,6 @@ function main() {
     return;
   }
   const legacyOutput = path.resolve(options.output);
-  fs.mkdirSync(path.dirname(legacyOutput), { recursive: true });
   const output = writeNewText(legacyOutput, report);
   console.log(JSON.stringify({ status: "PASS", input: path.resolve(options.input), output }));
 }

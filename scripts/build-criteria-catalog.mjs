@@ -3,6 +3,7 @@ import path from "node:path";
 import process from "node:process";
 import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
+import { writeNewTextFile } from "./lib/safe-output.mjs";
 
 const sourceUrls = {
   wcag: "https://www.w3.org/TR/WCAG22/",
@@ -261,7 +262,6 @@ async function refreshCatalog(root) {
   const outputArgument = argumentValue("--output");
   if (!outputArgument) throw new Error("--output is required with --refresh");
   const output = path.resolve(process.cwd(), outputArgument);
-  if (fs.existsSync(output)) throw new Error(`Refusing to overwrite existing output: ${output}`);
 
   const verifiedAt = argumentValue("--verified-at");
   if (!verifiedAt) throw new Error("--verified-at is required with --refresh");
@@ -275,8 +275,7 @@ async function refreshCatalog(root) {
     fetchText(sourceUrls.japanProfile)
   ]);
   const catalog = buildCatalogFromSources({ wcagHtml, jisHtml, japanHtml, verifiedAt, registry });
-  fs.mkdirSync(path.dirname(output), { recursive: true });
-  fs.writeFileSync(output, `${JSON.stringify(catalog, null, 2)}\n`, { encoding: "utf8", flag: "wx" });
+  writeNewTextFile(output, `${JSON.stringify(catalog, null, 2)}\n`);
   return { status: "PASS", mode: "refresh", output, counts: { wcag: 55, jis: 38, japan_additional: 18 } };
 }
 
