@@ -1,0 +1,234 @@
+name: Finalize issue 13
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: issue-13-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  implement-and-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/issue-13-web-capability-preflight
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Add capability preflight
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          registry = r'''{
+            "schema_version": "1.0.0",
+            "web_inspection_required": ["network_fetch", "browser_dom", "accessibility_tree", "keyboard_input", "responsive_viewport"],
+            "web_inspection_recommended": ["screen_reader_runtime"],
+            "capabilities": [
+              { "id": "record_control_plane", "provider": "installed_cli", "description": "Create, validate, register, merge, and report audit records." },
+              { "id": "network_fetch", "provider": "host_required", "description": "Load the named target within an enforced network policy." },
+              { "id": "browser_dom", "provider": "host_required", "description": "Inspect the rendered DOM rather than source text alone." },
+              { "id": "accessibility_tree", "provider": "host_required", "description": "Inspect computed roles, names, states, and relationships." },
+              { "id": "keyboard_input", "provider": "host_required", "description": "Exercise focus movement and keyboard-only operation." },
+              { "id": "responsive_viewport", "provider": "host_required", "description": "Inspect reflow and responsive variants at named viewports." },
+              { "id": "screen_reader_runtime", "provider": "external_human_or_host", "description": "Record actual assistive-technology behavior where required." }
+            ]
+          }
+          '''
+          schema = r'''{
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["schema_version", "web_inspection_required", "web_inspection_recommended", "capabilities"],
+            "properties": {
+              "schema_version": { "const": "1.0.0" },
+              "web_inspection_required": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
+              "web_inspection_recommended": { "type": "array", "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
+              "capabilities": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["id", "provider", "description"],
+                  "properties": {
+                    "id": { "type": "string", "minLength": 1 },
+                    "provider": { "enum": ["installed_cli", "host_required", "external_human_or_host"] },
+                    "description": { "type": "string", "minLength": 1 }
+                  }
+                }
+              }
+            }
+          }
+          '''
+          script = r'''import fs from "node:fs";
+          import path from "node:path";
+          import process from "node:process";
+          import { fileURLToPath, pathToFileURL } from "node:url";
+          import { validateJsonSchema } from "./lib/json-schema.mjs";
+
+          const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
+          const read = (name) => JSON.parse(fs.readFileSync(path.join(root, "references", name), "utf8"));
+
+          export function inspectCapabilities(provided = []) {
+            const registry = read("runtime-capabilities.json");
+            const schema = read("runtime-capabilities.schema.json");
+            const errors = [];
+            validateJsonSchema(registry, schema, "$", errors);
+            if (errors.length) throw new Error(`Invalid runtime capability registry:\n- ${errors.join("\n- ")}`);
+            const ids = new Set(registry.capabilities.map((item) => item.id));
+            const unknown = provided.filter((id) => !ids.has(id));
+            if (unknown.length) throw new Error(`Unknown provided capabilities: ${unknown.join(", ")}`);
+            const available = new Set(["record_control_plane", ...provided]);
+            const capabilities = registry.capabilities.map((item) => ({ ...item, available: available.has(item.id) }));
+            const missing_required = registry.web_inspection_required.filter((id) => !available.has(id));
+            const missing_recommended = registry.web_inspection_recommended.filter((id) => !available.has(id));
+            return {
+              schema_version: registry.schema_version,
+              web_inspection_ready: missing_required.length === 0,
+              missing_required,
+              missing_recommended,
+              capabilities
+            };
+          }
+
+          function parseArgs(argv) {
+            const options = { provided: [], format: "json", requireWeb: false };
+            for (let index = 0; index < argv.length; index += 1) {
+              const arg = argv[index];
+              if (arg === "--provided") {
+                const value = argv[index + 1];
+                if (!value || value.startsWith("--")) throw new Error("Missing value for --provided");
+                options.provided.push(value);
+                index += 1;
+              } else if (arg === "--format") {
+                const value = argv[index + 1];
+                if (!value || value.startsWith("--")) throw new Error("Missing value for --format");
+                options.format = value;
+                index += 1;
+              } else if (arg === "--require-web") options.requireWeb = true;
+              else if (arg === "--help") options.help = true;
+              else throw new Error(`Unknown argument: ${arg}`);
+            }
+            if (!["json", "markdown"].includes(options.format)) throw new Error("--format must be json or markdown");
+            return options;
+          }
+
+          function markdown(result) {
+            return [
+              "# Web inspection capability preflight",
+              "",
+              `- Web inspection ready: ${result.web_inspection_ready ? "yes" : "no"}`,
+              `- Missing required: ${result.missing_required.join(", ") || "none"}`,
+              `- Missing recommended: ${result.missing_recommended.join(", ") || "none"}`,
+              "",
+              "| Capability | Available | Provider | Description |",
+              "| --- | --- | --- | --- |",
+              ...result.capabilities.map((item) => `| ${item.id} | ${item.available ? "yes" : "no"} | ${item.provider} | ${item.description} |`),
+              "",
+              "> The installed CLI is the audit record control plane. Browser and assistive-technology observations must come from a declared host capability or external human review."
+            ].join("\n") + "\n";
+          }
+
+          export function main(argv = process.argv.slice(2)) {
+            const options = parseArgs(argv);
+            if (options.help) {
+              process.stdout.write("Usage: accessibility-audit capabilities [--provided <capability-id>]... [--require-web] [--format json|markdown]\n");
+              return 0;
+            }
+            const result = inspectCapabilities(options.provided);
+            process.stdout.write(options.format === "markdown" ? markdown(result) : `${JSON.stringify(result, null, 2)}\n`);
+            return options.requireWeb && !result.web_inspection_ready ? 1 : 0;
+          }
+
+          if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
+            try { process.exitCode = main(); }
+            catch (error) { console.error(error instanceof Error ? error.message : String(error)); process.exitCode = 2; }
+          }
+          '''
+
+          for base in ["codex", "claude"]:
+              root = Path(base) / "skills/information-accessibility-practice"
+              (root / "references/runtime-capabilities.json").write_text(registry)
+              (root / "references/runtime-capabilities.schema.json").write_text(schema)
+              (root / "scripts/show-runtime-capabilities.mjs").write_text(script)
+              cli = root / "scripts/accessibility-audit.mjs"
+              text = cli.read_text()
+              marker = '  ["validate-run", {'
+              addition = '''  ["capabilities", {
+                script: "show-runtime-capabilities.mjs",
+                summary: "Preflight browser and assistive-technology capabilities required for Web inspection.",
+                usage: "accessibility-audit capabilities [--provided <capability-id>]... [--require-web] [--format json|markdown]"
+              }],
+              '''
+              if text.count(marker) != 1:
+                  raise SystemExit(f"CLI capability insertion marker missing: {cli}")
+              cli.write_text(text.replace(marker, addition + marker, 1))
+
+          Path("tests/runtime-capabilities.test.mjs").write_text(r'''import assert from "node:assert/strict";
+          import path from "node:path";
+          import { spawnSync } from "node:child_process";
+          import test from "node:test";
+          import { fileURLToPath } from "node:url";
+          import { inspectCapabilities } from "../codex/skills/information-accessibility-practice/scripts/show-runtime-capabilities.mjs";
+
+          const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+          const cli = path.join(root, "codex/skills/information-accessibility-practice/scripts/accessibility-audit.mjs");
+
+          test("preflight distinguishes the installed control plane from missing host inspection capabilities", () => {
+            const result = inspectCapabilities([]);
+            assert.equal(result.web_inspection_ready, false);
+            assert.ok(result.capabilities.find((item) => item.id === "record_control_plane").available);
+            assert.ok(result.missing_required.includes("accessibility_tree"));
+          });
+
+          test("declared Web capabilities satisfy the preflight without claiming a screen reader runtime", () => {
+            const provided = ["network_fetch", "browser_dom", "accessibility_tree", "keyboard_input", "responsive_viewport"];
+            const result = inspectCapabilities(provided);
+            assert.equal(result.web_inspection_ready, true);
+            assert.deepEqual(result.missing_required, []);
+            assert.deepEqual(result.missing_recommended, ["screen_reader_runtime"]);
+          });
+
+          test("unified CLI fails closed when required Web capabilities are absent", () => {
+            const result = spawnSync(process.execPath, [cli, "capabilities", "--require-web"], { encoding: "utf8" });
+            assert.equal(result.status, 1);
+            const value = JSON.parse(result.stdout);
+            assert.equal(value.web_inspection_ready, false);
+          });
+          ''')
+          PY
+      - name: Verify
+        shell: bash
+        run: |
+          node --test tests/runtime-capabilities.test.mjs tests/unified-cli.test.mjs
+          node scripts/verify-package.mjs
+          node scripts/build-criteria-catalog.mjs --check
+      - name: Commit verified change
+        shell: bash
+        run: |
+          rm .github/workflows/one-shot-issue13.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- \
+            codex/skills/information-accessibility-practice/references/runtime-capabilities.json \
+            claude/skills/information-accessibility-practice/references/runtime-capabilities.json \
+            codex/skills/information-accessibility-practice/references/runtime-capabilities.schema.json \
+            claude/skills/information-accessibility-practice/references/runtime-capabilities.schema.json \
+            codex/skills/information-accessibility-practice/scripts/show-runtime-capabilities.mjs \
+            claude/skills/information-accessibility-practice/scripts/show-runtime-capabilities.mjs \
+            codex/skills/information-accessibility-practice/scripts/accessibility-audit.mjs \
+            claude/skills/information-accessibility-practice/scripts/accessibility-audit.mjs \
+            tests/runtime-capabilities.test.mjs \
+            .github/workflows/one-shot-issue13.yml
+          git commit -m "feat: add Web inspection capability preflight"
+          git push origin HEAD:feat/issue-13-web-capability-preflight
