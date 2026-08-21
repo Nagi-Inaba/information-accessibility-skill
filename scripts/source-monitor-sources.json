@@ -1,0 +1,17 @@
+{
+  "schema_version": "1.0.0",
+  "additional_sources": [
+    {
+      "id": "wcag22-errata",
+      "kind": "errata",
+      "url": "https://www.w3.org/WAI/WCAG22/errata/",
+      "reason": "Track substantive and editorial corrections separately from the WCAG Recommendation."
+    },
+    {
+      "id": "waic-jis-revision-news",
+      "kind": "standards-maintenance",
+      "url": "https://waic.jp/news/20251113/",
+      "reason": "Track the announced JIS X 8341-3 revision process without changing the current profile automatically."
+    }
+  ]
+}
