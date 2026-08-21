@@ -1,0 +1,79 @@
+name: Finalize issue 19
+on:
+  push:
+    branches: [fix/issue-19-report-evidence-origin]
+permissions:
+  contents: write
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/issue-19-report-evidence-origin
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Add row-level evidence origin
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          for base in ["codex", "claude"]:
+            path = Path(base) / "skills/information-accessibility-practice/scripts/render-audit-report.mjs"
+            text = path.read_text()
+            replacements = [
+              ('''    .map((result) => [\n      result.requirement_id,\n      reportJudgementForOutcome(result.outcome),\n      resultRationale(result)\n    ]);''', '''    .map((result) => [\n      result.requirement_id,\n      reportJudgementForOutcome(result.outcome),\n      result.mapping_status === "human_verified" ? "外部人手レビュー" : result.outcome === "not_tested" ? "未実施" : "補助的スクリーニング",\n      result.evidence?.length ? assessment.evidence_level : "E0",\n      resultRationale(result)\n    ]);'''),
+              ('publicTable(["達成基準", "判定", "根拠・未確認事項"], judgementRows, "判定対象の達成基準はありません。"),', 'publicTable(["達成基準", "判定", "判定の出所", "証拠レベル", "根拠・未確認事項"], judgementRows, "判定対象の達成基準はありません。"),'),
+              ('''        outcome: result.outcome,\n        rationale: resultRationale(result),\n        applicability: result.outcome === "not_applicable" ? "not_applicable" : "applicable"''', '''        outcome: result.outcome,\n        rationale: resultRationale(result),\n        applicability: result.outcome === "not_applicable" ? "not_applicable" : "applicable",\n        origin: "external_human_review",\n        evidence_level: "E2"'''),
+              ('checks.push({ requirement_id: result.requirement_id, outcome: "not_tested", rationale: "この検査では確認していません。", applicability: "undetermined" });', 'checks.push({ requirement_id: result.requirement_id, outcome: "not_tested", rationale: "この検査では確認していません。", applicability: "undetermined", origin: "not_performed", evidence_level: "E0" });'),
+              ('''      outcome: observation.report_outcome,\n      rationale: observation.report_rationale,\n      applicability: observation.applicability''', '''      outcome: observation.report_outcome,\n      rationale: observation.report_rationale,\n      applicability: observation.applicability,\n      origin: "ai_screening",\n      evidence_level: observation.evidence_level'''),
+              ('''      ["達成基準・検査項目", "判定", "根拠・未確認事項"],\n      reportChecks.map((item) => [item.requirement_id, reportJudgementForOutcome(item.outcome), item.rationale]),''', '''      ["達成基準・検査項目", "判定", "判定の出所", "証拠レベル", "根拠・未確認事項"],\n      reportChecks.map((item) => [\n        item.requirement_id,\n        reportJudgementForOutcome(item.outcome),\n        item.origin === "external_human_review" ? "外部人手レビュー" : item.origin === "ai_screening" ? "AIスクリーニング" : "未実施",\n        item.evidence_level,\n        item.rationale\n      ]),''')
+            ]
+            for old, new in replacements:
+              if old not in text: raise SystemExit(f"renderer marker missing in {path}: {old[:60]}")
+              text = text.replace(old, new, 1)
+            path.write_text(text)
+
+          Path("tests/report-evidence-origin.test.mjs").write_text(r'''import assert from "node:assert/strict";
+          import fs from "node:fs";
+          import path from "node:path";
+          import test from "node:test";
+          import { generateAssessment } from "../codex/skills/information-accessibility-practice/scripts/generate-assessment.mjs";
+          import { validateAssessment } from "../codex/skills/information-accessibility-practice/scripts/validate-assessment.mjs";
+          import { renderAuditReport } from "../codex/skills/information-accessibility-practice/scripts/render-audit-report.mjs";
+
+          const skill = path.resolve("codex/skills/information-accessibility-practice");
+          const read = (name) => JSON.parse(fs.readFileSync(path.join(skill, "references", name), "utf8"));
+
+          test("standalone report labels unperformed rows with their evidence origin", () => {
+            const record = generateAssessment("web-modern", {
+              targetName: "Example",
+              targetVersion: "v1",
+              targetRefs: ["https://example.invalid/"],
+              evaluator: "Reviewer",
+              evaluatedAt: "2026-08-22"
+            });
+            const validation = validateAssessment(record, read("standards-registry.json"), read("assessment-record.schema.json"), read("criteria-catalog.json"), read("web-audit-methods.json"));
+            assert.equal(validation.valid, true, validation.errors.join("; "));
+            const report = renderAuditReport(record, validation);
+            assert.match(report, /\| 達成基準 \| 判定 \| 判定の出所 \| 証拠レベル \|/u);
+            assert.match(report, /\| 未実施 \| E0 \|/u);
+          });
+          ''')
+          PY
+      - name: Verify
+        run: |
+          node --test tests/report-evidence-origin.test.mjs tests/audit-report.test.mjs
+          node scripts/verify-package.mjs
+      - name: Commit verified change
+        shell: bash
+        run: |
+          rm .github/workflows/one-shot-issue19.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- codex/skills/information-accessibility-practice/scripts/render-audit-report.mjs claude/skills/information-accessibility-practice/scripts/render-audit-report.mjs tests/report-evidence-origin.test.mjs .github/workflows/one-shot-issue19.yml
+          git commit -m "fix: show evidence origin for each report judgement"
+          git push origin HEAD:fix/issue-19-report-evidence-origin
