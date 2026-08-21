@@ -1,0 +1,85 @@
+name: Finalize issue 62
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+permissions:
+  contents: write
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/issue-62-explicit-assessment-template-mode
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Apply fix
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          for base in ["codex", "claude"]:
+              p = Path(base) / "skills/information-accessibility-practice/scripts/generate-assessment.mjs"
+              text = p.read_text()
+              text = text.replace('    else if (arg === "--help") options.help = true;\n', '    else if (arg === "--template") options.template = true;\n    else if (arg === "--help") options.help = true;\n')
+              text = text.replace('    "  --output <file>          Write a new file; refuses to overwrite",\n', '    "  --output <file>          Write a new file; refuses to overwrite",\n    "  --template               Allow placeholder identity fields and create an editable template",\n')
+              old = '''  if (!options.profileId) throw new Error("--profile is required");\n  const record = generateAssessment(options.profileId, options);\n  const serialized = `${JSON.stringify(record, null, 2)}\\n`;'''
+              new = '''  if (!options.profileId) throw new Error("--profile is required");\n  if (!options.template) {\n    const required = [\n      ["--target-name", options.targetName],\n      ["--target-version", options.targetVersion],\n      ["--target-ref", options.targetRefs?.[0]],\n      ["--evaluator", options.evaluator],\n      ["--evaluated-at", options.evaluatedAt]\n    ];\n    const missing = required.filter(([, value]) => typeof value !== "string" || value.trim().length === 0).map(([flag]) => flag);\n    if (missing.length > 0) throw new Error(`Valid assessment creation requires: ${missing.join(", ")}. Use --template for a placeholder record.`);\n  }\n  const record = generateAssessment(options.profileId, options);\n  const serialized = `${JSON.stringify(record, null, 2)}\\n`;'''
+              if old not in text: raise SystemExit(f"main block not found: {p}")
+              text = text.replace(old, new, 1)
+              old2 = '  console.log(JSON.stringify({ status: "PASS", profile: options.profileId, output, requirements: record.assessment.results.length }));'
+              new2 = '  console.log(JSON.stringify({ status: options.template ? "TEMPLATE_CREATED" : "PASS", profile: options.profileId, output, requirements: record.assessment.results.length }));'
+              if old2 not in text: raise SystemExit(f"status block not found: {p}")
+              p.write_text(text.replace(old2, new2, 1))
+          Path("tests/generate-assessment-mode.test.mjs").write_text(r'''import assert from "node:assert/strict";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { spawnSync } from "node:child_process";
+import test from "node:test";
+import { fileURLToPath } from "node:url";
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const script = path.join(root, "codex/skills/information-accessibility-practice/scripts/generate-assessment.mjs");
+
+test("record mode rejects missing identity before creating output", () => {
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), "assessment-mode-"));
+  const output = path.join(temp, "audit.json");
+  const result = spawnSync(process.execPath, [script, "--profile", "web-modern", "--output", output], { encoding: "utf8" });
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /Valid assessment creation requires/);
+  assert.equal(fs.existsSync(output), false);
+});
+
+test("template mode explicitly creates placeholder output", () => {
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), "assessment-template-"));
+  const output = path.join(temp, "audit.json");
+  const result = spawnSync(process.execPath, [script, "--profile", "web-modern", "--template", "--output", output], { encoding: "utf8" });
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /TEMPLATE_CREATED/);
+  assert.equal(JSON.parse(fs.readFileSync(output, "utf8")).assessment.target.name, "REPLACE_ME");
+});
+
+test("record mode with complete identity reports PASS", () => {
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), "assessment-valid-"));
+  const output = path.join(temp, "audit.json");
+  const result = spawnSync(process.execPath, [script, "--profile", "web-modern", "--target-name", "Example", "--target-version", "v1", "--target-ref", "https://example.invalid/", "--evaluator", "Reviewer", "--evaluated-at", "2026-08-22", "--output", output], { encoding: "utf8" });
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /"status":"PASS"/);
+});
+''')
+          PY
+      - name: Verify
+        run: |
+          node --test tests/generate-assessment-mode.test.mjs
+          node scripts/verify-package.mjs
+      - name: Commit
+        run: |
+          rm .github/workflows/one-shot-issue62.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- codex/skills/information-accessibility-practice/scripts/generate-assessment.mjs claude/skills/information-accessibility-practice/scripts/generate-assessment.mjs tests/generate-assessment-mode.test.mjs .github/workflows/one-shot-issue62.yml
+          git commit -m "fix: separate assessment templates from valid record creation"
+          git push origin HEAD:fix/issue-62-explicit-assessment-template-mode
