@@ -1,0 +1,66 @@
+name: Finalize issue 15
+on:
+  push:
+    branches: [fix/issue-15-jis-procedure-reuse]
+permissions:
+  contents: write
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/issue-15-jis-procedure-reuse
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Reuse WCAG procedures for equivalent JIS records
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          for base in ["codex", "claude"]:
+            path = Path(base) / "skills/information-accessibility-practice/scripts/show-requirement.mjs"
+            text = path.read_text()
+            old = 'const procedure = procedures.procedures.find((item) => item.requirement_id === record.id);'
+            new = 'const procedureRequirementId = record.web_modern_record_id ?? record.id;\n  const procedure = procedures.procedures.find((item) => item.requirement_id === procedureRequirementId);'
+            if old not in text: raise SystemExit(f"procedure lookup marker missing: {path}")
+            path.write_text(text.replace(old, new, 1))
+
+          Path("tests/jis-procedure-reuse.test.mjs").write_text(r'''import assert from "node:assert/strict";
+          import path from "node:path";
+          import test from "node:test";
+          import { lookupRequirement } from "../codex/skills/information-accessibility-practice/scripts/show-requirement.mjs";
+
+          const skill = path.resolve("codex/skills/information-accessibility-practice");
+
+          for (const number of ["1.1.1", "1.3.1", "2.1.1", "4.1.2"]) {
+            test(`JIS ${number} reuses the available equivalent WCAG procedure`, () => {
+              const result = lookupRequirement("jp-public-web", `JIS-X-8341-3-2016-SC-${number}`, skill);
+              assert.equal(result.procedure_binding.procedure_availability, "available");
+              assert.ok(result.procedure_binding.procedure_ref.includes("criterion-procedures"));
+              assert.ok(result.procedure_binding.official_sources.some((source) => source.includes("waic.jp")), "JIS sources must remain visible");
+            });
+          }
+
+          test("JIS-only parsing criterion is not mapped to a removed WCAG procedure", () => {
+            const result = lookupRequirement("jp-public-web", "JIS-X-8341-3-2016-SC-4.1.1", skill);
+            assert.equal(result.procedure_binding.procedure_availability, "unavailable");
+          });
+          ''')
+          PY
+      - name: Verify
+        run: |
+          node --test tests/jis-procedure-reuse.test.mjs tests/claim-guard.test.mjs
+          node scripts/verify-package.mjs
+      - name: Commit verified change
+        shell: bash
+        run: |
+          rm .github/workflows/one-shot-issue15.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- codex/skills/information-accessibility-practice/scripts/show-requirement.mjs claude/skills/information-accessibility-practice/scripts/show-requirement.mjs tests/jis-procedure-reuse.test.mjs .github/workflows/one-shot-issue15.yml
+          git commit -m "fix: reuse WCAG procedures for equivalent JIS requirements"
+          git push origin HEAD:fix/issue-15-jis-procedure-reuse
