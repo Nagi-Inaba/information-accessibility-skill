@@ -1,5 +1,7 @@
 # Local audit internals may contain run identifiers, hashes, paths, and raw observations.
 audit-runs/**/*
+.a11y-audit/
+.example-output/
 
 # Internal agent-workflow plans and implementation reports are not public package assets.
 .superpowers/
