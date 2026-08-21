@@ -1,0 +1,163 @@
+name: Finalize issue 22
+on:
+  push:
+    branches: [feat/issue-22-standalone-public-report]
+permissions:
+  contents: write
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/issue-22-standalone-public-report
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Add sanitized standalone public report path
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          wrapper = r'''import fs from "node:fs";
+          import path from "node:path";
+          import process from "node:process";
+          import { fileURLToPath, pathToFileURL } from "node:url";
+          import { writeNewText } from "./lib/audit-run.mjs";
+          import { validateAssessment } from "./validate-assessment.mjs";
+          import {
+            publicUrlOrFile,
+            renderAuditReport,
+            sanitizePublicString,
+            sanitizePublicVersion
+          } from "./render-audit-report.mjs";
+
+          const skillRoot = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
+          const withheld = "Withheld from public report";
+          const readJson = (file) => JSON.parse(fs.readFileSync(file, "utf8").replace(/^\uFEFF/u, ""));
+          const reference = (name) => readJson(path.join(skillRoot, "references", name));
+          const sanitizeArray = (values) => values.map((value) => sanitizePublicString(value));
+
+          export function sanitizeStandaloneAssessment(record, { includeReviewer = false } = {}) {
+            const value = structuredClone(record);
+            const assessment = value.assessment;
+            assessment.target.name = sanitizePublicString(assessment.target.name);
+            assessment.target.version_or_commit = sanitizePublicVersion(assessment.target.version_or_commit);
+            assessment.target.urls_or_files = assessment.target.urls_or_files.map(publicUrlOrFile);
+            for (const key of ["included", "excluded", "complete_processes", "third_party_content"]) assessment.scope[key] = sanitizeArray(assessment.scope[key]);
+            for (const key of ["os", "browsers", "assistive_technologies", "input_modes"]) assessment.environment[key] = sanitizeArray(assessment.environment[key]);
+            assessment.evaluator = includeReviewer ? sanitizePublicString(assessment.evaluator) : withheld;
+            assessment.limitations = sanitizeArray(assessment.limitations);
+            for (const result of assessment.results) {
+              result.method = sanitizePublicString(result.method);
+              result.notes = sanitizePublicString(result.notes ?? "");
+              result.evidence = (result.evidence ?? []).map((entry) => ({
+                ...entry,
+                location: sanitizePublicString(entry.location),
+                observation: sanitizePublicString(entry.observation)
+              }));
+            }
+            assessment.findings = (assessment.findings ?? []).map((finding) => ({
+              ...finding,
+              location: sanitizePublicString(finding.location),
+              affected_users: sanitizeArray(finding.affected_users),
+              observation: sanitizePublicString(finding.observation),
+              remediation: sanitizePublicString(finding.remediation),
+              verification: sanitizePublicString(finding.verification)
+            }));
+            return value;
+          }
+
+          function parse(argv) {
+            const options = {};
+            for (let i = 0; i < argv.length; i += 1) {
+              if (argv[i] === "--input") options.input = argv[++i];
+              else if (argv[i] === "--output") options.output = argv[++i];
+              else if (argv[i] === "--include-reviewer") options.includeReviewer = true;
+              else throw new Error(`Unknown argument: ${argv[i]}`);
+            }
+            if (!options.input || !options.output) throw new Error("--input and --output are required");
+            return options;
+          }
+
+          function main() {
+            const options = parse(process.argv.slice(2));
+            const original = readJson(path.resolve(options.input));
+            const validation = validateAssessment(original, reference("standards-registry.json"), reference("assessment-record.schema.json"), reference("criteria-catalog.json"), reference("web-audit-methods.json"));
+            if (!validation.valid) throw new Error(`Assessment validation failed: ${validation.errors.join("; ")}`);
+            const publicRecord = sanitizeStandaloneAssessment(original, options);
+            const output = writeNewText(path.resolve(options.output), renderAuditReport(publicRecord, validation));
+            console.log(JSON.stringify({ status: "PASS", visibility: "public", output }));
+          }
+
+          if (process.argv[1] && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url) {
+            try { main(); } catch (error) { console.error(error.message); process.exitCode = 1; }
+          }
+          '''
+
+          for base in ["codex", "claude"]:
+            root = Path(base) / "skills/information-accessibility-practice"
+            renderer = root / "scripts/render-audit-report.mjs"
+            text = renderer.read_text()
+            for old, new in [
+              ("function publicUrlOrFile(value) {", "export function publicUrlOrFile(value) {"),
+              ("function sanitizePublicString(value) {", "export function sanitizePublicString(value) {"),
+              ("function sanitizePublicVersion(value) {", "export function sanitizePublicVersion(value) {")
+            ]:
+              if old not in text: raise SystemExit(f"sanitizer marker missing in {renderer}: {old}")
+              text = text.replace(old, new, 1)
+            renderer.write_text(text)
+            cli = root / "scripts/accessibility-audit.mjs"
+            value = cli.read_text()
+            old = 'const commandScripts = {'
+            new = 'const commandScripts = {\n  "public-report": "render-public-audit-report.mjs",'
+            if old not in value: raise SystemExit(f"command map marker missing: {cli}")
+            cli.write_text(value.replace(old, new, 1))
+            (root / "scripts/render-public-audit-report.mjs").write_text(wrapper)
+
+          Path("tests/standalone-public-report.test.mjs").write_text(r'''import assert from "node:assert/strict";
+          import fs from "node:fs";
+          import os from "node:os";
+          import path from "node:path";
+          import { spawnSync } from "node:child_process";
+          import test from "node:test";
+          import { generateAssessment } from "../codex/skills/information-accessibility-practice/scripts/generate-assessment.mjs";
+
+          const cli = path.resolve("codex/skills/information-accessibility-practice/scripts/accessibility-audit.mjs");
+
+          test("standalone public report withholds local paths, reviewer identity, and query-bearing URLs", () => {
+            const temp = fs.mkdtempSync(path.join(os.tmpdir(), "public-report-"));
+            const input = path.join(temp, "assessment.json");
+            const output = path.join(temp, "report.md");
+            const record = generateAssessment("web-modern", {
+              targetName: "Internal checkout",
+              targetVersion: "C:/workspace/feature/private",
+              targetRefs: ["https://example.com/checkout?token=secret#step"],
+              evaluator: "reviewer@example.com",
+              evaluatedAt: "2026-08-22"
+            });
+            record.assessment.scope.included = ["C:/workspace/private/index.html"];
+            fs.writeFileSync(input, JSON.stringify(record), "utf8");
+            const result = spawnSync(process.execPath, [cli, "public-report", "--input", input, "--output", output], { encoding: "utf8" });
+            assert.equal(result.status, 0, result.stderr);
+            const report = fs.readFileSync(output, "utf8");
+            assert.doesNotMatch(report, /token=secret|reviewer@example\.com|C:\/workspace/u);
+            assert.match(report, /Withheld from public report/u);
+          });
+          ''')
+          PY
+      - name: Verify
+        run: |
+          node --test tests/standalone-public-report.test.mjs tests/audit-report.test.mjs tests/unified-cli.test.mjs
+          node scripts/verify-package.mjs
+      - name: Commit verified change
+        shell: bash
+        run: |
+          rm .github/workflows/one-shot-issue22.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- codex/skills/information-accessibility-practice/scripts/accessibility-audit.mjs claude/skills/information-accessibility-practice/scripts/accessibility-audit.mjs codex/skills/information-accessibility-practice/scripts/render-audit-report.mjs claude/skills/information-accessibility-practice/scripts/render-audit-report.mjs codex/skills/information-accessibility-practice/scripts/render-public-audit-report.mjs claude/skills/information-accessibility-practice/scripts/render-public-audit-report.mjs tests/standalone-public-report.test.mjs .github/workflows/one-shot-issue22.yml
+          git commit -m "feat: add a sanitized standalone public report path"
+          git push origin HEAD:feat/issue-22-standalone-public-report
