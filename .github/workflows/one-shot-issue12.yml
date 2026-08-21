@@ -1,0 +1,120 @@
+name: Finalize issue 12
+on:
+  push:
+    branches: [feat/issue-12-cli-discovery]
+permissions:
+  contents: write
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/issue-12-cli-discovery
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Add profile and version discovery
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          profiles = '''import fs from "node:fs";
+          import path from "node:path";
+          import process from "node:process";
+          import { fileURLToPath, pathToFileURL } from "node:url";
+
+          const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
+          export function profileSummaries() {
+            const registry = JSON.parse(fs.readFileSync(path.join(root, "references/standards-registry.json"), "utf8"));
+            return registry.profiles.map((profile) => ({
+              id: profile.id,
+              name: profile.display_name,
+              active: profile.assessment_configuration?.active === true,
+              requirements: profile.requirement_ids?.length ?? 0,
+              claim_ceiling: profile.claim_rules?.claim_ceiling ?? null
+            }));
+          }
+
+          function main() {
+            const rows = profileSummaries();
+            if (process.argv.includes("--json")) {
+              console.log(JSON.stringify({ profiles: rows }, null, 2));
+              return;
+            }
+            console.log(["ID\\tACTIVE\\tREQUIREMENTS\\tCLAIM CEILING\\tNAME", ...rows.map((row) => `${row.id}\\t${row.active ? "yes" : "no"}\\t${row.requirements}\\t${row.claim_ceiling ?? "-"}\\t${row.name}`)].join("\\n"));
+          }
+
+          if (process.argv[1] && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url) main();
+          '''
+          version = '''import fs from "node:fs";
+          import path from "node:path";
+          import process from "node:process";
+          import { fileURLToPath, pathToFileURL } from "node:url";
+
+          const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
+          export function versionInfo() {
+            const pkg = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
+            const standards = JSON.parse(fs.readFileSync(path.join(root, "references/standards-registry.json"), "utf8"));
+            const orchestration = JSON.parse(fs.readFileSync(path.join(root, "references/orchestration-registry.json"), "utf8"));
+            return { package: pkg.version, standards_registry: standards.schema_version, orchestration_registry: orchestration.schema_version };
+          }
+          function main() { console.log(JSON.stringify(versionInfo(), null, 2)); }
+          if (process.argv[1] && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url) main();
+          '''
+
+          for base in ["codex", "claude"]:
+            root = Path(base) / "skills/information-accessibility-practice"
+            cli = root / "scripts/accessibility-audit.mjs"
+            text = cli.read_text()
+            old = 'const commandScripts = {'
+            new = 'const commandScripts = {\n  profiles: "show-profiles.mjs",\n  version: "show-version.mjs",'
+            if old not in text: raise SystemExit(f"command map marker missing: {cli}")
+            text = text.replace(old, new, 1)
+            old = 'const command = args[0];'
+            new = 'const command = args[0] === "--version" ? "version" : args[0];'
+            if old not in text: raise SystemExit(f"command marker missing: {cli}")
+            cli.write_text(text.replace(old, new, 1))
+            (root / "scripts/show-profiles.mjs").write_text(profiles)
+            (root / "scripts/show-version.mjs").write_text(version)
+
+          Path("tests/cli-discovery.test.mjs").write_text(r'''import assert from "node:assert/strict";
+          import { spawnSync } from "node:child_process";
+          import path from "node:path";
+          import test from "node:test";
+
+          const cli = path.resolve("codex/skills/information-accessibility-practice/scripts/accessibility-audit.mjs");
+
+          test("profiles command lists active and inactive profiles with counts", () => {
+            const result = spawnSync(process.execPath, [cli, "profiles", "--json"], { encoding: "utf8" });
+            assert.equal(result.status, 0, result.stderr);
+            const value = JSON.parse(result.stdout);
+            assert.ok(value.profiles.some((profile) => profile.id === "web-modern" && profile.active && profile.requirements === 55));
+            assert.ok(value.profiles.some((profile) => profile.id === "authoring-agent" && !profile.active));
+          });
+
+          test("--version reports package and registry versions", () => {
+            const result = spawnSync(process.execPath, [cli, "--version"], { encoding: "utf8" });
+            assert.equal(result.status, 0, result.stderr);
+            const value = JSON.parse(result.stdout);
+            assert.ok(value.package);
+            assert.ok(value.standards_registry);
+            assert.ok(value.orchestration_registry);
+          });
+          ''')
+          PY
+      - name: Verify
+        run: |
+          node --test tests/cli-discovery.test.mjs tests/unified-cli.test.mjs
+          node scripts/verify-package.mjs
+      - name: Commit verified change
+        shell: bash
+        run: |
+          rm .github/workflows/one-shot-issue12.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- codex/skills/information-accessibility-practice/scripts/accessibility-audit.mjs claude/skills/information-accessibility-practice/scripts/accessibility-audit.mjs codex/skills/information-accessibility-practice/scripts/show-profiles.mjs claude/skills/information-accessibility-practice/scripts/show-profiles.mjs codex/skills/information-accessibility-practice/scripts/show-version.mjs claude/skills/information-accessibility-practice/scripts/show-version.mjs tests/cli-discovery.test.mjs .github/workflows/one-shot-issue12.yml
+          git commit -m "feat: expose profile and version discovery commands"
+          git push origin HEAD:feat/issue-12-cli-discovery
