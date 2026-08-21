@@ -1,8 +1,7 @@
 name: Finalize issue 38
 on:
-  pull_request:
-    branches: [main]
-    types: [opened, synchronize, reopened]
+  push:
+    branches: [fix/issue-38-validator-reportability]
 permissions:
   contents: write
 jobs:
@@ -25,8 +24,7 @@ jobs:
           for base in ["codex", "claude"]:
               p = Path(base) / "skills/information-accessibility-practice/scripts/validate-assessment.mjs"
               text = p.read_text()
-              if text.count(old) != 1:
-                  raise SystemExit(f"unexpected validator shape: {p}")
+              if text.count(old) != 1: raise SystemExit(f"unexpected validator shape: {p}")
               p.write_text(text.replace(old, new))
           p = Path("tests/audit-report.test.mjs")
           text = p.read_text()
@@ -47,6 +45,6 @@ jobs:
           rm .github/workflows/one-shot-issue38.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -- codex/skills/information-accessibility-practice/scripts/validate-assessment.mjs claude/skills/information-accessibility-practice/scripts/validate-assessment.mjs tests/audit-report.test.mjs .github/workflows/one-shot-issue38.yml
+          git add -A
           git commit -m "fix: align assessment validation with report requirements"
           git push origin HEAD:fix/issue-38-validator-reportability
