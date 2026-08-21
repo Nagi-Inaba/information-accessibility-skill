@@ -1,0 +1,136 @@
+name: Finalize issue 15
+
+on:
+  push:
+    branches: [feat/issue-15-jis-procedure-reuse]
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: issue-15-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  implement-and-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/issue-15-jis-procedure-reuse
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Reuse equivalent criterion procedures
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          old = '''  const criterionProcedure = criterionProcedures.procedures.find((item) => item.requirement_id === requirementId);
+          const procedureBinding = criterionProcedure ? {'''
+          new = '''  const directCriterionProcedure = criterionProcedures.procedures.find((item) => item.requirement_id === requirementId);
+          let criterionProcedure = directCriterionProcedure;
+          let criterionProcedureReusedFrom = null;
+          if (!criterionProcedure) {
+            const catalogRecords = Object.values(catalog).flatMap((value) => Array.isArray(value) ? value : []);
+            const procedureByRequirement = new Map(criterionProcedures.procedures.map((item) => [item.requirement_id, item]));
+            const equivalent = catalogRecords.find((item) => item?.id !== requirementId
+              && item?.success_criterion === criterion.success_criterion
+              && procedureByRequirement.has(item.id));
+            if (equivalent) {
+              criterionProcedure = procedureByRequirement.get(equivalent.id);
+              criterionProcedureReusedFrom = equivalent.id;
+            }
+          }
+          const reusedProcedureSources = criterionProcedureReusedFrom ? [...new Set([
+            criterion.normative_url,
+            criterion.checklist_source_url,
+            criterion.profile_source_url,
+            ...(criterion.official_method_sources ?? []),
+            ...(criterionProcedure?.primary_sources ?? [])
+          ].filter(Boolean))] : criterionProcedure?.primary_sources;
+          const procedureBinding = criterionProcedure ? {'''
+
+          for base in ["codex", "claude"]:
+              path = Path(base) / "skills/information-accessibility-practice/scripts/show-requirement.mjs"
+              text = path.read_text()
+              if 'criterionProcedureReusedFrom' not in text:
+                  if text.count(old) != 1:
+                      raise SystemExit(f"procedure lookup marker missing: {path}")
+                  text = text.replace(old, new, 1)
+              source_line = '    official_sources: criterionProcedure.primary_sources,\n'
+              reused_line = '    official_sources: reusedProcedureSources,\n'
+              if reused_line not in text:
+                  if text.count(source_line) != 1:
+                      raise SystemExit(f"procedure source marker missing: {path}")
+                  text = text.replace(source_line, reused_line, 1)
+              result_line = '    criterion_procedure_status: criterionProcedure ? "available" : "not_available",\n'
+              result_replacement = result_line + '    criterion_procedure_reused_from: criterionProcedureReusedFrom,\n'
+              if 'criterion_procedure_reused_from:' not in text:
+                  if text.count(result_line) != 1:
+                      raise SystemExit(f"result status marker missing: {path}")
+                  text = text.replace(result_line, result_replacement, 1)
+              path.write_text(text)
+
+          Path("tests/jis-procedure-reuse.test.mjs").write_text(r'''import assert from "node:assert/strict";
+          import test from "node:test";
+          import { lookupRequirement } from "../codex/skills/information-accessibility-practice/scripts/show-requirement.mjs";
+
+          const equivalentPairs = [
+            ["JIS-X-8341-3-2016-SC-1.1.1", "WCAG-2.2-SC-1.1.1"],
+            ["JIS-X-8341-3-2016-SC-1.3.1", "WCAG-2.2-SC-1.3.1"],
+            ["JIS-X-8341-3-2016-SC-2.1.1", "WCAG-2.2-SC-2.1.1"],
+            ["JIS-X-8341-3-2016-SC-4.1.2", "WCAG-2.2-SC-4.1.2"]
+          ];
+
+          test("JIS equivalents reuse bundled WCAG procedures while retaining JIS sources", () => {
+            for (const [jisId, wcagId] of equivalentPairs) {
+              const lookup = lookupRequirement("jp-public-web", jisId);
+              assert.equal(lookup.criterion_procedure_status, "available", jisId);
+              assert.equal(lookup.criterion_procedure_reused_from, wcagId, jisId);
+              assert.equal(lookup.procedure_binding.procedure_availability, "available", jisId);
+              assert.match(lookup.procedure_binding.procedure_ref, /^criterion-procedures:1\.0\.0#/u);
+              const jisSource = lookup.criterion.normative_url
+                ?? lookup.criterion.checklist_source_url
+                ?? lookup.criterion.profile_source_url;
+              assert.ok(lookup.procedure_binding.official_sources.includes(jisSource), `${jisId} must retain its JIS source`);
+              assert.ok(lookup.procedure_binding.official_sources.some((source) => source.includes("w3.org")), `${jisId} must retain the reused procedure sources`);
+            }
+          });
+
+          test("the JIS-only parsing requirement does not reuse an unrelated WCAG procedure", () => {
+            const lookup = lookupRequirement("jp-public-web", "JIS-X-8341-3-2016-SC-4.1.1");
+            assert.equal(lookup.criterion_procedure_status, "not_available");
+            assert.equal(lookup.criterion_procedure_reused_from, null);
+            assert.equal(lookup.procedure_binding.procedure_availability, "unavailable");
+            assert.match(lookup.procedure_binding.generic_method_ref, /#parsing-legacy$/u);
+          });
+
+          test("direct WCAG lookups remain direct rather than self-reused", () => {
+            const lookup = lookupRequirement("web-modern", "WCAG-2.2-SC-1.1.1");
+            assert.equal(lookup.criterion_procedure_status, "available");
+            assert.equal(lookup.criterion_procedure_reused_from, null);
+            assert.deepEqual(lookup.procedure_binding.official_sources, lookup.criterion_procedure.primary_sources);
+          });
+          ''')
+          PY
+      - name: Verify
+        shell: bash
+        run: |
+          node --test tests/jis-procedure-reuse.test.mjs tests/audit-workflow.test.mjs tests/audit-orchestration-cli.test.mjs
+          node scripts/verify-package.mjs
+          node scripts/build-criteria-catalog.mjs --check
+      - name: Commit verified change
+        shell: bash
+        run: |
+          rm .github/workflows/one-shot-issue15.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- codex/skills/information-accessibility-practice/scripts/show-requirement.mjs claude/skills/information-accessibility-practice/scripts/show-requirement.mjs tests/jis-procedure-reuse.test.mjs .github/workflows/one-shot-issue15.yml
+          git commit -m "feat: reuse equivalent WCAG procedures for JIS requirements"
+          git push origin HEAD:feat/issue-15-jis-procedure-reuse
