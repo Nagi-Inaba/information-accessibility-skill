@@ -1,0 +1,64 @@
+name: Finalize issue 45 provenance
+
+on:
+  push:
+    branches: [docs/issue-45-profile-provenance]
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: issue-45-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  update-and-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: docs/issue-45-profile-provenance
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Correct profile metadata
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          for base in ["codex", "claude"]:
+              path = Path(base) / "skills/information-accessibility-practice/references/standards-registry.json"
+              registry = json.loads(path.read_text())
+              profile = next(item for item in registry["profiles"] if item["id"] == "jp-public-web")
+              profile["display_name"] = "JIS X 8341-3:2016 plus Digital Agency WCAG 2.2 extension"
+              profile["target_scope"] = "Composite review preset: JIS X 8341-3:2016 A/AA plus the 18 additional WCAG 2.2 A/AA targets in the Japan Digital Agency policy for www.digital.go.jp; not a universal Japanese public-Web requirement."
+              extension_group = next(group for group in profile["assessment_configuration"]["groups"] if group["id"] == "jp_wcag_2_2_additional")
+              extension_group["label"] = "Digital Agency WCAG 2.2 extension (18)"
+              extension = next(standard for standard in profile["standards"] if standard["id"] == "WCAG-2.2-ADDITIONAL-A-AA-18")
+              extension["title"] = "Additional WCAG 2.2 A/AA targets used by the Japan Digital Agency policy"
+              extension["normative_status"] = "Organization-specific policy target for www.digital.go.jp; keep separate from the JIS result and do not generalize it as a universal Japanese public-sector requirement."
+              extension["last_verified_at"] = "2026-08-22"
+              registry["last_verified_at"] = "2026-08-22"
+              path.write_text(json.dumps(registry, ensure_ascii=False, indent=2) + "\n")
+          PY
+      - name: Verify
+        shell: bash
+        run: |
+          node --test tests/jp-profile-provenance.test.mjs tests/profile-registry.test.mjs tests/audit-workflow.test.mjs
+          node scripts/verify-package.mjs
+          node scripts/build-criteria-catalog.mjs --check
+      - name: Commit verified change
+        shell: bash
+        run: |
+          rm .github/workflows/one-shot-issue45.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- codex/skills/information-accessibility-practice/references/standards-registry.json claude/skills/information-accessibility-practice/references/standards-registry.json docs/jp-public-web-profile-provenance.md tests/jp-profile-provenance.test.mjs .github/workflows/one-shot-issue45.yml
+          git commit -m "docs: identify the Digital Agency profile extension"
+          git push origin HEAD:docs/issue-45-profile-provenance
