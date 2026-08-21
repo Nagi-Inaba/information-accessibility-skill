@@ -43,6 +43,7 @@ jobs:
               Path("claude/skills/information-accessibility-practice/references/orchestration-registry.json"),
               Path("codex/skills/information-accessibility-practice/scripts/lib/audit-run.mjs"),
               Path("claude/skills/information-accessibility-practice/scripts/lib/audit-run.mjs"),
+              Path("tests/audit-orchestration-contract.test.mjs"),
           ]
           for path in schema_paths:
               text = path.read_text()
@@ -52,7 +53,7 @@ jobs:
           for path in hash_paths:
               text = path.read_text()
               if text.count(old_hash) != 1:
-                  raise SystemExit(f"Unexpected manifest shape: {path}")
+                  raise SystemExit(f"Unexpected schema-hash contract shape: {path}")
               path.write_text(text.replace(old_hash, new_hash, 1))
           PYCODE
       - name: Add regression test
@@ -160,6 +161,7 @@ jobs:
             claude/skills/information-accessibility-practice/references/orchestration-registry.json \
             codex/skills/information-accessibility-practice/scripts/lib/audit-run.mjs \
             claude/skills/information-accessibility-practice/scripts/lib/audit-run.mjs \
+            tests/audit-orchestration-contract.test.mjs \
             tests/additional-wcag-screening-id.test.mjs \
             .github/workflows/one-shot-issue24.yml \
             .github/workflows/repair-issue24.yml
