@@ -1,0 +1,124 @@
+name: Finalize issue 26
+on:
+  push:
+    branches: [docs/issue-26-artifact-workdir]
+permissions:
+  contents: write
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: docs/issue-26-artifact-workdir
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Add dedicated artifact work directory guidance
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          ignore = Path(".gitignore")
+          text = ignore.read_text()
+          entry = '''\n# Default private work area for audit runs, evidence, candidates, and internal reports.\n.a11y-audit/**/*\n'''
+          if '.a11y-audit/**/*' not in text:
+            ignore.write_text(text.rstrip() + entry + '\n')
+
+          Path("docs").mkdir(exist_ok=True)
+          Path("docs/artifact-storage.md").write_text('''# 監査成果物の保存場所
+
+監査中のJSON、raw evidence、local path、private URL、reviewer情報は、repository直下へ散在させず、既定のprivate work areaへまとめます。
+
+```text
+.a11y-audit/
+  runs/<run-id>/
+  evidence/
+  candidates/
+  reports/internal/
+```
+
+`.a11y-audit/`は`.gitignore`に含まれます。run IDごとに新しいdirectoryを使い、既存成果物を上書きしません。
+
+公開レポートはprivate work areaから直接commitせず、public sanitizationと人によるpublication reviewを行った後、明示的に選んだ公開先へexportしてください。
+
+## 推奨例
+
+```sh
+mkdir -p .a11y-audit/runs/example
+node ./codex/skills/information-accessibility-practice/scripts/generate-assessment.mjs \\
+  --profile web-modern \\
+  --target-name "Example Site" \\
+  --target-version "v1" \\
+  --target-ref "https://example.com/" \\
+  --evaluator "Reviewer" \\
+  --evaluated-at "2026-08-22" \\
+  --output .a11y-audit/runs/example/assessment.json
+```
+
+Retentionと削除は、証拠の必要期間、個人情報、契約、incident対応方針に合わせます。削除前に、公開用reportと必要なattestationが別途保存されていることを確認してください。
+''')
+          Path("docs/artifact-storage.en.md").write_text('''# Audit artifact storage
+
+Keep audit JSON, raw evidence, local paths, private URLs, and reviewer information in one private work area instead of scattering them across the repository root.
+
+```text
+.a11y-audit/
+  runs/<run-id>/
+  evidence/
+  candidates/
+  reports/internal/
+```
+
+`.a11y-audit/` is ignored by Git. Use a new directory for each run ID and never overwrite an existing artifact.
+
+Do not commit a report directly from the private work area. Apply public sanitization and a human publication review, then explicitly export the approved report to its public destination.
+
+Retention and deletion must follow the required evidence period, privacy obligations, contracts, and incident-response policy.
+''')
+
+          changes = {
+            "README.md": ('## 出力例', '監査中のJSONとraw evidenceは、[専用のprivate work area](docs/artifact-storage.md)へ保存し、公開レポートだけをreview後にexportしてください。\n\n## 出力例'),
+            "README.en.md": ('## Example output', 'Store audit JSON and raw evidence in the [dedicated private work area](docs/artifact-storage.en.md), and export only reviewed public reports.\n\n## Example output')
+          }
+          for name, (old, new) in changes.items():
+            path = Path(name)
+            value = path.read_text()
+            if old not in value: raise SystemExit(f"README output marker missing: {name}")
+            path.write_text(value.replace(old, new, 1))
+
+          Path("tests/artifact-storage.test.mjs").write_text(r'''import assert from "node:assert/strict";
+          import { spawnSync } from "node:child_process";
+          import fs from "node:fs";
+          import test from "node:test";
+
+          test("the default private audit work area is ignored by Git", () => {
+            const result = spawnSync("git", ["check-ignore", "-q", ".a11y-audit/runs/example/assessment.json"], { encoding: "utf8" });
+            assert.equal(result.status, 0, result.stderr);
+          });
+
+          test("storage guidance separates private work artifacts from explicit public export", () => {
+            for (const file of ["docs/artifact-storage.md", "docs/artifact-storage.en.md"]) {
+              const text = fs.readFileSync(file, "utf8");
+              assert.match(text, /\.a11y-audit/u);
+              assert.match(text, /public/u);
+              assert.match(text, /overwrite/u);
+            }
+          });
+          ''')
+          PY
+      - name: Verify
+        run: |
+          node --test tests/artifact-storage.test.mjs tests/readme-i18n.test.mjs
+          node scripts/verify-package.mjs
+      - name: Commit verified change
+        shell: bash
+        run: |
+          rm .github/workflows/one-shot-issue26.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- .gitignore README.md README.en.md docs/artifact-storage.md docs/artifact-storage.en.md tests/artifact-storage.test.mjs .github/workflows/one-shot-issue26.yml
+          git commit -m "docs: establish a private audit artifact work area"
+          git push origin HEAD:docs/issue-26-artifact-workdir
