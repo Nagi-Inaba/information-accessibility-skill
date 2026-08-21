@@ -1,0 +1,149 @@
+name: Finalize issue 18
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+
+jobs:
+  implement-and-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/issue-18-profile-aware-reports
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Make reports profile aware
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          helper = r'''export function reportTitleForProfile(profileId) {
+            if (profileId === "web-modern") return "# WCAG 2.2 A/AA 検査レポート";
+            if (profileId === "jp-public-web") return "# JIS X 8341-3:2016＋追加WCAG検査レポート";
+            return "# 情報アクセシビリティ検査レポート";
+          }
+
+          export function reportGroupCounts(profileDefinition, checks = [], notApplicable = []) {
+            const groups = profileDefinition?.assessment_configuration?.groups ?? [];
+            const counts = Object.fromEntries(groups.map((group) => [group.id, { pass: 0, fail: 0, not_applicable: 0, not_tested: 0, cant_tell: 0 }]));
+            const groupFor = (requirementId) => groups.find((group) => group.requirement_id_prefixes.some((prefix) => requirementId.startsWith(prefix)));
+            for (const item of checks) {
+              const group = groupFor(item.requirement_id);
+              if (group && Object.hasOwn(counts[group.id], item.outcome)) counts[group.id][item.outcome] += 1;
+            }
+            for (const item of notApplicable) {
+              const group = groupFor(item.requirement_id);
+              if (group) counts[group.id].not_applicable += 1;
+            }
+            return { groups: groups.map(({ id, label }) => ({ id, label })), counts };
+          }
+
+          '''
+
+          for base in ["codex", "claude"]:
+              report = Path(base) / "skills/information-accessibility-practice/scripts/render-audit-report.mjs"
+              text = report.read_text()
+              marker = 'export function reportJudgementForOutcome(outcome) {\n'
+              if 'function reportTitleForProfile' not in text:
+                  if text.count(marker) != 1: raise SystemExit(f"title helper marker missing: {report}")
+                  text = text.replace(marker, helper + marker, 1)
+              text = text.replace('    "# WCAG検査レポート",', '    reportTitleForProfile(assessment.profile.id),', 1)
+
+              model_marker = '  const model = {\n'
+              profile_lookup = '  const profileDefinition = resources?.standardsRegistry?.profiles?.find((profile) => profile.id === run.profile.id);\n  const reportGroupsForProfile = reportGroupCounts(profileDefinition, reportProjection.checks, reportProjection.notApplicable);\n'
+              if profile_lookup not in text:
+                  if text.count(model_marker) != 1: raise SystemExit(f"public model marker missing: {report}")
+                  text = text.replace(model_marker, profile_lookup + model_marker, 1)
+              old_profile = '    profile: structuredClone(run.profile),\n'
+              new_profile = '    profile: { ...structuredClone(run.profile), display_name: profileDefinition?.display_name ?? run.profile.id, report_groups: reportGroupsForProfile.groups },\n'
+              if new_profile not in text:
+                  if text.count(old_profile) != 1: raise SystemExit(f"model profile marker missing: {report}")
+                  text = text.replace(old_profile, new_profile, 1)
+              coverage_marker = '    reportOutcomeCounts: reportProjection.counts,\n'
+              coverage_addition = coverage_marker + '    reportGroupOutcomeCounts: reportGroupsForProfile.counts,\n'
+              if 'reportGroupOutcomeCounts:' not in text:
+                  if text.count(coverage_marker) != 1: raise SystemExit(f"group count model marker missing: {report}")
+                  text = text.replace(coverage_marker, coverage_addition, 1)
+
+              run_title = '    "# WCAG検査レポート",\n'
+              if run_title not in text: raise SystemExit(f"run-backed title marker missing: {report}")
+              text = text.replace(run_title, '    reportTitleForProfile(model.profile.id),\n', 1)
+              section_marker = '    "## 2. 検査対象",\n'
+              group_section = '''    ...(model.profile.report_groups?.length > 1 ? [
+                "### プロファイル区分別件数",
+                "",
+                `| 結果 | ${model.profile.report_groups.map((group) => cell(group.label)).join(" | ")} |`,
+                `| --- | ${model.profile.report_groups.map(() => "---:").join(" | ")} |`,
+                groupRows(model.profile.report_groups, model.reportGroupOutcomeCounts),
+                ""
+              ] : []),
+              '''
+              if group_section not in text:
+                  if text.count(section_marker) != 1: raise SystemExit(f"group section marker missing: {report}")
+                  text = text.replace(section_marker, group_section + section_marker, 1)
+              report.write_text(text)
+
+          Path("tests/profile-aware-report.test.mjs").write_text(r'''import assert from "node:assert/strict";
+          import fs from "node:fs";
+          import path from "node:path";
+          import test from "node:test";
+          import { fileURLToPath } from "node:url";
+          import { generateAssessment } from "../codex/skills/information-accessibility-practice/scripts/generate-assessment.mjs";
+          import { validateAssessment } from "../codex/skills/information-accessibility-practice/scripts/validate-assessment.mjs";
+          import { renderAuditReport, reportGroupCounts, reportTitleForProfile } from "../codex/skills/information-accessibility-practice/scripts/render-audit-report.mjs";
+
+          const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+          const refs = path.join(root, "codex/skills/information-accessibility-practice/references");
+          const read = (name) => JSON.parse(fs.readFileSync(path.join(refs, name), "utf8"));
+          const registry = read("standards-registry.json");
+          const schema = read("assessment-record.schema.json");
+          const catalog = read("criteria-catalog.json");
+          const methods = read("web-audit-methods.json");
+
+          test("report titles identify the selected profile", () => {
+            assert.equal(reportTitleForProfile("web-modern"), "# WCAG 2.2 A/AA 検査レポート");
+            assert.equal(reportTitleForProfile("jp-public-web"), "# JIS X 8341-3:2016＋追加WCAG検査レポート");
+          });
+
+          test("standalone Japanese profile report separates JIS and additional WCAG groups", () => {
+            const record = generateAssessment("jp-public-web", { targetName: "Example", targetVersion: "v1", targetRefs: ["https://example.invalid/"], evaluator: "Reviewer", evaluatedAt: "2026-08-22" });
+            const validation = validateAssessment(record, registry, schema, catalog, methods);
+            assert.equal(validation.valid, true, validation.errors.join("; "));
+            const report = renderAuditReport(record, validation);
+            assert.match(report, /^# JIS X 8341-3:2016＋追加WCAG検査レポート/mu);
+            assert.match(report, /JIS X 8341-3:2016 A\/AA \(38\)/u);
+            assert.match(report, /Added WCAG 2.2 A\/AA \(18\)/u);
+          });
+
+          test("group aggregation keeps JIS and additional requirements separate", () => {
+            const profile = registry.profiles.find((item) => item.id === "jp-public-web");
+            const result = reportGroupCounts(profile, [
+              { requirement_id: "JIS-X-8341-3-2016-SC-1.1.1", outcome: "fail" },
+              { requirement_id: "WCAG-2.2-ADDITIONAL-SC-2.4.11", outcome: "cant_tell" }
+            ], []);
+            assert.equal(result.counts.jis_x_8341_3_2016.fail, 1);
+            assert.equal(result.counts.jp_wcag_2_2_additional.cant_tell, 1);
+          });
+          ''')
+          PY
+      - name: Verify
+        run: |
+          node --test tests/profile-aware-report.test.mjs tests/audit-report.test.mjs
+          node scripts/verify-package.mjs
+          node scripts/build-criteria-catalog.mjs --check
+      - name: Commit verified change
+        run: |
+          rm .github/workflows/one-shot-issue18.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- codex/skills/information-accessibility-practice/scripts/render-audit-report.mjs claude/skills/information-accessibility-practice/scripts/render-audit-report.mjs tests/profile-aware-report.test.mjs .github/workflows/one-shot-issue18.yml
+          git commit -m "feat: make reports identify and separate profiles"
+          git push origin HEAD:feat/issue-18-profile-aware-reports
