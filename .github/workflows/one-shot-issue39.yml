@@ -86,23 +86,28 @@ jobs:
                   if text.count(import_marker) != 1:
                       raise SystemExit(f"validator import marker missing: {validator}")
                   text = text.replace(import_marker, import_marker + date_import, 1)
-              old_evidence = r'''if (hasText(evidence?.captured_at) && (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(evidence.captured_at) || Number.isNaN(Date.parse(evidence.captured_at)))) {'''
-              new_evidence = 'if (hasText(evidence?.captured_at) && !isRfc3339DateTime(evidence.captured_at)) {'
-              if old_evidence in text:
-                  text = text.replace(old_evidence, new_evidence, 1)
-              elif new_evidence not in text:
-                  raise SystemExit(f"evidence date marker missing: {validator}")
-              old_dates = r'''  if (!/^\d{4}-\d{2}-\d{2}$/.test(assessment.evaluated_at ?? "")) errors.push("evaluated_at must be YYYY-MM-DD");
-          if (assessment.next_review_at !== null && !/^\d{4}-\d{2}-\d{2}$/.test(assessment.next_review_at ?? "")) {
-            errors.push("next_review_at must be YYYY-MM-DD or null");
-          }'''
-              new_dates = '''  if (!isCalendarDate(assessment.evaluated_at)) errors.push("evaluated_at must be a real calendar date in YYYY-MM-DD form");
-          if (assessment.next_review_at !== null && !isCalendarDate(assessment.next_review_at)) {
-            errors.push("next_review_at must be a real calendar date in YYYY-MM-DD form or null");
-          }'''
-              if old_dates in text:
-                  text = text.replace(old_dates, new_dates, 1)
-              elif new_dates not in text:
+
+              evidence_start = text.find('        if (hasText(evidence?.captured_at)')
+              if evidence_start < 0:
+                  raise SystemExit(f"evidence date condition missing: {validator}")
+              evidence_end = text.find('\n', evidence_start)
+              current_evidence_line = text[evidence_start:evidence_end]
+              if '!isRfc3339DateTime(evidence.captured_at)' not in current_evidence_line:
+                  text = text[:evidence_start] + '        if (hasText(evidence?.captured_at) && !isRfc3339DateTime(evidence.captured_at)) {' + text[evidence_end:]
+
+              date_start_marker = '  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(assessment.evaluated_at'
+              date_start = text.find(date_start_marker)
+              date_end_marker = '\n\n  const expectedRequirementIds'
+              if date_start >= 0:
+                  date_end = text.find(date_end_marker, date_start)
+                  if date_end < 0:
+                      raise SystemExit(f"assessment date block end missing: {validator}")
+                  replacement = '''  if (!isCalendarDate(assessment.evaluated_at)) errors.push("evaluated_at must be a real calendar date in YYYY-MM-DD form");
+              if (assessment.next_review_at !== null && !isCalendarDate(assessment.next_review_at)) {
+                errors.push("next_review_at must be a real calendar date in YYYY-MM-DD form or null");
+              }'''
+                  text = text[:date_start] + replacement + text[date_end:]
+              elif 'if (!isCalendarDate(assessment.evaluated_at))' not in text:
                   raise SystemExit(f"assessment date block missing: {validator}")
               validator.write_text(text)
 
@@ -172,14 +177,6 @@ jobs:
           rm .github/workflows/one-shot-issue39.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -- \
-            codex/skills/information-accessibility-practice/scripts/lib/date-time.mjs \
-            claude/skills/information-accessibility-practice/scripts/lib/date-time.mjs \
-            codex/skills/information-accessibility-practice/scripts/lib/json-schema.mjs \
-            claude/skills/information-accessibility-practice/scripts/lib/json-schema.mjs \
-            codex/skills/information-accessibility-practice/scripts/validate-assessment.mjs \
-            claude/skills/information-accessibility-practice/scripts/validate-assessment.mjs \
-            tests/date-time-validation.test.mjs \
-            .github/workflows/one-shot-issue39.yml
+          git add -- codex/skills/information-accessibility-practice/scripts/lib/date-time.mjs claude/skills/information-accessibility-practice/scripts/lib/date-time.mjs codex/skills/information-accessibility-practice/scripts/lib/json-schema.mjs claude/skills/information-accessibility-practice/scripts/lib/json-schema.mjs codex/skills/information-accessibility-practice/scripts/validate-assessment.mjs claude/skills/information-accessibility-practice/scripts/validate-assessment.mjs tests/date-time-validation.test.mjs .github/workflows/one-shot-issue39.yml
           git commit -m "fix: validate real calendar and RFC3339 dates"
           git push origin HEAD:fix/issue-39-strict-datetime-validation
