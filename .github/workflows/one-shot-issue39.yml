@@ -1,0 +1,180 @@
+name: Finalize issue 39
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: issue-39-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fix-and-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/issue-39-strict-datetime-validation
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Apply strict date validation
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          utility = r'''export function isCalendarDate(value) {
+            if (typeof value !== "string") return false;
+            const match = /^(\d{4})-(\d{2})-(\d{2})$/u.exec(value);
+            if (!match) return false;
+            const year = Number(match[1]);
+            const month = Number(match[2]);
+            const day = Number(match[3]);
+            const instant = new Date(Date.UTC(year, month - 1, day));
+            return instant.getUTCFullYear() === year
+              && instant.getUTCMonth() === month - 1
+              && instant.getUTCDate() === day;
+          }
+
+          export function isRfc3339DateTime(value) {
+            if (typeof value !== "string") return false;
+            const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(Z|[+-]\d{2}:\d{2})$/u.exec(value);
+            if (!match || !isCalendarDate(`${match[1]}-${match[2]}-${match[3]}`)) return false;
+            const hour = Number(match[4]);
+            const minute = Number(match[5]);
+            const second = Number(match[6]);
+            if (hour > 23 || minute > 59 || second > 59) return false;
+            if (match[7] !== "Z") {
+              const offsetHour = Number(match[7].slice(1, 3));
+              const offsetMinute = Number(match[7].slice(4, 6));
+              if (offsetHour > 23 || offsetMinute > 59) return false;
+            }
+            return !Number.isNaN(Date.parse(value));
+          }
+          '''
+
+          for base in ["codex", "claude"]:
+              root = Path(base) / "skills/information-accessibility-practice/scripts"
+              (root / "lib/date-time.mjs").write_text(utility)
+
+              schema = root / "lib/json-schema.mjs"
+              text = schema.read_text()
+              if not text.startswith('const supportedKeywords'):
+                  raise SystemExit(f"unexpected json-schema header: {schema}")
+              text = 'import { isCalendarDate, isRfc3339DateTime } from "./date-time.mjs";\n\n' + text
+              marker = '    if (schema.pattern && !new RegExp(schema.pattern, "u").test(value)) errors.push(`${location} must match pattern ${schema.pattern}`);\n'
+              replacement = marker + '    if (schema.format === "date" && !isCalendarDate(value)) errors.push(`${location} must be a real calendar date in YYYY-MM-DD form`);\n    if (schema.format === "date-time" && !isRfc3339DateTime(value)) errors.push(`${location} must be a real RFC 3339 date-time`);\n'
+              if text.count(marker) != 1:
+                  raise SystemExit(f"json-schema string validation marker missing: {schema}")
+              schema.write_text(text.replace(marker, replacement, 1))
+
+              validator = root / "validate-assessment.mjs"
+              text = validator.read_text()
+              import_marker = 'import { validateJsonSchema } from "./lib/json-schema.mjs";\n'
+              if text.count(import_marker) != 1:
+                  raise SystemExit(f"validator import marker missing: {validator}")
+              text = text.replace(import_marker, import_marker + 'import { isCalendarDate, isRfc3339DateTime } from "./lib/date-time.mjs";\n', 1)
+              old_evidence = 'if (hasText(evidence?.captured_at) && (!/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}/.test(evidence.captured_at) || Number.isNaN(Date.parse(evidence.captured_at)))) {'
+              new_evidence = 'if (hasText(evidence?.captured_at) && !isRfc3339DateTime(evidence.captured_at)) {'
+              if text.count(old_evidence) != 1:
+                  raise SystemExit(f"evidence date marker missing: {validator}")
+              text = text.replace(old_evidence, new_evidence, 1)
+              old_dates = '''  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(assessment.evaluated_at ?? "")) errors.push("evaluated_at must be YYYY-MM-DD");
+              if (assessment.next_review_at !== null && !/^\\d{4}-\\d{2}-\\d{2}$/.test(assessment.next_review_at ?? "")) {
+                errors.push("next_review_at must be YYYY-MM-DD or null");
+              }'''
+              new_dates = '''  if (!isCalendarDate(assessment.evaluated_at)) errors.push("evaluated_at must be a real calendar date in YYYY-MM-DD form");
+              if (assessment.next_review_at !== null && !isCalendarDate(assessment.next_review_at)) {
+                errors.push("next_review_at must be a real calendar date in YYYY-MM-DD form or null");
+              }'''
+              if text.count(old_dates) != 1:
+                  raise SystemExit(f"assessment date block missing: {validator}")
+              validator.write_text(text.replace(old_dates, new_dates, 1))
+
+          Path("tests/date-time-validation.test.mjs").write_text(r'''import assert from "node:assert/strict";
+          import fs from "node:fs";
+          import path from "node:path";
+          import test from "node:test";
+          import { fileURLToPath } from "node:url";
+          import { generateAssessment } from "../codex/skills/information-accessibility-practice/scripts/generate-assessment.mjs";
+          import { isCalendarDate, isRfc3339DateTime } from "../codex/skills/information-accessibility-practice/scripts/lib/date-time.mjs";
+          import { validateJsonSchema } from "../codex/skills/information-accessibility-practice/scripts/lib/json-schema.mjs";
+          import { validateAssessment } from "../codex/skills/information-accessibility-practice/scripts/validate-assessment.mjs";
+
+          const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+          const refs = path.join(root, "codex/skills/information-accessibility-practice/references");
+          const read = (name) => JSON.parse(fs.readFileSync(path.join(refs, name), "utf8"));
+          const registry = read("standards-registry.json");
+          const schema = read("assessment-record.schema.json");
+          const catalog = read("criteria-catalog.json");
+          const methods = read("web-audit-methods.json");
+
+          test("calendar dates reject impossible days and accept leap days", () => {
+            assert.equal(isCalendarDate("2026-02-30"), false);
+            assert.equal(isCalendarDate("2026-99-99"), false);
+            assert.equal(isCalendarDate("2024-02-29"), true);
+            assert.equal(isCalendarDate("2025-02-29"), false);
+          });
+
+          test("RFC 3339 validation rejects impossible instants and accepts offsets", () => {
+            assert.equal(isRfc3339DateTime("2026-02-30T12:00:00Z"), false);
+            assert.equal(isRfc3339DateTime("2026-02-28T25:61:61Z"), false);
+            assert.equal(isRfc3339DateTime("2026-02-28T12:00:00+09:00"), true);
+          });
+
+          test("JSON Schema date formats are assertions", () => {
+            const dateErrors = [];
+            validateJsonSchema("2026-02-30", { type: "string", format: "date" }, "$", dateErrors);
+            assert.ok(dateErrors.some((error) => error.includes("real calendar date")));
+            const instantErrors = [];
+            validateJsonSchema("2026-01-01T25:00:00Z", { type: "string", format: "date-time" }, "$", instantErrors);
+            assert.ok(instantErrors.some((error) => error.includes("RFC 3339")));
+          });
+
+          test("assessment validation rejects impossible review dates", () => {
+            const record = generateAssessment("web-modern", {
+              targetName: "Example",
+              targetVersion: "v1",
+              targetRefs: ["https://example.invalid/"],
+              evaluator: "Reviewer",
+              evaluatedAt: "2026-02-30"
+            });
+            const result = validateAssessment(record, registry, schema, catalog, methods);
+            assert.equal(result.valid, false);
+            assert.ok(result.errors.some((error) => error.includes("evaluated_at must be a real calendar date")));
+          });
+          ''')
+          PY
+      - name: Verify focused behavior
+        run: node --test tests/date-time-validation.test.mjs tests/claim-guard.test.mjs
+      - name: Verify package and full suite
+        shell: bash
+        run: |
+          node scripts/verify-package.mjs
+          node scripts/build-criteria-catalog.mjs --check
+          mapfile -t files < <(find tests -maxdepth 1 -name '*.test.mjs' ! -name 'authorized-fixer.test.mjs' -print | sort)
+          node --test "${files[@]}"
+          node --test --test-name-pattern='^(?!validate-fix-authorization CLI rejects invalid target paths$).*' tests/authorized-fixer.test.mjs
+      - name: Commit verified change
+        shell: bash
+        run: |
+          rm .github/workflows/one-shot-issue39.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- \
+            codex/skills/information-accessibility-practice/scripts/lib/date-time.mjs \
+            claude/skills/information-accessibility-practice/scripts/lib/date-time.mjs \
+            codex/skills/information-accessibility-practice/scripts/lib/json-schema.mjs \
+            claude/skills/information-accessibility-practice/scripts/lib/json-schema.mjs \
+            codex/skills/information-accessibility-practice/scripts/validate-assessment.mjs \
+            claude/skills/information-accessibility-practice/scripts/validate-assessment.mjs \
+            tests/date-time-validation.test.mjs \
+            .github/workflows/one-shot-issue39.yml
+          git commit -m "fix: validate real calendar and RFC3339 dates"
+          git push origin HEAD:fix/issue-39-strict-datetime-validation
