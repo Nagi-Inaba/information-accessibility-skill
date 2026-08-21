@@ -1,0 +1,123 @@
+name: Finalize issue 13
+on:
+  push:
+    branches: [feat/issue-13-capability-preflight]
+permissions:
+  contents: write
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/issue-13-capability-preflight
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Add runtime capability preflight
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          doctor = '''import process from "node:process";
+          import path from "node:path";
+          import { pathToFileURL } from "node:url";
+
+          function enabled(name) {
+            return /^(?:1|true|yes|available)$/iu.test(process.env[name] ?? "");
+          }
+
+          export function capabilityReport() {
+            const browserAdapter = enabled("ACCESSIBILITY_BROWSER_ADAPTER");
+            const axTree = enabled("ACCESSIBILITY_AX_TREE") || browserAdapter;
+            return {
+              node: process.versions.node,
+              control_plane: { available: true, reason: "Installed CLI can create, validate, merge, and render audit records." },
+              browser_dom: { available: browserAdapter, reason: browserAdapter ? "Host browser adapter declared." : "No browser adapter was declared." },
+              accessibility_tree: { available: axTree, reason: axTree ? "Accessibility-tree capability declared." : "No accessibility-tree capability was declared." },
+              keyboard_input: { available: browserAdapter, reason: browserAdapter ? "Browser adapter can be used for keyboard interaction when authorized." : "No interaction adapter was declared." },
+              responsive_viewport: { available: browserAdapter, reason: browserAdapter ? "Browser adapter can vary viewport when authorized." : "No viewport adapter was declared." },
+              screen_reader_runtime: { available: enabled("ACCESSIBILITY_SCREEN_READER_RUNTIME"), reason: enabled("ACCESSIBILITY_SCREEN_READER_RUNTIME") ? "Screen-reader runtime declared." : "No real screen-reader runtime was declared." },
+              network_fetch: { available: typeof fetch === "function", authorized: enabled("ACCESSIBILITY_NETWORK_AUTHORIZED"), reason: "Runtime availability does not grant audit-run network permission." }
+            };
+          }
+
+          function main() {
+            const report = capabilityReport();
+            console.log(JSON.stringify(report, null, 2));
+            if (process.argv.includes("--require-web")) {
+              const required = ["browser_dom", "accessibility_tree", "keyboard_input"];
+              if (required.some((key) => !report[key].available)) process.exitCode = 1;
+            }
+          }
+
+          if (process.argv[1] && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url) main();
+          '''
+
+          doc = '''# Runtime capability preflight
+
+The CLI is a control plane for audit records. It does not, by itself, open a URL, expose a rendered DOM, obtain an accessibility tree, operate a keyboard, or run a screen reader.
+
+Run `accessibility-audit doctor` before a live Web inspection. Use `--require-web` when browser DOM, accessibility-tree, and keyboard capabilities are mandatory. A capability reported as available still requires the permissions recorded in the audit run.
+
+Host integrations may declare capabilities with these environment variables:
+
+- `ACCESSIBILITY_BROWSER_ADAPTER`
+- `ACCESSIBILITY_AX_TREE`
+- `ACCESSIBILITY_SCREEN_READER_RUNTIME`
+- `ACCESSIBILITY_NETWORK_AUTHORIZED`
+
+Do not convert a missing capability into a passing result. Record the affected checks as untested or requiring human review.
+'''
+
+          for base in ["codex", "claude"]:
+            root = Path(base) / "skills/information-accessibility-practice"
+            cli = root / "scripts/accessibility-audit.mjs"
+            text = cli.read_text()
+            old = 'const commandScripts = {'
+            new = 'const commandScripts = {\n  doctor: "doctor.mjs",'
+            if old not in text: raise SystemExit(f"command map marker missing: {cli}")
+            cli.write_text(text.replace(old, new, 1))
+            (root / "scripts/doctor.mjs").write_text(doctor)
+            (root / "references/runtime-capabilities.md").write_text(doc)
+
+          Path("tests/runtime-capability-preflight.test.mjs").write_text(r'''import assert from "node:assert/strict";
+          import { spawnSync } from "node:child_process";
+          import path from "node:path";
+          import test from "node:test";
+
+          const cli = path.resolve("codex/skills/information-accessibility-practice/scripts/accessibility-audit.mjs");
+
+          test("doctor reports unavailable browser capabilities without pretending an inspection ran", () => {
+            const env = { ...process.env, ACCESSIBILITY_BROWSER_ADAPTER: "", ACCESSIBILITY_AX_TREE: "" };
+            const result = spawnSync(process.execPath, [cli, "doctor"], { encoding: "utf8", env });
+            assert.equal(result.status, 0, result.stderr);
+            const report = JSON.parse(result.stdout);
+            assert.equal(report.control_plane.available, true);
+            assert.equal(report.browser_dom.available, false);
+            assert.equal(report.accessibility_tree.available, false);
+          });
+
+          test("doctor --require-web fails closed until required capabilities are declared", () => {
+            const missing = spawnSync(process.execPath, [cli, "doctor", "--require-web"], { encoding: "utf8", env: { ...process.env, ACCESSIBILITY_BROWSER_ADAPTER: "", ACCESSIBILITY_AX_TREE: "" } });
+            assert.notEqual(missing.status, 0);
+            const available = spawnSync(process.execPath, [cli, "doctor", "--require-web"], { encoding: "utf8", env: { ...process.env, ACCESSIBILITY_BROWSER_ADAPTER: "true", ACCESSIBILITY_AX_TREE: "true" } });
+            assert.equal(available.status, 0, available.stderr);
+          });
+          ''')
+          PY
+      - name: Verify
+        run: |
+          node --test tests/runtime-capability-preflight.test.mjs tests/unified-cli.test.mjs
+          node scripts/verify-package.mjs
+      - name: Commit verified change
+        shell: bash
+        run: |
+          rm .github/workflows/one-shot-issue13.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- codex/skills/information-accessibility-practice/scripts/accessibility-audit.mjs claude/skills/information-accessibility-practice/scripts/accessibility-audit.mjs codex/skills/information-accessibility-practice/scripts/doctor.mjs claude/skills/information-accessibility-practice/scripts/doctor.mjs codex/skills/information-accessibility-practice/references/runtime-capabilities.md claude/skills/information-accessibility-practice/references/runtime-capabilities.md tests/runtime-capability-preflight.test.mjs .github/workflows/one-shot-issue13.yml
+          git commit -m "feat: add Web inspection capability preflight"
+          git push origin HEAD:feat/issue-13-capability-preflight
