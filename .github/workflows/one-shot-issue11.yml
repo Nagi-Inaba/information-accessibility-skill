@@ -78,13 +78,14 @@ jobs:
                   if text.count(import_marker) != 1:
                       raise SystemExit(f"create-run import marker missing: {cli}")
                   text = text.replace(import_marker, import_marker + validation_import, 1)
+
               text = text.replace('  const optional = new Set(["--supersedes-run"]);', '  const optional = new Set(["--supersedes-run", "--config"]);')
-              map_marker = '["--supersedes-run", "supersedesRunFile"],\n    ["--output", "output"]'
-              map_replacement = '["--supersedes-run", "supersedesRunFile"],\n    ["--config", "configFile"],\n    ["--output", "output"]'
-              if map_replacement not in text:
-                  if text.count(map_marker) != 1:
-                      raise SystemExit(f"create-run argument map marker missing: {cli}")
-                  text = text.replace(map_marker, map_replacement, 1)
+              compact_map = '    ["--interaction", "interaction"], ["--source-write", "sourceWrite"], ["--supersedes-run", "supersedesRunFile"], ["--output", "output"]\n'
+              compact_map_new = '    ["--interaction", "interaction"], ["--source-write", "sourceWrite"], ["--supersedes-run", "supersedesRunFile"], ["--config", "configFile"], ["--output", "output"]\n'
+              if compact_map_new not in text:
+                  if text.count(compact_map) != 1:
+                      raise SystemExit(f"create-run compact argument map missing: {cli}")
+                  text = text.replace(compact_map, compact_map_new, 1)
 
               config_block = '''  let config;
               let configSnapshot;
@@ -96,7 +97,8 @@ jobs:
                   throw new Error(`Invalid JSON in audit initialization config: ${error.message}`);
                 }
                 const schemaPath = path.join(path.dirname(path.dirname(fileURLToPath(import.meta.url))), "references", "audit-init-config.schema.json");
-                const schema = JSON.parse(readStableFile(schemaPath, { label: "audit initialization config schema" }).bytes.toString("utf8"));
+                const schemaSnapshot = readStableFile(schemaPath, { label: "audit initialization config schema" });
+                const schema = JSON.parse(schemaSnapshot.bytes.toString("utf8"));
                 const errors = [];
                 validateJsonSchema(config, schema, "$", errors);
                 if (errors.length > 0) throw new Error(`Invalid audit initialization config:\\n- ${errors.join("\\n- ")}`);
@@ -109,12 +111,19 @@ jobs:
                       raise SystemExit(f"predecessor marker missing: {cli}")
                   text = text.replace(predecessor_marker, config_block + predecessor_marker, 1)
 
-              call_line = '    supersedesRunFile: predecessor?.snapshot.path\n'
-              call_replacement = '    supersedesRunFile: predecessor?.snapshot.path,\n    scope: config?.scope,\n    environment: config?.environment\n'
-              if call_replacement not in text:
-                  if text.count(call_line) != 1:
-                      raise SystemExit(f"create-run call marker missing: {cli}")
-                  text = text.replace(call_line, call_replacement, 1)
+              call_block = '''    supersedesRun: predecessor?.value,
+                supersedesRunFile: predecessor?.snapshot.path
+              });'''
+              call_block_new = '''    supersedesRun: predecessor?.value,
+                supersedesRunFile: predecessor?.snapshot.path,
+                scope: config?.scope,
+                environment: config?.environment
+              });'''
+              if call_block_new not in text:
+                  if text.count(call_block) != 1:
+                      raise SystemExit(f"create-run call block missing: {cli}")
+                  text = text.replace(call_block, call_block_new, 1)
+
               stable_marker = '  if (predecessor) assertStableFile(predecessor.snapshot, "superseded audit run");\n'
               config_stable = '  if (configSnapshot) assertStableFile(configSnapshot, "audit initialization config");\n'
               if config_stable not in text:
@@ -125,8 +134,10 @@ jobs:
 
               library = root / "scripts/lib/audit-run.mjs"
               text = library.read_text()
-              old_scope = '    scope: { included: targetRefs, excluded: [], complete_processes: [], third_party_content: [], full_pages_reviewed: false },\n    environment: { os: ["not_declared"], browsers: [], assistive_technologies: [], input_modes: [] },'
-              new_scope = '    scope: structuredClone(options.scope ?? options.supersedesRun?.scope ?? { included: targetRefs, excluded: [], complete_processes: [], third_party_content: [], full_pages_reviewed: false }),\n    environment: structuredClone(options.environment ?? options.supersedesRun?.environment ?? { os: ["not_declared"], browsers: [], assistive_technologies: [], input_modes: [] }),' 
+              old_scope = '''    scope: { included: targetRefs, excluded: [], complete_processes: [], third_party_content: [], full_pages_reviewed: false },
+                environment: { os: ["not_declared"], browsers: [], assistive_technologies: [], input_modes: [] },'''
+              new_scope = '''    scope: structuredClone(options.scope ?? options.supersedesRun?.scope ?? { included: targetRefs, excluded: [], complete_processes: [], third_party_content: [], full_pages_reviewed: false }),
+                environment: structuredClone(options.environment ?? options.supersedesRun?.environment ?? { os: ["not_declared"], browsers: [], assistive_technologies: [], input_modes: [] }),'''
               if new_scope not in text:
                   if text.count(old_scope) != 1:
                       raise SystemExit(f"default scope/environment block missing: {library}")
@@ -169,6 +180,7 @@ jobs:
             const run = JSON.parse(fs.readFileSync(output, "utf8"));
             assert.deepEqual(run.scope, config.scope);
             assert.deepEqual(run.environment, config.environment);
+            assert.deepEqual(run.limitations, ["No profile outcome has been recorded."]);
           });
 
           test("audit init rejects malformed config before creating a run", () => {
