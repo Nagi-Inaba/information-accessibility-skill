@@ -1,0 +1,158 @@
+name: Finalize issue 44
+on:
+  push:
+    branches: [feat/issue-44-audit-status]
+permissions:
+  contents: write
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/issue-44-audit-status
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Add read-only audit status command
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          script = r'''import fs from "node:fs";
+          import path from "node:path";
+          import process from "node:process";
+          import { fileURLToPath, pathToFileURL } from "node:url";
+          import { loadAuditResources } from "./lib/audit-run.mjs";
+
+          const skillRoot = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
+
+          export function summarizeRun(run, resources) {
+            const registry = resources.orchestrationRegistry;
+            const artifactTypes = new Set((run.artifacts ?? []).filter((item) => item.validation_status === "valid").map((item) => item.artifact_type));
+            const next = (registry.transitions ?? [])
+              .filter((transition) => transition.from === run.status)
+              .map((transition) => ({
+                to: transition.to,
+                required_artifact_types: transition.required_artifact_types,
+                missing_artifact_types: transition.required_artifact_types.filter((type) => !artifactTypes.has(type)),
+                ready: transition.required_artifact_types.every((type) => artifactTypes.has(type))
+              }));
+            return {
+              run_id: run.run_id,
+              schema_version: run.schema_version,
+              status: run.status,
+              supersedes_run_id: run.supersedes_run_id ?? null,
+              target: run.target,
+              profile: run.profile,
+              permissions: run.permissions,
+              artifact_root: run.artifact_root,
+              artifacts: (run.artifacts ?? []).map((item) => ({
+                id: item.artifact_id,
+                type: item.artifact_type,
+                producer: item.producer_role,
+                validation_status: item.validation_status,
+                created_at: item.created_at
+              })),
+              next_transitions: next,
+              has_next_transition: next.length > 0,
+              history_entries: run.history?.length ?? 0
+            };
+          }
+
+          function parse(argv) {
+            const options = {};
+            for (let i = 0; i < argv.length; i += 1) {
+              if (argv[i] === "--run") options.run = argv[++i];
+              else if (argv[i] === "--json") options.json = true;
+              else throw new Error(`Unknown argument: ${argv[i]}`);
+            }
+            if (!options.run) throw new Error("--run is required");
+            return options;
+          }
+
+          function render(summary) {
+            const lines = [
+              `Run: ${summary.run_id}`,
+              `Status: ${summary.status}`,
+              `Schema: ${summary.schema_version}`,
+              `Profile: ${summary.profile?.id ?? "not recorded"}`,
+              `Artifacts: ${summary.artifacts.length}`
+            ];
+            if (summary.next_transitions.length === 0) lines.push("Next: no registry transition from the current state");
+            for (const transition of summary.next_transitions) {
+              lines.push(`Next: ${transition.to} (${transition.ready ? "ready" : `missing ${transition.missing_artifact_types.join(", ")}`})`);
+            }
+            return lines.join("\n");
+          }
+
+          function main() {
+            const options = parse(process.argv.slice(2));
+            const run = JSON.parse(fs.readFileSync(path.resolve(options.run), "utf8").replace(/^\uFEFF/u, ""));
+            const summary = summarizeRun(run, loadAuditResources(skillRoot));
+            console.log(options.json ? JSON.stringify(summary, null, 2) : render(summary));
+          }
+
+          if (process.argv[1] && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url) {
+            try { main(); } catch (error) { console.error(error.message); process.exitCode = 1; }
+          }
+          '''
+
+          for base in ["codex", "claude"]:
+            root = Path(base) / "skills/information-accessibility-practice"
+            cli = root / "scripts/accessibility-audit.mjs"
+            text = cli.read_text()
+            old = 'const commandScripts = {'
+            new = 'const commandScripts = {\n  status: "audit-status.mjs",'
+            if old not in text: raise SystemExit(f"command map marker missing: {cli}")
+            cli.write_text(text.replace(old, new, 1))
+            (root / "scripts/audit-status.mjs").write_text(script)
+
+          Path("tests/audit-status.test.mjs").write_text(r'''import assert from "node:assert/strict";
+          import fs from "node:fs";
+          import os from "node:os";
+          import path from "node:path";
+          import { spawnSync } from "node:child_process";
+          import test from "node:test";
+
+          const cli = path.resolve("codex/skills/information-accessibility-practice/scripts/accessibility-audit.mjs");
+
+          test("status reports the current state, artifacts, and registry-derived next action", () => {
+            const temp = fs.mkdtempSync(path.join(os.tmpdir(), "audit-status-"));
+            const runFile = path.join(temp, "run.json");
+            fs.writeFileSync(runFile, JSON.stringify({
+              schema_version: "6.0.0",
+              run_id: "RUN-20260822T000000Z-STATUS01",
+              supersedes_run_id: null,
+              status: "initialized",
+              target: { name: "Example", version_or_commit: "v1", urls_or_files: ["https://example.invalid/"] },
+              profile: { id: "web-modern", registry_version: "1.0.0" },
+              permissions: { network: "denied", interaction: "read_only", source_write: "denied", command_execution: "denied", allowed_actions: ["inspect_without_mutation"], forbidden_actions: ["execute_commands", "network_access", "write_target"] },
+              artifact_root: temp,
+              artifacts: [],
+              history: []
+            }), "utf8");
+            const result = spawnSync(process.execPath, [cli, "status", "--run", runFile, "--json"], { encoding: "utf8" });
+            assert.equal(result.status, 0, result.stderr);
+            const summary = JSON.parse(result.stdout);
+            assert.equal(summary.status, "initialized");
+            assert.equal(summary.artifacts.length, 0);
+            assert.ok(summary.next_transitions.some((transition) => transition.to === "screened" && transition.missing_artifact_types.includes("screening-observations")));
+          });
+          ''')
+          PY
+      - name: Verify
+        run: |
+          node --test tests/audit-status.test.mjs tests/unified-cli.test.mjs
+          node scripts/verify-package.mjs
+      - name: Commit verified change
+        shell: bash
+        run: |
+          rm .github/workflows/one-shot-issue44.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- codex/skills/information-accessibility-practice/scripts/accessibility-audit.mjs claude/skills/information-accessibility-practice/scripts/accessibility-audit.mjs codex/skills/information-accessibility-practice/scripts/audit-status.mjs claude/skills/information-accessibility-practice/scripts/audit-status.mjs tests/audit-status.test.mjs .github/workflows/one-shot-issue44.yml
+          git commit -m "feat: add a read-only audit run status command"
+          git push origin HEAD:feat/issue-44-audit-status
