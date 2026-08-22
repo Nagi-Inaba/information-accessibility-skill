@@ -2,6 +2,8 @@ from pathlib import Path
 import re
 import runpy
 
+# Apply the broad candidate patch. It intentionally stops before writing the
+# catalog file because the legacy formatting around that write varies.
 try:
     runpy.run_path("scripts/_apply_safe_assessment_output.py")
 except SystemExit as error:
@@ -10,10 +12,43 @@ except SystemExit as error:
 
 catalog_path = Path("scripts/build-criteria-catalog.mjs")
 text = catalog_path.read_text(encoding="utf-8")
-text = text.replace(
-    '  if (fs.existsSync(output)) throw new Error(`Refusing to overwrite existing output: ${output}`);\n',
-    ""
+
+import_anchor = 'import { fileURLToPath } from "node:url";'
+import_replacement = (
+    'import { fileURLToPath } from "node:url";\n'
+    'import { assertNewOutputPath, writeNewText } from '
+    '"../codex/skills/information-accessibility-practice/scripts/lib/audit-run.mjs";'
 )
+if "assertNewOutputPath, writeNewText" not in text:
+    if import_anchor not in text:
+        raise SystemExit("catalog safe-writer import anchor missing")
+    text = text.replace(import_anchor, import_replacement, 1)
+
+helper_anchor = "async function refreshCatalog(root) {"
+helper = '''export function writeCatalogCandidate(output, catalog) {
+  return writeNewText(path.resolve(output), `${JSON.stringify(catalog, null, 2)}\\n`);
+}
+
+async function refreshCatalog(root) {'''
+if "export function writeCatalogCandidate" not in text:
+    if helper_anchor not in text:
+        raise SystemExit("catalog helper anchor missing")
+    text = text.replace(helper_anchor, helper, 1)
+
+legacy_preflight = '  if (fs.existsSync(output)) throw new Error(`Refusing to overwrite existing output: ${output}`);'
+safe_preflight = '''  try {
+    assertNewOutputPath(output);
+  } catch (error) {
+    if (/Refusing to overwrite existing file/u.test(error.message)) {
+      throw new Error(`Refusing to overwrite existing output: ${output}`);
+    }
+    throw error;
+  }'''
+if legacy_preflight in text:
+    text = text.replace(legacy_preflight, safe_preflight, 1)
+elif safe_preflight not in text:
+    raise SystemExit("catalog output preflight anchor missing")
+
 pattern = re.compile(
     r'''  fs\.mkdirSync\(path\.dirname\(output\), \{ recursive: true \}\);\n'''
     r'''  fs\.writeFileSync\(output, `\$\{JSON\.stringify\(catalog, null, 2\)\}\\n`, \{ encoding: "utf8", flag: "wx" \}\);\n'''
@@ -22,7 +57,7 @@ pattern = re.compile(
 replacement = '''  const writtenOutput = writeCatalogCandidate(output, catalog);
   return { status: "PASS", mode: "refresh", output: writtenOutput, counts: { wcag: 55, jis: 38, japan_additional: 18 } };'''
 text, count = pattern.subn(replacement, text, count=1)
-if count != 1:
+if count != 1 and replacement not in text:
     raise SystemExit("catalog safe writer replacement did not match exactly once")
 catalog_path.write_text(text, encoding="utf-8")
 
@@ -69,3 +104,34 @@ for filename, template_line, note in [
     if "--template --profile web-modern" not in "\n".join(updated):
         updated[first_generator_index:first_generator_index] = [note, "", "```powershell", template_line, "```", ""]
     path.write_text("\n".join(updated) + "\n", encoding="utf-8")
+
+# Existing tests should exercise the new explicit CLI contract rather than
+# freezing the legacy one-line help shape or omitting record identity.
+import_test = Path("tests/generate-assessment-import.test.mjs")
+text = import_test.read_text(encoding="utf-8")
+old = '''    assert.match(result.stdout, /Usage: node scripts\\/generate-assessment\\.mjs/u);'''
+new = '''    assert.match(result.stdout, /Usage:\\s+node scripts\\/generate-assessment\\.mjs/u);'''
+if old not in text:
+    raise SystemExit("generate-assessment help expectation anchor missing")
+import_test.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+cli_test = Path("tests/unified-cli.test.mjs")
+text = cli_test.read_text(encoding="utf-8")
+old = '''  const overwrite = runCli([
+    "assessment",
+    "--profile", "web-modern",
+    "--output", assessment
+  ]);'''
+new = '''  const overwrite = runCli([
+    "assessment",
+    "--profile", "web-modern",
+    "--target-name", "Unified CLI fixture",
+    "--target-version", "fixture-v1",
+    "--target-ref", "https://example.test/",
+    "--evaluator", "external-human-review-required",
+    "--evaluated-at", "2026-07-18",
+    "--output", assessment
+  ]);'''
+if old not in text:
+    raise SystemExit("unified CLI overwrite invocation anchor missing")
+cli_test.write_text(text.replace(old, new, 1), encoding="utf-8")
