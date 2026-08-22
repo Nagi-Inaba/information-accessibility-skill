@@ -20,9 +20,9 @@ function privateIpv4(host) {
 
 function privateHost(hostname) {
   const host = normalizedHost(hostname);
-  return host === "localhost" || host.endsWith(".localhost") || host === "::1" || host === "::"
-    || host.startsWith("fc") || host.startsWith("fd") || host.startsWith("fe8") || host.startsWith("fe9") || host.startsWith("fea") || host.startsWith("feb")
-    || privateIpv4(host);
+  const ipv6 = host.includes(":");
+  return host === "localhost" || host.endsWith(".localhost") || privateIpv4(host)
+    || (ipv6 && (host === "::1" || host === "::" || host.startsWith("fc") || host.startsWith("fd") || host.startsWith("fe8") || host.startsWith("fe9") || host.startsWith("fea") || host.startsWith("feb")));
 }
 
 function normalizeOrigin(value, policy) {
