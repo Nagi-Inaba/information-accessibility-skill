@@ -22,4 +22,14 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
       - name: Verify package, catalogs, and tests
-        run: node scripts/verify-all.mjs
+        if: runner.os != 'Windows'
+        run: TEMP="$RUNNER_TEMP" TMP="$RUNNER_TEMP" TMPDIR="$RUNNER_TEMP" node scripts/verify-all.mjs
+      - name: Verify package, catalogs, and tests
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $env:TEMP = $env:RUNNER_TEMP
+          $env:TMP = $env:RUNNER_TEMP
+          $env:TMPDIR = $env:RUNNER_TEMP
+          Remove-Item Env:PSModulePath -ErrorAction SilentlyContinue
+          node scripts/verify-all.mjs

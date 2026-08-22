@@ -20,13 +20,6 @@ const testFiles = fs.readdirSync(path.join(root, "tests"))
   .sort()
   .map((name) => path.join("tests", name));
 
-if (process.platform === "win32") {
-  run(process.execPath, ["--test", ...testFiles]);
-} else {
-  const authorizedFixer = path.join("tests", "authorized-fixer.test.mjs");
-  const otherTests = testFiles.filter((file) => file !== authorizedFixer);
-  run(process.execPath, ["--test", ...otherTests]);
-  run(process.execPath, ["--test", "--test-name-pattern=^(?!validate-fix-authorization CLI rejects invalid target paths$).*", authorizedFixer]);
-}
+run(process.execPath, ["--test", ...testFiles]);
 
 console.log(JSON.stringify({ status: "PASS", platform: process.platform, tests: testFiles.length }));
