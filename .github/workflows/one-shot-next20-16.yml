@@ -1,0 +1,51 @@
+name: Verify issue 16 queue context
+
+on:
+  push:
+    branches: [feat/issue-16-queue-context]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: next20-issue-16
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/issue-16-queue-context
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Prove the regression test fails without the implementation
+        shell: bash
+        run: |
+          set -euo pipefail
+          mv codex/skills/information-accessibility-practice/scripts/lib/human-review-queue-context.mjs /tmp/codex-queue-context.mjs
+          mv claude/skills/information-accessibility-practice/scripts/lib/human-review-queue-context.mjs /tmp/claude-queue-context.mjs
+          if node --test tests/human-review-queue-context.test.mjs; then
+            echo 'Expected the focused test to fail without the implementation.' >&2
+            exit 1
+          fi
+          mv /tmp/codex-queue-context.mjs codex/skills/information-accessibility-practice/scripts/lib/human-review-queue-context.mjs
+          mv /tmp/claude-queue-context.mjs claude/skills/information-accessibility-practice/scripts/lib/human-review-queue-context.mjs
+      - name: Verify focused behavior and package parity
+        run: |
+          node --test tests/human-review-queue-context.test.mjs
+          node scripts/verify-package.mjs
+          node scripts/build-criteria-catalog.mjs --check
+      - name: Remove one-shot workflow after successful verification
+        shell: bash
+        run: |
+          rm .github/workflows/one-shot-next20-16.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/workflows/one-shot-next20-16.yml
+          git commit -m "ci: remove issue 16 one-shot verifier"
+          git push origin HEAD:feat/issue-16-queue-context
