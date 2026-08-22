@@ -129,7 +129,7 @@ if addition not in text:
 
 readme = Path("README.en.md")
 text = readme.read_text(encoding="utf-8")
-anchor = "## What this package can do\n"
+anchor = "## Capabilities\n"
 addition = """## Output document modes
 
 A record at the `reference_only` tier produces **reference guidance**, not an inspection result. It lists unverified requirements and prepares a handoff for the next inspection or external human review.
