@@ -367,8 +367,27 @@ export function validateAssessment(record, registry, schema, criteriaCatalog, au
     .filter((result) => result.requirement_kind === "profile_requirement" && !expectedRequirementIds.includes(result.requirement_id))
     .map((result) => result.requirement_id);
   const evaluatedRequirementCount = humanVerifiedRequirementIds.size;
+const reportProfileOutcomeCounts = { ...profileOutcomeCounts };
+reportProfileOutcomeCounts.not_tested += missingRequirementIds.length;
+const reportProfileGroupOutcomeCounts = new Map(
+  [...profileGroupOutcomeCounts].map(([groupId, counts]) => [groupId, { ...counts }])
+);
+for (const requirementId of missingRequirementIds) {
+  try {
+    const group = groupForRequirement(profile, requirementId);
+    if (!reportProfileGroupOutcomeCounts.has(group)) {
+      reportProfileGroupOutcomeCounts.set(
+        group,
+        Object.fromEntries(registry.outcomes.map((outcome) => [outcome, 0]))
+      );
+    }
+    reportProfileGroupOutcomeCounts.get(group).not_tested += 1;
+  } catch (error) {
+    errors.push(`Missing profile requirement cannot be assigned to a report group: ${requirementId} (${error instanceof Error ? error.message : String(error)})`);
+  }
+}
 
-  return {
+return {
     valid: errors.length === 0,
     errors,
     warnings,
@@ -379,8 +398,8 @@ export function validateAssessment(record, registry, schema, criteriaCatalog, au
       blocking_outcomes: blockingOutcomes,
       outcome_counts: outcomeCounts,
       outcome_counts_scope: "all_results_legacy_aggregate",
-      profile_outcome_counts: profileOutcomeCounts,
-      profile_group_outcome_counts: Object.fromEntries(profileGroupOutcomeCounts),
+      profile_outcome_counts: reportProfileOutcomeCounts,
+      profile_group_outcome_counts: Object.fromEntries(reportProfileGroupOutcomeCounts),
       report_groups: configuredReportGroups.map(({ id, label }) => ({ id, label })),
       screening_outcome_counts: screeningOutcomeCounts,
       catalog_coverage: {
