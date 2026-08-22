@@ -1,0 +1,32 @@
+name: Web evidence E2E
+
+on:
+  pull_request:
+    paths:
+      - "codex/skills/information-accessibility-practice/scripts/capture-web-evidence.mjs"
+      - "claude/skills/information-accessibility-practice/scripts/capture-web-evidence.mjs"
+      - "tests/web-evidence-*.test.mjs"
+      - "examples/web-e2e/**"
+      - ".github/workflows/web-evidence-e2e.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  chromium-evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install optional browser adapter dependency
+        run: npm install --no-save --package-lock=false playwright
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Run policy and browser E2E tests
+        run: |
+          node --test tests/web-evidence-adapter.test.mjs tests/web-evidence-e2e.test.mjs
+          node scripts/verify-package.mjs
