@@ -1,3 +1,4 @@
+import json
 from hashlib import sha256
 from pathlib import Path
 
@@ -8,16 +9,18 @@ schema_paths = [
 
 old_pattern = r"^(?:WCAG-2\.2-SC-[0-9]+(?:\.[0-9]+){2}|JIS-X-8341-3-2016-SC-[0-9]+(?:\.[0-9]+){2})$"
 new_pattern = r"^(?:WCAG-2\.2-SC-[0-9]+(?:\.[0-9]+){2}|WCAG-2\.2-ADDITIONAL-SC-[0-9]+(?:\.[0-9]+){2}|JIS-X-8341-3-2016-SC-[0-9]+(?:\.[0-9]+){2})$"
+old_literal = json.dumps(old_pattern)
+new_literal = json.dumps(new_pattern)
 
 original = schema_paths[0].read_text(encoding="utf-8")
-if original.count(old_pattern) != 1:
+if original.count(old_literal) != 1:
     raise SystemExit("screening schema pattern anchor did not match exactly once")
 if schema_paths[1].read_text(encoding="utf-8") != original:
     raise SystemExit("Codex and Claude screening schemas diverged before update")
 
 normalized = lambda text: text.replace("\r\n", "\n").encode("utf-8")
 old_hash = sha256(normalized(original)).hexdigest()
-updated = original.replace(old_pattern, new_pattern, 1)
+updated = original.replace(old_literal, new_literal, 1)
 new_hash = sha256(normalized(updated)).hexdigest()
 if old_hash == new_hash:
     raise SystemExit("screening schema hash did not change")
