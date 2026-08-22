@@ -6,7 +6,6 @@ import { spawnSync } from "node:child_process";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
-import * as auditRun from "../codex/skills/information-accessibility-practice/scripts/lib/audit-run.mjs";
 import * as createRunModule from "../codex/skills/information-accessibility-practice/scripts/create-audit-run.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -101,16 +100,17 @@ test("environment-only config keeps the target-based default scope", () => {
 });
 
 test("retest context inherits declared scope and environment without an undeclared limitation", () => {
-  assert.equal(typeof auditRun.resolveAuditContext, "function");
+  assert.equal(typeof createRunModule.resolveAuditInitContext, "function");
   const predecessor = { scope: declaredScope, environment: declaredEnvironment };
-  const resolved = auditRun.resolveAuditContext({ targetRefs: [targetRef], supersedesRun: predecessor });
+  const resolved = createRunModule.resolveAuditInitContext({ targetRefs: [targetRef], predecessor });
   assert.deepEqual(resolved.scope, declaredScope);
   assert.deepEqual(resolved.environment, declaredEnvironment);
+  assert.equal(resolved.environmentDeclared, true);
   assert.deepEqual(resolved.limitations, ["No profile outcome has been recorded."]);
 });
 
 test("partial retest context inherits the omitted half from the predecessor", () => {
-  assert.equal(typeof auditRun.resolveAuditContext, "function");
+  assert.equal(typeof createRunModule.resolveAuditInitContext, "function");
   const predecessor = { scope: declaredScope, environment: declaredEnvironment };
   const changedEnvironment = {
     os: ["macOS 26"],
@@ -119,21 +119,22 @@ test("partial retest context inherits the omitted half from the predecessor", ()
     input_modes: ["keyboard", "touch"]
   };
 
-  const scopeOnly = auditRun.resolveAuditContext({
+  const scopeOnly = createRunModule.resolveAuditInitContext({
     targetRefs: [targetRef],
-    scope: declaredScope,
-    supersedesRun: predecessor
+    config: { scope: declaredScope },
+    predecessor
   });
   assert.deepEqual(scopeOnly.scope, declaredScope);
   assert.deepEqual(scopeOnly.environment, declaredEnvironment);
 
-  const environmentOnly = auditRun.resolveAuditContext({
+  const environmentOnly = createRunModule.resolveAuditInitContext({
     targetRefs: [targetRef],
-    environment: changedEnvironment,
-    supersedesRun: predecessor
+    config: { environment: changedEnvironment },
+    predecessor
   });
   assert.deepEqual(environmentOnly.scope, declaredScope);
   assert.deepEqual(environmentOnly.environment, changedEnvironment);
+  assert.equal(environmentOnly.environmentDeclared, true);
   assert.deepEqual(environmentOnly.limitations, ["No profile outcome has been recorded."]);
 });
 
