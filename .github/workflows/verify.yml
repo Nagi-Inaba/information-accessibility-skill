@@ -16,10 +16,6 @@ jobs:
         os: [ubuntu-latest, windows-latest]
         node: [20, 22]
     runs-on: ${{ matrix.os }}
-    env:
-      TEMP: ${{ runner.temp }}
-      TMP: ${{ runner.temp }}
-      TMPDIR: ${{ runner.temp }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -27,10 +23,13 @@ jobs:
           node-version: ${{ matrix.node }}
       - name: Verify package, catalogs, and tests
         if: runner.os != 'Windows'
-        run: node scripts/verify-all.mjs
+        run: TEMP="$RUNNER_TEMP" TMP="$RUNNER_TEMP" TMPDIR="$RUNNER_TEMP" node scripts/verify-all.mjs
       - name: Verify package, catalogs, and tests
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
+          $env:TEMP = $env:RUNNER_TEMP
+          $env:TMP = $env:RUNNER_TEMP
+          $env:TMPDIR = $env:RUNNER_TEMP
           Remove-Item Env:PSModulePath -ErrorAction SilentlyContinue
           node scripts/verify-all.mjs
