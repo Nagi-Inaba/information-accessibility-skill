@@ -1,0 +1,36 @@
+name: Documentation or usability problem
+description: Report confusing setup, navigation, CLI output, reports, or workflow friction
+title: "[Usability] "
+labels: [documentation, usability]
+body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - README / onboarding
+        - CLI / help
+        - WCAG / JIS reference lookup
+        - Audit workflow
+        - Human review workflow
+        - Report output
+        - Installation / upgrade
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: task
+    attributes:
+      label: What were you trying to do?
+    validations:
+      required: true
+  - type: textarea
+    id: friction
+    attributes:
+      label: What was difficult or unclear?
+    validations:
+      required: true
+  - type: textarea
+    id: improvement
+    attributes:
+      label: Suggested improvement

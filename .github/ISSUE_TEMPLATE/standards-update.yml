@@ -1,0 +1,37 @@
+name: Standards / source update
+description: Report an upstream WCAG, WAIC/JIS, ARIA, or organizational-policy change
+title: "[Standards] "
+labels: [standards]
+body:
+  - type: input
+    id: source
+    attributes:
+      label: Upstream source
+      placeholder: W3C / WAIC / Digital Agency / other official source
+    validations:
+      required: true
+  - type: input
+    id: url
+    attributes:
+      label: Official URL
+    validations:
+      required: true
+  - type: textarea
+    id: change
+    attributes:
+      label: What changed?
+      description: Distinguish normative standard changes, errata, explanatory material, and organization-specific policy.
+    validations:
+      required: true
+  - type: textarea
+    id: impact
+    attributes:
+      label: Local impact
+      placeholder: profile IDs, requirement IDs, procedures, report wording, claim boundary, etc.
+  - type: checkboxes
+    id: sourcecheck
+    attributes:
+      label: Source check
+      options:
+        - label: I verified this against an official primary source.
+          required: true
