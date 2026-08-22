@@ -51,6 +51,32 @@ function urlEqualsCatalogSource(source, expected) {
   }
 }
 
+export function classifyClaimBlockers({
+  profileOutcomeCounts = {},
+  missingRequirementIds = [],
+  screeningResults = []
+} = {}) {
+  const profileCounts = {
+    pass: profileOutcomeCounts.pass ?? 0,
+    fail: profileOutcomeCounts.fail ?? 0,
+    not_applicable: profileOutcomeCounts.not_applicable ?? 0,
+    not_tested: (profileOutcomeCounts.not_tested ?? 0) + missingRequirementIds.length,
+    cant_tell: profileOutcomeCounts.cant_tell ?? 0
+  };
+  const profileBlockingOutcomes = ["fail", "not_tested", "cant_tell"]
+    .filter((outcome) => profileCounts[outcome] > 0);
+  const screeningOpenCandidates = [...new Set(screeningResults
+    .filter((result) => result?.requirement_kind === "screening_check"
+      && ["fail", "not_tested", "cant_tell"].includes(result.outcome))
+    .map((result) => result.requirement_id))]
+    .sort((left, right) => String(left).localeCompare(String(right), "en"));
+  return {
+    profile_outcome_counts_for_claim: profileCounts,
+    profile_blocking_outcomes: profileBlockingOutcomes,
+    screening_open_candidates: screeningOpenCandidates
+  };
+}
+
 export function validateAssessment(record, registry, schema, criteriaCatalog, auditMethods) {
   const errors = [];
   const warnings = [];
@@ -345,7 +371,19 @@ export function validateAssessment(record, registry, schema, criteriaCatalog, au
     }
   }
 
-  const blockingOutcomes = ["fail", "not_tested", "cant_tell"].filter((outcome) => outcomeCounts[outcome] > 0);
+  const expectedRequirementIdsForClaim = profile?.requirement_ids ?? [];
+  const recordedRequirementIdsForClaim = results
+    .filter((result) => result.requirement_kind === "profile_requirement"
+      && expectedRequirementIdsForClaim.includes(result.requirement_id))
+    .map((result) => result.requirement_id);
+  const missingRequirementIdsForClaim = expectedRequirementIdsForClaim
+    .filter((id) => !recordedRequirementIdsForClaim.includes(id));
+  const claimBlockerSummary = classifyClaimBlockers({
+    profileOutcomeCounts,
+    missingRequirementIds: missingRequirementIdsForClaim,
+    screeningResults: results
+  });
+  const blockingOutcomes = claimBlockerSummary.profile_blocking_outcomes;
   if (blockingOutcomes.length > 0 && tierOrder.indexOf(maxTier) > tierOrder.indexOf("evaluated_subset")) {
     maxTier = "evaluated_subset";
   }
@@ -371,11 +409,9 @@ export function validateAssessment(record, registry, schema, criteriaCatalog, au
     errors.push("next_review_at must be YYYY-MM-DD or null");
   }
 
-  const expectedRequirementIds = profile?.requirement_ids ?? [];
-  const recordedRequirementIds = results
-    .filter((result) => result.requirement_kind === "profile_requirement" && expectedRequirementIds.includes(result.requirement_id))
-    .map((result) => result.requirement_id);
-  const missingRequirementIds = expectedRequirementIds.filter((id) => !recordedRequirementIds.includes(id));
+  const expectedRequirementIds = expectedRequirementIdsForClaim;
+  const recordedRequirementIds = recordedRequirementIdsForClaim;
+  const missingRequirementIds = missingRequirementIdsForClaim;
   const extraRequirementIds = results
     .filter((result) => result.requirement_kind === "profile_requirement" && !expectedRequirementIds.includes(result.requirement_id))
     .map((result) => result.requirement_id);
@@ -409,6 +445,8 @@ return {
       requested_tier: requestedTier ?? null,
       max_tier: maxTier,
       blocking_outcomes: blockingOutcomes,
+      profile_blocking_outcomes: claimBlockerSummary.profile_blocking_outcomes,
+      screening_open_candidates: claimBlockerSummary.screening_open_candidates,
       outcome_counts: outcomeCounts,
       outcome_counts_scope: "all_results_legacy_aggregate",
       profile_outcome_counts: reportProfileOutcomeCounts,
