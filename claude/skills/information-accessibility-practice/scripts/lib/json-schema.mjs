@@ -1,3 +1,5 @@
+import { isCalendarDate, isRfc3339DateTime } from "./date-time.mjs";
+
 const supportedKeywords = new Set([
   "$schema",
   "$id",
@@ -255,6 +257,8 @@ function validateNode(value, schema, location, errors, rootSchema, referenceStac
   if (typeof value === "string") {
     if (schema.minLength && value.length < schema.minLength) errors.push(`${location} must not be empty`);
     if (schema.pattern && !new RegExp(schema.pattern, "u").test(value)) errors.push(`${location} must match pattern ${schema.pattern}`);
+    if (schema.format === "date" && !isCalendarDate(value)) errors.push(`${location} must be a real calendar date in YYYY-MM-DD form`);
+    if (schema.format === "date-time" && !isRfc3339DateTime(value)) errors.push(`${location} must be a real RFC 3339 date-time`);
   }
   if (typeof value === "number" && Number.isFinite(value)) {
     if (Object.hasOwn(schema, "minimum") && value < schema.minimum) errors.push(`${location} must be at least ${schema.minimum}`);
