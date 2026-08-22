@@ -5,6 +5,19 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { assertNewOutputPath, assertStableFile, createAuditRun, readStableFile, writeNewJson } from "./lib/audit-run.mjs";
 import { validateJsonSchema } from "./lib/json-schema.mjs";
 
+const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
+const defaultConfigSchemaFile = path.join(
+  path.dirname(scriptDirectory),
+  "references",
+  "audit-init-config.schema.json"
+);
+const undeclaredEnvironment = {
+  os: ["not_declared"],
+  browsers: [],
+  assistive_technologies: [],
+  input_modes: []
+};
+
 function parseArgs(argv) {
   const options = { targetRefs: [] };
   const repeatable = new Set(["--target-ref"]);
@@ -34,48 +47,95 @@ function parseArgs(argv) {
   return options;
 }
 
+function parseSnapshotJson(snapshot, label) {
+  try {
+    return JSON.parse(snapshot.bytes.toString("utf8").replace(/^\uFEFF/u, ""));
+  } catch (error) {
+    throw new Error(`Invalid JSON in ${label}: ${error.message}`);
+  }
+}
+
+export function loadAuditInitConfig(configFile, { schemaFile = defaultConfigSchemaFile } = {}) {
+  const configSnapshot = readStableFile(configFile, { label: "audit initialization config" });
+  const schemaSnapshot = readStableFile(schemaFile, { label: "audit initialization config schema" });
+  const config = parseSnapshotJson(configSnapshot, "audit initialization config");
+  const schema = parseSnapshotJson(schemaSnapshot, "audit initialization config schema");
+  const errors = [];
+  validateJsonSchema(config, schema, "$", errors);
+  if (errors.length > 0) throw new Error(`Invalid audit initialization config:\n- ${errors.join("\n- ")}`);
+  if (!config.scope && !config.environment) throw new Error("Audit initialization config must contain scope or environment.");
+  return { config, configSnapshot, schemaSnapshot };
+}
+
+export function assertAuditInitConfigStable(loadedConfig) {
+  assertStableFile(loadedConfig.configSnapshot, "audit initialization config");
+  assertStableFile(loadedConfig.schemaSnapshot, "audit initialization config schema");
+}
+
+function isUndeclaredEnvironment(environment) {
+  return Array.isArray(environment?.os)
+    && environment.os.length === 1
+    && environment.os[0] === "not_declared"
+    && Array.isArray(environment.browsers)
+    && environment.browsers.length === 0
+    && Array.isArray(environment.assistive_technologies)
+    && environment.assistive_technologies.length === 0
+    && Array.isArray(environment.input_modes)
+    && environment.input_modes.length === 0;
+}
+
+export function resolveAuditInitContext({ targetRefs, config = {}, predecessor } = {}) {
+  const normalizedTargetRefs = [...new Set(targetRefs ?? [])].sort((left, right) => left.localeCompare(right, "en"));
+  const scope = structuredClone(config.scope ?? predecessor?.scope ?? {
+    included: normalizedTargetRefs,
+    excluded: [],
+    complete_processes: [],
+    third_party_content: [],
+    full_pages_reviewed: false
+  });
+  const environment = structuredClone(config.environment ?? predecessor?.environment ?? undeclaredEnvironment);
+  const environmentDeclared = !isUndeclaredEnvironment(environment);
+  return {
+    scope,
+    environment,
+    environmentDeclared,
+    limitations: environmentDeclared
+      ? ["No profile outcome has been recorded."]
+      : ["The environment was not declared; no profile outcome has been recorded."]
+  };
+}
+
 export function main(argv = process.argv.slice(2)) {
   const options = parseArgs(argv);
   const output = path.resolve(options.output);
   assertNewOutputPath(output);
-  let config;
-    let configSnapshot;
-    if (options.configFile) {
-      configSnapshot = readStableFile(options.configFile, { label: "audit initialization config" });
-      try {
-        config = JSON.parse(configSnapshot.bytes.toString("utf8").replace(/^\uFEFF/u, ""));
-      } catch (error) {
-        throw new Error(`Invalid JSON in audit initialization config: ${error.message}`);
-      }
-      const schemaPath = path.join(path.dirname(path.dirname(fileURLToPath(import.meta.url))), "references", "audit-init-config.schema.json");
-      const schemaSnapshot = readStableFile(schemaPath, { label: "audit initialization config schema" });
-      const schema = JSON.parse(schemaSnapshot.bytes.toString("utf8"));
-      const errors = [];
-      validateJsonSchema(config, schema, "$", errors);
-      if (errors.length > 0) throw new Error(`Invalid audit initialization config:\n- ${errors.join("\n- ")}`);
-      if (!config.scope && !config.environment) throw new Error("Audit initialization config must contain scope or environment.");
-    }
-      let predecessor;
+
+  const loadedConfig = options.configFile ? loadAuditInitConfig(options.configFile) : undefined;
+  let predecessor;
   if (options.supersedesRunFile) {
     const snapshot = readStableFile(options.supersedesRunFile, { label: "superseded audit run" });
-    let value;
-    try {
-      value = JSON.parse(snapshot.bytes.toString("utf8").replace(/^\uFEFF/u, ""));
-    } catch (error) {
-      throw new Error(`Invalid JSON in superseded audit run: ${error.message}`);
-    }
-    predecessor = { value, snapshot };
+    predecessor = {
+      value: parseSnapshotJson(snapshot, "superseded audit run"),
+      snapshot
+    };
   }
+
+  const context = resolveAuditInitContext({
+    targetRefs: options.targetRefs,
+    config: loadedConfig?.config,
+    predecessor: predecessor?.value
+  });
   const run = createAuditRun({
     ...options,
     runFile: output,
     supersedesRun: predecessor?.value,
     supersedesRunFile: predecessor?.snapshot.path,
-    scope: config?.scope,
-    environment: config?.environment
+    scope: context.scope,
+    environment: context.environmentDeclared ? context.environment : undefined
   });
+
   if (predecessor) assertStableFile(predecessor.snapshot, "superseded audit run");
-  if (configSnapshot) assertStableFile(configSnapshot, "audit initialization config");
+  if (loadedConfig) assertAuditInitConfigStable(loadedConfig);
   writeNewJson(output, run);
   process.stdout.write(`${JSON.stringify({ status: "PASS", run_id: run.run_id, output })}\n`);
 }
