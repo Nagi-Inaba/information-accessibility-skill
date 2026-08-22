@@ -1006,7 +1006,7 @@ test("renderer refuses invalid records and existing report files", () => {
     fs.writeFileSync(legacyInput, JSON.stringify(legacy, null, 2), "utf8");
     const legacyRejected = spawnSync(process.execPath, [renderer, "--input", legacyInput], { encoding: "utf8" });
     assert.notEqual(legacyRejected.status, 0);
-    assert.match(legacyRejected.stderr || legacyRejected.stdout, /failed results without structured findings/);
+    assert.match(legacyRejected.stderr || legacyRejected.stdout, /findings is required when assessment contains failed results/);
   } finally {
     fs.rmSync(temp, { recursive: true, force: true });
   }

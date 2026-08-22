@@ -239,14 +239,16 @@ export function validateAssessment(record, registry, schema, criteriaCatalog, au
       }
     }
   });
+  const failedResults = results.filter((item) => item.outcome === "fail");
+  if (failedResults.length > 0 && !findingsProvided) {
+    errors.push("findings is required when assessment contains failed results");
+  }
   if (findingsProvided) {
-    for (const result of results.filter((item) => item.outcome === "fail")) {
+    for (const result of failedResults) {
       if (!findingRequirementIds.has(result.requirement_id)) {
         errors.push(`A finding must reference failed requirement: ${result.requirement_id}`);
       }
     }
-  } else if (results.some((result) => result.outcome === "fail")) {
-    warnings.push("Legacy assessment record has failed results but no structured findings; use findings to make remediation and retest traceable.");
   }
 
   const coverage = assessment.participation_coverage;
