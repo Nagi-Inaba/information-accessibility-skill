@@ -1,0 +1,51 @@
+name: Verify issue 25 evidence references
+
+on:
+  push:
+    branches: [feat/issue-25-evidence-references]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: next20-issue-25
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/issue-25-evidence-references
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Prove the regression test fails without the implementation
+        shell: bash
+        run: |
+          set -euo pipefail
+          mv codex/skills/information-accessibility-practice/scripts/lib/evidence-reference.mjs /tmp/codex-evidence-reference.mjs
+          mv claude/skills/information-accessibility-practice/scripts/lib/evidence-reference.mjs /tmp/claude-evidence-reference.mjs
+          if node --test tests/evidence-reference.test.mjs; then
+            echo 'Expected the focused test to fail without the implementation.' >&2
+            exit 1
+          fi
+          mv /tmp/codex-evidence-reference.mjs codex/skills/information-accessibility-practice/scripts/lib/evidence-reference.mjs
+          mv /tmp/claude-evidence-reference.mjs claude/skills/information-accessibility-practice/scripts/lib/evidence-reference.mjs
+      - name: Verify focused behavior and package parity
+        run: |
+          node --test tests/evidence-reference.test.mjs
+          node scripts/verify-package.mjs
+          node scripts/build-criteria-catalog.mjs --check
+      - name: Remove one-shot workflow after successful verification
+        shell: bash
+        run: |
+          rm .github/workflows/one-shot-next20-25.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/workflows/one-shot-next20-25.yml
+          git commit -m "ci: remove issue 25 one-shot verifier"
+          git push origin HEAD:feat/issue-25-evidence-references
