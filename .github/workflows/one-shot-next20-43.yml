@@ -1,0 +1,38 @@
+name: Verify issue 43 multi-reviewer adjudication
+on:
+  push:
+    branches: [feat/issue-43-review-adjudication]
+permissions:
+  contents: write
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/issue-43-review-adjudication
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Red phase
+        run: |
+          mv codex/skills/information-accessibility-practice/scripts/lib/human-review-adjudication.mjs /tmp/codex.mjs
+          mv claude/skills/information-accessibility-practice/scripts/lib/human-review-adjudication.mjs /tmp/claude.mjs
+          if node --test tests/human-review-adjudication.test.mjs; then exit 1; fi
+          mv /tmp/codex.mjs codex/skills/information-accessibility-practice/scripts/lib/human-review-adjudication.mjs
+          mv /tmp/claude.mjs claude/skills/information-accessibility-practice/scripts/lib/human-review-adjudication.mjs
+      - name: Green phase and package verification
+        run: |
+          node --test tests/human-review-adjudication.test.mjs
+          node scripts/verify-package.mjs
+          node scripts/build-criteria-catalog.mjs --check
+      - name: Remove verifier
+        run: |
+          rm .github/workflows/one-shot-next20-43.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/workflows/one-shot-next20-43.yml
+          git commit -m "ci: remove issue 43 one-shot verifier"
+          git push origin HEAD:feat/issue-43-review-adjudication
