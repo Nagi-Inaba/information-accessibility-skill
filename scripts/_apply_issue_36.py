@@ -140,3 +140,24 @@ if addition not in text:
     if anchor not in text:
         raise SystemExit("README.en.md anchor missing")
     readme.write_text(text.replace(anchor, addition + anchor, 1), encoding="utf-8")
+
+readme_test = Path("tests/readme-i18n.test.mjs")
+text = readme_test.read_text(encoding="utf-8")
+old = '''    ["自分のプロダクトを確認し、改善する", "Check and improve your own product"],
+    ["できること", "Capabilities"],'''
+new = '''    ["自分のプロダクトを確認し、改善する", "Check and improve your own product"],
+    ["出力文書の区分", "Output document modes"],
+    ["できること", "Capabilities"],'''
+if old not in text:
+    raise SystemExit("readme-i18n heading pair anchor missing")
+readme_test.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+cli_test = Path("tests/unified-cli.test.mjs")
+text = cli_test.read_text(encoding="utf-8")
+old = '''  assert.match(fs.readFileSync(report, "utf8"), /^# WCAG検査レポート/mu);'''
+new = '''  const renderedReport = fs.readFileSync(report, "utf8");
+  assert.match(renderedReport, /^# WCAG参照ガイダンス/mu);
+  assert.match(renderedReport, /文書区分: 規格参照ガイダンス/u);'''
+if old not in text:
+    raise SystemExit("unified-cli report expectation anchor missing")
+cli_test.write_text(text.replace(old, new, 1), encoding="utf-8")
