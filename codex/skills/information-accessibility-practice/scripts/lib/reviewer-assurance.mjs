@@ -68,6 +68,5 @@ export function normalizeReviewerAssurance(review) {
 }
 
 export function compareReviewerAssurance(left, right) {
-  return levelIndex(normalizeReviewerAssurance({ reviewer_assurance: left }).level)
-    - levelIndex(normalizeReviewerAssurance({ reviewer_assurance: right }).level);
+  return levelIndex(left?.level ?? left) - levelIndex(right?.level ?? right);
 }
