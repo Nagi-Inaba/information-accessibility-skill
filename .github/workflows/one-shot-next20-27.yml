@@ -1,0 +1,49 @@
+name: Verify issue 27 install lifecycle planning
+
+on:
+  push:
+    branches: [feat/issue-27-install-lifecycle-plan]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: next20-issue-27
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/issue-27-install-lifecycle-plan
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Prove the regression test fails without the implementation
+        shell: bash
+        run: |
+          set -euo pipefail
+          mv scripts/install-skill.mjs /tmp/install-skill.mjs
+          if node --test tests/install-lifecycle-plan.test.mjs; then
+            echo 'Expected the focused test to fail without the implementation.' >&2
+            exit 1
+          fi
+          mv /tmp/install-skill.mjs scripts/install-skill.mjs
+      - name: Verify focused behavior and package parity
+        run: |
+          node --test tests/install-lifecycle-plan.test.mjs
+          node scripts/verify-package.mjs
+          node scripts/build-criteria-catalog.mjs --check
+      - name: Remove one-shot workflow after successful verification
+        shell: bash
+        run: |
+          rm .github/workflows/one-shot-next20-27.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/workflows/one-shot-next20-27.yml
+          git commit -m "ci: remove issue 27 one-shot verifier"
+          git push origin HEAD:feat/issue-27-install-lifecycle-plan
