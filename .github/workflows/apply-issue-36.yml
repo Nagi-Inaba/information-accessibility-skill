@@ -4,6 +4,10 @@ on:
   push:
     branches:
       - fix/issue-36-reference-only-report-mode
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - main
 
 permissions:
   contents: write
