@@ -2,7 +2,9 @@ import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { writeNewJson } from "./lib/audit-run.mjs";
 import { profileConfiguration, recordsForProfile } from "./lib/profile-registry.mjs";
+import { validateAssessment } from "./validate-assessment.mjs";
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.dirname(scriptDir);
@@ -107,38 +109,88 @@ export function generateAssessment(profileId, options = {}) {
   };
 }
 
+const valueFlags = new Map([
+  ["--profile", "profileId"],
+  ["--output", "output"],
+  ["--target-name", "targetName"],
+  ["--target-version", "targetVersion"],
+  ["--evaluator", "evaluator"],
+  ["--evaluated-at", "evaluatedAt"]
+]);
+
 function parseArgs(argv) {
-  const options = { targetRefs: [] };
+  const options = { targetRefs: [], template: false };
+  const seen = new Set();
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
-    const next = argv[index + 1];
-    if (arg === "--profile") options.profileId = next;
-    else if (arg === "--output") options.output = next;
-    else if (arg === "--target-name") options.targetName = next;
-    else if (arg === "--target-version") options.targetVersion = next;
-    else if (arg === "--target-ref") options.targetRefs.push(next);
-    else if (arg === "--evaluator") options.evaluator = next;
-    else if (arg === "--evaluated-at") options.evaluatedAt = next;
-    else if (arg === "--help") options.help = true;
-    else throw new Error(`Unknown argument: ${arg}`);
-    if (arg.startsWith("--") && arg !== "--help") {
-      if (!next || next.startsWith("--")) throw new Error(`Missing value for ${arg}`);
-      index += 1;
+    if (arg === "--help") {
+      if (seen.has(arg)) throw new Error(`Duplicate argument: ${arg}`);
+      seen.add(arg);
+      options.help = true;
+      continue;
     }
+    if (arg === "--template") {
+      if (seen.has(arg)) throw new Error(`Duplicate argument: ${arg}`);
+      seen.add(arg);
+      options.template = true;
+      continue;
+    }
+    if (arg === "--target-ref") {
+      const next = argv[index + 1];
+      if (!next || next.startsWith("--")) throw new Error(`Missing value for ${arg}`);
+      options.targetRefs.push(next);
+      index += 1;
+      continue;
+    }
+    const key = valueFlags.get(arg);
+    if (!key) throw new Error(`Unknown argument: ${arg}`);
+    if (seen.has(arg)) throw new Error(`Duplicate argument: ${arg}`);
+    const next = argv[index + 1];
+    if (!next || next.startsWith("--")) throw new Error(`Missing value for ${arg}`);
+    seen.add(arg);
+    options[key] = next;
+    index += 1;
   }
   return options;
 }
 
+function requireRecordIdentity(options) {
+  for (const [key, flag] of [
+    ["targetName", "--target-name"],
+    ["targetVersion", "--target-version"],
+    ["evaluator", "--evaluator"],
+    ["evaluatedAt", "--evaluated-at"]
+  ]) {
+    if (typeof options[key] !== "string" || options[key].trim().length === 0) {
+      throw new Error(`${flag} is required in record mode`);
+    }
+  }
+  if (options.targetRefs.length === 0) throw new Error("--target-ref is required in record mode");
+}
+
+function validateGeneratedRecord(record) {
+  return validateAssessment(
+    record,
+    readJson("references/standards-registry.json"),
+    readJson("references/assessment-record.schema.json"),
+    readJson("references/criteria-catalog.json"),
+    readJson("references/web-audit-methods.json")
+  );
+}
+
 function usage() {
   return [
-    "Usage: node scripts/generate-assessment.mjs --profile <web-modern|jp-public-web> [options]",
+    "Usage:",
+    "  node scripts/generate-assessment.mjs --profile <web-modern|jp-public-web> --target-name <name> --target-version <value> --target-ref <url|file> --evaluator <name> --evaluated-at <date> [--output <file>]",
+    "  node scripts/generate-assessment.mjs --template --profile <web-modern|jp-public-web> [--output <file>]",
     "Options:",
-    "  --output <file>          Write a new file; refuses to overwrite",
-    "  --target-name <name>",
-    "  --target-version <value>",
-    "  --target-ref <url|file>  Repeatable",
-    "  --evaluator <name>",
-    "  --evaluated-at <date>"
+    "  --template               Create an editable placeholder template; not a validated assessment",
+    "  --output <file>          Write a new file through the safe exclusive writer",
+    "  --target-name <name>     Required in record mode",
+    "  --target-version <value> Required in record mode",
+    "  --target-ref <url|file>  Required and repeatable in record mode",
+    "  --evaluator <name>       Required in record mode",
+    "  --evaluated-at <date>    Required in record mode"
   ].join("\n");
 }
 
@@ -149,17 +201,29 @@ async function main() {
     return;
   }
   if (!options.profileId) throw new Error("--profile is required");
+  if (!options.template) requireRecordIdentity(options);
+
   const record = generateAssessment(options.profileId, options);
-  const serialized = `${JSON.stringify(record, null, 2)}\n`;
+  if (!options.template) {
+    const validation = validateGeneratedRecord(record);
+    if (!validation.valid) {
+      throw new Error(`Generated assessment failed validation:\n- ${validation.errors.join("\n- ")}`);
+    }
+  }
+
   if (!options.output) {
-    process.stdout.write(serialized);
+    process.stdout.write(`${JSON.stringify(record, null, 2)}\n`);
     return;
   }
-  const output = path.resolve(options.output);
-  if (fs.existsSync(output)) throw new Error(`Refusing to overwrite existing file: ${output}`);
-  fs.mkdirSync(path.dirname(output), { recursive: true });
-  fs.writeFileSync(output, serialized, "utf8");
-  console.log(JSON.stringify({ status: "PASS", profile: options.profileId, output, requirements: record.assessment.results.length }));
+
+  const output = writeNewJson(path.resolve(options.output), record);
+  console.log(JSON.stringify({
+    status: options.template ? "TEMPLATE_CREATED" : "PASS",
+    mode: options.template ? "template" : "record",
+    profile: options.profileId,
+    output,
+    requirements: record.assessment.results.length
+  }));
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {

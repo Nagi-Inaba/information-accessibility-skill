@@ -16,8 +16,8 @@ const commands = new Map([
   }],
   ["assessment", {
     script: "generate-assessment.mjs",
-    summary: "Create a complete not-tested assessment for an active profile.",
-    usage: "accessibility-audit assessment --profile <id> [assessment options]"
+    summary: "Create a validator-valid assessment record or an explicit placeholder template.",
+    usage: "accessibility-audit assessment --profile <id> --target-name <name> --target-version <version> --target-ref <url|file> --evaluator <name> --evaluated-at <date> [--output <file>] | accessibility-audit assessment --template --profile <id> [--output <file>]"
   }],
   ["requirement", {
     script: "show-requirement.mjs",

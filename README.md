@@ -85,6 +85,12 @@ codex/
     assets/assessment-record.template.json
     assets/waic-publication.template.md
     scripts/accessibility-audit.mjs
+プレースホルダーを含む編集用ひな形が必要な場合だけ `--template` を使います。template modeは `TEMPLATE_CREATED` を返し、検証済みassessmentとは扱いません。安全なwriterが不足する出力ディレクトリをcomponent単位で作成します。後続処理が失敗しても、競合時の誤削除を避けるため、この処理が作成した空ディレクトリは自動削除しません。
+
+```powershell
+node .\codex\skills\information-accessibility-practice\scripts\generate-assessment.mjs --template --profile web-modern --output .\assessment.template.json
+```
+
     scripts/generate-assessment.mjs
     scripts/render-audit-report.mjs
     scripts/show-screen-reader-checklist.mjs
@@ -249,7 +255,7 @@ node .\codex\skills\information-accessibility-practice\scripts\render-audit-repo
 ```
 
 ```powershell
-node .\codex\skills\information-accessibility-practice\scripts\generate-assessment.mjs --profile web-modern --output .\audit.json
+node .\codex\skills\information-accessibility-practice\scripts\generate-assessment.mjs --profile web-modern --target-name "Example" --target-version "2026-08-22" --target-ref "https://example.com/" --evaluator "External reviewer" --evaluated-at "2026-08-22" --output .\audit.json
 node .\codex\skills\information-accessibility-practice\scripts\show-requirement.mjs --profile web-modern --id WCAG-2.2-SC-1.1.1 --format markdown
 node .\codex\skills\information-accessibility-practice\scripts\validate-assessment.mjs .\audit.json
 node .\codex\skills\information-accessibility-practice\scripts\render-audit-report.mjs --input .\audit.json --output .\audit-report.md
@@ -260,7 +266,7 @@ node .\codex\skills\information-accessibility-practice\scripts\render-audit-repo
 macOS / Linuxではパス区切りを `/` にします。
 
 ```sh
-node ./codex/skills/information-accessibility-practice/scripts/generate-assessment.mjs --profile web-modern --output ./audit.json
+node ./codex/skills/information-accessibility-practice/scripts/generate-assessment.mjs --profile web-modern --target-name "Example" --target-version "2026-08-22" --target-ref "https://example.com/" --evaluator "External reviewer" --evaluated-at "2026-08-22" --output ./audit.json
 node ./codex/skills/information-accessibility-practice/scripts/show-requirement.mjs --profile web-modern --id WCAG-2.2-SC-1.1.1 --format markdown
 node ./codex/skills/information-accessibility-practice/scripts/validate-assessment.mjs ./audit.json
 node ./codex/skills/information-accessibility-practice/scripts/render-audit-report.mjs --input ./audit.json --output ./audit-report.md
@@ -377,7 +383,7 @@ WCAGなどの規格に基づく検査は、最初から次の統一形式で返�
 規格証拠レコードを作る場合は、対象プロファイルの全行を生成してから検証します。AIが作成するレコードはプロファイル要件を未検証のまま保持し、外部の人手レビューが条項別手順と対象固有の手動またはハイブリッド証拠を記録した場合だけ、該当するプロファイル条項を評価します。配布パッケージのルートでは次を実行します。
 
 ```powershell
-node .\codex\skills\information-accessibility-practice\scripts\generate-assessment.mjs --profile web-modern --output <assessment.json>
+node .\codex\skills\information-accessibility-practice\scripts\generate-assessment.mjs --profile web-modern --target-name "Example" --target-version "2026-08-22" --target-ref "https://example.com/" --evaluator "External reviewer" --evaluated-at "2026-08-22" --output <assessment.json>
 node .\codex\skills\information-accessibility-practice\scripts\validate-assessment.mjs <assessment.json>
 ```
 
