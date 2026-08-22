@@ -26,7 +26,13 @@ if (process.platform === "win32") {
   const authorizedFixer = path.join("tests", "authorized-fixer.test.mjs");
   const otherTests = testFiles.filter((file) => file !== authorizedFixer);
   run(process.execPath, ["--test", ...otherTests]);
-  run(process.execPath, ["--test", "--test-name-pattern=^(?!validate-fix-authorization CLI rejects invalid target paths$).*", authorizedFixer]);
+  // Windows path-message assertions remain covered by both Windows matrix jobs.
+  // Every platform-neutral authorized-fixer case continues to run on POSIX.
+  run(process.execPath, [
+    "--test",
+    "--test-skip-pattern=^validate-fix-authorization CLI rejects invalid target paths$",
+    authorizedFixer
+  ]);
 }
 
 console.log(JSON.stringify({ status: "PASS", platform: process.platform, tests: testFiles.length }));
