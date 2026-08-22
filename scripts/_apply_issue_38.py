@@ -28,3 +28,11 @@ for path in [
     if old not in text:
         raise SystemExit(f"findings validation anchor missing: {path}")
     path.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+test_path = Path("tests/audit-report.test.mjs")
+text = test_path.read_text(encoding="utf-8")
+old = '''    assert.match(result.stderr, /failed results without structured findings/);'''
+new = '''    assert.match(result.stderr, /findings is required when assessment contains failed results/);'''
+if old not in text:
+    raise SystemExit("audit-report legacy error expectation anchor missing")
+test_path.write_text(text.replace(old, new, 1), encoding="utf-8")
