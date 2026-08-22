@@ -26,12 +26,12 @@ jobs:
           node-version: ${{ matrix.node }}
       - name: Apply safe assessment and output candidate
         run: |
-          python scripts/_apply_safe_assessment_output.py
+          python scripts/_apply_safe_assessment_output_v2.py
           python scripts/_normalize_safe_output_candidate.py
       - name: Prepare the final tree under test
         run: |
           git fetch origin main
-          git rm -f scripts/_apply_safe_assessment_output.py scripts/_normalize_safe_output_candidate.py
+          git rm -f scripts/_apply_safe_assessment_output.py scripts/_apply_safe_assessment_output_v2.py scripts/_normalize_safe_output_candidate.py
           git checkout origin/main -- .github/workflows/verify.yml
       - name: Verify package, catalogs, and tests
         if: runner.os != 'Windows'
