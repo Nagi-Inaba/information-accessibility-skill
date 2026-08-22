@@ -51,7 +51,7 @@ const currentScreeningManifestContract = {
     {
       version: "2.0.0",
       schema_file: "screening-observations.schema.json",
-      schema_sha256: "c1d50902738383184fe5ca27831f65f8f6926214bc7370a4ada6752b326033fa",
+      schema_sha256: "c595143bb47dd4394e10cda0b737b7fa4756c276ab2b5a2d4bf231ab6a255c0f",
       mode: "current"
     }
   ]

@@ -608,7 +608,7 @@ test("the orchestration registry fixes the complete role, artifact, and transiti
       latest_schema_version: "2.0.0",
       schema_versions: [
         { version: "1.0.0", schema_file: "screening-observations-1.0.0.schema.json", mode: "read_only" },
-        { version: "2.0.0", schema_file: "screening-observations.schema.json", schema_sha256: "c1d50902738383184fe5ca27831f65f8f6926214bc7370a4ada6752b326033fa", mode: "current" }
+        { version: "2.0.0", schema_file: "screening-observations.schema.json", schema_sha256: "c595143bb47dd4394e10cda0b737b7fa4756c276ab2b5a2d4bf231ab6a255c0f", mode: "current" }
       ]
     },
     {
