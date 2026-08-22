@@ -1,0 +1,38 @@
+name: Verify issue 57 reviewer assurance
+on:
+  push:
+    branches: [feat/issue-57-reviewer-assurance]
+permissions:
+  contents: write
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/issue-57-reviewer-assurance
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Red phase
+        run: |
+          mv codex/skills/information-accessibility-practice/scripts/lib/reviewer-assurance.mjs /tmp/codex.mjs
+          mv claude/skills/information-accessibility-practice/scripts/lib/reviewer-assurance.mjs /tmp/claude.mjs
+          if node --test tests/reviewer-assurance.test.mjs; then exit 1; fi
+          mv /tmp/codex.mjs codex/skills/information-accessibility-practice/scripts/lib/reviewer-assurance.mjs
+          mv /tmp/claude.mjs claude/skills/information-accessibility-practice/scripts/lib/reviewer-assurance.mjs
+      - name: Green phase and package verification
+        run: |
+          node --test tests/reviewer-assurance.test.mjs
+          node scripts/verify-package.mjs
+          node scripts/build-criteria-catalog.mjs --check
+      - name: Remove verifier
+        run: |
+          rm .github/workflows/one-shot-next20-57.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/workflows/one-shot-next20-57.yml
+          git commit -m "ci: remove issue 57 one-shot verifier"
+          git push origin HEAD:feat/issue-57-reviewer-assurance
