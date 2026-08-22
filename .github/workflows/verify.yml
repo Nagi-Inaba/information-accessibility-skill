@@ -6,7 +6,7 @@ on:
     branches: [main]
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   verify:
@@ -18,19 +18,9 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: fix/issue-36-reference-only-report-mode
-          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
-      - name: Apply issue 36 candidate implementation
-        run: python scripts/_apply_issue_36.py
-      - name: Prepare the final tree under test
-        run: |
-          git fetch origin main
-          git rm -f scripts/_apply_issue_36.py .github/workflows/apply-issue-36.yml
-          git checkout origin/main -- .github/workflows/verify.yml
       - name: Verify package, catalogs, and tests
         if: runner.os != 'Windows'
         run: TEMP="$RUNNER_TEMP" TMP="$RUNNER_TEMP" TMPDIR="$RUNNER_TEMP" node scripts/verify-all.mjs
@@ -43,13 +33,3 @@ jobs:
           $env:TMPDIR = $env:RUNNER_TEMP
           Remove-Item Env:PSModulePath -ErrorAction SilentlyContinue
           node scripts/verify-all.mjs
-      - name: Commit the verified final tree
-        if: runner.os == 'Linux' && matrix.node == 22 && success() && github.actor != 'github-actions[bot]'
-        shell: bash
-        run: |
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add -A
-          git diff --cached --check
-          git commit -m "fix: distinguish reference guidance from judgement reports"
-          git push origin HEAD:fix/issue-36-reference-only-report-mode

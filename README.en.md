@@ -39,6 +39,11 @@ JIS includes 4.1.1.
 Both profiles begin with every success criterion marked as not tested.
 Target-specific evidence, catalog coverage, actual evaluation coverage, and the allowed claim tier are validated separately.
 
+## Output document modes
+
+A record at the `reference_only` tier produces **reference guidance**, not an inspection result. It lists unverified requirements and prepares a handoff for the next inspection or external human review.
+An evidence-backed **inspection report** uses a separate title and document classification. In both modes, requirements that were not recorded are never treated as implicit passes.
+
 ## Capabilities
 
 - Review websites, apps, documents, videos, and event operations with checks suited to the target.
