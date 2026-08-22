@@ -29,6 +29,8 @@ export function reportJudgementForOutcome(outcome) {
 }
 
 export function overallReportJudgement(counts = {}) {
+  const recorded = outcomes.reduce((total, outcome) => total + count(counts, outcome), 0);
+  if (recorded === 0) return "未確認";
   if (count(counts, "fail") > 0) return "不適合";
   if (count(counts, "cant_tell") > 0) return "要確認";
   if (count(counts, "not_tested") > 0) return "未確認";
@@ -102,6 +104,9 @@ export function renderAuditReport(record, validation) {
   const assessment = record.assessment;
   const guard = validation.guard;
   const profileCounts = guard.profile_outcome_counts;
+  const referenceGuidance = assessment.claim?.requested_tier === "reference_only";
+  const reportTitle = referenceGuidance ? "# WCAG参照ガイダンス" : "# WCAG検査レポート";
+  const summaryLabel = referenceGuidance ? "確認状況" : "総合判定";
   const findings = Array.isArray(assessment.findings) ? assessment.findings : [];
   const orderedFindings = priorityOrder.map((priority) => [priority, findings.filter((finding) => finding.priority === priority)]);
   const unlinkedFailures = assessment.results
@@ -124,13 +129,15 @@ export function renderAuditReport(record, validation) {
     .map((result) => [result.requirement_id, result.notes || "適用対象外とした理由の記録なし"]);
 
   const lines = [
-    "# WCAG検査レポート",
+    reportTitle,
     "",
     reportNotice,
     "",
-    "## 1. 総合判定",
+    `- 文書区分: ${referenceGuidance ? "規格参照ガイダンス" : "検査レポート"}`,
     "",
-    `- 総合判定: ${overallReportJudgement(profileCounts)}`,
+    `## 1. ${summaryLabel}`,
+    "",
+    `- ${summaryLabel}: ${overallReportJudgement(profileCounts)}`,
     `- 不適合件数: ${count(profileCounts, "fail")}`,
     `- 要確認件数: ${count(profileCounts, "cant_tell")}`,
     `- 未確認件数: ${count(profileCounts, "not_tested")}`,
@@ -857,11 +864,23 @@ export function validateRunBackedAssessment({ run, assessment, envelopesById, re
 
 export function buildPublicReportModel({ run, assessment, envelopesById, resources }) {
   const evidence = collectRunEvidence(envelopesById);
-  const profileResults = assessment.assessment.results.filter((result) => result.requirement_kind === "profile_requirement");
+  const recordedProfileResults = assessment.assessment.results.filter((result) => result.requirement_kind === "profile_requirement");
   const screeningResults = assessment.assessment.results.filter((result) => result.requirement_kind === "screening_check");
+  const registeredRequirementIds = resources?.standardsRegistry?.profiles
+    ?.find((profile) => profile.id === run.profile.id)?.requirement_ids ?? recordedProfileResults.map((result) => result.requirement_id);
+  const recordedProfileById = new Map(recordedProfileResults.map((result) => [result.requirement_id, result]));
+  const profileResults = registeredRequirementIds.map((requirementId) => recordedProfileById.get(requirementId) ?? ({
+    requirement_id: requirementId,
+    requirement_kind: "profile_requirement",
+    mapping_status: "unverified",
+    outcome: "not_tested",
+    method_kind: "manual",
+    method: "Not yet evaluated.",
+    evidence: [],
+    notes: "Not yet evaluated."
+  }));
   const reportProjection = buildReportProjection(profileResults, evidence.screeningObservations);
-  const expectedProfileCount = resources?.standardsRegistry?.profiles
-    ?.find((profile) => profile.id === run.profile.id)?.requirement_ids?.length ?? profileResults.length;
+  const expectedProfileCount = registeredRequirementIds.length;
   const reviewedIds = new Set(evidence.humanReviews.map((review) => review.requirement_id));
   const resultByRequirement = new Map(assessment.assessment.results.map((result) => [result.requirement_id, result]));
   const findingById = uniqueMap(assessment.assessment.findings ?? [], "id", "assessment finding ID");
@@ -963,7 +982,7 @@ export function buildPublicReportModel({ run, assessment, envelopesById, resourc
     reportChecks: reportProjection.checks,
     notApplicableChecks: reportProjection.notApplicable,
     reportOutcomeCounts: reportProjection.counts,
-    catalogCoverage: { recorded: profileResults.length, expected: expectedProfileCount },
+    catalogCoverage: { recorded: recordedProfileResults.length, expected: expectedProfileCount },
     evaluationCoverage: {
       humanReviewed: profileResults.filter((result) => result.mapping_status === "human_verified").length,
       expected: expectedProfileCount
@@ -992,6 +1011,8 @@ export function renderRunBackedReport(model) {
     "# WCAG検査レポート",
     "",
     reportNotice,
+    "",
+    "> 文書区分：検査・改善ハンドオフ（規格参照のみ）",
     "",
     "## 1. 総合判定",
     "",

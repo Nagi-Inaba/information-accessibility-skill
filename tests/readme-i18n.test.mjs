@@ -124,6 +124,7 @@ test("Japanese and English READMEs preserve structural and executable parity", (
 
   const headingPairs = [
     ["自分のプロダクトを確認し、改善する", "Check and improve your own product"],
+    ["出力文書の区分", "Output document modes"],
     ["できること", "Capabilities"],
     ["使い方を選ぶ", "Choose a usage path"],
     ["パッケージ構成", "Package layout"],
