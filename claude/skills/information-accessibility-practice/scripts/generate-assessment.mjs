@@ -162,7 +162,7 @@ async function main() {
   console.log(JSON.stringify({ status: "PASS", profile: options.profileId, output, requirements: record.assessment.results.length }));
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
   main().catch((error) => {
     console.error(error.message);
     process.exitCode = 1;
