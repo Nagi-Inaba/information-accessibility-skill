@@ -29,6 +29,8 @@ test("missing profile rows remain visible as not tested", () => {
     assert.equal(result.valid, true, result.errors.join("\n"));
     assert.equal(result.guard.catalog_coverage.recorded, recordedCount);
     assert.equal(result.guard.catalog_coverage.expected, 55);
+    assert.equal(result.guard.catalog_coverage.missing_ids.length, 55 - recordedCount);
+    assert.equal(result.guard.catalog_coverage.complete, recordedCount === 55);
     assert.equal(result.guard.profile_outcome_counts.not_tested, 55);
     assert.equal(result.guard.profile_group_outcome_counts.wcag_2_2.not_tested, 55);
     assert.equal(overallReportJudgement(result.guard.profile_outcome_counts), "未確認");
