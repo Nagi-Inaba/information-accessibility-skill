@@ -1,0 +1,51 @@
+name: Verify issue 21 locale core
+
+on:
+  push:
+    branches: [feat/issue-21-locale-core]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: next20-issue-21
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/issue-21-locale-core
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Prove the regression test fails without the implementation
+        shell: bash
+        run: |
+          set -euo pipefail
+          mv codex/skills/information-accessibility-practice/scripts/lib/ui-locale.mjs /tmp/codex-ui-locale.mjs
+          mv claude/skills/information-accessibility-practice/scripts/lib/ui-locale.mjs /tmp/claude-ui-locale.mjs
+          if node --test tests/ui-locale.test.mjs; then
+            echo 'Expected the focused test to fail without the implementation.' >&2
+            exit 1
+          fi
+          mv /tmp/codex-ui-locale.mjs codex/skills/information-accessibility-practice/scripts/lib/ui-locale.mjs
+          mv /tmp/claude-ui-locale.mjs claude/skills/information-accessibility-practice/scripts/lib/ui-locale.mjs
+      - name: Verify focused behavior and package parity
+        run: |
+          node --test tests/ui-locale.test.mjs
+          node scripts/verify-package.mjs
+          node scripts/build-criteria-catalog.mjs --check
+      - name: Remove one-shot workflow after successful verification
+        shell: bash
+        run: |
+          rm .github/workflows/one-shot-next20-21.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/workflows/one-shot-next20-21.yml
+          git commit -m "ci: remove issue 21 one-shot verifier"
+          git push origin HEAD:feat/issue-21-locale-core
