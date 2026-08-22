@@ -28,7 +28,8 @@ test("signed, organization-attested, and independent levels require their own ev
   assert.throws(() => normalizeReviewerAssurance({ reviewer_assurance: {
     level: "organization_attested",
     subject: "reviewer@example.invalid",
-    issuer: "Example Corp"
+    issuer: "Example Corp",
+    signature_ref: "signatures/review-2.sig"
   } }), /organization|attestation_ref/u);
 
   const independent = normalizeReviewerAssurance({ reviewer_assurance: {
