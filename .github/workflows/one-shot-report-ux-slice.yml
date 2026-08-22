@@ -13,233 +13,74 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: integration/report-ux-slice
-          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Rebuild report UX features on current main
+      - name: Add profile titles, evidence origin, and claim range
         shell: bash
         run: |
-          git fetch origin feat/issue-20-summary-report feat/issue-22-standalone-public-report feat/issue-61-accessible-html-report
           python - <<'PY'
           from pathlib import Path
-          import subprocess
 
-          roots = [Path("codex/skills/information-accessibility-practice"), Path("claude/skills/information-accessibility-practice")]
-
-          def must_replace(text, old, new, label):
+          def replace_one(text, old, new, label):
               if old not in text:
-                  raise SystemExit(f"missing marker for {label}: {old[:100]}")
+                  raise SystemExit(f"missing marker: {label}")
               return text.replace(old, new, 1)
 
-          for root in roots:
-              renderer = root / "scripts/render-audit-report.mjs"
-              text = renderer.read_text()
-
+          for base in ["codex", "claude"]:
+              p = Path(base) / "skills/information-accessibility-practice/scripts/render-audit-report.mjs"
+              text = p.read_text()
               marker = '''const outcomeLabels = {\n  pass: "適合",\n  fail: "不適合",\n  not_tested: "未確認",\n  cant_tell: "要確認"\n};'''
-              addition = marker + '''\n\nexport function reportTitleForProfile(profileId) {\n  return profileId === "jp-public-web"\n    ? "# JIS X 8341-3:2016＋追加WCAG検査レポート"\n    : "# WCAG検査レポート";\n}'''
               if "export function reportTitleForProfile" not in text:
-                  text = must_replace(text, marker, addition, "profile report title helper")
+                  text = replace_one(text, marker, marker + '''\n\nexport function reportTitleForProfile(profileId) {\n  return profileId === "jp-public-web"\n    ? "# JIS X 8341-3:2016＋追加WCAG検査レポート"\n    : "# WCAG検査レポート";\n}''', "title helper")
+              text = replace_one(text, 'const reportTitle = referenceGuidance ? "# WCAG参照ガイダンス" : "# WCAG検査レポート";', 'const reportTitle = referenceGuidance ? "# WCAG参照ガイダンス" : reportTitleForProfile(assessment.profile.id);', "standalone title")
+              text = replace_one(text, '    "# WCAG検査レポート",\n    "",\n    reportNotice,\n    "",\n    "> 文書区分：検査・改善ハンドオフ（規格参照のみ）",', '    reportTitleForProfile(model.profile.id),\n    "",\n    reportNotice,\n    "",\n    "> 文書区分：検査・改善ハンドオフ（規格参照のみ）",', "run title")
+              text = replace_one(text, '''    .map((result) => [\n      result.requirement_id,\n      reportJudgementForOutcome(result.outcome),\n      resultRationale(result)\n    ]);''', '''    .map((result) => [\n      result.requirement_id,\n      reportJudgementForOutcome(result.outcome),\n      result.mapping_status === "human_verified" ? "外部人手レビュー" : result.outcome === "not_tested" ? "未実施" : "補助的スクリーニング",\n      result.evidence?.length ? assessment.evidence_level : "E0",\n      resultRationale(result)\n    ]);''', "standalone origin")
+              text = replace_one(text, 'publicTable(["達成基準", "判定", "根拠・未確認事項"], judgementRows, "判定対象の達成基準はありません。"),', 'publicTable(["達成基準", "判定", "判定の出所", "証拠レベル", "根拠・未確認事項"], judgementRows, "判定対象の達成基準はありません。"),', "standalone columns")
+              text = replace_one(text, '''        outcome: result.outcome,\n        rationale: resultRationale(result),\n        applicability: result.outcome === "not_applicable" ? "not_applicable" : "applicable"''', '''        outcome: result.outcome,\n        rationale: resultRationale(result),\n        applicability: result.outcome === "not_applicable" ? "not_applicable" : "applicable",\n        origin: "external_human_review",\n        evidence_level: "E2"''', "human origin")
+              text = replace_one(text, 'checks.push({ requirement_id: result.requirement_id, outcome: "not_tested", rationale: "この検査では確認していません。", applicability: "undetermined" });', 'checks.push({ requirement_id: result.requirement_id, outcome: "not_tested", rationale: "この検査では確認していません。", applicability: "undetermined", origin: "not_performed", evidence_level: "E0" });', "missing origin")
+              text = replace_one(text, '''      outcome: observation.report_outcome,\n      rationale: observation.report_rationale,\n      applicability: observation.applicability''', '''      outcome: observation.report_outcome,\n      rationale: observation.report_rationale,\n      applicability: observation.applicability,\n      origin: "ai_screening",\n      evidence_level: observation.evidence_level''', "screening origin")
+              text = replace_one(text, '''      ["達成基準・検査項目", "判定", "根拠・未確認事項"],\n      reportChecks.map((item) => [item.requirement_id, reportJudgementForOutcome(item.outcome), item.rationale]),''', '''      ["達成基準・検査項目", "判定", "判定の出所", "証拠レベル", "根拠・未確認事項"],\n      reportChecks.map((item) => [\n        item.requirement_id,\n        reportJudgementForOutcome(item.outcome),\n        item.origin === "external_human_review" ? "外部人手レビュー" : item.origin === "ai_screening" ? "AIスクリーニング" : "未実施",\n        item.evidence_level,\n        item.rationale\n      ]),''', "run columns")
+              text = replace_one(text, '''    `- 適用対象外件数: ${count(profileCounts, "not_applicable")}`,\n    "",\n    "## 2. 検査対象",''', '''    `- 適用対象外件数: ${count(profileCounts, "not_applicable")}`,\n    "",\n    "### 表明可能な範囲",\n    "",\n    `- 要求した表明レベル: ${cell(assessment.claim.requested_tier)}`,\n    `- 証拠から許される上限: ${cell(guard.max_tier)}`,\n    `- 表明文: ${cell(assessment.claim.proposed_wording)}`,\n    "",\n    "## 2. 検査対象",''', "standalone claim")
+              text = replace_one(text, '''    `- 適用対象外: ${notApplicableChecks.length}`,\n    "",\n    "## 2. 検査対象",''', '''    `- 適用対象外: ${notApplicableChecks.length}`,\n    "",\n    "### 表明可能な範囲",\n    "",\n    `- 表明レベル: ${cell(model.claim.tier)}`,\n    `- 表明文: ${cell(model.claim.wording)}`,\n    "",\n    "## 2. 検査対象",''', "run claim")
+              p.write_text(text)
 
-              text = must_replace(
-                  text,
-                  'const reportTitle = referenceGuidance ? "# WCAG参照ガイダンス" : "# WCAG検査レポート";',
-                  'const reportTitle = referenceGuidance ? "# WCAG参照ガイダンス" : reportTitleForProfile(assessment.profile.id);',
-                  "standalone profile title"
-              )
-              text = must_replace(text, '    "# WCAG検査レポート",\n    "",\n    reportNotice,\n    "",\n    "> 文書区分：検査・改善ハンドオフ（規格参照のみ）",', '    reportTitleForProfile(model.profile.id),\n    "",\n    reportNotice,\n    "",\n    "> 文書区分：検査・改善ハンドオフ（規格参照のみ）",', "run-backed profile title")
-
-              text = must_replace(
-                  text,
-                  '''    .map((result) => [\n      result.requirement_id,\n      reportJudgementForOutcome(result.outcome),\n      resultRationale(result)\n    ]);''',
-                  '''    .map((result) => [\n      result.requirement_id,\n      reportJudgementForOutcome(result.outcome),\n      result.mapping_status === "human_verified" ? "外部人手レビュー" : result.outcome === "not_tested" ? "未実施" : "補助的スクリーニング",\n      result.evidence?.length ? assessment.evidence_level : "E0",\n      resultRationale(result)\n    ]);''',
-                  "standalone evidence origin"
-              )
-              text = must_replace(text, 'publicTable(["達成基準", "判定", "根拠・未確認事項"], judgementRows, "判定対象の達成基準はありません。"),', 'publicTable(["達成基準", "判定", "判定の出所", "証拠レベル", "根拠・未確認事項"], judgementRows, "判定対象の達成基準はありません。"),', "standalone evidence columns")
-
-              text = must_replace(
-                  text,
-                  '''        outcome: result.outcome,\n        rationale: resultRationale(result),\n        applicability: result.outcome === "not_applicable" ? "not_applicable" : "applicable"''',
-                  '''        outcome: result.outcome,\n        rationale: resultRationale(result),\n        applicability: result.outcome === "not_applicable" ? "not_applicable" : "applicable",\n        origin: "external_human_review",\n        evidence_level: "E2"''',
-                  "human report projection origin"
-              )
-              text = must_replace(text, 'checks.push({ requirement_id: result.requirement_id, outcome: "not_tested", rationale: "この検査では確認していません。", applicability: "undetermined" });', 'checks.push({ requirement_id: result.requirement_id, outcome: "not_tested", rationale: "この検査では確認していません。", applicability: "undetermined", origin: "not_performed", evidence_level: "E0" });', "missing row origin")
-              text = must_replace(
-                  text,
-                  '''      outcome: observation.report_outcome,\n      rationale: observation.report_rationale,\n      applicability: observation.applicability''',
-                  '''      outcome: observation.report_outcome,\n      rationale: observation.report_rationale,\n      applicability: observation.applicability,\n      origin: "ai_screening",\n      evidence_level: observation.evidence_level''',
-                  "screening origin"
-              )
-              text = must_replace(
-                  text,
-                  '''      ["達成基準・検査項目", "判定", "根拠・未確認事項"],\n      reportChecks.map((item) => [item.requirement_id, reportJudgementForOutcome(item.outcome), item.rationale]),''',
-                  '''      ["達成基準・検査項目", "判定", "判定の出所", "証拠レベル", "根拠・未確認事項"],\n      reportChecks.map((item) => [\n        item.requirement_id,\n        reportJudgementForOutcome(item.outcome),\n        item.origin === "external_human_review" ? "外部人手レビュー" : item.origin === "ai_screening" ? "AIスクリーニング" : "未実施",\n        item.evidence_level,\n        item.rationale\n      ]),''',
-                  "run-backed evidence columns"
-              )
-
-              text = must_replace(
-                  text,
-                  '''    `- 適用対象外件数: ${count(profileCounts, "not_applicable")}`,\n    "",\n    "## 2. 検査対象",''',
-                  '''    `- 適用対象外件数: ${count(profileCounts, "not_applicable")}`,\n    "",\n    "### 表明可能な範囲",\n    "",\n    `- 要求した表明レベル: ${cell(assessment.claim.requested_tier)}`,\n    `- 証拠から許される上限: ${cell(guard.max_tier)}`,\n    `- 表明文: ${cell(assessment.claim.proposed_wording)}`,\n    "",\n    "## 2. 検査対象",''',
-                  "standalone claim range"
-              )
-              text = must_replace(
-                  text,
-                  '''    `- 適用対象外: ${notApplicableChecks.length}`,\n    "",\n    "## 2. 検査対象",''',
-                  '''    `- 適用対象外: ${notApplicableChecks.length}`,\n    "",\n    "### 表明可能な範囲",\n    "",\n    `- 表明レベル: ${cell(model.claim.tier)}`,\n    `- 表明文: ${cell(model.claim.wording)}`,\n    "",\n    "## 2. 検査対象",''',
-                  "run-backed claim range"
-              )
-
-              for old, new in [
-                  ("function publicUrlOrFile(value) {", "export function publicUrlOrFile(value) {"),
-                  ("function sanitizePublicString(value) {", "export function sanitizePublicString(value) {"),
-                  ("function sanitizePublicVersion(value) {", "export function sanitizePublicVersion(value) {")
-              ]:
-                  if old in text:
-                      text = text.replace(old, new, 1)
-              renderer.write_text(text)
-
-              cli = root / "scripts/accessibility-audit.mjs"
-              cli_text = cli.read_text()
-              command_marker = "const commandScripts = {"
-              additions = [
-                  '  summary: "render-audit-summary.mjs",',
-                  '  "public-report": "render-public-audit-report.mjs",',
-                  '  "html-report": "render-accessible-html-report.mjs",'
-              ]
-              if command_marker not in cli_text:
-                  raise SystemExit(f"command map missing: {cli}")
-              for entry in reversed(additions):
-                  if entry not in cli_text:
-                      cli_text = cli_text.replace(command_marker, command_marker + "\n" + entry, 1)
-              cli.write_text(cli_text)
-
-              base = root.parts[0]
-              subprocess.run(["git", "show", f"origin/feat/issue-20-summary-report:{root.as_posix()}/scripts/render-audit-summary.mjs"], check=True, stdout=open(root / "scripts/render-audit-summary.mjs", "w"))
-              subprocess.run(["git", "show", f"origin/feat/issue-22-standalone-public-report:{root.as_posix()}/scripts/render-public-audit-report.mjs"], check=True, stdout=open(root / "scripts/render-public-audit-report.mjs", "w"))
-              subprocess.run(["git", "show", f"origin/feat/issue-61-accessible-html-report:{root.as_posix()}/scripts/lib/accessible-html-report.mjs"], check=True, stdout=open(root / "scripts/lib/accessible-html-report.mjs", "w"))
-
-              html_cli = r'''import fs from "node:fs";
-import path from "node:path";
-import process from "node:process";
-import { fileURLToPath, pathToFileURL } from "node:url";
-import { writeNewText } from "./lib/audit-run.mjs";
-import { renderAccessibleHtmlReport } from "./lib/accessible-html-report.mjs";
-import { validateAssessment } from "./validate-assessment.mjs";
-
-const skillRoot = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
-const readJson = (file) => JSON.parse(fs.readFileSync(file, "utf8").replace(/^\uFEFF/u, ""));
-const reference = (name) => readJson(path.join(skillRoot, "references", name));
-
-function overallOutcome(counts) {
-  if ((counts.fail ?? 0) > 0) return "fail";
-  if ((counts.cant_tell ?? 0) > 0) return "cant_tell";
-  if ((counts.not_tested ?? 0) > 0) return "not_tested";
-  if ((counts.pass ?? 0) > 0) return "pass";
-  return "not_tested";
-}
-
-export function standaloneHtmlModel(record, validation) {
-  const assessment = record.assessment;
-  return {
-    title: assessment.claim?.requested_tier === "reference_only" ? "情報アクセシビリティ参照ガイダンス" : "情報アクセシビリティ検査レポート",
-    overall_outcome: overallOutcome(validation.guard.profile_outcome_counts),
-    target: assessment.target,
-    profile: { id: assessment.profile.id, display_name: assessment.profile.id },
-    evidence_level: assessment.evidence_level,
-    checks: assessment.results.filter((item) => item.requirement_kind === "profile_requirement").map((item) => ({ requirement_id: item.requirement_id, outcome: item.outcome, rationale: item.notes ?? "" })),
-    findings: assessment.findings ?? [],
-    limitations: assessment.limitations ?? []
-  };
-}
-
-function parse(argv) {
-  const options = { locale: "ja" };
-  for (let i = 0; i < argv.length; i += 1) {
-    if (argv[i] === "--input") options.input = argv[++i];
-    else if (argv[i] === "--output") options.output = argv[++i];
-    else if (argv[i] === "--locale") options.locale = argv[++i];
-    else throw new Error(`Unknown argument: ${argv[i]}`);
-  }
-  if (!options.input || !options.output) throw new Error("--input and --output are required");
-  return options;
-}
-
-function main() {
-  const options = parse(process.argv.slice(2));
-  const record = readJson(path.resolve(options.input));
-  const validation = validateAssessment(record, reference("standards-registry.json"), reference("assessment-record.schema.json"), reference("criteria-catalog.json"), reference("web-audit-methods.json"));
-  if (!validation.valid) throw new Error(`Assessment validation failed: ${validation.errors.join("; ")}`);
-  const html = renderAccessibleHtmlReport(standaloneHtmlModel(record, validation), { locale: options.locale });
-  const output = writeNewText(path.resolve(options.output), html);
-  console.log(JSON.stringify({ status: "PASS", format: "html", output }));
-}
-
-if (process.argv[1] && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url) {
-  try { main(); } catch (error) { console.error(error.message); process.exitCode = 1; }
-}
-'''
-              (root / "scripts/render-accessible-html-report.mjs").write_text(html_cli)
-
-          for spec in [
-              ("feat/issue-20-summary-report", "tests/audit-summary.test.mjs"),
-              ("feat/issue-22-standalone-public-report", "tests/standalone-public-report.test.mjs"),
-              ("feat/issue-61-accessible-html-report", "tests/accessible-html-report.test.mjs")
-          ]:
-              subprocess.run(["git", "show", f"origin/{spec[0]}:{spec[1]}"], check=True, stdout=open(spec[1], "w"))
-
-          Path("tests/report-ux-integration.test.mjs").write_text(r'''import assert from "node:assert/strict";
+          Path("tests/report-ux-stage1.test.mjs").write_text(r'''import assert from "node:assert/strict";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
-import { spawnSync } from "node:child_process";
 import test from "node:test";
 import { generateAssessment } from "../codex/skills/information-accessibility-practice/scripts/generate-assessment.mjs";
 import { validateAssessment } from "../codex/skills/information-accessibility-practice/scripts/validate-assessment.mjs";
 import { renderAuditReport, reportTitleForProfile } from "../codex/skills/information-accessibility-practice/scripts/render-audit-report.mjs";
-
-const root = path.resolve("codex/skills/information-accessibility-practice");
-const read = (name) => JSON.parse(fs.readFileSync(path.join(root, "references", name), "utf8"));
-const cli = path.join(root, "scripts/accessibility-audit.mjs");
-
-test("report UX exposes profile title, evidence origin, and claim range", () => {
-  const record = generateAssessment("jp-public-web", { targetName: "Example", targetVersion: "v1", targetRefs: ["https://example.invalid/"], evaluator: "Reviewer", evaluatedAt: "2026-08-22" });
+const skill = path.resolve("codex/skills/information-accessibility-practice");
+const read = (name) => JSON.parse(fs.readFileSync(path.join(skill, "references", name), "utf8"));
+test("report title is profile-aware", () => {
+  assert.match(reportTitleForProfile("jp-public-web"), /JIS X 8341-3:2016/u);
+});
+test("standalone report exposes origin and claim range", () => {
+  const record = generateAssessment("web-modern", { targetName: "Example", targetVersion: "v1", targetRefs: ["https://example.invalid/"], evaluator: "Reviewer", evaluatedAt: "2026-08-22" });
   const validation = validateAssessment(record, read("standards-registry.json"), read("assessment-record.schema.json"), read("criteria-catalog.json"), read("web-audit-methods.json"));
   assert.equal(validation.valid, true, validation.errors.join("; "));
-  assert.match(reportTitleForProfile("jp-public-web"), /JIS X 8341-3:2016/u);
   const report = renderAuditReport(record, validation);
   assert.match(report, /判定の出所/u);
-  assert.match(report, /証拠レベル/u);
+  assert.match(report, /未実施/u);
   assert.match(report, /表明可能な範囲/u);
-});
-
-test("html-report command emits semantic accessible HTML", () => {
-  const temp = fs.mkdtempSync(path.join(os.tmpdir(), "html-report-"));
-  const input = path.join(temp, "assessment.json");
-  const output = path.join(temp, "report.html");
-  fs.writeFileSync(input, JSON.stringify(generateAssessment("web-modern", { targetName: "Example", targetVersion: "v1", targetRefs: ["https://example.invalid/"], evaluator: "Reviewer", evaluatedAt: "2026-08-22" })), "utf8");
-  const result = spawnSync(process.execPath, [cli, "html-report", "--input", input, "--output", output, "--locale", "ja"], { encoding: "utf8" });
-  assert.equal(result.status, 0, result.stderr);
-  const html = fs.readFileSync(output, "utf8");
-  assert.match(html, /<html lang="ja">/u);
-  assert.match(html, /class="skip-link"/u);
-  assert.match(html, /<main id="main"/u);
-  assert.match(html, /<caption>/u);
+  assert.match(report, /証拠から許される上限/u);
 });
 ''')
           PY
-      - name: Verify report UX slice
+      - name: Verify
         run: |
-          node --test tests/report-ux-integration.test.mjs tests/audit-summary.test.mjs tests/standalone-public-report.test.mjs tests/accessible-html-report.test.mjs tests/audit-report.test.mjs tests/unified-cli.test.mjs
+          node --test tests/report-ux-stage1.test.mjs tests/audit-report.test.mjs tests/reference-only-report-mode.test.mjs
           node scripts/verify-package.mjs
           node scripts/build-criteria-catalog.mjs --check
           node scripts/verify-all.mjs
-      - name: Commit verified slice
+      - name: Commit verified change
         shell: bash
         run: |
           rm .github/workflows/one-shot-report-ux-slice.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -m "feat: integrate accessible report UX"
+          git commit -m "feat: improve report titles, evidence provenance, and claim range"
           git push origin HEAD:integration/report-ux-slice
