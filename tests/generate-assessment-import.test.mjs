@@ -26,6 +26,6 @@ for (const [distribution, modulePath] of modules) {
     const result = spawnSync(process.execPath, [modulePath, "--help"], { encoding: "utf8" });
 
     assert.equal(result.status, 0, result.stderr);
-    assert.match(result.stdout, /Usage: node scripts\/generate-assessment\.mjs/u);
+    assert.match(result.stdout, /Usage:\s+node scripts\/generate-assessment\.mjs/u);
   });
 }

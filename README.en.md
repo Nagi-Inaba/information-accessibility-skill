@@ -84,6 +84,12 @@ codex/
     assets/assessment-record.template.json
     assets/waic-publication.template.md
     scripts/accessibility-audit.mjs
+Use `--template` only when an editable placeholder template is required. Template mode returns `TEMPLATE_CREATED` and is not a validated assessment. The safe writer creates missing output directories one component at a time. Empty directories created before a later failure are retained to avoid unsafe cleanup during concurrent operations.
+
+```powershell
+node .\codex\skills\information-accessibility-practice\scripts\generate-assessment.mjs --template --profile web-modern --output .\assessment.template.json
+```
+
     scripts/generate-assessment.mjs
     scripts/render-audit-report.mjs
     scripts/show-screen-reader-checklist.mjs
@@ -248,7 +254,7 @@ node .\codex\skills\information-accessibility-practice\scripts\render-audit-repo
 ```
 
 ```powershell
-node .\codex\skills\information-accessibility-practice\scripts\generate-assessment.mjs --profile web-modern --output .\audit.json
+node .\codex\skills\information-accessibility-practice\scripts\generate-assessment.mjs --profile web-modern --target-name "Example" --target-version "2026-08-22" --target-ref "https://example.com/" --evaluator "External reviewer" --evaluated-at "2026-08-22" --output .\audit.json
 node .\codex\skills\information-accessibility-practice\scripts\show-requirement.mjs --profile web-modern --id WCAG-2.2-SC-1.1.1 --format markdown
 node .\codex\skills\information-accessibility-practice\scripts\validate-assessment.mjs .\audit.json
 node .\codex\skills\information-accessibility-practice\scripts\render-audit-report.mjs --input .\audit.json --output .\audit-report.md
@@ -259,7 +265,7 @@ Run these commands from the root of this distribution package. After installing 
 On macOS and Linux, use `/` as the path separator.
 
 ```sh
-node ./codex/skills/information-accessibility-practice/scripts/generate-assessment.mjs --profile web-modern --output ./audit.json
+node ./codex/skills/information-accessibility-practice/scripts/generate-assessment.mjs --profile web-modern --target-name "Example" --target-version "2026-08-22" --target-ref "https://example.com/" --evaluator "External reviewer" --evaluated-at "2026-08-22" --output ./audit.json
 node ./codex/skills/information-accessibility-practice/scripts/show-requirement.mjs --profile web-modern --id WCAG-2.2-SC-1.1.1 --format markdown
 node ./codex/skills/information-accessibility-practice/scripts/validate-assessment.mjs ./audit.json
 node ./codex/skills/information-accessibility-practice/scripts/render-audit-report.mjs --input ./audit.json --output ./audit-report.md
@@ -376,7 +382,7 @@ Standards-based inspections such as WCAG use the following unified report format
 To create a standards evidence record, generate every row for the target profile before validation. Records created by AI keep profile requirements unverified. A profile requirement is evaluated only when an external human reviewer records requirement-specific procedures and target-specific manual or hybrid evidence. From the distribution-package root, run:
 
 ```powershell
-node .\codex\skills\information-accessibility-practice\scripts\generate-assessment.mjs --profile web-modern --output <assessment.json>
+node .\codex\skills\information-accessibility-practice\scripts\generate-assessment.mjs --profile web-modern --target-name "Example" --target-version "2026-08-22" --target-ref "https://example.com/" --evaluator "External reviewer" --evaluated-at "2026-08-22" --output <assessment.json>
 node .\codex\skills\information-accessibility-practice\scripts\validate-assessment.mjs <assessment.json>
 ```
 

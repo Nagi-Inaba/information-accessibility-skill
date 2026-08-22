@@ -148,6 +148,11 @@ test("assessment, validation, and report commands preserve existing runtime beha
   const overwrite = runCli([
     "assessment",
     "--profile", "web-modern",
+    "--target-name", "Unified CLI fixture",
+    "--target-version", "fixture-v1",
+    "--target-ref", "https://example.test/",
+    "--evaluator", "external-human-review-required",
+    "--evaluated-at", "2026-07-18",
     "--output", assessment
   ]);
   assert.notEqual(overwrite.status, 0);

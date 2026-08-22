@@ -3,6 +3,7 @@ import path from "node:path";
 import process from "node:process";
 import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
+import { assertNewOutputPath, writeNewText } from "../codex/skills/information-accessibility-practice/scripts/lib/audit-run.mjs";
 
 const sourceUrls = {
   wcag: "https://www.w3.org/TR/WCAG22/",
@@ -257,11 +258,22 @@ function argumentValue(name) {
   return index >= 0 ? process.argv[index + 1] : undefined;
 }
 
+export function writeCatalogCandidate(output, catalog) {
+  return writeNewText(path.resolve(output), `${JSON.stringify(catalog, null, 2)}\n`);
+}
+
 async function refreshCatalog(root) {
   const outputArgument = argumentValue("--output");
   if (!outputArgument) throw new Error("--output is required with --refresh");
   const output = path.resolve(process.cwd(), outputArgument);
-  if (fs.existsSync(output)) throw new Error(`Refusing to overwrite existing output: ${output}`);
+  try {
+    assertNewOutputPath(output);
+  } catch (error) {
+    if (/Refusing to overwrite existing file/u.test(error.message)) {
+      throw new Error(`Refusing to overwrite existing output: ${output}`);
+    }
+    throw error;
+  }
 
   const verifiedAt = argumentValue("--verified-at");
   if (!verifiedAt) throw new Error("--verified-at is required with --refresh");
@@ -275,9 +287,8 @@ async function refreshCatalog(root) {
     fetchText(sourceUrls.japanProfile)
   ]);
   const catalog = buildCatalogFromSources({ wcagHtml, jisHtml, japanHtml, verifiedAt, registry });
-  fs.mkdirSync(path.dirname(output), { recursive: true });
-  fs.writeFileSync(output, `${JSON.stringify(catalog, null, 2)}\n`, { encoding: "utf8", flag: "wx" });
-  return { status: "PASS", mode: "refresh", output, counts: { wcag: 55, jis: 38, japan_additional: 18 } };
+  const writtenOutput = writeCatalogCandidate(output, catalog);
+  return { status: "PASS", mode: "refresh", output: writtenOutput, counts: { wcag: 55, jis: 38, japan_additional: 18 } };
 }
 
 async function main() {
