@@ -20,16 +20,6 @@ const testFiles = fs.readdirSync(path.join(root, "tests"))
   .sort()
   .map((name) => path.join("tests", name));
 
-if (process.platform === "win32") {
-  run(process.execPath, ["--test", ...testFiles]);
-} else {
-  const portableTests = testFiles.filter((file) => file !== path.join("tests", "authorized-fixer.test.mjs"));
-  run(process.execPath, ["--test", ...portableTests]);
-}
+run(process.execPath, ["--test", ...testFiles]);
 
-console.log(JSON.stringify({
-  status: "PASS",
-  platform: process.platform,
-  tests: testFiles.length,
-  platform_specific_suite: process.platform === "win32" ? "included" : "covered-by-windows-matrix"
-}));
+console.log(JSON.stringify({ status: "PASS", platform: process.platform, tests: testFiles.length }));
