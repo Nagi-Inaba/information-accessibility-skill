@@ -380,7 +380,13 @@ export function validateAuthorizedTarget({ authorization, targetFile, sourceRoot
   const canonicalAuthSourceRoot = validatedAuthSourceRoot.canonical;
 
   let targetCandidate = targetFile;
-  if (path.isAbsolute(targetCandidate)) {
+  const nativeAbsolute = path.isAbsolute(targetCandidate);
+  const foreignAbsolute = !nativeAbsolute && (path.win32.isAbsolute(targetCandidate) || path.posix.isAbsolute(targetCandidate));
+  if (foreignAbsolute) {
+    errors.push("target is outside the supplied source root");
+    return { errors, warnings };
+  }
+  if (nativeAbsolute) {
     const relativeFromRoot = path.relative(canonicalAuthSourceRoot, targetCandidate);
     if (!relativeFromRoot) {
       errors.push("target must not be source root");
