@@ -16,6 +16,53 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+      - name: Add regression tests and prove red
+        shell: bash
+        run: |
+          cat > tests/report-ux-stage1.test.mjs <<'TEST'
+          import assert from "node:assert/strict";
+          import fs from "node:fs";
+          import path from "node:path";
+          import test from "node:test";
+          import { generateAssessment } from "../codex/skills/information-accessibility-practice/scripts/generate-assessment.mjs";
+          import { validateAssessment } from "../codex/skills/information-accessibility-practice/scripts/validate-assessment.mjs";
+          import * as reportModule from "../codex/skills/information-accessibility-practice/scripts/render-audit-report.mjs";
+
+          const skill = path.resolve("codex/skills/information-accessibility-practice");
+          const read = (name) => JSON.parse(fs.readFileSync(path.join(skill, "references", name), "utf8"));
+
+          test("report title is profile-aware", () => {
+            assert.equal(typeof reportModule.reportTitleForProfile, "function");
+            assert.match(reportModule.reportTitleForProfile("jp-public-web"), /JIS X 8341-3:2016/u);
+          });
+
+          test("standalone report exposes evidence origin and claim range", () => {
+            const record = generateAssessment("web-modern", {
+              targetName: "Example",
+              targetVersion: "v1",
+              targetRefs: ["https://example.invalid/"],
+              evaluator: "Reviewer",
+              evaluatedAt: "2026-08-22"
+            });
+            const validation = validateAssessment(
+              record,
+              read("standards-registry.json"),
+              read("assessment-record.schema.json"),
+              read("criteria-catalog.json"),
+              read("web-audit-methods.json")
+            );
+            assert.equal(validation.valid, true, validation.errors.join("; "));
+            const report = reportModule.renderAuditReport(record, validation);
+            assert.match(report, /判定の出所/u);
+            assert.match(report, /未実施/u);
+            assert.match(report, /表明可能な範囲/u);
+            assert.match(report, /証拠から許される上限/u);
+          });
+          TEST
+          if node --test tests/report-ux-stage1.test.mjs; then
+            echo "Regression test unexpectedly passed before implementation." >&2
+            exit 1
+          fi
       - name: Add profile titles, evidence origin, and claim range
         shell: bash
         run: |
@@ -44,32 +91,8 @@ jobs:
               text = replace_one(text, '''    `- 適用対象外件数: ${count(profileCounts, "not_applicable")}`,\n    "",\n    "## 2. 検査対象",''', '''    `- 適用対象外件数: ${count(profileCounts, "not_applicable")}`,\n    "",\n    "### 表明可能な範囲",\n    "",\n    `- 要求した表明レベル: ${cell(assessment.claim.requested_tier)}`,\n    `- 証拠から許される上限: ${cell(guard.max_tier)}`,\n    `- 表明文: ${cell(assessment.claim.proposed_wording)}`,\n    "",\n    "## 2. 検査対象",''', "standalone claim")
               text = replace_one(text, '''    `- 適用対象外: ${notApplicableChecks.length}`,\n    "",\n    "## 2. 検査対象",''', '''    `- 適用対象外: ${notApplicableChecks.length}`,\n    "",\n    "### 表明可能な範囲",\n    "",\n    `- 表明レベル: ${cell(model.claim.tier)}`,\n    `- 表明文: ${cell(model.claim.wording)}`,\n    "",\n    "## 2. 検査対象",''', "run claim")
               p.write_text(text)
-
-          Path("tests/report-ux-stage1.test.mjs").write_text(r'''import assert from "node:assert/strict";
-import fs from "node:fs";
-import path from "node:path";
-import test from "node:test";
-import { generateAssessment } from "../codex/skills/information-accessibility-practice/scripts/generate-assessment.mjs";
-import { validateAssessment } from "../codex/skills/information-accessibility-practice/scripts/validate-assessment.mjs";
-import { renderAuditReport, reportTitleForProfile } from "../codex/skills/information-accessibility-practice/scripts/render-audit-report.mjs";
-const skill = path.resolve("codex/skills/information-accessibility-practice");
-const read = (name) => JSON.parse(fs.readFileSync(path.join(skill, "references", name), "utf8"));
-test("report title is profile-aware", () => {
-  assert.match(reportTitleForProfile("jp-public-web"), /JIS X 8341-3:2016/u);
-});
-test("standalone report exposes origin and claim range", () => {
-  const record = generateAssessment("web-modern", { targetName: "Example", targetVersion: "v1", targetRefs: ["https://example.invalid/"], evaluator: "Reviewer", evaluatedAt: "2026-08-22" });
-  const validation = validateAssessment(record, read("standards-registry.json"), read("assessment-record.schema.json"), read("criteria-catalog.json"), read("web-audit-methods.json"));
-  assert.equal(validation.valid, true, validation.errors.join("; "));
-  const report = renderAuditReport(record, validation);
-  assert.match(report, /判定の出所/u);
-  assert.match(report, /未実施/u);
-  assert.match(report, /表明可能な範囲/u);
-  assert.match(report, /証拠から許される上限/u);
-});
-''')
           PY
-      - name: Verify
+      - name: Verify green and full package
         run: |
           node --test tests/report-ux-stage1.test.mjs tests/audit-report.test.mjs tests/reference-only-report-mode.test.mjs
           node scripts/verify-package.mjs
