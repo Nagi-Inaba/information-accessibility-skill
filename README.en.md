@@ -102,6 +102,14 @@ node .\codex\skills\information-accessibility-practice\scripts\render-audit-repo
 
 Creating `audit.json` does not mean the target was inspected. Until target-specific evidence and outcomes are added, the report is reference guidance that keeps unverified requirements visible. See the [five-minute guide](docs/getting-started.md) for macOS or Linux commands and the next steps.
 
+Use template mode only when you need an editable placeholder rather than a validated record.
+
+```powershell
+node .\codex\skills\information-accessibility-practice\scripts\generate-assessment.mjs --template --profile web-modern --output .\audit-runs\quickstart\assessment.template.json
+```
+
+`--template` returns `TEMPLATE_CREATED` and is not a validated assessment or inspection result. Omit `--template` for normal record creation and provide the target name, version, reference, evaluator, and evaluation date.
+
 ## Outputs
 
 | Output | Purpose | Usual publication boundary |
