@@ -1259,14 +1259,14 @@ export function createAuditRun(options) {
     status: "initialized",
     target: { name: options.targetName, version_or_commit: options.targetVersion, urls_or_files: targetRefs },
     profile: { id: profile.id, registry_version: resources.standardsRegistry.schema_version },
-    scope: { included: targetRefs, excluded: [], complete_processes: [], third_party_content: [], full_pages_reviewed: false },
-    environment: { os: ["not_declared"], browsers: [], assistive_technologies: [], input_modes: [] },
+    scope: structuredClone(options.scope ?? options.supersedesRun?.scope ?? { included: targetRefs, excluded: [], complete_processes: [], third_party_content: [], full_pages_reviewed: false }),
+    environment: structuredClone(options.environment ?? options.supersedesRun?.environment ?? { os: ["not_declared"], browsers: [], assistive_technologies: [], input_modes: [] }),
     permissions,
     resource_versions: resources.resourceVersions,
     artifact_root: relativeRoot.split(path.sep).join("/"),
     artifacts: [],
     history: [],
-    limitations: ["The environment was not declared; no profile outcome has been recorded."]
+    limitations: options.environment ? ["No profile outcome has been recorded."] : ["The environment was not declared; no profile outcome has been recorded."]
   };
   if (options.supersedesRun) {
     if (!options.supersedesRunFile) throw new Error("supersedesRunFile is required for fresh retest initialization.");
