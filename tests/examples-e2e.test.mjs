@@ -88,7 +88,10 @@ test("run-backed example creates ordered artifacts, merged assessment, and repor
       [...run.artifacts.map((entry) => entry.artifact_id)].sort()
     );
     const merged = readJson(path.join(directory, "merged-assessment.json"));
-    assert.equal(merged.assessment.results.length, 55);
+    const profileRows = merged.assessment.results.filter((row) => row.requirement_id.startsWith("WCAG-2.2-SC-"));
+    const screeningRows = merged.assessment.results.filter((row) => row.requirement_id.startsWith("SCREEN-"));
+    assert.equal(profileRows.length, 55);
+    assert.equal(screeningRows.length, 1);
     const report = fs.readFileSync(path.join(directory, "audit-report.md"), "utf8");
     assert.match(report, /登録済み達成基準/u);
     assertPublicFixtureText(report, `${scenario} public example`);
@@ -114,4 +117,3 @@ test("example documentation uses repository-relative commands and contains no pr
     assert.doesNotMatch(text, /<replace-me>|TODO|TBD/iu, relative);
   }
 });
-
