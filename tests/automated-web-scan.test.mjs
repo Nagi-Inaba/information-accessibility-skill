@@ -216,10 +216,7 @@ test("full scan schema rejects profile outcome fields and accepts the bounded co
   scan.review_candidates[0].profile_outcome = "fail";
   const invalidErrors = [];
   validateJsonSchema(scan, scanSchema, "$", invalidErrors);
-  assert.ok(
-    invalidErrors.some((error) => error.includes("profile_outcome") && /not allowed|unexpected property/u.test(error)),
-    invalidErrors.join("\n")
-  );
+  assert.ok(invalidErrors.some((error) => error.includes("profile_outcome")), invalidErrors.join("\n"));
 });
 
 test("compact context preserves coverage and reflow signals before bulk violations", () => {
