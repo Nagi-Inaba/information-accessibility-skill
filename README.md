@@ -303,9 +303,36 @@ powershell -ExecutionPolicy Bypass -File ".\scripts\install-codex.ps1"
 
 Claude で使う場合:
 
-1. `claude/skills/information-accessibility-practice/` を Claude の `skills/` 配下に配置する。
-2. `claude/agents/information-accessibility-reviewer.md` を Claude の `agents/` 配下に配置する。
-3. 情報アクセシビリティを確認したい対象に対して `information-accessibility-reviewer` を使う。
+`shared/agents/agent-manifest.json` の `install_by_default: true` を正本として、Claude skillと既定agentをまとめて配置します。配布パッケージのルートで次を実行します。
+
+```powershell
+node .\scripts\install-claude.mjs --dry-run
+node .\scripts\install-claude.mjs
+```
+
+macOS / Linuxでは次を実行します。
+
+```sh
+node ./scripts/install-claude.mjs --dry-run
+node ./scripts/install-claude.mjs
+```
+
+既定で配置する4agentは次のとおりです。
+
+- `information-accessibility-reviewer`
+- `information-accessibility-e1-inspector`
+- `information-accessibility-human-queue-planner`
+- `information-accessibility-remediation-planner`
+
+配置先は、`--claude-home`、環境変数`CLAUDE_HOME`、`~/.claude`の順で決まります。インストーラーはskillと全agentの入力・配置先を先に検証し、管理対象の配置先が一つでも既に存在する場合は、ほかのファイルを書き込む前に停止します。`--dry-run`は配置計画だけをJSONで表示し、ディレクトリやファイルを作成しません。
+
+multi-agent構成では、reviewer、E1 inspector、人手レビューqueue planner、remediation plannerを分離し、Codex版と同じrole artifact contractで成果物を受け渡します。Claudeホストがspecialist agentをdispatchできない場合だけ、次のreviewer単独構成を使います。
+
+```powershell
+node .\scripts\install-claude.mjs --reviewer-only
+```
+
+`--reviewer-only`ではreviewerのlocal fallbackを使うため、specialistごとの役割分離、context分離、dispatch履歴が失われます。出力は同じrole artifact contractを維持し、回帰テストで検証します。単に配置ファイル数を減らす目的では選択しないでください。`information-accessibility-authorized-fixer`は`install_by_default`ではないため、このインストーラーでは配置しません。
 
 ## 対象別の確認範囲
 
