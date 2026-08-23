@@ -45,6 +45,14 @@ function writeJsonNew(file, value) {
   fs.writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`, { encoding: "utf8", flag: "wx", mode: 0o600 });
 }
 
+function rewriteJson(file, value) {
+  fs.writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`, { encoding: "utf8", flag: "w", mode: 0o600 });
+}
+
+function readJson(file) {
+  return JSON.parse(fs.readFileSync(file, "utf8").replace(/^\uFEFF/u, ""));
+}
+
 function sha256File(file) {
   return crypto.createHash("sha256").update(fs.readFileSync(file)).digest("hex");
 }
@@ -197,6 +205,14 @@ function copyExclusive(source, destination) {
   fs.copyFileSync(source, destination, fs.constants.COPYFILE_EXCL);
 }
 
+function bindAssessmentToRun(assessmentFile, runFile) {
+  const run = readJson(runFile);
+  const assessment = readJson(assessmentFile);
+  assessment.assessment.scope = structuredClone(run.scope);
+  assessment.assessment.environment = structuredClone(run.environment);
+  rewriteJson(assessmentFile, assessment);
+}
+
 function buildScenario(base, { name, runId, suffix, humanReviewed }) {
   const scenario = path.join(base, name);
   const artifactRoot = path.join(scenario, "artifacts");
@@ -227,6 +243,7 @@ function buildScenario(base, { name, runId, suffix, humanReviewed }) {
     "--evaluated-at", "2026-08-23",
     "--output", baseline
   ]);
+  bindAssessmentToRun(baseline, initialRun);
 
   const artifacts = [];
   const screening = screeningArtifact(runId, suffix);
