@@ -302,9 +302,36 @@ The authorized fixer, `information-accessibility-authorized-fixer`, is not insta
 
 For Claude:
 
-1. Place `claude/skills/information-accessibility-practice/` under the Claude `skills/` directory.
-2. Place `claude/agents/information-accessibility-reviewer.md` under the Claude `agents/` directory.
-3. Use `information-accessibility-reviewer` for the target to be reviewed for information accessibility.
+`shared/agents/agent-manifest.json` is the source of truth for entries whose `install_by_default` value is `true`. From the distribution-package root, install the Claude skill and all default agents together:
+
+```powershell
+node .\scripts\install-claude.mjs --dry-run
+node .\scripts\install-claude.mjs
+```
+
+On macOS and Linux, run:
+
+```sh
+node ./scripts/install-claude.mjs --dry-run
+node ./scripts/install-claude.mjs
+```
+
+The four default agents are:
+
+- `information-accessibility-reviewer`
+- `information-accessibility-e1-inspector`
+- `information-accessibility-human-queue-planner`
+- `information-accessibility-remediation-planner`
+
+The destination is resolved from `--claude-home`, then `CLAUDE_HOME`, then `~/.claude`. The installer validates the skill, every selected agent, and every managed destination before writing. If any managed destination already exists, it stops without writing the remaining files. `--dry-run` emits the installation plan as JSON and does not create directories or files.
+
+The multi-agent installation separates the reviewer, E1 inspector, human-review queue planner, and remediation planner while preserving the same role artifact contract as the Codex distribution. Use the reviewer-only fallback only when the Claude host cannot dispatch specialist agents:
+
+```powershell
+node .\scripts\install-claude.mjs --reviewer-only
+```
+
+`--reviewer-only` uses the reviewer's local fallback, so specialist role isolation, context isolation, and dispatch history are unavailable. It preserves the same role artifact contract, which is covered by regression tests. Do not choose this mode merely to reduce the number of installed files. `information-accessibility-authorized-fixer` is not marked `install_by_default`, so this installer does not install it.
 
 ## Detailed review coverage
 
