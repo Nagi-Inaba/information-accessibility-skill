@@ -102,6 +102,14 @@ node .\codex\skills\information-accessibility-practice\scripts\render-audit-repo
 
 `audit.json`を生成しただけでは、対象を検査したことにはなりません。対象固有の証拠と判定が入るまでは、レポートは未確認事項を示す参照ガイダンスです。macOS／Linuxのコマンドと次の手順は、[5分クイックスタート](docs/getting-started.md)にあります。
 
+編集用のプレースホルダーだけが必要な場合は、record modeと混同せず、明示的にtemplate modeを使います。
+
+```powershell
+node .\codex\skills\information-accessibility-practice\scripts\generate-assessment.mjs --template --profile web-modern --output .\audit-runs\quickstart\assessment.template.json
+```
+
+`--template`は`TEMPLATE_CREATED`を返し、検証済みassessmentや検査結果としては扱いません。通常の評価記録を作るコマンドには`--template`を付けず、対象名、版、参照先、評価者、評価日を指定します。
+
 ## 生成されるもの
 
 | 成果物 | 役割 | 通常の公開範囲 |
