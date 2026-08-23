@@ -199,8 +199,8 @@ test("Claude installer rejects managed destination conflicts before writing any 
 test("Japanese and English Claude instructions stay aligned with manifest defaults and fallback boundaries", () => {
   const japanese = fs.readFileSync(path.join(root, "README.md"), "utf8");
   const english = fs.readFileSync(path.join(root, "README.en.md"), "utf8");
-  const japaneseClaude = extractSection(japanese, "Claude で使う場合:", "\n## 対象別の確認範囲");
-  const englishClaude = extractSection(english, "For Claude:", "\n## Detailed review coverage");
+  const japaneseClaude = extractSection(japanese, "### Claude", "\n### CLI");
+  const englishClaude = extractSection(english, "### Claude", "\n### CLI");
 
   for (const section of [japaneseClaude, englishClaude]) {
     assert.match(section, /install-claude\.mjs/u);
