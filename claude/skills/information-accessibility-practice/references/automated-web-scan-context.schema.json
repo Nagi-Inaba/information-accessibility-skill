@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:information-accessibility:automated-web-scan-context:1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "kind", "stability", "source_scan_sha256", "target", "environment", "frame_coverage", "summary", "items", "focus_summary", "reflow_summary", "truncation"],
+  "properties": {
+    "schema_version": { "const": "1.0.0" },
+    "kind": { "const": "automated-web-scan-context" },
+    "stability": { "const": "experimental" },
+    "source_scan_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "target": { "type": "object" },
+    "environment": { "type": "object" },
+    "frame_coverage": { "type": "object", "additionalProperties": false, "required": ["attempted", "succeeded", "failed", "skipped"], "properties": { "attempted": { "type": "integer", "minimum": 0 }, "succeeded": { "type": "integer", "minimum": 0 }, "failed": { "type": "integer", "minimum": 0 }, "skipped": { "type": "integer", "minimum": 0 } } },
+    "summary": { "type": "object" },
+    "items": { "type": "array", "maxItems": 100, "items": { "type": "object", "not": { "anyOf": [{ "required": ["profile_outcome"] }, { "required": ["mapping_status"] }, { "required": ["human_verified"] }] } } },
+    "focus_summary": { "type": "object" },
+    "reflow_summary": { "type": ["object", "null"] },
+    "truncation": { "type": "object", "additionalProperties": false, "required": ["truncated", "omitted_items", "omitted_nodes", "omitted_by_class", "reason"], "properties": { "truncated": { "type": "boolean" }, "omitted_items": { "type": "integer", "minimum": 0 }, "omitted_nodes": { "type": "integer", "minimum": 0 }, "omitted_by_class": { "type": "object", "additionalProperties": false, "required": ["machine_violations", "review_candidates"], "properties": { "machine_violations": { "type": "integer", "minimum": 0 }, "review_candidates": { "type": "integer", "minimum": 0 } } }, "reason": { "enum": ["none", "context_limit"] } } }
+  }
+}
