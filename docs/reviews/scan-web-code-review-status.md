@@ -2,11 +2,11 @@
 
 ## Final result
 
-`APPROVED FOR MERGE`
+`APPROVED AND MERGED`
 
-PR #145 was independently reviewed after implementation. The reviewer reported no Critical or Important merge blockers. The final schema-only cleanup replaced an unsupported JSON Schema `not` expression with the repository validator's supported `additionalProperties: false` boundary; that delta was then exercised by the complete verification matrix and the real Chromium E2E workflow.
+PR #145 was independently reviewed after implementation. The reviewer reported no Critical or Important merge blockers. The final contract-test fixture was aligned with the strict scan schema, then the complete pull-request verification matrix and the real Chromium E2E workflow passed before merge.
 
-## Verification completed
+## Verification completed before merge
 
 - Ubuntu / Node.js 20: PASS
 - Ubuntu / Node.js 22: PASS
@@ -16,7 +16,6 @@ PR #145 was independently reviewed after implementation. The reviewer reported n
 - Codex and Claude skill distributions: synchronized
 - Criteria catalog freshness check: PASS
 - Package verification: PASS
-- Post-merge `main` verification matrix: PASS
 
 ## Review history
 
@@ -25,7 +24,8 @@ PR #145 was independently reviewed after implementation. The reviewer reported n
 3. A second independent plan audit returned `APPROVED FOR IMPLEMENTATION`.
 4. Implementation review findings were addressed during development, including schema-validator compatibility, network and interaction controls, context bounding, output safety, and CI separation.
 5. The final independent code review reported no Critical or Important blockers.
-6. PR #145 was squash-merged as commit `86fb9cc72f6e1eb207fc52298ead8a13ce7099a1`.
+6. The final PR head `5fe2dfe1c407ee0b4e9a85b68d5f75ef76ffb171` passed both verification workflows.
+7. PR #145 was squash-merged to `main` as commit `2e89652cd7146800f790706dd60bcaad77bbe16a`.
 
 ## Remaining scope
 
