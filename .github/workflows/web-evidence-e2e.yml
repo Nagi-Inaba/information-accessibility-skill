@@ -32,6 +32,8 @@ jobs:
       - name: Install Chromium
         run: npx playwright@1.62.1 install --with-deps chromium
       - name: Run policy and browser E2E tests
+        env:
+          RUN_SCAN_WEB_E2E: "1"
         run: |
           node --test tests/web-evidence-adapter.test.mjs tests/web-evidence-e2e.test.mjs tests/scan-web-e2e.test.mjs
           node scripts/verify-package.mjs
