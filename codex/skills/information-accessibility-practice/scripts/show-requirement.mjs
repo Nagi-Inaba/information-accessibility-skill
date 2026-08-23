@@ -30,12 +30,27 @@ export function lookupRequirement(profileId, requirementId, root = skillRoot) {
   if (!criterion) throw new Error(`Requirement is missing from criteria-catalog.json: ${requirementId}`);
   const method = methods.methods.find((item) => item.id === criterion.method_key);
   if (!method) throw new Error(`Audit method is missing for ${requirementId}: ${criterion.method_key}`);
-  const criterionProcedure = criterionProcedures.procedures.find((item) => item.requirement_id === requirementId);
+
+  const directCriterionProcedure = criterionProcedures.procedures.find(
+    (item) => item.requirement_id === requirementId
+  );
+  const equivalentCriterionProcedure = !directCriterionProcedure && criterion.web_modern_record_id
+    ? criterionProcedures.procedures.find(
+      (item) => item.requirement_id === criterion.web_modern_record_id
+    )
+    : null;
+  const criterionProcedure = directCriterionProcedure ?? equivalentCriterionProcedure;
+  const procedureOfficialSources = criterionProcedure
+    ? [...new Set([
+      ...(equivalentCriterionProcedure ? (criterion.official_method_sources ?? []) : []),
+      ...criterionProcedure.primary_sources
+    ])]
+    : null;
   const procedureBinding = criterionProcedure ? {
     procedure_availability: "available",
     procedure_ref: `criterion-procedures:${criterionProcedures.schema_version}#${criterionProcedure.id}`,
     generic_method_ref: null,
-    official_sources: criterionProcedure.primary_sources,
+    official_sources: procedureOfficialSources,
     human_actions: criterionProcedure.procedure_steps,
     required_evidence_types: criterionProcedure.required_evidence_types,
     cant_tell_conditions: criterionProcedure.cant_tell_when
