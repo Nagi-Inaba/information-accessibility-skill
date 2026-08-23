@@ -207,7 +207,7 @@ test("Japanese and English Claude instructions stay aligned with manifest defaul
     assert.match(section, /install_by_default/u);
     assert.match(section, /--reviewer-only/u);
     for (const agent of defaultAgents) {
-      assert.match(section, new RegExp(`\\`${agent.id}\\``, "u"), agent.id);
+      assert.ok(section.includes("`" + agent.id + "`"), agent.id);
     }
   }
 
