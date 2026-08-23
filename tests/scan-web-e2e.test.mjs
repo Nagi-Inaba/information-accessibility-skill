@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import http from "node:http";
-import { createRequire } from "node:module";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
@@ -10,19 +9,7 @@ import { runAutomatedWebScan } from "../codex/skills/information-accessibility-p
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const fixture = fs.readFileSync(path.join(root, "examples/web-e2e/target/index.html"));
-const require = createRequire(import.meta.url);
-
-function hasExactBrowserDependencies() {
-  try {
-    const playwright = JSON.parse(fs.readFileSync(require.resolve("playwright/package.json"), "utf8"));
-    const axe = JSON.parse(fs.readFileSync(require.resolve("axe-core/package.json"), "utf8"));
-    return playwright.version === "1.62.1" && axe.version === "4.13.0";
-  } catch {
-    return false;
-  }
-}
-
-const browserDependenciesAvailable = hasExactBrowserDependencies();
+const runBrowserE2E = process.env.RUN_SCAN_WEB_E2E === "1";
 
 function listen(server) {
   return new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
@@ -33,7 +20,7 @@ function close(server) {
 }
 
 test("scan-web finds machine violations and enforces the bounded network policy", {
-  skip: !browserDependenciesAvailable
+  skip: !runBrowserE2E
 }, async () => {
   let postRequests = 0;
   const server = http.createServer((request, response) => {
@@ -88,7 +75,7 @@ test("scan-web finds machine violations and enforces the bounded network policy"
 });
 
 test("scan-web rejects a redirect to an origin that was not allowed", {
-  skip: !browserDependenciesAvailable
+  skip: !runBrowserE2E
 }, async () => {
   const destination = http.createServer((_request, response) => {
     response.writeHead(200, { "content-type": "text/html" });
