@@ -47,7 +47,7 @@ See the [architecture and glossary](docs/architecture-and-glossary.md) for the c
 | Event, meeting, or community process | Supported | Review through the five information-use perspectives | No dedicated structured assessment yet |
 | ATAG or authoring process | Reference guidance | Partial reference information | The `authoring-agent` profile is currently inactive |
 
-`web-modern` covers the 55 WCAG 2.2 Level A and AA requirements. `jp-public-web` contains 38 JIS X 8341-3:2016 Level A and AA requirements plus 18 additional WCAG requirements. Catalog coverage and actual evaluation coverage are recorded separately.
+`web-modern` covers 55 WCAG 2.2 Level A and AA requirements from [WCAG 2.2](https://www.w3.org/TR/WCAG22/). `jp-public-web` contains 38 Level A and AA requirements from [JIS X 8341-3:2016 guidance by WAIC](https://waic.jp/docs/jis2016/understanding/201604/) plus 18 Level A and AA requirements introduced in WCAG 2.1 and 2.2, for 56 checks in total. JIS retains 4.1.1, Parsing, which [WCAG 2.2 removed](https://www.w3.org/WAI/standards-guidelines/wcag/new-in-22/). Catalog coverage and actual evaluation coverage are recorded separately.
 
 ## Requirements and installation
 
@@ -64,18 +64,25 @@ powershell -ExecutionPolicy Bypass -File ".\scripts\install-codex.ps1" -WhatIf
 powershell -ExecutionPolicy Bypass -File ".\scripts\install-codex.ps1"
 ```
 
+Specify `-IncludeAuthorizedFixer` only when deliberately installing authorized remediation. The authorized fixer is a read-only handoff agent and does not modify the target. A trusted operator performs the actual bounded change, verification, and rollback after checking the external authorization.
+
 On macOS or Linux, copy `codex/skills/information-accessibility-practice/` and the manifest-default agents into the Codex installation. See [Getting started](docs/getting-started.md) and the [architecture guide](docs/architecture-and-glossary.md) for the installed roles and usage paths.
 
 ### Claude
 
-Install the Claude skill and all four manifest-default agents with the cross-platform installer.
+`shared/agents/agent-manifest.json` entries whose `install_by_default` value is `true` are the source of truth. Install the Claude skill and these four default agents together:
+
+- `information-accessibility-reviewer`
+- `information-accessibility-e1-inspector`
+- `information-accessibility-human-queue-planner`
+- `information-accessibility-remediation-planner`
 
 ```powershell
 node .\scripts\install-claude.mjs --dry-run
 node .\scripts\install-claude.mjs
 ```
 
-Use `--reviewer-only` only when the Claude host cannot dispatch specialist agents.
+The multi-agent installation preserves the same role artifact contract as the Codex distribution. Use `--reviewer-only` only when the Claude host cannot dispatch specialist agents, not merely to install fewer files.
 
 ### CLI
 
@@ -110,6 +117,8 @@ node .\codex\skills\information-accessibility-practice\scripts\generate-assessme
 
 `--template` returns `TEMPLATE_CREATED` and is not a validated assessment or inspection result. Omit `--template` for normal record creation and provide the target name, version, reference, evaluator, and evaluation date.
 
+A `reference_only` ledger produces **reference guidance**; it is distinct from an evidence-backed **inspection report**.
+
 ## Outputs
 
 | Output | Purpose | Usual publication boundary |
@@ -121,11 +130,20 @@ node .\codex\skills\information-accessibility-practice\scripts\generate-assessme
 | Human-review queue | Lists requirements, procedures, and requested evidence for a person | Working material |
 | Markdown report | Presents scope, judgements, remediation, and missing checks | Shareable after publication review |
 
-The [artifact map](docs/architecture-and-glossary.md#artifact-map--成果物の関係) lists the typical producer, inputs, purpose, and publication boundary for every artifact.
+The [artifact map](docs/architecture-and-glossary.md) lists the typical producer, inputs, purpose, and publication boundary for every artifact.
 
 ## Live Web inspection
 
 `scan-web` uses pinned Playwright and axe-core versions to inspect a public URL without mutating it. Automated results are never promoted directly to formal WCAG or JIS pass or fail outcomes.
+
+A short URL-based request may start with:
+
+```text
+Inspect the first screen of this site with the accessibility CLI.
+https://example.com/
+```
+
+When no profile is named, the reviewer uses `web-modern` and accounts for all 55 WCAG 2.2 Level A and AA requirements through the report projection or a reasoned not-applicable entry. An initial ledger whose 55 rows remain `not_tested` is not completion; the result must include target evidence, barrier candidates, and the next human checks.
 
 See the [Web inspection guide](docs/web-inspection.md) for dependencies, network and redirect controls, private-address rejection, output contracts, compact AI context, and Chromium E2E coverage.
 
@@ -144,8 +162,10 @@ See the [Web inspection guide](docs/web-inspection.md) for dependencies, network
 
 ## Evidence and claim boundary
 
+AI agents that create or update profile requirement rows keep `mapping_status: "unverified"` and `outcome: "not_tested"`. Their observations remain `SCREEN-*` results or unverified handoffs. External human review may record `pass`, `fail`, `not_applicable`, or `cant_tell` only when it uses the applicable procedure and target-specific manual or hybrid evidence.
+
 - AI and automated tools may create E0/E1 screening observations.
-- Only external human review using the applicable procedure and target-specific evidence may record `pass`, `fail`, `not_applicable`, or `cant_tell` for a standards requirement.
+- Automated and static checks remain `screening_check` records, separate from standards `profile_requirement` rows mapped to primary sources by a person.
 - Missing, uncertain, and not-applicable states remain visible and are never converted to pass by omission.
 - Claim tiers such as `reference_only`, `screened`, and `evaluated_subset` cannot exceed the recorded evidence or the profile ceiling.
 - Raw DOM, accessibility trees, private URLs, local paths, personal data, and authorization details remain internal unless an explicit publication policy permits them.
