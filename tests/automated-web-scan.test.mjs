@@ -85,7 +85,15 @@ function scanFixture() {
       adapter: "playwright-chromium",
       browser_version: "151.0.0",
       viewport: { width: 1280, height: 800 },
-      scanner: { name: "axe-core", version: "4.13.0" }
+      rendering: {
+        locale: "ja-JP",
+        timezoneId: "Asia/Tokyo",
+        deviceScaleFactor: 1,
+        colorScheme: "light",
+        reducedMotion: "reduce"
+      },
+      scanner: { name: "axe-core", version: "4.13.0" },
+      playwright_version: "1.62.1"
     },
     frame_coverage: {
       coverage_status: "partial",
@@ -101,11 +109,13 @@ function scanFixture() {
     policy: {
       allowed_origins: ["https://example.com"],
       blocked_request_count: 0,
+      blocked_requests_truncated: false,
       blocked_channel_count: 0,
       blocked_channels: [],
-      reflow_width: 320,
-      allowed_methods: ["GET", "HEAD"],
-      dns_binding: "pinned_host_resolver"
+      blocked_channels_truncated: false,
+      dns_binding: "pinned_host_resolver",
+      pinned_endpoints: [{ hostname: "example.com", address: "93.184.216.34" }],
+      reflow_width: 320
     },
     summary: {
       machine_violations: 1,
@@ -129,9 +139,8 @@ function scanFixture() {
         viewport: { width: 320, height: 800 },
         document_scroll_width: 600,
         document_client_width: 320,
-        candidates: [{ selector: "main", right: 600, width: 600 }],
-        profile_requirement_ids: ["WCAG-2.2-SC-1.4.10"],
-        interpretation: "320 CSS-pixel proxy; review required."
+        candidates: [{ selector: "main", left: 0, right: 600, width: 600 }],
+        profile_requirement_ids: ["WCAG-2.2-SC-1.4.10"]
       },
       blocked_requests: []
     },
