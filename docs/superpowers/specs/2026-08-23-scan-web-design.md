@@ -165,7 +165,7 @@ Supported options:
 - `--height <240-7680>` default `800`
 - `--reflow-width <240-1280>` default `320`
 
-Both output paths use the existing exclusive safe writer. If the optional context output fails, the command removes only files it created and never overwrites a concurrent file.
+Both output paths use the existing exclusive safe writer. The command validates both complete in-memory objects before writing either one. It publishes the full scan first and then the optional compact context. If context publication fails, the valid full scan remains available, the command exits nonzero, and the diagnostic names the retained scan path; the command never attempts an unsafe rollback or overwrites a concurrent file.
 
 ### 5. Profile mapping
 
@@ -199,18 +199,17 @@ This gives the project a reproducible execution path for the first real Web-tool
 
 ## Error handling
 
-The command fails without writing completed output when:
+The command does not write an invalid scan or invalid context. It fails before publication when:
 
 - the profile is unknown or inactive;
 - Playwright, Chromium, or axe-core is unavailable;
 - the URL is unsafe or resolves to a denied address;
 - navigation escapes the allowed origins;
-- axe execution fails in a frame;
 - the resulting scan or context does not validate against its schema;
 - an output already exists;
 - an input dependency changes during a stable-file read.
 
-Cross-origin frames blocked by policy remain visible in the blocked-request log. They do not make the rest of the scan disappear, but the summary records that coverage was incomplete.
+An axe failure in one frame is retained as an explicit review candidate so coverage loss is visible. If the optional context file cannot be published after the full scan has been written, the full scan remains intact and the command exits nonzero with a diagnostic. Cross-origin frames blocked by policy remain visible in the blocked-request log and make coverage limitations visible in the summary.
 
 ## Testing
 
