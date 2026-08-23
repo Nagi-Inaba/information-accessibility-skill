@@ -172,18 +172,6 @@ function buildPlan(options) {
   };
 }
 
-function nearestExistingDirectory(candidate) {
-  let current = path.resolve(candidate);
-  while (!pathExists(current)) {
-    const parent = path.dirname(current);
-    if (parent === current) throw new Error(`Could not resolve an existing staging parent for: ${candidate}`);
-    current = parent;
-  }
-  const stat = fs.statSync(current);
-  if (!stat.isDirectory()) throw new Error(`Staging parent is not a directory: ${current}`);
-  return current;
-}
-
 function ensureDirectory(directory, createdDirectories) {
   const missing = [];
   let current = path.resolve(directory);
@@ -196,9 +184,46 @@ function ensureDirectory(directory, createdDirectories) {
   if (!fs.statSync(current).isDirectory()) {
     throw new Error(`Directory parent is not a directory: ${current}`);
   }
+
   for (const item of missing.reverse()) {
-    fs.mkdirSync(item);
-    createdDirectories.push(item);
+    try {
+      fs.mkdirSync(item);
+      createdDirectories.push(item);
+    } catch (error) {
+      if (error?.code !== "EEXIST" || !fs.statSync(item).isDirectory()) throw error;
+    }
+  }
+}
+
+function copyDirectoryExclusive(source, destination) {
+  const sourceStat = fs.lstatSync(source);
+  if (!sourceStat.isDirectory()) throw new Error(`Expected staged directory: ${source}`);
+
+  fs.mkdirSync(destination);
+  try {
+    for (const entry of fs.readdirSync(source, { withFileTypes: true })) {
+      const sourceEntry = path.join(source, entry.name);
+      const destinationEntry = path.join(destination, entry.name);
+
+      if (entry.isDirectory()) {
+        copyDirectoryExclusive(sourceEntry, destinationEntry);
+        continue;
+      }
+      if (entry.isFile()) {
+        fs.copyFileSync(sourceEntry, destinationEntry, fs.constants.COPYFILE_EXCL);
+        continue;
+      }
+      if (entry.isSymbolicLink()) {
+        const target = fs.readlinkSync(sourceEntry);
+        const targetStat = fs.statSync(sourceEntry);
+        fs.symlinkSync(target, destinationEntry, targetStat.isDirectory() ? "dir" : "file");
+        continue;
+      }
+      throw new Error(`Unsupported staged entry type: ${sourceEntry}`);
+    }
+  } catch (error) {
+    fs.rmSync(destination, { recursive: true, force: true });
+    throw error;
   }
 }
 
@@ -213,8 +238,7 @@ function removeEmptyDirectories(directories) {
 }
 
 function install(plan) {
-  const stagingParent = nearestExistingDirectory(path.dirname(plan.claude_home));
-  const stagingRoot = fs.mkdtempSync(path.join(stagingParent, ".information-accessibility-claude-install-"));
+  const stagingRoot = fs.mkdtempSync(path.join(os.tmpdir(), "information-accessibility-claude-install-"));
   const stagedSkill = path.join(stagingRoot, "skill");
   const stagedAgentsDirectory = path.join(stagingRoot, "agents");
   const activatedPaths = [];
@@ -235,12 +259,12 @@ function install(plan) {
     ensureDirectory(path.dirname(plan.skill.destination), createdDirectories);
     ensureDirectory(path.dirname(plan.agents[0].destination), createdDirectories);
 
-    fs.renameSync(stagedSkill, plan.skill.destination);
+    copyDirectoryExclusive(stagedSkill, plan.skill.destination);
     activatedPaths.push(plan.skill.destination);
 
     for (const agent of plan.agents) {
       const stagedAgent = path.join(stagedAgentsDirectory, path.basename(agent.destination));
-      fs.renameSync(stagedAgent, agent.destination);
+      fs.copyFileSync(stagedAgent, agent.destination, fs.constants.COPYFILE_EXCL);
       activatedPaths.push(agent.destination);
     }
   } catch (error) {
