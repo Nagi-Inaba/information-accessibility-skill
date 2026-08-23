@@ -19,7 +19,7 @@
 2. Assert each lookup reports an available criterion-specific procedure sourced from the expected WCAG record.
 3. Assert the selected profile remains `jp-public-web`, the selected criterion remains the JIS ID, and WAIC URLs remain in `procedure_binding.official_sources`.
 4. Assert JIS-specific 4.1.1 remains unavailable and does not acquire a WCAG procedure.
-5. Assert exactly four JIS requirements receive reused detailed procedures in this slice.
+5. Scan the complete JIS profile and assert exactly four requirements receive detailed procedures in this slice.
 6. Open a draft PR and verify the focused test fails because the current lookup uses only direct ID equality.
 
 ## Task 2: Implement canonical fallback in both distributions
@@ -30,7 +30,7 @@
 
 1. Resolve direct procedure matches first.
 2. When direct resolution fails and `criterion.web_modern_record_id` is present, resolve that exact canonical WCAG requirement ID.
-3. Record resolution metadata distinguishing direct and equivalent-reuse paths.
+3. Reuse only the canonical procedure contract while retaining the selected profile, criterion, and existing output shape.
 4. For reused procedures, combine the selected JIS criterion's official sources with the procedure's primary sources, removing duplicates.
 5. Keep the selected profile, criterion, and claim ceiling unchanged.
 6. Do not use title or success-criterion string matching.
