@@ -7,6 +7,17 @@
   "bin": {
     "accessibility-audit": "./scripts/accessibility-audit.mjs"
   },
+  "dependencies": {
+    "axe-core": "4.13.0"
+  },
+  "peerDependencies": {
+    "playwright": "1.62.1"
+  },
+  "peerDependenciesMeta": {
+    "playwright": {
+      "optional": true
+    }
+  },
   "engines": {
     "node": ">=20"
   },

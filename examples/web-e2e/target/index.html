@@ -3,14 +3,29 @@
 <head>
   <meta charset="utf-8">
   <title>アクセシビリティ検査 fixture</title>
+  <style>
+    #wide { width: 800px; }
+  </style>
 </head>
 <body>
   <main>
     <h1>注文確認</h1>
     <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10'%3E%3C/svg%3E">
+    <p>氏名</p><input id="unlabelled">
+    <div id="wide">横幅検査用の固定要素</div>
     <button id="first">最初の操作</button>
     <a id="second" href="#details">詳細</a>
     <section id="details"><h2>詳細</h2><p>固定fixtureです。</p></section>
   </main>
+  <script>
+    document.querySelector("#first").addEventListener("focus", () => {
+      history.replaceState(null, "", "#focus-state");
+    });
+    fetch("/post-target?token=fixture-secret", { method: "POST", body: "fixture" }).catch(() => {});
+    try {
+      const scheme = location.protocol === "https:" ? "wss:" : "ws:";
+      new WebSocket(`${scheme}//${location.host}/socket?token=fixture-secret`);
+    } catch {}
+  </script>
 </body>
 </html>

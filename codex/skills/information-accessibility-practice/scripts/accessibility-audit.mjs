@@ -19,6 +19,11 @@ const commands = new Map([
     summary: "Create a validator-valid assessment record or an explicit placeholder template.",
     usage: "accessibility-audit assessment --profile <id> --target-name <name> --target-version <version> --target-ref <url|file> --evaluator <name> --evaluated-at <date> [--output <file>] | accessibility-audit assessment --template --profile <id> [--output <file>]"
   }],
+  ["scan-web", {
+    script: "scan-web.mjs",
+    summary: "Run rule-based browser checks and create a compact AI review context.",
+    usage: "accessibility-audit scan-web --url <http-or-https-url> --profile <active-profile> --output <new-scan.json> [--context-output <new-context.json>] [--allow-origin <origin>] [--allow-localhost] [--focus-steps <0-50>] [--width <240-7680>] [--height <240-7680>] [--reflow-width <240-1280>]"
+  }],
   ["requirement", {
     script: "show-requirement.mjs",
     summary: "Show one registered requirement and its review method.",
@@ -120,6 +125,9 @@ export function main(argv = process.argv.slice(2)) {
 
   if (args.includes("--help") || args.includes("-h")) {
     process.stdout.write(`${definition.summary}\n\nUsage:\n  ${definition.usage}\n`);
+    if (command === "scan-web") {
+      process.stdout.write("\nDefaults:\n  --focus-steps 8\n  --width 1280\n  --height 800\n  --reflow-width 320\n");
+    }
     return 0;
   }
 
