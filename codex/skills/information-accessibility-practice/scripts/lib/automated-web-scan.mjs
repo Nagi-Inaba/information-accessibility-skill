@@ -1,0 +1,233 @@
+import crypto from "node:crypto";
+
+const MAX_TEXT_CODE_POINTS = 2000;
+const MAX_CONTEXT_ITEMS = 100;
+const MAX_CONTEXT_NODES = 20;
+const MAX_CONTEXT_BYTES = 512 * 1024;
+
+function sha256(value) {
+  return crypto.createHash("sha256").update(value).digest("hex");
+}
+
+function canonical(value) {
+  if (Array.isArray(value)) return value.map(canonical);
+  if (value && typeof value === "object") return Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonical(value[key])]));
+  return value;
+}
+
+function canonicalJson(value) {
+  return JSON.stringify(canonical(value));
+}
+
+export function truncateCodePoints(value, limit = MAX_TEXT_CODE_POINTS) {
+  const points = Array.from(String(value ?? ""));
+  return { value: points.slice(0, limit).join(""), truncated: points.length > limit };
+}
+
+export function successCriterionFromAxeTag(tag) {
+  const match = /^wcag([1-4])([1-9])([0-9]+)$/u.exec(String(tag));
+  return match ? `${match[1]}.${match[2]}.${Number(match[3])}` : null;
+}
+
+export function normalizeOrigin(value) {
+  const url = new URL(value);
+  if (!["http:", "https:"].includes(url.protocol)) throw new Error("Origin must use http or https.");
+  if (url.username || url.password) throw new Error("Origin must not contain credentials.");
+  if (url.search || url.hash || (url.pathname && url.pathname !== "/")) throw new Error("Origin must not contain path, query, or fragment data.");
+  if (url.hostname.endsWith(".")) throw new Error("Trailing-dot hostnames are not accepted.");
+  if (url.hostname.includes("*")) throw new Error("Wildcard origins are not accepted.");
+  return url.origin;
+}
+
+export function profileRequirementMap(profileId, standardsRegistry, criteriaCatalog) {
+  const profile = standardsRegistry.profiles?.find((entry) => entry.id === profileId);
+  if (!profile || profile.implementation_status !== "active" || profile.assessment_configuration?.active !== true) {
+    throw new Error(`Profile is unknown or inactive: ${profileId}`);
+  }
+  const result = new Map();
+  for (const catalogKey of profile.assessment_configuration.catalog_keys ?? []) {
+    for (const item of criteriaCatalog.catalogs?.[catalogKey] ?? []) {
+      const values = result.get(item.success_criterion) ?? [];
+      values.push(item.id);
+      result.set(item.success_criterion, [...new Set(values)].sort((a, b) => a.localeCompare(b, "en")));
+    }
+  }
+  return result;
+}
+
+function criterionIds(tags, profileMap) {
+  const ids = new Set();
+  for (const tag of tags ?? []) {
+    const criterion = successCriterionFromAxeTag(tag);
+    for (const id of criterion ? (profileMap.get(criterion) ?? []) : []) ids.add(id);
+  }
+  return [...ids].sort((a, b) => a.localeCompare(b, "en"));
+}
+
+function identitySelector(selector) {
+  return String(selector)
+    .replace(/:nth-(?:child|of-type)\(\s*\d+\s*\)/giu, ":nth-$1(*)")
+    .replace(/\s+/gu, " ")
+    .trim();
+}
+
+function normalizeNode(node) {
+  const html = truncateCodePoints(node.html);
+  const failure = truncateCodePoints(node.failureSummary);
+  const targets = (node.target ?? []).map(String).sort((a, b) => a.localeCompare(b, "en"));
+  return {
+    targets,
+    identity_targets: targets.map(identitySelector),
+    html: html.value,
+    html_truncated: html.truncated,
+    failure_summary: failure.value,
+    failure_summary_truncated: failure.truncated
+  };
+}
+
+function normalizeRule(rule, kind, source, frame, engine, profileMap) {
+  const profileIds = criterionIds(rule.tags, profileMap);
+  const nodes = (rule.nodes ?? []).map(normalizeNode);
+  const groups = new Map();
+  for (const node of nodes.length ? nodes : [{ targets: [], identity_targets: [], html: "", html_truncated: false, failure_summary: "", failure_summary_truncated: false }]) {
+    const identity = canonicalJson({
+      engine,
+      rule_id: rule.id,
+      frame_path: frame.path,
+      frame_url: sanitizeUrl(frame.url),
+      targets: node.identity_targets,
+      failure_summary: node.failure_summary,
+      impact: rule.impact ?? null
+    });
+    const key = sha256(identity);
+    const existing = groups.get(key) ?? [];
+    existing.push(node);
+    groups.set(key, existing);
+  }
+  return [...groups.entries()].map(([dedupKey, groupedNodes]) => ({
+    dedup_key: dedupKey,
+    kind,
+    source,
+    rule_id: rule.id,
+    impact: rule.impact ?? null,
+    help: String(rule.help ?? ""),
+    help_url: rule.helpUrl ?? null,
+    tags: [...new Set(rule.tags ?? [])].sort((a, b) => a.localeCompare(b, "en")),
+    criterion_relation: "reference_only",
+    profile_requirement_ids: profileIds,
+    occurrence_count: groupedNodes.length,
+    frame: { path: frame.path, url: sanitizeUrl(frame.url) },
+    nodes: groupedNodes.map(({ identity_targets, ...node }) => node)
+  }));
+}
+
+function ruleSummary(rule) {
+  return {
+    rule_id: rule.id,
+    impact: rule.impact ?? null,
+    help: String(rule.help ?? ""),
+    help_url: rule.helpUrl ?? null,
+    tags: [...new Set(rule.tags ?? [])].sort((a, b) => a.localeCompare(b, "en"))
+  };
+}
+
+export function normalizeAxeResults({ axeResults, profileMap, frame, engine }) {
+  const machineViolations = [];
+  const reviewCandidates = [];
+  const unmappedFindings = [];
+  for (const rule of axeResults.violations ?? []) {
+    const normalized = normalizeRule(rule, "machine_violation", "axe-core", frame, engine, profileMap);
+    for (const item of normalized) {
+      if (item.profile_requirement_ids.length > 0) machineViolations.push(item);
+      else unmappedFindings.push({ ...item, kind: "unmapped_finding" });
+    }
+  }
+  for (const rule of axeResults.incomplete ?? []) {
+    reviewCandidates.push(...normalizeRule(rule, "review_candidate", "axe-core", frame, engine, profileMap));
+  }
+  return {
+    machine_violations: sortItems(machineViolations),
+    review_candidates: sortItems(reviewCandidates),
+    unmapped_findings: sortItems(unmappedFindings),
+    machine_passes: (axeResults.passes ?? []).map(ruleSummary).sort(ruleOrder),
+    inapplicable: (axeResults.inapplicable ?? []).map(ruleSummary).sort(ruleOrder)
+  };
+}
+
+function ruleOrder(a, b) {
+  return String(a.rule_id).localeCompare(String(b.rule_id), "en");
+}
+
+function sortItems(items) {
+  return [...items].sort((a, b) => a.rule_id.localeCompare(b.rule_id, "en") || a.dedup_key.localeCompare(b.dedup_key, "en"));
+}
+
+function sanitizeUrl(value) {
+  try {
+    const url = new URL(value);
+    url.username = "";
+    url.password = "";
+    url.search = "";
+    url.hash = "";
+    return url.href;
+  } catch {
+    return "withheld-invalid-url";
+  }
+}
+
+function compactItem(item) {
+  return {
+    ...item,
+    nodes: (item.nodes ?? []).slice(0, MAX_CONTEXT_NODES),
+    nodes_truncated: (item.nodes?.length ?? 0) > MAX_CONTEXT_NODES
+  };
+}
+
+export function buildAutomatedScanContext(scan, sourceScanSha256) {
+  const violations = (scan.machine_violations ?? []).map(compactItem);
+  const candidates = (scan.review_candidates ?? []).map(compactItem);
+  const prioritized = [...violations, ...candidates];
+  let items = prioritized.slice(0, MAX_CONTEXT_ITEMS);
+  const omittedByClass = {
+    machine_violations: Math.max(0, violations.length - items.filter((item) => item.kind === "machine_violation").length),
+    review_candidates: Math.max(0, candidates.length - items.filter((item) => item.kind === "review_candidate").length)
+  };
+  const context = {
+    schema_version: "1.0.0",
+    kind: "automated-web-scan-context",
+    stability: "experimental",
+    source_scan_sha256: sourceScanSha256,
+    target: {
+      requested_url: sanitizeUrl(scan.target.requested_url),
+      final_url: sanitizeUrl(scan.target.final_url),
+      http_status: scan.target.http_status,
+      dom_sha256: scan.target.dom_sha256,
+      ax_tree_sha256: scan.target.ax_tree_sha256
+    },
+    environment: scan.environment,
+    frame_coverage: {
+      attempted: scan.frame_coverage.attempted,
+      succeeded: scan.frame_coverage.succeeded,
+      failed: scan.frame_coverage.failed,
+      skipped: scan.frame_coverage.skipped
+    },
+    summary: scan.summary,
+    items,
+    focus_summary: { steps: scan.evidence?.focus_path?.length ?? 0, active_element: scan.evidence?.active_element ?? null },
+    reflow_summary: scan.evidence?.reflow ?? null,
+    truncation: { truncated: prioritized.length > items.length, omitted_items: prioritized.length - items.length, omitted_nodes: items.reduce((total, item) => total + (item.nodes_truncated ? Math.max(0, (prioritized.find((source) => source.dedup_key === item.dedup_key)?.nodes?.length ?? 0) - MAX_CONTEXT_NODES) : 0), 0), omitted_by_class: omittedByClass, reason: prioritized.length > items.length ? "context_limit" : "none" }
+  };
+  while (Buffer.byteLength(JSON.stringify(context), "utf8") > MAX_CONTEXT_BYTES && context.items.length > 0) {
+    const removed = context.items.pop();
+    context.truncation.truncated = true;
+    context.truncation.omitted_items += 1;
+    context.truncation.omitted_by_class[removed.kind === "machine_violation" ? "machine_violations" : "review_candidates"] += 1;
+    context.truncation.reason = "context_limit";
+  }
+  if (Buffer.byteLength(JSON.stringify(context), "utf8") > MAX_CONTEXT_BYTES) throw new Error("Compact scan context exceeds the 512 KiB limit even without item details.");
+  return context;
+}
+
+export function scanSha256(scan) {
+  return sha256(canonicalJson(scan));
+}
