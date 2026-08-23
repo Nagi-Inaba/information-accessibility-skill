@@ -136,8 +136,9 @@ node .\codex\skills\information-accessibility-practice\scripts\render-audit-repo
 
 ## 証拠と主張の境界
 
+AIエージェントが作成または更新するプロファイル要件行は、`mapping_status: "unverified"`と`outcome: "not_tested"`に保ちます。AIの観測は`SCREEN-*`または未検証の引き継ぎとして記録します。外部の人手レビューは、該当手順と対象固有の手動またはハイブリッド証拠がある場合だけ、`pass`、`fail`、`not_applicable`、`cant_tell`を記録できます。
+
 - AIと自動検査はE0／E1のscreening observationを作成できます。
-- 規格条項の`pass`、`fail`、`not_applicable`、`cant_tell`は、該当手順と対象固有証拠を用いた外部人手レビューだけが記録します。
 - 未確認、不明、適用対象外は省略せず、passへ変換しません。
 - `reference_only`、`screened`、`evaluated_subset`等のclaim tierは、記録された証拠とprofile ceilingを超えられません。
 - raw DOM、AX tree、private URL、local path、個人情報、authorization情報は、公開方針が明示されない限り内部用です。
