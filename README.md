@@ -119,6 +119,15 @@ node .\codex\skills\information-accessibility-practice\scripts\render-audit-repo
 
 `scan-web`は、固定されたPlaywright／axe-coreを使って、公開URLを読取り専用で検査します。自動検査結果をWCAG／JISの正式なpass／failへ直接昇格させることはありません。
 
+短いURL指定から始める場合は、次のように依頼できます。
+
+```text
+このサイトの最初の画面を、アクセシビリティCLIで検査して。
+https://example.com/
+```
+
+profileを省略した場合は`web-modern`を使い、WCAG 2.2 A／AAの全55項目をレポート投影または適用対象外として扱います。全55項目が`not_tested`の初期台帳を作っただけでは完了としないため、実際のtarget evidence、問題候補、人による次の確認まで示します。
+
 依存関係、network／redirect制御、private address拒否、出力形式、compact AI context、Chromium E2Eの範囲は[実Web検査ガイド](docs/web-inspection.md)を参照してください。
 
 ## 詳細ドキュメント
