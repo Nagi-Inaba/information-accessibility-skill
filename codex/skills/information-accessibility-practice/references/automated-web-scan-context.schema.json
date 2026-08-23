@@ -3,19 +3,525 @@
   "$id": "urn:information-accessibility:automated-web-scan-context:1.0.0",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "kind", "stability", "source_scan_sha256", "target", "environment", "frame_coverage", "summary", "items", "focus_summary", "reflow_summary", "truncation"],
+  "required": [
+    "schema_version",
+    "kind",
+    "stability",
+    "source_scan_sha256",
+    "target",
+    "environment",
+    "frame_coverage",
+    "summary",
+    "items",
+    "focus_summary",
+    "reflow_summary",
+    "truncation"
+  ],
   "properties": {
-    "schema_version": { "const": "1.0.0" },
-    "kind": { "const": "automated-web-scan-context" },
-    "stability": { "const": "experimental" },
-    "source_scan_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
-    "target": { "type": "object" },
-    "environment": { "type": "object" },
-    "frame_coverage": { "type": "object", "additionalProperties": false, "required": ["attempted", "succeeded", "failed", "skipped"], "properties": { "attempted": { "type": "integer", "minimum": 0 }, "succeeded": { "type": "integer", "minimum": 0 }, "failed": { "type": "integer", "minimum": 0 }, "skipped": { "type": "integer", "minimum": 0 } } },
-    "summary": { "type": "object" },
-    "items": { "type": "array", "maxItems": 100, "items": { "type": "object", "not": { "anyOf": [{ "required": ["profile_outcome"] }, { "required": ["mapping_status"] }, { "required": ["human_verified"] }] } } },
-    "focus_summary": { "type": "object" },
-    "reflow_summary": { "type": ["object", "null"] },
-    "truncation": { "type": "object", "additionalProperties": false, "required": ["truncated", "omitted_items", "omitted_nodes", "omitted_by_class", "reason"], "properties": { "truncated": { "type": "boolean" }, "omitted_items": { "type": "integer", "minimum": 0 }, "omitted_nodes": { "type": "integer", "minimum": 0 }, "omitted_by_class": { "type": "object", "additionalProperties": false, "required": ["machine_violations", "review_candidates"], "properties": { "machine_violations": { "type": "integer", "minimum": 0 }, "review_candidates": { "type": "integer", "minimum": 0 } } }, "reason": { "enum": ["none", "context_limit"] } } }
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "kind": {
+      "const": "automated-web-scan-context"
+    },
+    "stability": {
+      "const": "experimental"
+    },
+    "source_scan_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "target": {
+      "$ref": "#/$defs/target"
+    },
+    "environment": {
+      "$ref": "#/$defs/environment"
+    },
+    "frame_coverage": {
+      "$ref": "#/$defs/frameCoverage"
+    },
+    "summary": {
+      "$ref": "#/$defs/summary"
+    },
+    "items": {
+      "type": "array",
+      "maxItems": 100,
+      "items": {
+        "$ref": "#/$defs/item"
+      }
+    },
+    "focus_summary": {
+      "$ref": "#/$defs/focusSummary"
+    },
+    "reflow_summary": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "required": [
+        "captured_at",
+        "viewport",
+        "document_scroll_width",
+        "document_client_width",
+        "candidates",
+        "profile_requirement_ids"
+      ],
+      "properties": {
+        "captured_at": {
+          "type": "string",
+          "minLength": 1
+        },
+        "viewport": {
+          "$ref": "#/$defs/viewport"
+        },
+        "document_scroll_width": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "document_client_width": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "candidates": {
+          "type": "array",
+          "maxItems": 50,
+          "items": {
+            "$ref": "#/$defs/reflowCandidate"
+          }
+        },
+        "profile_requirement_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "truncation": {
+      "$ref": "#/$defs/truncation"
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "viewport": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "width",
+        "height"
+      ],
+      "properties": {
+        "width": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "height": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "requested_url",
+        "final_url",
+        "http_status",
+        "dom_sha256",
+        "ax_tree_sha256"
+      ],
+      "properties": {
+        "requested_url": {
+          "type": "string",
+          "minLength": 1
+        },
+        "final_url": {
+          "type": "string",
+          "minLength": 1
+        },
+        "http_status": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "dom_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "ax_tree_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "adapter",
+        "browser_version",
+        "viewport",
+        "scanner"
+      ],
+      "properties": {
+        "adapter": {
+          "const": "playwright-chromium"
+        },
+        "browser_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "viewport": {
+          "$ref": "#/$defs/viewport"
+        },
+        "scanner": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name",
+            "version"
+          ],
+          "properties": {
+            "name": {
+              "const": "axe-core"
+            },
+            "version": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      }
+    },
+    "frameCoverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "attempted",
+        "succeeded",
+        "failed",
+        "skipped"
+      ],
+      "properties": {
+        "attempted": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "succeeded": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "failed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "skipped": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "machine_violations",
+        "review_candidates",
+        "unmapped_findings",
+        "machine_pass_rules",
+        "inapplicable_rules"
+      ],
+      "properties": {
+        "machine_violations": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "review_candidates": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "unmapped_findings": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "machine_pass_rules": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "inapplicable_rules": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "frame": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "url"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "url": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "targets",
+        "html",
+        "html_truncated",
+        "failure_summary",
+        "failure_summary_truncated"
+      ],
+      "properties": {
+        "targets": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "html": {
+          "type": "string"
+        },
+        "html_truncated": {
+          "type": "boolean"
+        },
+        "failure_summary": {
+          "type": "string"
+        },
+        "failure_summary_truncated": {
+          "type": "boolean"
+        }
+      }
+    },
+    "item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dedup_key",
+        "kind",
+        "source",
+        "rule_id",
+        "impact",
+        "help",
+        "help_url",
+        "tags",
+        "criterion_relation",
+        "profile_requirement_ids",
+        "occurrence_count",
+        "frame",
+        "nodes",
+        "nodes_truncated"
+      ],
+      "properties": {
+        "dedup_key": {
+          "$ref": "#/$defs/sha256"
+        },
+        "kind": {
+          "enum": [
+            "machine_violation",
+            "review_candidate"
+          ]
+        },
+        "source": {
+          "type": "string",
+          "minLength": 1
+        },
+        "rule_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "impact": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "help": {
+          "type": "string"
+        },
+        "help_url": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "tags": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string"
+          }
+        },
+        "criterion_relation": {
+          "const": "reference_only"
+        },
+        "profile_requirement_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "occurrence_count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "frame": {
+          "$ref": "#/$defs/frame"
+        },
+        "nodes": {
+          "type": "array",
+          "maxItems": 20,
+          "items": {
+            "$ref": "#/$defs/node"
+          }
+        },
+        "nodes_truncated": {
+          "type": "boolean"
+        }
+      }
+    },
+    "activeElement": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "required": [
+        "tag",
+        "id",
+        "role",
+        "name"
+      ],
+      "properties": {
+        "tag": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "role": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "focusSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "steps",
+        "active_element"
+      ],
+      "properties": {
+        "steps": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "active_element": {
+          "$ref": "#/$defs/activeElement"
+        }
+      }
+    },
+    "reflowCandidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "selector",
+        "right",
+        "width"
+      ],
+      "properties": {
+        "selector": {
+          "type": "string",
+          "minLength": 1
+        },
+        "right": {
+          "type": "integer"
+        },
+        "width": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "truncation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "truncated",
+        "omitted_items",
+        "omitted_nodes",
+        "omitted_by_class",
+        "reason"
+      ],
+      "properties": {
+        "truncated": {
+          "type": "boolean"
+        },
+        "omitted_items": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "omitted_nodes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "omitted_by_class": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "machine_violations",
+            "review_candidates"
+          ],
+          "properties": {
+            "machine_violations": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "review_candidates": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "reason": {
+          "enum": [
+            "none",
+            "context_limit"
+          ]
+        }
+      }
+    }
   }
 }
