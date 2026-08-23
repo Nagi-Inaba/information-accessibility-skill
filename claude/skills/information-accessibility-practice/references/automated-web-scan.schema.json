@@ -9,44 +9,19 @@
     "kind": { "const": "automated-web-scan" },
     "scan_status": { "const": "complete" },
     "captured_at": { "type": "string" },
-    "profile": { "type": "object", "required": ["id", "registry_version"], "properties": { "id": { "type": "string" }, "registry_version": { "type": "string" } } },
-    "target": { "type": "object", "required": ["requested_url", "final_url", "http_status", "dom_sha256", "ax_tree_sha256"], "properties": { "requested_url": { "type": "string" }, "final_url": { "type": "string" }, "http_status": { "type": ["integer", "null"] }, "dom_sha256": { "$ref": "#/$defs/sha256" }, "ax_tree_sha256": { "$ref": "#/$defs/sha256" } } },
-    "environment": { "type": "object", "required": ["adapter", "browser_version", "viewport", "scanner"], "properties": { "adapter": { "const": "playwright-chromium" }, "browser_version": { "type": "string" }, "viewport": { "type": "object" }, "scanner": { "type": "object", "required": ["name", "version"], "properties": { "name": { "const": "axe-core" }, "version": { "type": "string" } } } },
-    "frame_coverage": { "type": "object", "required": ["attempted", "succeeded", "failed", "skipped", "entries"], "properties": { "attempted": { "type": "integer", "minimum": 0 }, "succeeded": { "type": "integer", "minimum": 0 }, "failed": { "type": "integer", "minimum": 0 }, "skipped": { "type": "integer", "minimum": 0 }, "entries": { "type": "array" } } },
-    "policy": { "type": "object", "required": ["allowed_origins", "blocked_request_count", "reflow_width"], "properties": { "allowed_origins": { "type": "array", "items": { "type": "string" } }, "blocked_request_count": { "type": "integer", "minimum": 0 }, "reflow_width": { "type": "integer", "minimum": 240, "maximum": 1280 } } },
+    "profile": { "type": "object", "required": ["id", "registry_version"] },
+    "target": { "type": "object", "required": ["requested_url", "final_url", "http_status", "dom_sha256", "ax_tree_sha256"] },
+    "environment": { "type": "object", "required": ["adapter", "browser_version", "viewport", "scanner"] },
+    "frame_coverage": { "type": "object", "required": ["attempted", "succeeded", "failed", "skipped", "entries"] },
+    "policy": { "type": "object", "required": ["allowed_origins", "blocked_request_count", "reflow_width"] },
     "summary": { "type": "object", "required": ["machine_violations", "review_candidates", "unmapped_findings", "machine_pass_rules", "inapplicable_rules"] },
-    "machine_violations": { "type": "array", "items": { "allOf": [{ "$ref": "#/$defs/scanItem" }, { "properties": { "kind": { "const": "machine_violation" } } }] } },
-    "review_candidates": { "type": "array", "items": { "allOf": [{ "$ref": "#/$defs/scanItem" }, { "properties": { "kind": { "const": "review_candidate" } } }] } },
-    "unmapped_findings": { "type": "array", "items": { "allOf": [{ "$ref": "#/$defs/scanItem" }, { "properties": { "kind": { "const": "unmapped_finding" }, "profile_requirement_ids": { "maxItems": 0 } } }] } },
-    "machine_passes": { "type": "array", "items": { "$ref": "#/$defs/ruleSummary" } },
-    "inapplicable": { "type": "array", "items": { "$ref": "#/$defs/ruleSummary" } },
+    "machine_violations": { "type": "array", "items": { "type": "object", "required": ["dedup_key", "kind", "source", "rule_id", "criterion_relation", "profile_requirement_ids", "occurrence_count", "frame", "nodes"] } },
+    "review_candidates": { "type": "array", "items": { "type": "object", "required": ["dedup_key", "kind", "source", "rule_id", "criterion_relation", "profile_requirement_ids", "occurrence_count", "frame", "nodes"] } },
+    "unmapped_findings": { "type": "array", "items": { "type": "object", "required": ["dedup_key", "kind", "source", "rule_id", "criterion_relation", "profile_requirement_ids", "occurrence_count", "frame", "nodes"] } },
+    "machine_passes": { "type": "array", "items": { "type": "object", "required": ["rule_id", "impact", "help", "help_url", "tags"] } },
+    "inapplicable": { "type": "array", "items": { "type": "object", "required": ["rule_id", "impact", "help", "help_url", "tags"] } },
     "evidence": { "type": "object", "required": ["dom", "accessibility_tree", "active_element", "focus_path", "reflow", "blocked_requests"] },
-    "raw_result_sha256": { "$ref": "#/$defs/sha256" },
+    "raw_result_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
     "interpretation": { "type": "string", "minLength": 1 }
-  },
-  "$defs": {
-    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
-    "scanItem": {
-      "type": "object",
-      "required": ["dedup_key", "kind", "source", "rule_id", "impact", "help", "help_url", "tags", "criterion_relation", "profile_requirement_ids", "occurrence_count", "frame", "nodes"],
-      "not": { "anyOf": [{ "required": ["profile_outcome"] }, { "required": ["mapping_status"] }, { "required": ["human_verified"] }] },
-      "properties": {
-        "dedup_key": { "$ref": "#/$defs/sha256" },
-        "kind": { "enum": ["machine_violation", "review_candidate", "unmapped_finding"] },
-        "source": { "type": "string" },
-        "rule_id": { "type": "string" },
-        "impact": { "type": ["string", "null"] },
-        "help": { "type": "string" },
-        "help_url": { "type": ["string", "null"] },
-        "tags": { "type": "array", "items": { "type": "string" } },
-        "criterion_relation": { "const": "reference_only" },
-        "profile_requirement_ids": { "type": "array", "items": { "type": "string" } },
-        "occurrence_count": { "type": "integer", "minimum": 1 },
-        "frame": { "type": "object" },
-        "nodes": { "type": "array" }
-      }
-    },
-    "ruleSummary": { "type": "object", "required": ["rule_id", "impact", "help", "help_url", "tags"], "properties": { "rule_id": { "type": "string" }, "impact": { "type": ["string", "null"] }, "help": { "type": "string" }, "help_url": { "type": ["string", "null"] }, "tags": { "type": "array", "items": { "type": "string" } } } }
   }
-}
 }
