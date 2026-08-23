@@ -7,150 +7,16 @@ import { pathToFileURL } from "node:url";
 import { assertNewOutputPath, writeNewJson } from "./lib/audit-run.mjs";
 
 const DEFAULT_VIEWPORT = { width: 1280, height: 800 };
-
-export function sha256(value) {
-  return crypto.createHash("sha256").update(value).digest("hex");
-}
-
-export function isPrivateAddress(address) {
-  if (address === "::1") return true;
-  if (address.startsWith("fe80:") || address.startsWith("fc") || address.startsWith("fd")) return true;
-  if (isIP(address) !== 4) return false;
-  const [a, b] = address.split(".").map(Number);
-  return a === 10 || a === 127 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || a === 0;
-}
-
-export function parseTargetUrl(value, { allowLocalhost = false } = {}) {
-  const url = new URL(value);
-  if (!["http:", "https:"].includes(url.protocol)) throw new Error("Target URL must use http or https.");
-  if (url.username || url.password) throw new Error("Target URL must not contain credentials.");
-  if (!allowLocalhost && ["localhost", "localhost.localdomain"].includes(url.hostname.toLowerCase())) throw new Error("Localhost targets require --allow-localhost.");
-  return url;
-}
-
-async function assertPublicResolution(url, { allowLocalhost = false } = {}) {
-  if (allowLocalhost && ["localhost", "127.0.0.1", "::1"].includes(url.hostname.toLowerCase())) return;
-  if (isIP(url.hostname)) {
-    if (isPrivateAddress(url.hostname)) throw new Error("Private, loopback, or link-local target addresses are denied by default.");
-    return;
-  }
-  const records = await lookup(url.hostname, { all: true, verbatim: true });
-  if (!records.length) throw new Error("Target hostname did not resolve.");
-  if (records.some((record) => isPrivateAddress(record.address))) throw new Error("Target hostname resolves to a private, loopback, or link-local address.");
-}
-
-function parseArgs(argv) {
-  const options = { allowOrigins: [], focusSteps: 8, viewport: { ...DEFAULT_VIEWPORT }, allowLocalhost: false };
-  for (let i = 0; i < argv.length; i += 1) {
-    const arg = argv[i];
-    if (arg === "--allow-localhost") { options.allowLocalhost = true; continue; }
-    if (arg === "--allow-origin") { const v = argv[++i]; if (!v) throw new Error("Missing value for --allow-origin"); options.allowOrigins.push(new URL(v).origin); continue; }
-    if (["--url", "--output", "--focus-steps", "--width", "--height"].includes(arg)) {
-      const value = argv[++i];
-      if (!value) throw new Error(`Missing value for ${arg}`);
-      if (arg === "--url") options.url = value;
-      if (arg === "--output") options.output = value;
-      if (arg === "--focus-steps") options.focusSteps = Number(value);
-      if (arg === "--width") options.viewport.width = Number(value);
-      if (arg === "--height") options.viewport.height = Number(value);
-      continue;
-    }
-    throw new Error(`Unknown argument: ${arg}`);
-  }
-  if (!options.url || !options.output) throw new Error("--url and --output are required.");
-  if (!Number.isInteger(options.focusSteps) || options.focusSteps < 0 || options.focusSteps > 50) throw new Error("--focus-steps must be an integer from 0 to 50.");
-  for (const key of ["width", "height"]) if (!Number.isInteger(options.viewport[key]) || options.viewport[key] < 240 || options.viewport[key] > 7680) throw new Error(`--${key} is outside the supported range.`);
-  return options;
-}
-
-async function loadPlaywright() {
-  try {
-    return await import("playwright");
-  } catch {
-    throw new Error("Playwright is not installed. Install it in the host environment (for example: npm install --no-save playwright && npx playwright install chromium) and retry.");
-  }
-}
-
-async function focusSnapshot(page) {
-  return page.evaluate(() => {
-    const el = document.activeElement;
-    if (!el) return null;
-    return {
-      tag: el.tagName?.toLowerCase() ?? null,
-      id: el.id || null,
-      role: el.getAttribute?.("role") || null,
-      name: el.getAttribute?.("aria-label") || el.textContent?.trim().slice(0, 160) || null
-    };
-  });
-}
-
-export async function captureWebEvidence(options) {
-  const requested = parseTargetUrl(options.url, options);
-  await assertPublicResolution(requested, options);
-  const allowedOrigins = new Set([requested.origin, ...(options.allowOrigins ?? [])]);
-  const blockedRequests = [];
-  const { chromium } = await loadPlaywright();
-  const browser = await chromium.launch({ headless: true });
-  try {
-    const context = await browser.newContext({ viewport: options.viewport ?? DEFAULT_VIEWPORT });
-    const page = await context.newPage();
-    await page.route("**/*", async (route) => {
-      const requestUrl = new URL(route.request().url());
-      if (!["http:", "https:"].includes(requestUrl.protocol)) return route.continue();
-      if (!allowedOrigins.has(requestUrl.origin)) {
-        blockedRequests.push({ url: requestUrl.href, resource_type: route.request().resourceType() });
-        return route.abort("blockedbyclient");
-      }
-      return route.continue();
-    });
-    const response = await page.goto(requested.href, { waitUntil: "domcontentloaded", timeout: 30000 });
-    const finalUrl = new URL(page.url());
-    if (!allowedOrigins.has(finalUrl.origin)) throw new Error(`Navigation escaped the allowed origins: ${finalUrl.origin}`);
-    const dom = await page.content();
-    const cdp = await context.newCDPSession(page);
-    await cdp.send("Accessibility.enable");
-    const ax = await cdp.send("Accessibility.getFullAXTree");
-    const focusPath = [];
-    for (let step = 0; step < (options.focusSteps ?? 0); step += 1) {
-      await page.keyboard.press("Tab");
-      focusPath.push(await focusSnapshot(page));
-    }
-    const activeElement = await focusSnapshot(page);
-    const capturedAt = new Date().toISOString();
-    return {
-      schema_version: "1.0.0",
-      kind: "web-evidence-bundle",
-      captured_at: capturedAt,
-      target: {
-        requested_url: requested.href,
-        final_url: finalUrl.href,
-        http_status: response?.status() ?? null,
-        dom_sha256: sha256(dom),
-        ax_tree_sha256: sha256(JSON.stringify(ax.nodes))
-      },
-      environment: {
-        adapter: "playwright-chromium",
-        browser_version: browser.version(),
-        viewport: options.viewport ?? DEFAULT_VIEWPORT
-      },
-      capabilities: ["rendered_dom", "accessibility_tree", "keyboard_focus_path", "request_policy_log"],
-      evidence: { dom, accessibility_tree: ax.nodes, active_element: activeElement, focus_path: focusPath },
-      network: { allowed_origins: [...allowedOrigins].sort(), blocked_requests: blockedRequests }
-    };
-  } finally {
-    await browser.close();
-  }
-}
-
-export async function main(argv = process.argv.slice(2)) {
-  const options = parseArgs(argv);
-  const output = path.resolve(options.output);
-  assertNewOutputPath(output);
-  const evidence = await captureWebEvidence(options);
-  writeNewJson(output, evidence);
-  process.stdout.write(`${JSON.stringify({ status: "PASS", output, kind: evidence.kind, final_url: evidence.target.final_url })}\n`);
-}
-
-if (process.argv[1] && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url) {
-  main().catch((error) => { console.error(error instanceof Error ? error.message : String(error)); process.exitCode = 1; });
-}
+export function sha256(value) { return crypto.createHash("sha256").update(value).digest("hex"); }
+export function isPrivateAddress(address) { if (address === "::1") return true; const lower = address.toLowerCase(); if (lower.startsWith("fe80:") || lower.startsWith("fc") || lower.startsWith("fd")) return true; if (isIP(address) !== 4) return false; const [a, b] = address.split(".").map(Number); return a === 10 || a === 127 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || a === 0; }
+export function parseTargetUrl(value, { allowLocalhost = false } = {}) { const url = new URL(value); if (!["http:", "https:"].includes(url.protocol)) throw new Error("Target URL must use http or https."); if (url.username || url.password) throw new Error("Target URL must not contain credentials."); if (!allowLocalhost && ["localhost", "localhost.localdomain"].includes(url.hostname.toLowerCase())) throw new Error("Localhost targets require --allow-localhost."); return url; }
+async function assertPublicResolution(url, { allowLocalhost = false } = {}) { if (allowLocalhost && ["localhost", "127.0.0.1", "::1"].includes(url.hostname.toLowerCase())) return; if (isIP(url.hostname)) { if (isPrivateAddress(url.hostname)) throw new Error("Private, loopback, or link-local target addresses are denied by default."); return; } const records = await lookup(url.hostname, { all: true, verbatim: true }); if (!records.length) throw new Error("Target hostname did not resolve."); if (records.some((record) => isPrivateAddress(record.address))) throw new Error("Target hostname resolves to a private, loopback, or link-local address."); }
+function parseArgs(argv) { const options = { allowOrigins: [], focusSteps: 8, viewport: { ...DEFAULT_VIEWPORT }, allowLocalhost: false }; for (let i = 0; i < argv.length; i += 1) { const arg = argv[i]; if (arg === "--allow-localhost") { options.allowLocalhost = true; continue; } if (arg === "--allow-origin") { const v = argv[++i]; if (!v) throw new Error("Missing value for --allow-origin"); options.allowOrigins.push(new URL(v).origin); continue; } if (["--url", "--output", "--focus-steps", "--width", "--height"].includes(arg)) { const value = argv[++i]; if (!value) throw new Error(`Missing value for ${arg}`); if (arg === "--url") options.url = value; if (arg === "--output") options.output = value; if (arg === "--focus-steps") options.focusSteps = Number(value); if (arg === "--width") options.viewport.width = Number(value); if (arg === "--height") options.viewport.height = Number(value); continue; } throw new Error(`Unknown argument: ${arg}`); } if (!options.url || !options.output) throw new Error("--url and --output are required."); if (!Number.isInteger(options.focusSteps) || options.focusSteps < 0 || options.focusSteps > 50) throw new Error("--focus-steps must be an integer from 0 to 50."); for (const key of ["width", "height"]) if (!Number.isInteger(options.viewport[key]) || options.viewport[key] < 240 || options.viewport[key] > 7680) throw new Error(`--${key} is outside the supported range.`); return options; }
+async function loadPlaywright() { try { return await import("playwright"); } catch { throw new Error("Playwright is not installed. Install it in the host environment (for example: npm install --no-save playwright && npx playwright install chromium) and retry."); } }
+async function focusSnapshot(page) { return page.evaluate(() => { const el = document.activeElement; if (!el) return null; return { tag: el.tagName?.toLowerCase() ?? null, id: el.id || null, role: el.getAttribute?.("role") || null, name: el.getAttribute?.("aria-label") || el.textContent?.trim().slice(0, 160) || null }; }); }
+export async function settlePage(page) { await page.evaluate(async () => { if (document.fonts?.ready) await document.fonts.ready; await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))); }); }
+export async function withWebInspectionSession(options, inspect) { const requested = parseTargetUrl(options.url, options); await assertPublicResolution(requested, options); const allowedOrigins = new Set([requested.origin, ...(options.allowOrigins ?? [])]); const blockedRequests = []; const { chromium } = await loadPlaywright(); const browser = await chromium.launch({ headless: true }); try { const context = await browser.newContext({ viewport: options.viewport ?? DEFAULT_VIEWPORT, locale: options.locale ?? "ja-JP", timezoneId: options.timezoneId ?? "Asia/Tokyo", deviceScaleFactor: options.deviceScaleFactor ?? 1, colorScheme: options.colorScheme ?? "light", reducedMotion: options.reducedMotion ?? "reduce" }); const page = await context.newPage(); await page.route("**/*", async (route) => { const requestUrl = new URL(route.request().url()); if (!["http:", "https:"].includes(requestUrl.protocol)) return route.continue(); if (!allowedOrigins.has(requestUrl.origin)) { blockedRequests.push({ url: requestUrl.href, resource_type: route.request().resourceType(), reason: "origin_not_allowed" }); return route.abort("blockedbyclient"); } if (options.allowedMethods && !options.allowedMethods.has(route.request().method().toUpperCase())) { blockedRequests.push({ url: requestUrl.href, resource_type: route.request().resourceType(), reason: "method_not_allowed" }); return route.abort("blockedbyclient"); } try { await assertPublicResolution(requestUrl, options); } catch { blockedRequests.push({ url: requestUrl.href, resource_type: route.request().resourceType(), reason: "address_not_public" }); return route.abort("blockedbyclient"); } return route.continue(); }); const response = await page.goto(requested.href, { waitUntil: "domcontentloaded", timeout: 30000 }); await settlePage(page); const finalUrl = new URL(page.url()); if (!allowedOrigins.has(finalUrl.origin)) throw new Error(`Navigation escaped the allowed origins: ${finalUrl.origin}`); await assertPublicResolution(finalUrl, options); return await inspect({ page, context, browser, requested, finalUrl, response, allowedOrigins, blockedRequests }); } finally { await browser.close(); } }
+export async function collectWebEvidence(session, options = {}) { const { page, context, browser, requested, finalUrl, response, allowedOrigins, blockedRequests } = session; const dom = await page.content(); const cdp = await context.newCDPSession(page); await cdp.send("Accessibility.enable"); const ax = await cdp.send("Accessibility.getFullAXTree"); const focusPath = []; for (let step = 0; step < (options.focusSteps ?? 0); step += 1) { await page.keyboard.press("Tab"); focusPath.push(await focusSnapshot(page)); if (page.url() !== finalUrl.href) throw new Error("Focus sampling changed the inspected URL; scan aborted."); } const activeElement = await focusSnapshot(page); return { schema_version: "1.0.0", kind: "web-evidence-bundle", captured_at: new Date().toISOString(), target: { requested_url: requested.href, final_url: finalUrl.href, http_status: response?.status() ?? null, dom_sha256: sha256(dom), ax_tree_sha256: sha256(JSON.stringify(ax.nodes)) }, environment: { adapter: "playwright-chromium", browser_version: browser.version(), viewport: options.viewport ?? DEFAULT_VIEWPORT }, capabilities: ["rendered_dom", "accessibility_tree", "keyboard_focus_path", "request_policy_log"], evidence: { dom, accessibility_tree: ax.nodes, active_element: activeElement, focus_path: focusPath }, network: { allowed_origins: [...allowedOrigins].sort(), blocked_requests: blockedRequests } }; }
+export async function captureWebEvidence(options) { return withWebInspectionSession(options, (session) => collectWebEvidence(session, options)); }
+export async function main(argv = process.argv.slice(2)) { const options = parseArgs(argv); const output = path.resolve(options.output); assertNewOutputPath(output); const evidence = await captureWebEvidence(options); writeNewJson(output, evidence); process.stdout.write(`${JSON.stringify({ status: "PASS", output, kind: evidence.kind, final_url: evidence.target.final_url })}\n`); }
+if (process.argv[1] && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url) main().catch((error) => { console.error(error instanceof Error ? error.message : String(error)); process.exitCode = 1; });
