@@ -47,7 +47,7 @@ AIと自動検査が作るものは、原則として問題候補やE0／E1のsc
 | イベント／会議／コミュニティ | 対応 | 情報利用の5観点によるレビュー | 専用の構造化assessmentは未実装 |
 | ATAG／authoring process | 参照ガイダンス | 一部の参照情報 | `authoring-agent` profileは現在inactive |
 
-WCAG 2.2 A／AAの55件は`web-modern`、JIS X 8341-3:2016 A／AAの38件と追加WCAG 18件は`jp-public-web`で扱います。収録条項数と、実際に評価できた条項数は別々に記録します。
+`web-modern`は[WCAG 2.2](https://www.w3.org/TR/WCAG22/) A／AAの55件を扱います。`jp-public-web`は[JIS X 8341-3:2016（WAIC解説）](https://waic.jp/docs/jis2016/understanding/201604/) A／AAの38件と、WCAG 2.1／2.2で追加されたA／AAの18件、合計56件を扱います。JISに残る4.1.1「構文解析」は[WCAG 2.2では削除](https://www.w3.org/WAI/standards-guidelines/wcag/new-in-22/)されています。収録条項数と、実際に評価できた条項数は別々に記録します。
 
 ## 前提条件と導入
 
@@ -70,14 +70,19 @@ macOS／Linuxでは、`codex/skills/information-accessibility-practice/`とmanif
 
 ### Claude
 
-Claude skillと既定4agentは、cross-platform installerでまとめて配置できます。
+`shared/agents/agent-manifest.json`の`install_by_default: true`を正本として、Claude skillと次の既定4agentをまとめて配置します。
+
+- `information-accessibility-reviewer`
+- `information-accessibility-e1-inspector`
+- `information-accessibility-human-queue-planner`
+- `information-accessibility-remediation-planner`
 
 ```powershell
 node .\scripts\install-claude.mjs --dry-run
 node .\scripts\install-claude.mjs
 ```
 
-specialist agentをdispatchできないClaudeホストに限り、`--reviewer-only`を使用します。
+multi-agent構成はCodex版と同じrole artifact contractを維持します。specialist agentをdispatchできない場合だけ`--reviewer-only`を使用し、単に配置ファイル数を減らす目的では選択しません。
 
 ### CLI
 
@@ -112,6 +117,8 @@ node .\codex\skills\information-accessibility-practice\scripts\generate-assessme
 
 `--template`は`TEMPLATE_CREATED`を返し、検証済みassessmentや検査結果としては扱いません。通常の評価記録を作るコマンドには`--template`を付けず、対象名、版、参照先、評価者、評価日を指定します。
 
+`reference_only`の初期台帳から生成する文書は**参照ガイダンス**であり、対象固有の証拠と判定を持つ**検査レポート**とは区別します。
+
 ## 生成されるもの
 
 | 成果物 | 役割 | 通常の公開範囲 |
@@ -123,7 +130,7 @@ node .\codex\skills\information-accessibility-practice\scripts\generate-assessme
 | human-review queue | 人が確認する条項、手順、必要証拠 | 作業用 |
 | Markdown report | 確認範囲、判定、改善、未確認事項を表示 | publication review後に共有可能 |
 
-各成果物の作成者、入力、出力、公開可否は[成果物マップ](docs/architecture-and-glossary.md#artifact-map--成果物の関係)に整理しています。
+各成果物の作成者、入力、出力、公開可否は[成果物マップ](docs/architecture-and-glossary.md)に整理しています。
 
 ## 実Web検査
 
@@ -158,6 +165,7 @@ profileを省略した場合は`web-modern`を使い、WCAG 2.2 A／AAの全55�
 AIエージェントが作成または更新するプロファイル要件行は、`mapping_status: "unverified"`と`outcome: "not_tested"`に保ちます。AIの観測は`SCREEN-*`または未検証の引き継ぎとして記録します。外部の人手レビューは、該当手順と対象固有の手動またはハイブリッド証拠がある場合だけ、`pass`、`fail`、`not_applicable`、`cant_tell`を記録できます。
 
 - AIと自動検査はE0／E1のscreening observationを作成できます。
+- 自動・静的検査は`screening_check`、人が一次資料へ対応付ける規格条項は`profile_requirement`として分離します。
 - 未確認、不明、適用対象外は省略せず、passへ変換しません。
 - `reference_only`、`screened`、`evaluated_subset`等のclaim tierは、記録された証拠とprofile ceilingを超えられません。
 - raw DOM、AX tree、private URL、local path、個人情報、authorization情報は、公開方針が明示されない限り内部用です。
