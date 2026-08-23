@@ -261,7 +261,7 @@ function buildScenario(base, { name, runId, suffix, humanReviewed }) {
     runCli([
       "register",
       "--run", currentRun,
-      "--artifact", path.basename(artifact.file),
+      "--artifact", artifact.file,
       "--output", nextRun
     ]);
     currentRun = nextRun;
@@ -271,7 +271,7 @@ function buildScenario(base, { name, runId, suffix, humanReviewed }) {
   copyExclusive(currentRun, finalRun);
   const merged = path.join(scenario, "merged-assessment.json");
   const mergeArgs = ["merge", "--run", finalRun, "--assessment", baseline];
-  for (const artifact of artifacts) mergeArgs.push("--artifact", path.basename(artifact.file));
+  for (const artifact of artifacts) mergeArgs.push("--artifact", artifact.file);
   mergeArgs.push("--output", merged);
   runCli(mergeArgs);
 
