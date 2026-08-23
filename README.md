@@ -2,471 +2,157 @@
 
 # 情報アクセシビリティ監査スキル／エージェント
 
-Webサイトや文書などの情報が、必要な人に届き、理解され、目的の行動につながるかを確認するためのCodex / Claude向けパッケージです。
-対象と範囲の整理、実際の確認、証拠の記録、改善案の作成、修正後の再確認を支援します。
+## 30秒で分かる概要
 
-対象は、Webサイト、アプリ、文書、スライド、動画、イベント案内、会議運営などです。
-必要な情報を見つけ、受け取り、理解し、申込みや質問などの目的の行動を行い、後から記録を確認できるかを一続きで見ます。
+Webサイト、アプリ、文書、スライド、動画、イベント案内などについて、**情報を見つけ、受け取り、理解し、目的の行動を完了し、後から確認できるか**を調べるCodex／Claude向けパッケージです。
 
-## 自分のプロダクトを確認し、改善する
+自然言語レビュー、WCAG／JISのstandalone評価、複数工程を記録するrun-backed監査の3経路があります。WebではPlaywrightとaxe-coreを用いた読取り専用scanも利用できます。
 
-このパッケージは、WebサイトやアプリなどをWCAGやJISの達成基準と照らし合わせ、問題を見つけて改善するための検査を支援します。
-アクセシビリティの専門家でなくても確認を始めやすいように、自然な言葉で依頼する方法と、同じ条件で繰り返し使えるCLIを用意しています。
-結果では、改善できる箇所と、追加で人の確認が必要な箇所を分けて示します。
+AIと自動検査が作るものは、原則として問題候補やE0／E1のscreening evidenceです。規格条項の正式な判定には、該当手順を用いた外部の人による確認と、対象固有の証拠が必要です。**現行版だけで正式な適合宣言はできません。**
 
-ここで得られる結果は、第三者機関による認証や、WCAGまたはJISへの正式な適合宣言ではありません。
-正式な適合宣言を目指す場合は、対象、範囲、利用環境、各達成基準の証拠を整理し、人による評価へ引き継ぐ準備にも使えます。
-ただし、現行版の結果だけで適合宣言を行うことはできません。
-必要な手順に沿った人による評価が必要です。
-
-確認結果は、次の二つを分けて記録します。
-
-1. **情報利用の5つの観点**：「見つける」「受け取る」「理解する」「行動する」「後から確認する」に分け、情報を使う一連の流れを記録する。
-2. **規格に基づく証拠記録**：対象、使用する規格、項目ごとの結果、証拠の強さ、結果としてどこまで言えるかをJSONで残す。
-
-`web-modern`は、[WCAG 2.2](https://www.w3.org/TR/WCAG22/)のレベルAとAAに含まれる55の達成基準を対象にします。
-達成基準とは、アクセシビリティを評価するときに確認する、規格上の条件です。
-
-`jp-public-web`は、[JIS X 8341-3:2016（WAICによる解説）](https://waic.jp/docs/jis2016/understanding/201604/)のレベルAとAAに含まれる38の達成基準を対象にします。
-さらに、WCAG 2.1と、2.2で新たに加わった達成基準のうち、レベルAとAAの18件も確認します。
-この18件は、JISの基になったWCAG 2.0には含まれていません。
-JISの38件とは分けて記録します。
-
-そのため、`jp-public-web`の確認項目は合計56件です。
-WCAG 2.2の55件より1件多い理由は、4.1.1「構文解析」の扱いにあります。
-JISには4.1.1「構文解析」が含まれます。
-[WCAG 2.2では、この達成基準は削除されました](https://www.w3.org/WAI/standards-guidelines/wcag/new-in-22/)。
-
-どちらのプロファイルも、すべての達成基準を「未評価」の状態から開始します。
-収録している規格項目、対象から得た証拠、実際に評価した項目、結果として表明できる範囲を分けて検証します。
-
-## 出力文書の区分
-
-`reference_only` の評価記録から生成する文書は、検査結果ではなく **参照ガイダンス** です。未確認の達成基準を一覧化し、次に必要な検査や人手確認へ引き継ぐために使います。
-対象固有の証拠と判定がある場合に生成する **検査レポート** とは、タイトルと文書区分を分けて表示します。どちらの場合も、登録されていない達成基準を暗黙の適合として扱いません。
-
-## できること
-
-- Webサイト、アプリ、文書、動画、イベント運営などを、対象に合った項目で確認する。
-- 利用を妨げる問題を、影響を受ける人、確認できた事実、改善案、再確認の方法とともに整理する。
-- WCAG 2.2やJIS X 8341-3について、選択したA・AAプロファイルに含まれるすべての項目を「未評価」にした評価記録を作成する。
-- 未評価、不明、失敗、証拠の強さを区別したまま、JSON形式の記録とMarkdown形式の報告書を生成する。
-- CLIを使い、同じ条件の検証や報告書生成を繰り返す。既存の成果物は既定で上書きしない。
-
-## 使い方を選ぶ
-
-| したいこと | 入口 | 向いている使い方 |
-| --- | --- | --- |
-| まず問題点や改善案を知りたい | スキル／エージェント | 対象と目的を自然言語で伝えてレビューを依頼する |
-| WCAGやJISに沿った記録を作りたい | スキル／エージェントとCLI | 範囲を相談し、選択したプロファイルの全項目を含む検査票、証拠、報告書を残す |
-| 同じ条件で繰り返し検証したい | CLI | 定期検査、CI、引き継ぎ可能な成果物生成に使う |
-| 許可された修正を安全に実行したい | 専用の認可済み修正機能 | 標準CLIとは分け、誰が何を修正してよいかと、修正後の確認方法を固定して扱う |
-
-迷った場合は、対象と知りたいことをそのまま依頼してください。
+迷った場合は、まず対象と知りたいことをそのまま伝えてください。
 
 ```text
 このWebサイトを情報アクセシビリティの観点で確認し、観測できた問題、改善案、人による確認が必要な点を分けてください。
 ```
 
-CLIを導入済みであれば、次のコマンドから利用できる操作を確認できます。
+## 目次
 
-```powershell
-accessibility-audit --help
-```
+- [3つの利用経路](#まず選ぶ3つの利用経路)
+- [対応対象と現在の制限](#対応対象と現在の制限)
+- [前提条件と導入](#前提条件と導入)
+- [5分で試す](#5分で試す)
+- [生成されるもの](#生成されるもの)
+- [実Web検査](#実web検査)
+- [詳細ドキュメント](#詳細ドキュメント)
+- [証拠と主張の境界](#証拠と主張の境界)
 
-## パッケージ構成
+## まず選ぶ：3つの利用経路
 
-```text
-codex/
-  skills/information-accessibility-practice/
-    package.json
-    agents/openai.yaml
-    assets/audit-report.template.md
-    assets/assessment-record.template.json
-    assets/waic-publication.template.md
-    scripts/accessibility-audit.mjs
-プレースホルダーを含む編集用ひな形が必要な場合だけ `--template` を使います。template modeは `TEMPLATE_CREATED` を返し、検証済みassessmentとは扱いません。安全なwriterが不足する出力ディレクトリをcomponent単位で作成します。後続処理が失敗しても、競合時の誤削除を避けるため、この処理が作成した空ディレクトリは自動削除しません。
+| 利用経路 | 向いている目的 | 主な成果物 | 注意点 |
+| --- | --- | --- | --- |
+| **自然言語レビュー** | まず問題候補と改善案を知る。文書、動画、イベントも含む | 会話形式のレビュー、改善案、人による追加確認 | 規格台帳や工程履歴を残す用途ではない |
+| **standalone評価** | WCAG／JISの全条項を含む一時点の評価台帳を作る | 1つのassessment JSONとMarkdownレポート | 初期化直後は全条項が`not_tested`であり、検査完了ではない |
+| **run-backed監査** | 複数担当者、screening、人手確認、改善、再検査を追跡する | audit run、登録artifact、統合assessment、レポート | schemaとartifactの関係を理解する必要がある |
 
-```powershell
-node .\codex\skills\information-accessibility-practice\scripts\generate-assessment.mjs --template --profile web-modern --output .\assessment.template.json
-```
+処理全体と役割分担は、[アーキテクチャと用語集](docs/architecture-and-glossary.md)で一枚のフローとして確認できます。
 
-    scripts/generate-assessment.mjs
-    scripts/render-audit-report.mjs
-    scripts/show-screen-reader-checklist.mjs
-    scripts/show-requirement.mjs
-    scripts/validate-assessment.mjs
-    references/
-  agents/
-    information-accessibility-reviewer.toml
-    information-accessibility-e1-inspector.toml
-    information-accessibility-human-queue-planner.toml
-    information-accessibility-remediation-planner.toml
-claude/
-  skills/information-accessibility-practice/
-    package.json
-    assets/assessment-record.template.json
-    scripts/accessibility-audit.mjs
-    scripts/generate-assessment.mjs
-    scripts/render-audit-report.mjs
-    scripts/show-screen-reader-checklist.mjs
-    scripts/show-requirement.mjs
-    scripts/validate-assessment.mjs
-    references/
-  agents/
-    information-accessibility-reviewer.md
-    information-accessibility-e1-inspector.md
-    information-accessibility-human-queue-planner.md
-    information-accessibility-remediation-planner.md
-scripts/verify-package.ps1
-scripts/verify-package.mjs
-scripts/install-codex.ps1
-tests/claim-guard.test.mjs
-tests/audit-workflow.test.mjs
-tests/audit-report.test.mjs
-tests/install-codex.test.mjs
-tests/unified-cli.test.mjs
-```
+## 対応対象と現在の制限
 
-各スキルには、実行時に読む参照ファイルが入っています。
+| 対象 | 自然言語レビュー | 構造化screening／規格台帳 | 現在の制限 |
+| --- | --- | --- | --- |
+| Webサイト／Webアプリ | 対応 | `web-modern`、`jp-public-web`、読取り専用`scan-web` | 実機スクリーンリーダー確認は外部の人またはホスト機能が必要 |
+| PDF／Word／スライド | 対応 | ガイダンス中心 | 専用のactive profileと正式なclaim経路は未実装 |
+| 動画／音声 | 対応 | Web範囲に含まれる場合の関連条項確認 | 単独media profileは未実装 |
+| イベント／会議／コミュニティ | 対応 | 情報利用の5観点によるレビュー | 専用の構造化assessmentは未実装 |
+| ATAG／authoring process | 参照ガイダンス | 一部の参照情報 | `authoring-agent` profileは現在inactive |
 
-```text
-references/
-  development-accessibility.md
-  document-slide-accessibility.md
-  event-community-accessibility.md
-  standards-assessment.md
-  standards-registry.json
-  criteria-catalog.json
-  criteria-catalog.schema.json
-  criterion-procedures.json
-  criterion-procedures.schema.json
-  web-audit-methods.json
-  web-audit-methods.schema.json
-  aria-html-review.md
-  aria-review-rules.json
-  aria-review-rules.schema.json
-  screen-reader-stateful-ui.md
-  screen-reader-ui-checks.json
-  screen-reader-ui-checks.schema.json
-  assessment-record.schema.json
-  source-basis.md
-```
+WCAG 2.2 A／AAの55件は`web-modern`、JIS X 8341-3:2016 A／AAの38件と追加WCAG 18件は`jp-public-web`で扱います。収録条項数と、実際に評価できた条項数は別々に記録します。
 
-## 参照ファイル
+## 前提条件と導入
 
-`development-accessibility.md` は、Webサイト、アプリ、フォーム、ダッシュボード、UI、開発タスクを見るための参照です。見出し、ラベル、リンク名、キーボード操作、フォーカス順、エラー表示、状態変化、表やグラフ、フォーム入力、モバイル表示などを確認します。
+- Node.js 20以上
+- リポジトリのローカルコピー
+- Webのブラウザscanを使う場合のみ、指定版のPlaywright、axe-core、Chromium
 
-`document-slide-accessibility.md` は、PDF、Word文書、レポート、スライド、配布資料、告知画像を見るための参照です。見出し構造、読み上げ順、リンク名、表、画像説明、図表の要約、PDF化後のテキスト抽出、スライドの読み順、告知画像に日時や場所が閉じ込められていないかなどを確認します。
+### Codex
 
-`event-community-accessibility.md` は、イベント、会議、セミナー、コミュニティへの参加方法、支援依頼の流れを見るための参照です。事前案内、会場までの案内、オンラインでの参加方法、支援依頼、字幕、文字起こし、手話通訳、マイク運用、チャットや質疑応答、資料共有、終了後の要約や記録、次の行動を確認します。
-
-`standards-assessment.md` は、規格に基づく確認を始める前に、対象、範囲、環境を固定する方法を定めます。選択したプロファイルの全項目を含む検査票、5種類の結果、E0〜E5の証拠の強さ、確認範囲の判定、不適切な適合表現を防ぐ規則も扱います。
-
-`standards-registry.json` は、`web-modern`、`jp-public-web`、`authoring-agent` などの版、一次資料URL、実装状態、規格項目の収録状況、結果として表明できる上限を、プログラムで読み取れる形で保存します。
-
-`criteria-catalog.json` は、WCAG 55件、JIS 38件、追加WCAG 18件のID、名称、レベル、一次資料URL、適用判断に必要な情報、必要な証拠を収録します。規格本文は収録せず、すべての項目に人による確認、または自動検査と人による確認を組み合わせた評価が必要です。
-
-`web-audit-methods.json` は、55件または56件の各項目を、14種類の確認手順に対応づけます。各手順には、項目が対象に当てはまるかを判断する方法、再現可能な確認方法、必要な証拠、判断できない場合の条件を記載しています。旧JIS固有の4.1.1「構文解析」は専用手順へ分けています。各項目の一次資料と解説資料を実際に開き、項目名だけから合否を推測しないようにします。
-
-`criterion-procedures.json` は、SC 1.1.1、SC 1.3.1、SC 2.1.1、SC 4.1.2の詳しい確認手順を収録する部分カタログです。適用条件、手順、期待する結果、必要な証拠、判断できない場合の条件、反例、AIと人が担当する範囲を記載しています。掲載されていない項目は、この部分カタログに実行可能な条項別手順があるものとは扱いません。掲載済みの手順にも、AIとは別の人による確認と、対象から得た証拠が必要です。
-
-`show-requirement.mjs` は、指定した一つの規格項目と、その確認方法だけを表示します。部分カタログにある項目では人が行う確認手順も表示し、未掲載の場合は実行可能な条項別手順がないことを明記します。個別項目を評価するときはこのスクリプトを使い、全カタログをAIへ一度に読み込ませません。
-
-`aria-html-review.md` と `aria-review-rules.json` は、ARIA in HTMLとWAI-ARIAに基づく12件の補助検査を定めます。結果は必ず `SCREEN-ARIA-*` として記録し、WCAG 4.1.2などの合否へ自動では変換しません。
-
-`screen-reader-stateful-ui.md` と `screen-reader-ui-checks.json` は、モーダル、開閉パネル、ハンバーガーナビゲーション、メニューボタン、分割表示された論理テキストを確認する補助検査です。見た目、操作可能性、アクセシビリティツリーへの露出、フォーカスの4状態を突き合わせます。ソースやツリーだけで実際の読み上げ結果を断定せず、結果は `SCREEN-SR-*` として記録します。
-
-`assessment-record.schema.json` と `assessment-record.template.json` は、対象、確認範囲、環境、規格項目ごとの結果、P0/P1/P2に分類した問題、上記の5つの観点、証拠、結果として表明したい内容を分けて記録します。失敗とした規格項目には、問題の場所、影響を受ける人、確認できた事実、改善方法、再確認の方法を必ず紐付けます。
-
-`render-audit-report.mjs` は、検証済みの評価記録から、未評価、不明、失敗、結果として表明できる上限を明記したMarkdown報告書を生成します。報告書は単独で配布できます。無効な記録は受け付けず、既存の出力ファイルも上書きしません。`audit-report.template.md` は手作業で追記する場合のひな形です。
-
-`source-basis.md` は、監査方法が参照する公開一次資料、収録範囲、著作権上の境界を示します。
-
-スキル本体は、対象に応じて必要な参照ファイルを選び、具体的な確認項目として使います。
-
-## 詳しい使い方
-
-### 統一CLI
-
-`accessibility-audit`は、確認の実行記録（run）、評価記録、登録済みの成果物、報告書を扱う共通の入口です。
-コマンドごとに確認処理を作り直すのではなく、既存のスクリプトを呼び分けます。引数は`shell: false`で渡すため、元のスクリプトが備える検証、上書きの防止、AIと人が扱える証拠の区別を保てます。
-
-スキルフォルダーからコマンドを導入します。
-
-```powershell
-npm install --global .\codex\skills\information-accessibility-practice
-accessibility-audit --help
-```
-
-グローバル導入を行わない場合は、Node.jsから同じ入口を直接実行できます。
-
-```powershell
-node .\codex\skills\information-accessibility-practice\scripts\accessibility-audit.mjs --help
-```
-
-| コマンド | 用途 |
-| --- | --- |
-| `init` | 対象、版、範囲、権限を固定した新しい監査実行記録を作る |
-| `assessment` | 全条項を`not_tested`で初期化した評価レコードを作る |
-| `requirement` | 指定した1条項と確認方法を表示する |
-| `screen-reader-checklist` | 状態を持つUIと読み上げの補助チェックリストを表示する |
-| `validate-run` | 監査実行記録を検証し、別ファイルへ検証結果を書く |
-| `validate-assessment` | 評価記録と、結果として表明できる範囲を検証する |
-| `register` | 検証済み成果物を新しいrun版へ登録する |
-| `merge` | 登録済み成果物を新しい評価レコードへ統合する |
-| `report` | 検証済み評価から新しいMarkdown報告書を作る |
-| `retest` | 修正後に、旧runを上書きせず新しい再検査runを作る |
-
-最小の単独評価は次の3コマンドで実行できます。
-
-```powershell
-accessibility-audit assessment --profile web-modern --target-name "Example" --target-version "2026-07-18" --target-ref "https://example.com/" --evaluator "external-human-review-required" --evaluated-at "2026-07-18" --output .\audit.json
-accessibility-audit validate-assessment .\audit.json
-accessibility-audit report --input .\audit.json --output .\audit-report.md
-```
-
-標準CLIには、確認対象のファイルやコードを書き換えるコマンドはありません。
-修正できるのは、別途導入したauthorized fixer（認可済み修正機能）を使い、対象、変更内容、修正前後のSHA-256、修正後の確認コマンドを定めた外部の許可がそろった場合だけです。
-`retest`では`--supersedes-run`の指定が必須です。以前の実行記録にある証拠や結果は引き継がず、新しい再確認として開始します。
-
-規格プロファイルを使う監査は、次の順序で実行します。
-
-1. 対象名、版、URLまたはファイル、確認に含める範囲、除外する範囲、利用開始から完了までの操作、第三者コンテンツ、確認環境を固定する。
-2. 選択したプロファイルの全項目を含む検査票を生成する。
-3. `show-requirement.mjs`で条項ごとの方法と一次資料を確認してから実物を検査する。AIエージェントが作成または更新するプロファイル要件行は `mapping_status: "unverified"` と `outcome: "not_tested"` に保ち、観測は `SCREEN-*` または未検証の引き継ぎとして残す。外部の人手レビューは、条項別手順と対象固有の手動またはハイブリッド証拠を持つ場合だけ、`pass`、`fail`、`not_applicable`、`cant_tell` を記録できる。`fail` にはP0/P1/P2、影響を受ける利用者、改善、再検査方法を持つ所見を紐付ける。
-4. 検証プログラムで、収録している規格項目と、実際に評価した項目を別々に確認する。
-5. 検証済みの記録から、総合判定、達成基準別の判定、見つかった問題、未確認事項、改善案を含むMarkdown報告書を生成する。判定欄は「適合」「不適合」「要確認」「未確認」の4種類に限定し、適用対象外は理由とともに別に記載する。
-
-### 監査実行記録（run）を使うワークフロー
-
-複数の役割で進める場合は、読み取り専用の監査実行記録を作成します。`screening-observations`（簡易確認の結果）、`human-review-queue`（人が確認する項目）、`remediation-plan`（改善計画）の順に成果物を登録します。
-登録するたびに新しい監査実行記録を作り、直前の記録と確認対象のファイルは書き換えません。
-その後、規格項目をまだ正式評価していないE0評価記録と、登録したすべての成果物（artifact）を統合します。`--run`と`--assessment`を指定すると、統一形式の報告書を生成できます。
-
-報告書は、総合判定、達成基準別の判定、改善事項、今後の確認事項、対象範囲と検査環境を表示します。総合判定は、不適合、要確認、未確認、適合の順で決めます。AIの検査判定は改善判断用の報告書へ反映しますが、`human_verified`の正式評価結果や組織の適合表明へは昇格させません。
-監査実行ID（run ID）、成果物ID（artifact ID）、役割ID、処理の履歴、ローカルパスは内部のrunに残し、報告書には出力しません。
-
-役割分担、成果物の順序、停止条件、外部の人手レビューとの境界は、[Codex向けエージェント連携リファレンス](codex/skills/information-accessibility-practice/references/agent-orchestration.md)と[Claude向けエージェント連携リファレンス](claude/skills/information-accessibility-practice/references/agent-orchestration.md)にまとめています。
-監査実行記録から公開用報告だけを生成する最小コマンドは次のとおりです。
-
-```powershell
-node .\codex\skills\information-accessibility-practice\scripts\render-audit-report.mjs --run .\audit-run.json --assessment .\merged-assessment.json --output .\audit-report.md
-```
-
-```powershell
-node .\codex\skills\information-accessibility-practice\scripts\generate-assessment.mjs --profile web-modern --target-name "Example" --target-version "2026-08-22" --target-ref "https://example.com/" --evaluator "External reviewer" --evaluated-at "2026-08-22" --output .\audit.json
-node .\codex\skills\information-accessibility-practice\scripts\show-requirement.mjs --profile web-modern --id WCAG-2.2-SC-1.1.1 --format markdown
-node .\codex\skills\information-accessibility-practice\scripts\validate-assessment.mjs .\audit.json
-node .\codex\skills\information-accessibility-practice\scripts\render-audit-report.mjs --input .\audit.json --output .\audit-report.md
-```
-
-上記はこの配布パッケージのルートから実行するコマンドです。スキルを配置した後は、配置先の `information-accessibility-practice` フォルダーを基準に `scripts` を解決してください。日本向けWeb監査では `--profile jp-public-web` を使います。既存ファイルは上書きしません。
-
-macOS / Linuxではパス区切りを `/` にします。
-
-```sh
-node ./codex/skills/information-accessibility-practice/scripts/generate-assessment.mjs --profile web-modern --target-name "Example" --target-version "2026-08-22" --target-ref "https://example.com/" --evaluator "External reviewer" --evaluated-at "2026-08-22" --output ./audit.json
-node ./codex/skills/information-accessibility-practice/scripts/show-requirement.mjs --profile web-modern --id WCAG-2.2-SC-1.1.1 --format markdown
-node ./codex/skills/information-accessibility-practice/scripts/validate-assessment.mjs ./audit.json
-node ./codex/skills/information-accessibility-practice/scripts/render-audit-report.mjs --input ./audit.json --output ./audit-report.md
-```
-
-Codex で使う場合:
-
-1. `codex/skills/information-accessibility-practice/` を Codex の `skills/` 配下に配置する。
-2. `shared/agents/agent-manifest.json` の `install_by_default: true` である4件の `.toml` を、Codex の `agents/` 配下へ配置する。
-3. 既定の4件は、`information-accessibility-reviewer`、`information-accessibility-e1-inspector`、`information-accessibility-human-queue-planner`、`information-accessibility-remediation-planner` である。
-4. 情報アクセシビリティを確認したい資料、Webページ、UI、イベント案内などに対して `information-accessibility-practice` を使う。
-
-Windowsでは、マニフェストを読み取るバックアップ付きインストーラーを利用できます。`-WhatIf` は選択したエージェントIDと全配置先を表示するだけで、`CodexHome` と `BackupRoot` を作成または変更しません。
-
-Webサイトの読取り専用検査は、URLと範囲だけの短い指示で開始できる。
-
-```text
-このサイトの最初の画面を、アクセシビリティCLIで検査して。
-https://example.com/
-```
-
-プロファイルが省略された場合、エージェントは`web-modern`を使い、WCAG 2.2 A/AAの全55項目を一覧化する。確認できた項目は`適合`、`不適合`、`要確認`、`未確認`のレポート判定へ投影し、`not_applicable`は理由付きで別掲する。55項目すべてが`not_tested`の初期台帳を作っただけでは完了としない。[依頼テンプレート](codex/skills/information-accessibility-practice/assets/development-web-audit-request.template.md)は、独自の範囲・環境・証拠保存条件や、許可された修正作業を指定するときに使う。編集は、ソース・権限・許可操作・検証コマンドが明示されたときだけ行う。
+Windowsでは、manifestを読むバックアップ付きinstallerを利用できます。
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File ".\scripts\install-codex.ps1" -WhatIf
 powershell -ExecutionPolicy Bypass -File ".\scripts\install-codex.ps1"
 ```
 
-`CODEX_HOME` が設定されていればその場所を使用し、未設定の場合は `~/.codex` へ配置します。既定のバックアップ先は、`CodexHome` と重ならない兄弟領域の `codex-backups/information-accessibility-practice/<timestamp>/` です。既存のスキルはその `skill/` へ、既存のマニフェスト管理エージェントは `agents/<agent-id>.toml` へ退避されます。退避対象が一つもない初回導入では、バックアップ先を作成しません。配置の途中で失敗した場合は、置換済みのスキルと選択済みエージェントだけをバックアップと照合して復元し、無関係なユーザーエージェントには触れません。
+macOS／Linuxでは、`codex/skills/information-accessibility-practice/`とmanifestで既定指定されたagentをCodexの配置先へコピーします。導入内容の詳細は[はじめに](docs/getting-started.md)と[アーキテクチャ](docs/architecture-and-glossary.md)を参照してください。
 
-インストーラーは既存パスの最終パスとファイルIDを置換直前まで再検査し、同じ親ディレクトリ内の rename で切り替えます。ただし、別プロセスが同じファイル内容を同時に書き換える競合をOSレベルでロックするものではありません。インストール中は、別のインストーラーや手作業で同じスキルとエージェントを変更しないでください。
+### Claude
 
-認可済み修正を扱う`information-accessibility-authorized-fixer`は、既定では導入されません。`-IncludeAuthorizedFixer`を明示した場合だけ導入される、読み取り専用の引き渡しエージェントです。汎用コマンドの実行や、確認対象への直接の書き込みは許可されていません。外部の許可、対象、変更内容、修正後の確認コマンドを確かめ、必要事項を定型の引き渡し記録にまとめます。実際の変更は、信頼された運用者が、同じ入力なら同じ処理を行い、失敗した場合に復旧できる実行基盤を使って行います。
-
-Claude で使う場合:
-
-`shared/agents/agent-manifest.json` の `install_by_default: true` を正本として、Claude skillと既定agentをまとめて配置します。配布パッケージのルートで次を実行します。
+Claude skillと既定4agentは、cross-platform installerでまとめて配置できます。
 
 ```powershell
 node .\scripts\install-claude.mjs --dry-run
 node .\scripts\install-claude.mjs
 ```
 
-macOS / Linuxでは次を実行します。
+specialist agentをdispatchできないClaudeホストに限り、`--reviewer-only`を使用します。
 
-```sh
-node ./scripts/install-claude.mjs --dry-run
-node ./scripts/install-claude.mjs
-```
+### CLI
 
-既定で配置する4agentは次のとおりです。
-
-- `information-accessibility-reviewer`
-- `information-accessibility-e1-inspector`
-- `information-accessibility-human-queue-planner`
-- `information-accessibility-remediation-planner`
-
-配置先は、`--claude-home`、環境変数`CLAUDE_HOME`、`~/.claude`の順で決まります。インストーラーはskillと全agentの入力・配置先を先に検証し、管理対象の配置先が一つでも既に存在する場合は、ほかのファイルを書き込む前に停止します。`--dry-run`は配置計画だけをJSONで表示し、ディレクトリやファイルを作成しません。
-
-multi-agent構成では、reviewer、E1 inspector、人手レビューqueue planner、remediation plannerを分離し、Codex版と同じrole artifact contractで成果物を受け渡します。Claudeホストがspecialist agentをdispatchできない場合だけ、次のreviewer単独構成を使います。
+skill folderからglobal commandを導入するか、Node.jsで直接実行します。
 
 ```powershell
-node .\scripts\install-claude.mjs --reviewer-only
+npm install --global .\codex\skills\information-accessibility-practice
+accessibility-audit --help
 ```
 
-`--reviewer-only`ではreviewerのlocal fallbackを使うため、specialistごとの役割分離、context分離、dispatch履歴が失われます。出力は同じrole artifact contractを維持し、回帰テストで検証します。単に配置ファイル数を減らす目的では選択しないでください。`information-accessibility-authorized-fixer`は`install_by_default`ではないため、このインストーラーでは配置しません。
-
-## 対象別の確認範囲
-
-- Webサイト、アプリ、フォーム、ダッシュボードで、見出し、ラベル、リンク名、キーボード操作、フォーカス順、エラー表示、状態変化、表やグラフの読み取りやすさを確認する。
-- PDF、Word文書、スライド、配布資料で、見出し構造、読み上げ順、リンク名、表、画像説明、図表の要約、PDF化後のテキスト抽出や読み順を確認する。
-- 告知画像、SNS投稿、チラシ、イベントページで、日時、場所、参加条件、変更時の確認先、申込方法、支援依頼先が画像だけに閉じていないか確認する。
-- 動画、音声、アーカイブで、字幕、文字起こし、要約、資料リンク、公開場所、後から見返す導線を確認する。
-- イベント、会議、セミナーで、会場案内、オンライン参加、マイク運用、チャット/Q&A、字幕、手話通訳、資料共有、記録公開、問い合わせ導線を確認する。
-- コミュニティ参加者向け導線で、初参加者が必要な場所、予定、資料、役割、相談先、次の行動を迷わず見つけられるか確認する。
-- 支援依頼フローで、依頼方法、締切、対応範囲、担当者への引き継ぎ、プライバシーの扱い、当日の運用を確認する。
-- 法令、会場、契約、個人情報、公開範囲など、実装前に確認が必要な制約を整理する。
-
-WCAG、JIS、ATAGなどの規格を指定した場合は、確認した証拠と、結果として表明できる範囲を次の規則で管理します。
-
-- WCAG/JIS/ATAG等を指定したレビューで、対象・版・範囲・環境を固定し、AIの観測は `SCREEN-*` または未検証の引き継ぎとして記録する。プロファイル条項の結果は、条項別手順と対象固有の手動またはハイブリッド証拠を持つ外部の人手レビューだけが記録する。
-- 自動・静的検査は `screening_check`、人が一次資料へ対応付けた規格条項は `profile_requirement` として分離する。
-- 自動・簡易検査、条項レビュー、実機・支援技術、第三者監査をE0〜E5に分ける。
-- E4/E5は、独立監査の範囲と報告書、または法務や調達の判断に使う証拠一式について、責任者と成果物が記録されていない場合は認めない。
-- 禁止された認証表現、証拠のない `pass`、理由のない `not_applicable`、未検証を隠した主張を機械的に拒否する。
-
-## 確認する観点
-
-対象の種類にかかわらず、情報を使う流れを次の5つに分けて確認します。
-
-1. **見つける（Find）**：必要な人が、必要な情報を迷わず見つけられるか。
-2. **受け取る（Receive）**：テキスト、音声、画像、支援技術、保存された記録など、自分に合う方法で情報を受け取れるか。
-3. **理解する（Understand）**：構成、順序、言葉、日付、リンク、色、図表、専門用語が分かりやすいか。
-4. **行動する（Participate）**：質問、申込み、サービスの利用、支援依頼、イベントへの参加など、情報を使って目的の行動ができるか。
-5. **後から確認する（Continue）**：要約、資料、記録、決定事項、次に行うことを後から確認できるか。
-
-## 依頼例
-
-```text
-このイベント告知ページを、情報アクセシビリティの観点でレビューしてください。
+```powershell
+node .\codex\skills\information-accessibility-practice\scripts\accessibility-audit.mjs --help
 ```
 
-```text
-このスライドをPDFで共有する前提で、読み上げ順、図表説明、リンク、後から見返す導線を確認してください。
+## 5分で試す
+
+次の例は、WCAG 2.2 A／AAの全55件を`not_tested`で初期化したstandalone評価台帳を作り、検証し、参照ガイダンスを生成します。リポジトリのルートで実行してください。
+
+```powershell
+node .\codex\skills\information-accessibility-practice\scripts\generate-assessment.mjs --profile web-modern --target-name "Example Site" --target-version "2026-08-23" --target-ref "https://example.com/" --evaluator "Accessibility Reviewer" --evaluated-at "2026-08-23" --output .\audit-runs\quickstart\audit.json
+node .\codex\skills\information-accessibility-practice\scripts\validate-assessment.mjs .\audit-runs\quickstart\audit.json
+node .\codex\skills\information-accessibility-practice\scripts\render-audit-report.mjs --input .\audit-runs\quickstart\audit.json --output .\audit-runs\quickstart\audit-report.md
 ```
 
-```text
-この申込フォームについて、ラベル、エラー表示、支援依頼欄、送信後の案内に問題がないか確認してください。
-```
+`audit.json`を生成しただけでは、対象を検査したことにはなりません。対象固有の証拠と判定が入るまでは、レポートは未確認事項を示す参照ガイダンスです。macOS／Linuxのコマンドと次の手順は、[5分クイックスタート](docs/getting-started.md)にあります。
 
-```text
-この会議運営案について、字幕、マイク運用、質問方法、資料共有、アーカイブ公開の観点で不足している点を挙げてください。
-```
+## 生成されるもの
 
-```text
-このWebアプリをWCAG 2.2の観点で検査し、総合判定と達成基準別の判定を含むレポートを作ってください。判定は「適合」「不適合」「要確認」「未確認」の4種類に統一してください。
-```
-
-```text
-この日本向けサイトについて、JIS X 8341-3:2016と追加のWCAG 2.2基準を分けて記録し、使える表現の上限を示してください。
-```
-
-## 出力例
-
-WCAGなどの規格に基づく検査は、最初から次の統一形式で返します。
-
-```markdown
-# WCAG検査レポート
-
-> 注意：このレポートの判定語は、記載した検査範囲と証拠に基づく改善判断用の結果であり、第三者認証、法的判断、または組織による正式な適合表明ではありません。
-
-## 総合判定
-
-- 総合判定: 不適合
-
-| 達成基準 | 判定 | 根拠・未確認事項 |
+| 成果物 | 役割 | 通常の公開範囲 |
 | --- | --- | --- |
-| WCAG 2.2 1.1.1 | 不適合 | 代替テキストが画像の目的を伝えていない。 |
-```
+| assessment JSON | profile全条項、証拠、判定、claim情報を保持 | 内部用。検証後にレポートへ投影 |
+| automated scan JSON | axe結果、DOM／AX tree等の内部証拠 | 原則として内部用 |
+| compact scan context | AIへ渡すために圧縮した問題候補と未解決項目 | 内部レビュー用 |
+| audit run | 対象、権限、artifact hash、状態遷移を保持 | 非公開 |
+| human-review queue | 人が確認する条項、手順、必要証拠 | 作業用 |
+| Markdown report | 確認範囲、判定、改善、未確認事項を表示 | publication review後に共有可能 |
 
-規格証拠レコードを作る場合は、対象プロファイルの全行を生成してから検証します。AIが作成するレコードはプロファイル要件を未検証のまま保持し、外部の人手レビューが条項別手順と対象固有の手動またはハイブリッド証拠を記録した場合だけ、該当するプロファイル条項を評価します。配布パッケージのルートでは次を実行します。
+各成果物の作成者、入力、出力、公開可否は[成果物マップ](docs/architecture-and-glossary.md#artifact-map--成果物の関係)に整理しています。
+
+## 実Web検査
+
+`scan-web`は、固定されたPlaywright／axe-coreを使って、公開URLを読取り専用で検査します。自動検査結果をWCAG／JISの正式なpass／failへ直接昇格させることはありません。
+
+依存関係、network／redirect制御、private address拒否、出力形式、compact AI context、Chromium E2Eの範囲は[実Web検査ガイド](docs/web-inspection.md)を参照してください。
+
+## 詳細ドキュメント
+
+- [はじめに：最初の1回と利用経路](docs/getting-started.md)
+- [アーキテクチャ、役割、成果物、日英用語集](docs/architecture-and-glossary.md)
+- [実Web検査とbrowser／network境界](docs/web-inspection.md)
+- [Codex向けagent orchestration](codex/skills/information-accessibility-practice/references/agent-orchestration.md)
+- [Claude向けagent orchestration](claude/skills/information-accessibility-practice/references/agent-orchestration.md)
+- [規格assessmentと証拠レベル](codex/skills/information-accessibility-practice/references/standards-assessment.md)
+- [セキュリティ方針](SECURITY.md)
+- [コントリビューション手順](CONTRIBUTING.md)
+- [変更履歴](CHANGELOG.md)
+- [第三者資料の帰属と利用条件](THIRD_PARTY_NOTICES.md)
+
+## 証拠と主張の境界
+
+- AIと自動検査はE0／E1のscreening observationを作成できます。
+- 規格条項の`pass`、`fail`、`not_applicable`、`cant_tell`は、該当手順と対象固有証拠を用いた外部人手レビューだけが記録します。
+- 未確認、不明、適用対象外は省略せず、passへ変換しません。
+- `reference_only`、`screened`、`evaluated_subset`等のclaim tierは、記録された証拠とprofile ceilingを超えられません。
+- raw DOM、AX tree、private URL、local path、個人情報、authorization情報は、公開方針が明示されない限り内部用です。
+- authorized fixerは任意機能であり、標準CLIは監査対象を変更しません。
+
+## 開発と保守
+
+変更前に[CONTRIBUTING.md](CONTRIBUTING.md)を確認し、Codex／Claude同期、schema互換性、一次資料、claim boundary、全テストを検証してください。通常の完全検証は次です。
 
 ```powershell
-node .\codex\skills\information-accessibility-practice\scripts\generate-assessment.mjs --profile web-modern --target-name "Example" --target-version "2026-08-22" --target-ref "https://example.com/" --evaluator "External reviewer" --evaluated-at "2026-08-22" --output <assessment.json>
-node .\codex\skills\information-accessibility-practice\scripts\validate-assessment.mjs <assessment.json>
+node .\scripts\verify-all.mjs
 ```
 
-検証プログラムは、報告書の判定を新たに作る処理ではありません。JSONの不整合、必要な規格項目がそろっているか、実際に評価した範囲、証拠を超えた表明を検出します。検査レポートは、検証済みの正式評価結果とAIのレポート専用判定を統合し、「適合」「不適合」「要確認」「未確認」の4種類で表示します。
-
-報告書の集計には、規格項目用の`profile_outcome_counts`と、簡易確認用の`screening_outcome_counts`を使います。`outcome_counts`は後方互換用にすべての結果を合算した値であり、規格項目の集計には使いません。
-
-すべての規格項目について詳しい確認手順が完成していない現行版では、`proposed_wording`に自由な文章は設定できません。レジストリに登録した、結果の段階ごとの日本語・英語の固定文だけを使用できます。対象ごとの確認内容、確認できた事実、未評価の範囲は、固定文を変更せず、別の監査報告書に記載します。
-
-## 検証
-
-配布パッケージでは次を実行します。
-
-```powershell
-powershell -ExecutionPolicy Bypass -File ".\scripts\verify-package.ps1"
-node ".\scripts\verify-package.mjs"
-node --test ".\tests\claim-guard.test.mjs"
-node --test ".\tests\audit-workflow.test.mjs"
-node --test ".\tests\criterion-procedures.test.mjs"
-node --test ".\tests\audit-report.test.mjs"
-node --test ".\tests\install-codex.test.mjs"
-node --test ".\tests\unified-cli.test.mjs"
-node ".\scripts\build-criteria-catalog.mjs" --check
-```
-
-`verify-package.ps1` とクロスプラットフォーム版の `verify-package.mjs` は、Codex/Claude両スキルの相対パス、SHA-256、JSONパース、エージェント指示本文の一致を確認します。
-
-### 条項カタログの保守
-
-通常の検証には `--check` を使います。
-このコマンドはネットワークへ接続せず、保存済みのCodex版とClaude版について、バイト一致、件数、レジストリIDとの一致を検証します。
-
-一次資料から候補を更新する保守作業では、既存カタログとは別の出力先を指定します。
-`--refresh` は3件の一次資料へ接続し、既存ファイルへの上書きを拒否します。
-
-```powershell
-node ".\scripts\build-criteria-catalog.mjs" --refresh --verified-at YYYY-MM-DD --output ".\criteria-catalog.candidate.json"
-node ".\scripts\compare-criteria-catalog.mjs" --current ".\codex\skills\information-accessibility-practice\references\criteria-catalog.json" --candidate ".\criteria-catalog.candidate.json"
-```
-
-比較結果は、一次資料のハッシュ変更、規格項目の追加や削除、名称またはレベルの変更、確認手順との対応づけの変更を分けて表示します。
-候補を正本へ反映する前に、比較結果と一次資料を人が確認してください。
-
-## 主張と制限
-
-本プロジェクトは、WCAG 2.2およびJIS X 8341-3:2016を参照した、証拠指向のアクセシビリティ評価レコードを提供します。作者支援についてはATAG 2.0 Part Bを参照します。本プロジェクト自体がW3C、JIS、ISO、Section 508または法令上の認証を提供するものではありません。
-現行版の記録で表明できる上限は`evaluated_subset`（評価した一部の範囲）です。
-
-現在未実装の主な範囲は次のとおりです。
-
-- WCAG 2.2 A/AA、JIS X 8341-3:2016の各条項について、適用条件、期待結果、具体例まで備えた完全な実行可能試験手順
-- ATAG 2.0 Part Bの完全な条項カタログと作者支援機能マップ
-- `evaluated_complete`、`conformance_candidate`、正式な適合・準拠表現までの判定
-- EN 301 549、Section 508、PDF/UA-2、EPUB Accessibility、組織プロファイル
-- 実機・支援技術によるE3証拠の自動生成、第三者監査、法務・調達判断
+セキュリティ上の問題は公開Issueへ秘密情報を貼らず、[SECURITY.md](SECURITY.md)の案内に従ってください。
 
 ## ライセンス
 
-MIT Licenseです。個人・商用を問わず利用、改変、再配布できます。詳細は [LICENSE](LICENSE) を参照してください。
+オリジナルのコードと文書は[MIT License](LICENSE)です。収録する第三者規格メタデータには各提供元の条件が残ります。詳細は[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)を確認してください。
