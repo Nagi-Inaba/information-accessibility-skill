@@ -8,10 +8,12 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const japaneseReadmePath = path.join(root, "README.md");
 const englishReadmePath = path.join(root, "README.en.md");
 const architecturePath = path.join(root, "docs/architecture-and-glossary.md");
+const gettingStartedPath = path.join(root, "docs/getting-started.md");
 
 const japaneseReadme = fs.readFileSync(japaneseReadmePath, "utf8");
 const englishReadme = fs.readFileSync(englishReadmePath, "utf8");
 const architecture = fs.readFileSync(architecturePath, "utf8");
+const gettingStarted = fs.readFileSync(gettingStartedPath, "utf8");
 
 function assertContainsAll(text, values, context) {
   for (const value of values) {
@@ -78,6 +80,7 @@ test("README navigation points to the maintained guides and every local link res
       "docs/getting-started.md",
       "docs/architecture-and-glossary.md",
       "docs/web-inspection.md",
+      "examples/README.md",
       "SECURITY.md",
       "CONTRIBUTING.md",
       "CHANGELOG.md",
@@ -108,6 +111,26 @@ test("README command examples refer to scripts that exist in the repository", ()
       `README.en.md does not demonstrate ${relative}`
     );
   }
+});
+
+test("public docs expose installed discovery commands and runnable examples", () => {
+  const commands = [
+    "accessibility-audit --version",
+    "accessibility-audit profiles list",
+    "accessibility-audit requirements search \"focus\" --profile web-modern --level AA",
+    "accessibility-audit doctor"
+  ];
+  for (const [label, text] of [
+    ["README.md", japaneseReadme],
+    ["README.en.md", englishReadme],
+    ["docs/getting-started.md", gettingStarted]
+  ]) assertContainsAll(text, commands, label);
+
+  assertContainsAll(gettingStarted, [
+    "../examples/README.md",
+    "requirements show 1.1.1",
+    "requirements search \"フォーカス\""
+  ], "docs/getting-started.md");
 });
 
 test("architecture guide maintains an explicit bilingual glossary and target support boundary", () => {
