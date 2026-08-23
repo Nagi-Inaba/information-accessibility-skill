@@ -49,3 +49,4 @@
     "ruleSummary": { "type": "object", "required": ["rule_id", "impact", "help", "help_url", "tags"], "properties": { "rule_id": { "type": "string" }, "impact": { "type": ["string", "null"] }, "help": { "type": "string" }, "help_url": { "type": ["string", "null"] }, "tags": { "type": "array", "items": { "type": "string" } } } }
   }
 }
+}
