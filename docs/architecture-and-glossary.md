@@ -39,8 +39,8 @@ Creating a baseline ledger is not the same as inspecting the target. All profile
 | Path / 経路 | Best for / 用途 | State and provenance / 状態と追跡性 |
 | --- | --- | --- |
 | Natural-language review / 自然言語レビュー | First-pass barriers, improvement ideas, non-Web materials, event or participation reviews | Conversational output; use structured artifacts when durable evidence is required |
-| Standalone assessment | One validated standards ledger and one report | One JSON record; suitable for a bounded snapshot but not a multi-stage artifact history |
-| Run-backed audit | Multi-stage screening, external review, remediation, authorization, and retest | Immutable run versions, registered artifact hashes, producer roles, and transition history |
+| Standalone assessment / 単独評価台帳 | One validated standards ledger and one report | One JSON record; suitable for a bounded snapshot but not a multi-stage artifact history |
+| Run-backed audit / 監査実行記録を使う監査 | Multi-stage screening, external review, remediation, authorization, and retest | Immutable run versions, registered artifact hashes, producer roles, and transition history |
 
 ## Components and responsibilities / 構成要素と責任範囲
 
@@ -81,6 +81,29 @@ Creating a baseline ledger is not the same as inspecting the target. All profile
 | E5 | Organization-ready legal or procurement dossier with responsible ownership and retained artifacts |
 
 A higher declared level must be supported by the evidence actually recorded. A profile's implementation status and method coverage may impose a lower claim ceiling.
+
+## Bilingual glossary / 日英用語対応表
+
+Human-facing documents may use natural Japanese or English, while machine-readable IDs and enum values remain unchanged. The following translations are the preferred terms for documentation and review handoffs.
+
+人向け文書では自然な日本語または英語を使いますが、機械可読なIDとenum値は翻訳しません。文書と引き継ぎでは、次の対応語を優先します。
+
+| English | 日本語 | Meaning / 意味 |
+| --- | --- | --- |
+| Natural-language review | 自然言語レビュー | A conversational first pass that identifies likely barriers, improvements, and follow-up work / 問題候補、改善案、追加確認を会話形式で整理する入口 |
+| standalone assessment | 単独評価台帳 | One validated assessment JSON for a bounded snapshot, without a multi-stage artifact history / 一時点の対象を1つのassessment JSONで記録する経路 |
+| run-backed audit | 監査実行記録を使う監査 | A multi-stage audit whose artifacts and transitions are bound to immutable run versions / artifactと状態遷移を不変のrun版へ結び付ける監査 |
+| audit run | 監査実行記録 | Control-plane record containing target metadata, permissions, registered artifacts, and history / 対象、権限、登録成果物、履歴を保持する制御記録 |
+| baseline assessment | 初期評価台帳 | A complete profile ledger initialized as `not_tested` / 全profile条項を`not_tested`で初期化した台帳 |
+| screening observation | スクリーニング観測 | E0/E1 automated or AI-assisted evidence that may inform a report but is not a formal profile outcome / レポート判断の参考にはなるが正式な条項判定ではないE0／E1観測 |
+| profile requirement | プロファイル条項 | A standards requirement that may receive an allowed human-reviewed outcome / 許可された人手レビュー経路で判定を記録できる規格条項 |
+| human review queue | 人手確認キュー | A worklist containing the procedure, location, and evidence requested from a person / 人に依頼する手順、対象箇所、必要証拠をまとめた作業一覧 |
+| declared human review | 申告された人手レビュー | A human-supplied review artifact; identity assurance is tracked separately / 人が提出したreview artifact。本人性の保証は別に扱う |
+| remediation plan | 改善計画 | Proposed changes, priority, ownership, and verification steps / 改善案、優先度、担当、再確認手順の記録 |
+| report-only judgement | レポート専用判定 | A human-readable projection of limited screening evidence, not a machine-readable profile outcome / 限定的なscreening evidenceを人向けに示す表示であり、機械可読な条項判定ではない |
+| claim tier | 主張可能範囲 | The strongest registered wording supported by the evidence and profile ceiling / 証拠とprofile上限が許す最も強い固定表現 |
+| public report | 公開用レポート | A sanitized, human-readable result intended for sharing after publication review / 公開前確認とsanitizationを経て共有する人向け成果物 |
+| retest | 再検査 | A fresh audit after a measured target change; prior evidence is not silently inherited / 対象変更後に新しく行う検査。以前の証拠は自動継承しない |
 
 ## Requirement terminology / 条項に関する用語
 
