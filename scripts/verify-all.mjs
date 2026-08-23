@@ -20,6 +20,6 @@ const testFiles = fs.readdirSync(path.join(root, "tests"))
   .sort()
   .map((name) => path.join("tests", name));
 
-run(process.execPath, ["--test", ...testFiles]);
+run(process.execPath, ["--test", "--test-reporter=spec", ...testFiles]);
 
 console.log(JSON.stringify({ status: "PASS", platform: process.platform, tests: testFiles.length }));
