@@ -1,12 +1,177 @@
+#!/usr/bin/env node
+
 import path from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
+
 import { assertNewOutputPath, writeNewJson } from "./lib/audit-run.mjs";
 import { normalizeOrigin, runAutomatedWebScan } from "./lib/automated-web-scan.mjs";
 
-const DEFAULTS = { focusSteps: 8, width: 1280, height: 800, reflowWidth: 320 };
-function usage() { return ["Usage:", "  accessibility-audit scan-web --url <url> --profile <active-profile> --output <new-scan.json> [--context-output <new-context.json>] [--allow-origin <origin>] [--allow-localhost] [--focus-steps <0-50>] [--width <240-7680>] [--height <240-7680>] [--reflow-width <240-1280>]", "", "Defaults: --focus-steps 8 --width 1280 --height 800 --reflow-width 320"].join("\n"); }
-export function parseScanWebArgs(argv) { const options = { allowOrigins: [], allowLocalhost: false, ...DEFAULTS }; const seen = new Set(); for (let index = 0; index < argv.length; index += 1) { const arg = argv[index]; if (arg === "--help" || arg === "-h") return { help: true }; if (arg === "--allow-localhost") { if (seen.has(arg)) throw new Error(`Duplicate argument: ${arg}`); seen.add(arg); options.allowLocalhost = true; continue; } if (arg === "--allow-origin") { const value = argv[++index]; if (!value) throw new Error("Missing value for --allow-origin"); if (options.allowOrigins.length >= 8) throw new Error("At most 8 --allow-origin values are allowed."); options.allowOrigins.push(normalizeOrigin(value)); continue; } const keys = new Map([["--url", "url"], ["--profile", "profile"], ["--output", "output"], ["--context-output", "contextOutput"], ["--focus-steps", "focusSteps"], ["--width", "width"], ["--height", "height"], ["--reflow-width", "reflowWidth"]]); if (!keys.has(arg)) throw new Error(`Unknown argument: ${arg}`); if (seen.has(arg)) throw new Error(`Duplicate argument: ${arg}`); seen.add(arg); const value = argv[++index]; if (!value || value.startsWith("--")) throw new Error(`Missing value for ${arg}`); options[keys.get(arg)] = ["focusSteps", "width", "height", "reflowWidth"].includes(keys.get(arg)) ? Number(value) : value; } for (const required of ["url", "profile", "output"]) if (!options[required]) throw new Error(`--${required === "output" ? "output" : required} is required.`); if (!Number.isInteger(options.focusSteps) || options.focusSteps < 0 || options.focusSteps > 50) throw new Error("--focus-steps must be an integer from 0 to 50."); if (!Number.isInteger(options.width) || options.width < 240 || options.width > 7680) throw new Error("--width must be an integer from 240 to 7680."); if (!Number.isInteger(options.height) || options.height < 240 || options.height > 7680) throw new Error("--height must be an integer from 240 to 7680."); if (!Number.isInteger(options.reflowWidth) || options.reflowWidth < 240 || options.reflowWidth > 1280) throw new Error("--reflow-width must be an integer from 240 to 1280."); options.allowOrigins = [...new Set(options.allowOrigins)].sort(); options.viewport = { width: options.width, height: options.height }; return options; }
-function classifyError(error) { const message = error instanceof Error ? error.message : String(error); if (/required|argument|profile is unknown|inactive|must be an integer|at most 8|origin must|wildcard|same output/iu.test(message)) return 2; if (/private|loopback|link-local|hostname|origin|navigation|focus sampling changed|network|target url/iu.test(message)) return 3; if (/playwright|chromium|axe-core|frame|scanner/iu.test(message)) return 4; if (/schema validation/iu.test(message)) return 5; if (/output|exist|overwrite|symlink|junction|reparse|parent/iu.test(message)) return 6; return 4; }
-export async function main(argv = process.argv.slice(2)) { let options; try { options = parseScanWebArgs(argv); if (options.help) { process.stdout.write(`${usage()}\n`); return 0; } const output = path.resolve(options.output); const contextOutput = options.contextOutput ? path.resolve(options.contextOutput) : null; if (contextOutput && output === contextOutput) throw new Error("Scan output and context output must be different paths."); assertNewOutputPath(output); if (contextOutput) assertNewOutputPath(contextOutput); const { scan, context } = await runAutomatedWebScan(options); writeNewJson(output, scan); if (contextOutput) { try { writeNewJson(contextOutput, context); } catch (error) { console.error(`Compact context publication failed; complete scan retained at ${output}.`); throw error; } } process.stdout.write(`${JSON.stringify({ status: "PASS", output, context_output: contextOutput, machine_violations: scan.summary.machine_violations, review_candidates: scan.summary.review_candidates })}\n`); return 0; } catch (error) { console.error(error instanceof Error ? error.message : String(error)); return classifyError(error); } }
-if (process.argv[1] && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url) main().then((code) => { process.exitCode = code; });
+const DEFAULTS = {
+  focusSteps: 8,
+  width: 1280,
+  height: 800,
+  reflowWidth: 320
+};
+const SINGLE_VALUE_OPTIONS = new Map([
+  ["--url", "url"],
+  ["--profile", "profile"],
+  ["--output", "output"],
+  ["--context-output", "contextOutput"],
+  ["--focus-steps", "focusSteps"],
+  ["--width", "width"],
+  ["--height", "height"],
+  ["--reflow-width", "reflowWidth"]
+]);
+const NUMERIC_OPTION_KEYS = new Set(["focusSteps", "width", "height", "reflowWidth"]);
+
+class ScanWebUsageError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "ScanWebUsageError";
+    this.exitCode = 2;
+    this.code = "SCAN_WEB_USAGE";
+  }
+}
+
+function usage() {
+  return [
+    "Run rule-based browser checks and create a compact AI review context.",
+    "",
+    "Usage:",
+    "  accessibility-audit scan-web --url <http-or-https-url> --profile <active-profile> --output <new-scan.json> [--context-output <new-context.json>] [--allow-origin <origin>] [--allow-localhost] [--focus-steps <0-50>] [--width <240-7680>] [--height <240-7680>] [--reflow-width <240-1280>]",
+    "",
+    "Defaults:",
+    "  --focus-steps 8",
+    "  --width 1280",
+    "  --height 800",
+    "  --reflow-width 320"
+  ].join("\n");
+}
+
+function requireValue(argv, index, flag) {
+  const value = argv[index + 1];
+  if (!value || value.startsWith("--")) throw new ScanWebUsageError(`Missing value for ${flag}`);
+  return value;
+}
+
+function integerInRange(value, flag, minimum, maximum) {
+  if (!Number.isInteger(value) || value < minimum || value > maximum) {
+    throw new ScanWebUsageError(`${flag} must be an integer from ${minimum} to ${maximum}.`);
+  }
+}
+
+export function parseScanWebArgs(argv) {
+  const options = { allowOrigins: [], allowLocalhost: false, ...DEFAULTS };
+  const seen = new Set();
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index];
+    if (arg === "--help" || arg === "-h") return { help: true };
+    if (arg === "--allow-localhost") {
+      if (seen.has(arg)) throw new ScanWebUsageError(`Duplicate argument: ${arg}`);
+      seen.add(arg);
+      options.allowLocalhost = true;
+      continue;
+    }
+    if (arg === "--allow-origin") {
+      const value = requireValue(argv, index, arg);
+      index += 1;
+      options.allowOrigins.push(normalizeOrigin(value));
+      continue;
+    }
+    const key = SINGLE_VALUE_OPTIONS.get(arg);
+    if (!key) throw new ScanWebUsageError(`Unknown argument: ${arg}`);
+    if (seen.has(arg)) throw new ScanWebUsageError(`Duplicate argument: ${arg}`);
+    seen.add(arg);
+    const value = requireValue(argv, index, arg);
+    index += 1;
+    options[key] = NUMERIC_OPTION_KEYS.has(key) ? Number(value) : value;
+  }
+
+  for (const required of ["url", "profile", "output"]) {
+    if (!options[required]) throw new ScanWebUsageError(`--${required} is required.`);
+  }
+  options.allowOrigins = [...new Set(options.allowOrigins)].sort((left, right) => left.localeCompare(right, "en"));
+  if (options.allowOrigins.length > 8) throw new ScanWebUsageError("At most 8 distinct --allow-origin values are allowed.");
+  integerInRange(options.focusSteps, "--focus-steps", 0, 50);
+  integerInRange(options.width, "--width", 240, 7680);
+  integerInRange(options.height, "--height", 240, 7680);
+  integerInRange(options.reflowWidth, "--reflow-width", 240, 1280);
+  options.viewport = { width: options.width, height: options.height };
+  return options;
+}
+
+function pathKey(value) {
+  const resolved = path.resolve(value);
+  return process.platform === "win32" ? resolved.toLowerCase() : resolved;
+}
+
+function outputPath(value, label) {
+  const resolved = path.resolve(value);
+  try {
+    assertNewOutputPath(resolved);
+  } catch (cause) {
+    const error = new Error(`${label} is not a safe new output path: ${cause instanceof Error ? cause.message : String(cause)}`);
+    error.exitCode = 6;
+    error.code = "OUTPUT_PREFLIGHT_FAILED";
+    throw error;
+  }
+  return resolved;
+}
+
+function publishJson(output, value, label) {
+  try {
+    writeNewJson(output, value);
+  } catch (cause) {
+    const error = new Error(`${label} publication failed: ${cause instanceof Error ? cause.message : String(cause)}`);
+    error.exitCode = 6;
+    error.code = "OUTPUT_PUBLICATION_FAILED";
+    throw error;
+  }
+}
+
+function exitCodeFor(error) {
+  return Number.isInteger(error?.exitCode) ? error.exitCode : 4;
+}
+
+export async function main(argv = process.argv.slice(2)) {
+  try {
+    const options = parseScanWebArgs(argv);
+    if (options.help) {
+      process.stdout.write(`${usage()}\n`);
+      return 0;
+    }
+    const output = outputPath(options.output, "Scan output");
+    const contextOutput = options.contextOutput ? outputPath(options.contextOutput, "Context output") : null;
+    if (contextOutput && pathKey(output) === pathKey(contextOutput)) {
+      throw new ScanWebUsageError("Scan output and context output must be different paths.");
+    }
+
+    const { scan, context } = await runAutomatedWebScan(options);
+    publishJson(output, scan, "Scan output");
+    if (contextOutput) {
+      try {
+        publishJson(contextOutput, context, "Compact context");
+      } catch (error) {
+        process.stderr.write(`Compact context publication failed; complete scan retained at ${output}.\n`);
+        throw error;
+      }
+    }
+    process.stdout.write(`${JSON.stringify({
+      status: "PASS",
+      output,
+      context_output: contextOutput,
+      violations: scan.summary.machine_violations,
+      review_candidates: scan.summary.review_candidates,
+      coverage_status: scan.frame_coverage.coverage_status
+    })}\n`);
+    return 0;
+  } catch (error) {
+    process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
+    return exitCodeFor(error);
+  }
+}
+
+if (process.argv[1] && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url) {
+  process.exitCode = await main();
+}
