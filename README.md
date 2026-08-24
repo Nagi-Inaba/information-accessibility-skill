@@ -70,14 +70,19 @@ macOS／Linuxでは`codex/skills/information-accessibility-practice/`とmanifest
 
 ### Claude
 
-skillとmanifest既定4agentをまとめて配置します。
+`shared/agents/agent-manifest.json`の`install_by_default: true`を正本として、skillと次の既定4agentをまとめて配置します。
+
+- `information-accessibility-reviewer`
+- `information-accessibility-e1-inspector`
+- `information-accessibility-human-queue-planner`
+- `information-accessibility-remediation-planner`
 
 ```powershell
 node .\scripts\install-claude.mjs --dry-run
 node .\scripts\install-claude.mjs
 ```
 
-specialist agentをdispatchできない場合だけ`--reviewer-only`を使用します。
+multi-agent構成はCodex版と同じrole artifact contractを維持します。specialist agentをdispatchできない場合だけ`--reviewer-only`を使用します。
 
 ### CLI
 
