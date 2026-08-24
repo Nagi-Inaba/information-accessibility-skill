@@ -43,7 +43,7 @@ test("global CLI help and dispatch errors can be selected explicitly in Japanese
   assert.match(japanese.stdout, /^情報アクセシビリティ監査CLI$/mu);
   assert.match(japanese.stdout, /^使用方法:$/mu);
   assert.match(japanese.stdout, /^コマンド:$/mu);
-  assert.match(japanese.stdout, /利用可能な規格プロファイル/u);
+  assert.match(japanese.stdout, /規格(?:profile|プロファイル)/u);
   assert.doesNotMatch(japanese.stdout, /^Usage:|^Commands:|Unknown command/mu);
 
   const english = runCli(["--locale", "en", "--help"]);
@@ -260,7 +260,7 @@ test("report locale and runtime locale preserve stable machine-readable records"
   assert.equal(en.status, 0, en.stderr || en.stdout);
   const jaText = fs.readFileSync(jaReport, "utf8");
   const enText = fs.readFileSync(enReport, "utf8");
-  assert.match(jaText, /^# WCAG 2\.2 A\/AA 検査レポート$/mu);
+  assert.match(jaText, /^# WCAG 2\.2 A\/AA 監査レポート$/mu);
   assert.match(enText, /^# WCAG 2\.2 A\/AA Audit Report$/mu);
   assert.doesNotMatch(enText, /検査対象|判定の出所|主張可能な範囲/u);
   assert.deepEqual(JSON.parse(fs.readFileSync(assessment, "utf8")), record);

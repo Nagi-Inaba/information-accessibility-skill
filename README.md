@@ -88,12 +88,15 @@ multi-agent構成はCodex版と同じrole artifact contractを維持します。
 
 ```powershell
 npm install --global .\codex\skills\information-accessibility-practice
-accessibility-audit --help
+accessibility-audit --locale ja --help
 accessibility-audit --version
-accessibility-audit profiles list
-accessibility-audit requirements search "focus" --profile web-modern --level AA
-accessibility-audit doctor
+accessibility-audit profiles list --locale ja
+accessibility-audit requirements search "フォーカス" --profile web-modern --level AA --locale ja
+accessibility-audit screen-reader-checklist --pattern modal-dialog --locale ja --format markdown
+accessibility-audit doctor --locale ja
 ```
+
+`--locale ja`と`--locale en`は、CLI help、profile、条項一覧・検索・表示、legacy requirement表示、スクリーンリーダーチェックリスト、レポートの人向け文字列だけを切り替えます。内部ID、schema key、enum、証拠型、claim tierは変更しません。
 
 これらのdiscovery commandはread-onlyです。標準CLIは監査対象を変更しません。
 

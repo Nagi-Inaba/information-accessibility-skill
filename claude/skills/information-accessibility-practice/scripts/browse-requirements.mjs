@@ -6,6 +6,11 @@ import process from "node:process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { assertValidStandardsRegistry, groupForRequirement, recordsForProfile } from "./lib/profile-registry.mjs";
+import {
+  normalizeRuntimeLocale,
+  requirementsUi,
+  runtimeLocaleFromEnvironment
+} from "./lib/runtime-locale.mjs";
 
 const scriptRoot = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.dirname(scriptRoot);
@@ -44,7 +49,11 @@ function parseArgs(argv) {
   if (!command || !["list", "search", "show"].includes(command)) {
     throw new Error("requirements requires list, search, or show.");
   }
-  const options = { command, format: "text", locale: "en" };
+  const options = {
+    command,
+    format: "text",
+    locale: runtimeLocaleFromEnvironment("en")
+  };
   let index = 0;
   if (["search", "show"].includes(command)) {
     const value = rest[0];
@@ -60,24 +69,23 @@ function parseArgs(argv) {
     ["--locale", "locale"],
     ["--format", "format"]
   ]);
+  const seen = new Set();
   for (; index < rest.length; index += 1) {
     const arg = rest[index];
     if (!supported.has(arg)) throw new Error(`Unknown argument: ${arg}`);
+    if (seen.has(arg)) throw new Error(`Duplicate argument: ${arg}`);
+    seen.add(arg);
     const value = rest[index + 1];
     if (!value || value.startsWith("--")) throw new Error(`Missing value for ${arg}`);
-    const key = supported.get(arg);
-    if (Object.hasOwn(options, `_set_${key}`)) throw new Error(`Duplicate argument: ${arg}`);
-    options[key] = value;
-    options[`_set_${key}`] = true;
+    options[supported.get(arg)] = value;
     index += 1;
   }
   if (options.level && !["A", "AA"].includes(options.level)) throw new Error("--level must be A or AA");
   if (options.procedure && !["available", "unavailable"].includes(options.procedure)) {
     throw new Error("--procedure must be available or unavailable");
   }
-  if (!["ja", "en"].includes(options.locale)) throw new Error("--locale must be ja or en");
+  options.locale = normalizeRuntimeLocale(options.locale, "en");
   if (!["text", "json", "markdown"].includes(options.format)) throw new Error("--format must be text, json, or markdown");
-  for (const key of Object.keys(options).filter((key) => key.startsWith("_set_"))) delete options[key];
   return options;
 }
 
@@ -89,6 +97,54 @@ function directOrEquivalentProcedure(record, procedures) {
     if (equivalent) return { status: "available", ref: `criterion-procedures:${procedures.schema_version}#${equivalent.id}` };
   }
   return { status: "unavailable", ref: null };
+}
+
+function titleMetadata(record, recordsById, recordsByCriterion) {
+  const relatedRecords = recordsByCriterion.get(record.success_criterion) ?? [];
+  const webRecord = record.web_modern_record_id
+    ? recordsById.get(record.web_modern_record_id)
+    : relatedRecords.find((item) => item.id.startsWith("WCAG-2.2-SC-"));
+  const japaneseRecord = relatedRecords.find((item) => item.id !== record.id && typeof item.title_ja === "string" && item.title_ja.length > 0);
+  const englishPeer = relatedRecords.find((item) => item.id !== record.id && typeof item.title_en === "string" && item.title_en.length > 0);
+
+  let titleEn;
+  let enStatus;
+  if (typeof record.title_en === "string" && record.title_en.length > 0) {
+    titleEn = record.title_en;
+    enStatus = "direct";
+  } else if (webRecord?.title_en) {
+    titleEn = webRecord.title_en;
+    enStatus = "equivalent_wcag";
+  } else if (record.id.startsWith("JIS-X-8341-3-2016-SC-") && record.success_criterion === "4.1.1") {
+    titleEn = "Parsing";
+    enStatus = "maintained_fallback";
+  } else if (englishPeer?.title_en) {
+    titleEn = englishPeer.title_en;
+    enStatus = "equivalent_profile";
+  } else {
+    titleEn = record.title_ja ?? record.success_criterion;
+    enStatus = "fallback";
+  }
+
+  let titleJa;
+  let jaStatus;
+  if (typeof record.title_ja === "string" && record.title_ja.length > 0) {
+    titleJa = record.title_ja;
+    jaStatus = "direct";
+  } else if (japaneseRecord?.title_ja) {
+    titleJa = japaneseRecord.title_ja;
+    jaStatus = japaneseRecord.id.startsWith("JIS-") ? "equivalent_jis" : "equivalent_japanese_profile";
+  } else {
+    titleJa = titleEn;
+    jaStatus = "fallback_en";
+  }
+
+  return {
+    title_en: titleEn,
+    title_ja: titleJa,
+    title_locale_status: { en: enStatus, ja: jaStatus },
+    web_record: webRecord
+  };
 }
 
 export function buildRequirementsIndex(root = skillRoot) {
@@ -106,15 +162,12 @@ export function buildRequirementsIndex(root = skillRoot) {
   }
 
   const requirements = activeProfiles.flatMap((profile) => recordsForProfile({ profile, catalog }).map((record) => {
-    const relatedRecords = recordsByCriterion.get(record.success_criterion) ?? [];
-    const webRecord = record.web_modern_record_id
-      ? recordsById.get(record.web_modern_record_id)
-      : relatedRecords.find((item) => item.id.startsWith("WCAG-2.2-SC-"));
-    const japaneseRecord = relatedRecords.find((item) => typeof item.title_ja === "string" && item.title_ja.length > 0);
+    const title = titleMetadata(record, recordsById, recordsByCriterion);
     const procedure = directOrEquivalentProcedure(record, procedures);
     const sourceUrls = urlsFrom(record);
     for (const standard of profile.standards ?? []) if (standard.primary_url) sourceUrls.add(standard.primary_url);
-    if (webRecord) urlsFrom(webRecord, sourceUrls);
+    if (title.web_record) urlsFrom(title.web_record, sourceUrls);
+    const relatedRecords = recordsByCriterion.get(record.success_criterion) ?? [];
     const relatedRequirementIds = [...new Set([
       ...relatedRecords.map((item) => item.id),
       record.web_modern_record_id
@@ -122,17 +175,18 @@ export function buildRequirementsIndex(root = skillRoot) {
     return {
       id: record.id,
       success_criterion: record.success_criterion,
-      title_en: record.title_en ?? webRecord?.title_en ?? record.title_ja ?? record.success_criterion,
-      title_ja: record.title_ja ?? japaneseRecord?.title_ja ?? record.title_en ?? webRecord?.title_en ?? record.success_criterion,
+      title_en: title.title_en,
+      title_ja: title.title_ja,
+      title_locale_status: title.title_locale_status,
       level: record.level,
-      introduced_in: record.introduced_in ?? webRecord?.introduced_in ?? null,
+      introduced_in: record.introduced_in ?? title.web_record?.introduced_in ?? null,
       profile_ids: [profile.id],
       profile_group: groupForRequirement(profile, record.id),
       method_key: record.method_key,
       procedure_status: procedure.status,
       procedure_ref: procedure.ref,
-      normative_url: record.normative_url ?? webRecord?.normative_url ?? null,
-      understanding_url: record.understanding_url ?? webRecord?.understanding_url ?? null,
+      normative_url: record.normative_url ?? title.web_record?.normative_url ?? null,
+      understanding_url: record.understanding_url ?? title.web_record?.understanding_url ?? null,
       source_urls: [...sourceUrls].sort((left, right) => left.localeCompare(right, "en")),
       related_requirement_ids: relatedRequirementIds,
       automation_role: record.automation_role,
@@ -215,54 +269,69 @@ function responseFor(index, options) {
   };
 }
 
-function renderRequirement(item) {
+function formatTemplate(value, replacements = {}) {
+  return String(value).replace(/\{([a-z_]+)\}/gu, (_match, key) => String(replacements[key] ?? `{${key}}`));
+}
+
+function renderRequirement(item, locale) {
+  const ui = requirementsUi(locale);
+  const h = ui.headings;
   return [
     `${item.success_criterion} ${item.title}`,
-    `  ID: ${item.id}`,
-    `  Profile: ${item.profile_ids.join(", ")}`,
-    `  Level: ${item.level}`,
-    `  Procedure: ${item.procedure_status}`,
-    `  Sources: ${item.source_urls.join(", ")}`,
-    `  Related: ${item.related_requirement_ids.join(", ") || "none"}`
+    `  ${h.id}: ${item.id}`,
+    `  ${h.profile}: ${item.profile_ids.join(", ")}`,
+    `  ${h.level}: ${item.level}`,
+    `  ${h.procedure}: ${ui.procedure_status[item.procedure_status]}`,
+    `  ${h.source_list}: ${item.source_urls.join(", ")}`,
+    `  ${h.related}: ${item.related_requirement_ids.join(", ") || h.none}`
   ].join("\n");
 }
 
 function renderText(response) {
-  if (response.command === "show") return renderRequirement(response.requirement);
+  const ui = requirementsUi(response.locale);
+  const heading = response.command === "search"
+    ? formatTemplate(ui.headings.search, { query: response.query })
+    : ui.headings.requirements;
+  if (response.command === "show") return renderRequirement(response.requirement, response.locale);
   return [
-    `${response.command === "search" ? `Search: ${response.query}` : "Requirements"} (${response.count})`,
+    `${heading} (${response.count})`,
     "",
-    ...response.requirements.flatMap((item) => [renderRequirement(item), ""])
+    ...response.requirements.flatMap((item) => [renderRequirement(item, response.locale), ""])
   ].join("\n").trimEnd();
 }
 
 function renderMarkdown(response) {
+  const ui = requirementsUi(response.locale);
+  const h = ui.headings;
   if (response.command === "show") {
     const item = response.requirement;
     return [
       `# ${item.success_criterion} ${item.title}`,
       "",
-      `- Internal ID: \`${item.id}\``,
-      `- Profile: ${item.profile_ids.map((id) => `\`${id}\``).join(", ")}`,
-      `- Level: ${item.level}`,
-      `- Criterion-specific procedure: ${item.procedure_status}`,
-      `- Related requirements: ${item.related_requirement_ids.map((id) => `\`${id}\``).join(", ") || "none"}`,
+      `- ${h.internal_id}: \`${item.id}\``,
+      `- ${h.profile}: ${item.profile_ids.map((id) => `\`${id}\``).join(", ")}`,
+      `- ${h.level}: ${item.level}`,
+      `- ${h.procedure}: ${ui.procedure_status[item.procedure_status]}`,
+      `- ${h.related}: ${item.related_requirement_ids.map((id) => `\`${id}\``).join(", ") || h.none}`,
       "",
-      "## Primary and guidance sources",
+      `## ${h.sources}`,
       "",
       ...item.source_urls.map((url) => `- ${url}`),
       "",
-      "> This metadata lookup is a reproducibility aid, not a conformance determination."
+      `> ${h.boundary}`
     ].join("\n");
   }
+  const title = response.command === "search"
+    ? formatTemplate(h.search, { query: response.query })
+    : h.requirements;
   return [
-    `# ${response.command === "search" ? `Requirement search: ${response.query}` : "Requirements"}`,
+    `# ${title}`,
     "",
-    `Results: ${response.count}`,
+    `${h.results}: ${response.count}`,
     "",
-    "| SC | Title | Level | Profile | Procedure | Internal ID |",
+    `| SC | ${h.title} | ${h.level} | ${h.profile} | ${h.procedure} | ${h.internal_id} |`,
     "| --- | --- | --- | --- | --- | --- |",
-    ...response.requirements.map((item) => `| ${item.success_criterion} | ${item.title} | ${item.level} | ${item.profile_ids.join(", ")} | ${item.procedure_status} | \`${item.id}\` |`)
+    ...response.requirements.map((item) => `| ${item.success_criterion} | ${item.title} | ${item.level} | ${item.profile_ids.join(", ")} | ${ui.procedure_status[item.procedure_status]} | \`${item.id}\` |`)
   ].join("\n");
 }
 
