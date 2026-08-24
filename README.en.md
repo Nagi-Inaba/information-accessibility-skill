@@ -97,6 +97,15 @@ accessibility-audit --help
 node .\codex\skills\information-accessibility-practice\scripts\accessibility-audit.mjs --help
 ```
 
+After installation, use these read-only discovery commands to inspect the package version, active profiles, requirement search, and optional dependencies.
+
+```powershell
+accessibility-audit --version
+accessibility-audit profiles list
+accessibility-audit requirements search "focus" --profile web-modern --level AA
+accessibility-audit doctor
+```
+
 ## Try it in five minutes
 
 The following example creates a complete WCAG 2.2 Level A and AA standalone ledger with all 55 rows initialized as `not_tested`, validates it, and renders guarded reference guidance. Run it from the repository root.
@@ -150,6 +159,7 @@ See the [Web inspection guide](docs/web-inspection.md) for dependencies, network
 ## Detailed documentation
 
 - [Getting started: first run and usage paths](docs/getting-started.md)
+- [Runnable examples for all three paths](examples/README.md)
 - [Architecture, responsibilities, artifacts, and bilingual glossary](docs/architecture-and-glossary.md)
 - [Browser-based Web inspection and network boundaries](docs/web-inspection.md)
 - [Agent orchestration for Codex](codex/skills/information-accessibility-practice/references/agent-orchestration.md)
