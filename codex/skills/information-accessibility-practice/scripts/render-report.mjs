@@ -6,9 +6,11 @@ import process from "node:process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import {
+  assertNewOutputPath,
   assertStableFile,
   readStableFile,
   validateAuditRun,
+  writeNewJson,
   writeNewText
 } from "./lib/audit-run.mjs";
 import {
@@ -21,6 +23,14 @@ import {
   renderReportMarkdown
 } from "./lib/report-presentation.mjs";
 import { normalizeReportLocale } from "./lib/report-locale.mjs";
+import {
+  addPublicationNotice,
+  applyReportVisibility,
+  buildInternalRunBackedModel,
+  normalizeReportVisibility,
+  normalizeReviewerDisclosure
+} from "./lib/report-privacy.mjs";
+import { renderReportSummaryMarkdown } from "./lib/report-summary.mjs";
 import { validateAssessment } from "./validate-assessment.mjs";
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
@@ -43,15 +53,20 @@ function hardenMarkdownOutput(value) {
 }
 
 function parseArgs(argv) {
-  const options = { locale: "ja" };
+  const options = { locale: "ja", detail: "full", visibility: "internal" };
   const supported = new Map([
     ["--input", "input"],
     ["--run", "run"],
     ["--assessment", "assessment"],
     ["--output", "output"],
-    ["--locale", "locale"]
+    ["--locale", "locale"],
+    ["--detail", "detail"],
+    ["--appendix", "appendix"],
+    ["--visibility", "visibility"],
+    ["--reviewer-disclosure", "reviewerDisclosure"],
+    ["--redaction-manifest", "redactionManifest"]
   ]);
-  let localeSeen = false;
+  const seen = new Set();
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === "--help" || arg === "-h") {
@@ -60,35 +75,63 @@ function parseArgs(argv) {
     }
     const key = supported.get(arg);
     if (!key) throw new Error(`Unknown argument: ${arg}`);
+    if (seen.has(arg)) throw new Error(`Duplicate argument: ${arg}`);
+    seen.add(arg);
     const value = argv[index + 1];
     if (!value || value.startsWith("--")) throw new Error(`Missing value for ${arg}`);
-    if (key === "locale") {
-      if (localeSeen) throw new Error("Duplicate argument: --locale");
-      localeSeen = true;
-    } else if (options[key] !== undefined) {
-      throw new Error(`Duplicate argument: ${arg}`);
-    }
     options[key] = value;
     index += 1;
   }
   options.locale = normalizeReportLocale(options.locale);
+  if (!["summary", "full"].includes(options.detail)) throw new Error("--detail must be summary or full");
+  options.visibility = normalizeReportVisibility(options.visibility);
+  if (options.reviewerDisclosure !== undefined) {
+    options.reviewerDisclosure = normalizeReviewerDisclosure(options.reviewerDisclosure);
+  }
   return options;
+}
+
+function validateOptionCombinations(options) {
+  if (options.appendix && options.detail !== "summary") {
+    throw new Error("--appendix is available only with --detail summary.");
+  }
+  if (options.visibility === "public") {
+    if (!options.reviewerDisclosure) throw new Error("Public output requires --reviewer-disclosure include|redact.");
+    if (!options.redactionManifest) throw new Error("Public output requires --redaction-manifest <manifest.json>.");
+  } else {
+    options.reviewerDisclosure ??= "include";
+    if (options.redactionManifest) throw new Error("--redaction-manifest is only valid with --visibility public.");
+  }
+}
+
+function outputPaths(options) {
+  return [options.output, options.appendix, options.redactionManifest].filter(Boolean).map((value) => path.resolve(value));
+}
+
+function preflightOutputs(options) {
+  const paths = outputPaths(options);
+  const keys = paths.map((value) => process.platform === "win32" ? value.toLowerCase() : value);
+  if (new Set(keys).size !== keys.length) throw new Error("Report, appendix, and redaction manifest must use distinct output paths.");
+  for (const output of paths) assertNewOutputPath(output);
 }
 
 export function usage() {
   return [
     "Usage:",
-    "  accessibility-audit report --input <assessment.json> [--locale ja|en] [--output <new-report.md>]",
-    "  accessibility-audit report --run <audit-run.json> --assessment <assessment.json> --output <new-report.md> [--locale ja|en]",
+    "  accessibility-audit report --input <assessment.json> [report options]",
+    "  accessibility-audit report --run <audit-run.json> --assessment <assessment.json> --output <new-report.md> [report options]",
     "",
-    "Interfaces:",
-    "  --input        Render a validated standalone assessment.",
-    "  --run          Render a current run-backed assessment with registered artifact provenance.",
-    "  --assessment   Assessment bound to the supplied run.",
-    "  --locale       Human-readable report locale. Allowed: ja, en. Default: ja.",
-    "  --output       New Markdown output. Existing files are never overwritten.",
+    "Report options:",
+    "  --locale <ja|en>                         Human-readable locale. Default: ja.",
+    "  --detail <summary|full>                  Decision-ready summary or complete 55/56-row report. Default: full.",
+    "  --appendix <full-report.md>              With --detail summary, also write the complete report.",
+    "  --visibility <internal|public>           Internal raw data or publication-oriented redaction. Default: internal.",
+    "  --reviewer-disclosure <include|redact>   Required for public output.",
+    "  --redaction-manifest <manifest.json>     Required internal review record for public output.",
+    "  --output <report.md>                     New Markdown output. Existing files are never overwritten.",
     "",
-    "The report does not modify the audited target and does not convert AI screening into a human-verified profile outcome."
+    "Public redaction is not publication approval. Human publication review remains required.",
+    "The command does not modify the audited target or promote AI screening into a human-verified profile outcome."
   ].join("\n");
 }
 
@@ -102,29 +145,56 @@ function validateStandalone(record) {
   return { registry, catalog, validation };
 }
 
+function renderOutputs(rawPresentation, options) {
+  const { presentation, manifest } = applyReportVisibility(rawPresentation, {
+    visibility: options.visibility,
+    reviewerDisclosure: options.reviewerDisclosure
+  });
+  const renderFull = () => addPublicationNotice(
+    hardenMarkdownOutput(renderReportMarkdown(presentation)),
+    presentation
+  );
+  const report = options.detail === "summary"
+    ? addPublicationNotice(hardenMarkdownOutput(renderReportSummaryMarkdown(presentation)), presentation)
+    : renderFull();
+  const appendix = options.appendix ? renderFull() : null;
+  return { report, appendix, manifest, presentation };
+}
+
+function writeRequestedOutputs(options, rendered, beforeWrite) {
+  const written = { output: null, appendix: null, redaction_manifest: null };
+  if (options.redactionManifest) {
+    written.redaction_manifest = writeNewJson(path.resolve(options.redactionManifest), rendered.manifest, { beforeWrite });
+  }
+  if (options.appendix) written.appendix = writeNewText(path.resolve(options.appendix), rendered.appendix, { beforeWrite });
+  if (options.output) written.output = writeNewText(path.resolve(options.output), rendered.report, { beforeWrite });
+  return written;
+}
+
 function renderStandalone(options) {
   const snapshot = readStableFile(path.resolve(options.input), { label: "standalone assessment" });
   const record = parseSnapshotJson(snapshot, "standalone assessment");
   const { registry, catalog, validation } = validateStandalone(record);
-  const presentation = buildStandalonePresentation({
+  const rawPresentation = buildStandalonePresentation({
     record,
     validation,
     registry,
     catalog,
     locale: options.locale
   });
-  const report = hardenMarkdownOutput(renderReportMarkdown(presentation));
+  const rendered = renderOutputs(rawPresentation, options);
+  const written = writeRequestedOutputs(options, rendered, () => assertStableFile(snapshot, "standalone assessment"));
   if (!options.output) {
     assertStableFile(snapshot, "standalone assessment");
-    process.stdout.write(report);
-    return { status: "PASS", input: snapshot.path, output: null };
+    process.stdout.write(rendered.report);
   }
-  const output = writeNewText(path.resolve(options.output), report, {
-    beforeWrite() {
-      assertStableFile(snapshot, "standalone assessment");
-    }
-  });
-  return { status: "PASS", input: snapshot.path, output };
+  return {
+    status: "PASS",
+    input: snapshot.path,
+    detail: options.detail,
+    visibility: options.visibility,
+    ...written
+  };
 }
 
 function renderRunBacked(options) {
@@ -158,27 +228,39 @@ function renderRunBacked(options) {
     envelopesById: runValidation.envelopesById,
     resources: runValidation.resources
   });
-  const presentation = buildRunBackedPresentation({
+  const internalModel = buildInternalRunBackedModel({
+    run,
+    assessment,
+    publicModel,
+    envelopesById: runValidation.envelopesById
+  });
+  const rawPresentation = buildRunBackedPresentation({
     run,
     assessment,
     validation,
-    publicModel,
+    publicModel: internalModel,
     registry: runValidation.resources.standardsRegistry,
     catalog: runValidation.resources.criteriaCatalog,
     locale: options.locale
   });
-  const report = hardenMarkdownOutput(renderReportMarkdown(presentation));
+  const rendered = renderOutputs(rawPresentation, options);
   const artifactSnapshots = [...runValidation.envelopesById.values()]
     .map((record) => record.snapshot)
     .filter(Boolean);
-  const output = writeNewText(path.resolve(options.output), report, {
-    beforeWrite() {
-      assertStableFile(runSnapshot, "audit run");
-      assertStableFile(assessmentSnapshot, "run-backed assessment");
-      for (const snapshot of artifactSnapshots) assertStableFile(snapshot, "registered artifact");
-    }
-  });
-  return { status: "PASS", run: runSnapshot.path, assessment: assessmentSnapshot.path, output };
+  const assertInputsStable = () => {
+    assertStableFile(runSnapshot, "audit run");
+    assertStableFile(assessmentSnapshot, "run-backed assessment");
+    for (const snapshot of artifactSnapshots) assertStableFile(snapshot, "registered artifact");
+  };
+  const written = writeRequestedOutputs(options, rendered, assertInputsStable);
+  return {
+    status: "PASS",
+    run: runSnapshot.path,
+    assessment: assessmentSnapshot.path,
+    detail: options.detail,
+    visibility: options.visibility,
+    ...written
+  };
 }
 
 export function main(argv = process.argv.slice(2)) {
@@ -187,18 +269,15 @@ export function main(argv = process.argv.slice(2)) {
     process.stdout.write(`${usage()}\n`);
     return 0;
   }
+  validateOptionCombinations(options);
   const runBacked = Boolean(options.run || options.assessment);
   if (options.input && runBacked) throw new Error("Use either --input or the --run/--assessment interface, not both.");
   if (!options.input && !runBacked) throw new Error("--input or --run/--assessment is required.");
-  let result;
-  if (runBacked) {
-    if (!options.run || !options.assessment || !options.output) {
-      throw new Error("--run, --assessment, and --output are required for a run-backed report.");
-    }
-    result = renderRunBacked(options);
-  } else {
-    result = renderStandalone(options);
+  if (runBacked && (!options.run || !options.assessment || !options.output)) {
+    throw new Error("--run, --assessment, and --output are required for a run-backed report.");
   }
+  preflightOutputs(options);
+  const result = runBacked ? renderRunBacked(options) : renderStandalone(options);
   if (result.output) process.stdout.write(`${JSON.stringify(result)}\n`);
   return 0;
 }

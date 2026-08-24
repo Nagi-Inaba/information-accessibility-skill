@@ -36,7 +36,7 @@ Run from the repository root. The example creates a complete WCAG 2.2 A/AA ledge
 ```powershell
 node .\codex\skills\information-accessibility-practice\scripts\accessibility-audit.mjs assessment --profile web-modern --target-name "Example Site" --target-version "2026-08-24" --target-ref "https://example.com/" --evaluator "Accessibility Reviewer" --evaluated-at "2026-08-24" --output .\audit-runs\quickstart\audit.json
 node .\codex\skills\information-accessibility-practice\scripts\accessibility-audit.mjs validate-assessment .\audit-runs\quickstart\audit.json
-node .\codex\skills\information-accessibility-practice\scripts\accessibility-audit.mjs report --input .\audit-runs\quickstart\audit.json --locale ja --output .\audit-runs\quickstart\audit-report.md
+node .\codex\skills\information-accessibility-practice\scripts\accessibility-audit.mjs report --input .\audit-runs\quickstart\audit.json --locale ja --detail full --visibility internal --output .\audit-runs\quickstart\audit-report.md
 ```
 
 Expected files / 生成物:
@@ -85,7 +85,7 @@ Run-backed reporting uses the same profile title, criterion metadata, group coun
 run-backedレポートもstandaloneと同じ表示規則を使い、各行で外部人手レビュー、AI／自動スクリーニング、未実施を区別します。screening projectionはreport-only judgementであり、`human_verified`へ自動昇格しません。
 
 ```powershell
-node .\codex\skills\information-accessibility-practice\scripts\accessibility-audit.mjs report --run .\audit-runs\example\audit-run.json --assessment .\audit-runs\example\merged-assessment.json --locale en --output .\audit-runs\example\audit-report.en.md
+node .\codex\skills\information-accessibility-practice\scripts\accessibility-audit.mjs report --run .\audit-runs\example\audit-run.json --assessment .\audit-runs\example\merged-assessment.json --locale en --detail summary --visibility internal --output .\audit-runs\example\audit-report.en.md --appendix .\audit-runs\example\audit-report.full.en.md
 ```
 
 The complete control-plane contract is documented in:
@@ -94,8 +94,27 @@ The complete control-plane contract is documented in:
 - [`standards-assessment.md`](../codex/skills/information-accessibility-practice/references/standards-assessment.md)
 - [`development-web-audit-request.template.md`](../codex/skills/information-accessibility-practice/assets/development-web-audit-request.template.md)
 - [`architecture-and-glossary.md`](architecture-and-glossary.md)
+- [`reporting.md`](reporting.md)
 
-## 5. Evidence boundary / 証拠の境界
+## 5. Report detail and visibility / レポートの情報量と公開範囲
+
+Choose `--detail summary` for a decision-ready view or `--detail full` for the complete 55/56-row report. `--detail summary --appendix <path>` writes both from the same validated presentation model.
+`--detail summary`は意思決定向けの短い表示、`--detail full`は55／56件の完全版です。`--appendix`を併用すると同じ検証済みmodelから両方を生成します。
+
+`--visibility internal` preserves raw audit information and explicitly marks the output as not publication-ready. Public output requires a reviewer-disclosure choice and a separate internal redaction manifest.
+`--visibility internal`は監査情報を保持し、公開用ではないことを明示します。公開向け出力では、確認者情報の扱いと内部用redaction manifestを必須指定します。
+
+```powershell
+node .\codex\skills\information-accessibility-practice\scripts\accessibility-audit.mjs report --input .\audit-runs\quickstart\audit.json --locale ja --detail summary --visibility public --reviewer-disclosure redact --redaction-manifest .\audit-runs\quickstart\redactions.json --output .\audit-runs\quickstart\public-summary.md --appendix .\audit-runs\quickstart\public-full.md
+```
+
+Automated redaction cannot detect every sensitive value. Public output always requires human publication review. The manifest records only the field path, reason, and action; it does not copy the removed value.
+自動伏字ですべての機微情報を検出することはできません。公開向け出力には人による公開前確認が必要です。manifestにはfield path、理由、処理だけを記録し、削除した値は複製しません。
+
+See [`reporting.md`](reporting.md) for the complete contract and examples.
+詳細な契約と例は[`reporting.md`](reporting.md)を参照してください。
+
+## 6. Evidence boundary / 証拠の境界
 
 - AI and automated tools may create E0/E1 screening observations.
 - A profile requirement becomes evaluated only through an external human review using the applicable procedure and target-specific evidence.
