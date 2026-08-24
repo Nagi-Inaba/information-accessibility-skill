@@ -32,7 +32,7 @@ AIと自動検査が作るものは、原則として問題候補やE0／E1のsc
 | 利用経路 | 向いている目的 | 主な成果物 | 注意点 |
 | --- | --- | --- | --- |
 | **自然言語レビュー** | まず問題候補と改善案を知る。文書、動画、イベントも含む | 会話形式のレビュー、改善案、人による追加確認 | 規格台帳や工程履歴を残す用途ではない |
-| **standalone評価** | WCAG／JISの全条項を含む一時点の評価台帳を作る | assessment JSONとprofile-awareなMarkdown検査レポート | 初期化直後は全条項が`not_tested`であり、検査完了ではない |
+| **standalone評価** | WCAG／JISの全条項を含む一時点の評価台帳を作る | assessment JSONとprofile-awareなMarkdown／HTML検査レポート | 初期化直後は全条項が`not_tested`であり、検査完了ではない |
 | **run-backed監査** | screening、人手確認、改善、再検査を追跡する | audit run、登録artifact、統合assessment、レポート | schemaとartifactの関係を理解する必要がある |
 
 処理全体と役割分担は、[アーキテクチャと用語集](docs/architecture-and-glossary.md)で確認できます。3経路を実際に動かす場合は[実行可能なexamples](examples/README.md)を使います。
@@ -113,6 +113,10 @@ node .\codex\skills\information-accessibility-practice\scripts\accessibility-aud
 
 `--locale ja`と`--locale en`は人向け表示だけを変更し、内部ID、schema key、enumは変更しません。主張可能な範囲には、要求されたtier、validator上限、registryの固定wording、制限理由を表示します。
 
+`--format markdown`が既定の編集・差分管理用形式で、`--format html`はブラウザー配布向けのaccessible HTMLです。`--detail summary`／`--detail full`、同形式の完全版を分ける`--appendix`、`--visibility internal`／`--visibility public`を共通して利用できます。
+
+PDFは、taggingとreading orderを検証できる正式経路がないためサポート対象外です。HTMLの構造、生成物E2E、NVDA smoke test、残る外部確認は[レポート形式とアクセシビリティ](docs/report-formats.md)に整理しています。
+
 編集用プレースホルダーだけが必要な場合はtemplate modeを使います。
 
 ```powershell
@@ -131,8 +135,9 @@ node .\codex\skills\information-accessibility-practice\scripts\generate-assessme
 | audit run | 対象、権限、artifact hash、状態遷移を保持 | 非公開 |
 | human-review queue | 人が確認する条項、手順、必要証拠 | 作業用 |
 | Markdown report | profile、判定、provenance、claim、改善、未確認事項を表示 | publication review後に共有可能 |
+| HTML report | lang、landmark、目次、skip link、table semanticsを持つ配布用レポート | public visibilityとpublication review後に共有可能 |
 
-各成果物の作成者、入力、出力、公開可否は[成果物マップ](docs/architecture-and-glossary.md)に整理しています。
+各成果物の作成者、入力、出力、公開可否は[成果物マップ](docs/architecture-and-glossary.md)に整理しています。形式別の対応範囲は[レポート形式ガイド](docs/report-formats.md)を参照してください。
 
 ## 実Web検査
 
@@ -149,6 +154,7 @@ https://example.com/
 
 - [はじめに：最初の1回と利用経路](docs/getting-started.md)
 - [実行可能な3経路のexamples](examples/README.md)
+- [レポート形式、HTMLアクセシビリティ、検証境界](docs/report-formats.md)
 - [アーキテクチャ、役割、成果物、日英用語集](docs/architecture-and-glossary.md)
 - [実Web検査とbrowser／network境界](docs/web-inspection.md)
 - [Codex向けagent orchestration](codex/skills/information-accessibility-practice/references/agent-orchestration.md)
