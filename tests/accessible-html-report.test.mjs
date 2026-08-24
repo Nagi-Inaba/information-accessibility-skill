@@ -229,7 +229,7 @@ test("public HTML uses the shared sanitizer and escapes hostile assessment prose
   const html = fs.readFileSync(output, "utf8");
 
   assertDocumentShell(html, "en");
-  assert.doesNotMatch(html, /<script>alert\(1\)<\/script>|onerror=/u);
+  assert.doesNotMatch(html, /<script\b|<img\b[^>]*\bonerror\s*=/iu);
   assert.match(html, /&lt;img src=x onerror=&quot;alert\(&#39;x&#39;\)&quot;&gt;/u);
   for (const secret of ["alice@example.com", "HTML-SECRET", "PRIVATE-HTML-TOKEN", "HTML-BEARER-SECRET", "C:\\Users\\Alice"]) {
     assert.equal(html.includes(secret), false, `public HTML leaked ${secret}`);
