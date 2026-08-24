@@ -158,7 +158,9 @@ test("standalone reports and catalog candidates share nested safe output creatio
   const report = path.join(temp, "reports", "public", "report.md");
   const rendered = runNode([renderer, "--input", assessment, "--output", report]);
   assert.equal(rendered.status, 0, rendered.stderr || rendered.stdout);
-  assert.match(fs.readFileSync(report, "utf8"), /^# WCAG参照ガイダンス/mu);
+  const reportText = fs.readFileSync(report, "utf8");
+  assert.match(reportText, /^# WCAG 2\.2 A\/AA 監査レポート$/mu);
+  assert.match(reportText, /^## 主張可能な範囲$/mu);
 
   const candidate = path.join(temp, "catalog", "candidate.json");
   writeCatalogCandidate(candidate, { status: "candidate" });
