@@ -1,0 +1,70 @@
+name: NVDA report smoke
+
+on:
+  pull_request:
+    paths:
+      - "codex/skills/information-accessibility-practice/scripts/render-report.mjs"
+      - "claude/skills/information-accessibility-practice/scripts/render-report.mjs"
+      - "codex/skills/information-accessibility-practice/scripts/lib/report-*.mjs"
+      - "claude/skills/information-accessibility-practice/scripts/lib/report-*.mjs"
+      - "scripts/run-nvda-report-smoke.ps1"
+      - "tests/nvda-report-smoke-contract.test.mjs"
+      - ".github/workflows/report-nvda-smoke.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  NVDA_VERSION: "2026.1.1"
+  NVDA_URL: "https://download.nvaccess.org/releases/2026.1.1/nvda_2026.1.1.exe"
+  NVDA_SHA256: "6e0289eb5a3aa076eb97ea99c5d5465cb48b5ecc6a3257dc3d811f881a1747c9"
+
+jobs:
+  nvda-report:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+      - name: Generate the fixed English HTML report fixture
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path audit-runs/nvda-report -Force | Out-Null
+          node ./codex/skills/information-accessibility-practice/scripts/accessibility-audit.mjs assessment `
+            --profile web-modern `
+            --target-name "NVDA generated report smoke fixture" `
+            --target-version "2026-08-24" `
+            --target-ref "https://example.com/" `
+            --evaluator "NVDA smoke workflow" `
+            --evaluated-at "2026-08-24" `
+            --output audit-runs/nvda-report/assessment.json
+          node ./codex/skills/information-accessibility-practice/scripts/accessibility-audit.mjs report `
+            --input audit-runs/nvda-report/assessment.json `
+            --format html `
+            --locale en `
+            --detail full `
+            --visibility internal `
+            --output audit-runs/nvda-report/report.html
+      - name: Run bounded NVDA and Edge smoke
+        shell: pwsh
+        run: |
+          ./scripts/run-nvda-report-smoke.ps1 `
+            -ReportPath audit-runs/nvda-report/report.html `
+            -NvdaDownloadUrl $env:NVDA_URL `
+            -NvdaSha256 $env:NVDA_SHA256 `
+            -NvdaVersion $env:NVDA_VERSION `
+            -OutputDirectory audit-runs/nvda-report/evidence
+      - name: Upload NVDA smoke evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: accessible-report-nvda-evidence
+          path: |
+            audit-runs/nvda-report/report.html
+            audit-runs/nvda-report/evidence/nvda-smoke-record.json
+            audit-runs/nvda-report/evidence/nvda.log
+          if-no-files-found: error
+          retention-days: 14

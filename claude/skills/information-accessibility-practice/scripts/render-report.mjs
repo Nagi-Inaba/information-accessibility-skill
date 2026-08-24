@@ -17,6 +17,7 @@ import {
   buildPublicReportModel,
   validateRunBackedAssessment
 } from "./legacy-report-core.mjs";
+import { renderReportHtml } from "./lib/report-html.mjs";
 import {
   buildRunBackedPresentation,
   buildStandalonePresentation,
@@ -53,7 +54,7 @@ function hardenMarkdownOutput(value) {
 }
 
 function parseArgs(argv) {
-  const options = { locale: "ja", detail: "full", visibility: "internal" };
+  const options = { locale: "ja", detail: "full", visibility: "internal", format: "markdown" };
   const supported = new Map([
     ["--input", "input"],
     ["--run", "run"],
@@ -64,7 +65,8 @@ function parseArgs(argv) {
     ["--appendix", "appendix"],
     ["--visibility", "visibility"],
     ["--reviewer-disclosure", "reviewerDisclosure"],
-    ["--redaction-manifest", "redactionManifest"]
+    ["--redaction-manifest", "redactionManifest"],
+    ["--format", "format"]
   ]);
   const seen = new Set();
   for (let index = 0; index < argv.length; index += 1) {
@@ -84,6 +86,7 @@ function parseArgs(argv) {
   }
   options.locale = normalizeReportLocale(options.locale);
   if (!["summary", "full"].includes(options.detail)) throw new Error("--detail must be summary or full");
+  if (!["markdown", "html"].includes(options.format)) throw new Error("--format must be markdown or html");
   options.visibility = normalizeReportVisibility(options.visibility);
   if (options.reviewerDisclosure !== undefined) {
     options.reviewerDisclosure = normalizeReviewerDisclosure(options.reviewerDisclosure);
@@ -119,18 +122,20 @@ export function usage() {
   return [
     "Usage:",
     "  accessibility-audit report --input <assessment.json> [report options]",
-    "  accessibility-audit report --run <audit-run.json> --assessment <assessment.json> --output <new-report.md> [report options]",
+    "  accessibility-audit report --run <audit-run.json> --assessment <assessment.json> --output <new-report.md|html> [report options]",
     "",
     "Report options:",
+    "  --format <markdown|html>                 Output format. Default: markdown.",
     "  --locale <ja|en>                         Human-readable locale. Default: ja.",
     "  --detail <summary|full>                  Decision-ready summary or complete 55/56-row report. Default: full.",
-    "  --appendix <full-report.md>              With --detail summary, also write the complete report.",
+    "  --appendix <full-report.md|html>         With --detail summary, also write the complete report in the selected format.",
     "  --visibility <internal|public>           Internal raw data or publication-oriented redaction. Default: internal.",
     "  --reviewer-disclosure <include|redact>   Required for public output.",
     "  --redaction-manifest <manifest.json>     Required internal review record for public output.",
-    "  --output <report.md>                     New Markdown output. Existing files are never overwritten.",
+    "  --output <report.md|html>                New output. Existing files are never overwritten.",
     "",
     "Public redaction is not publication approval. Human publication review remains required.",
+    "HTML is the supported distribution format. PDF is not supported until tagging and reading order can be verified.",
     "The command does not modify the audited target or promote AI screening into a human-verified profile outcome."
   ].join("\n");
 }
@@ -145,11 +150,26 @@ function validateStandalone(record) {
   return { registry, catalog, validation };
 }
 
+function encodeRelativeHref(fromFile, toFile) {
+  const fromDirectory = fromFile ? path.dirname(path.resolve(fromFile)) : process.cwd();
+  const relative = path.relative(fromDirectory, path.resolve(toFile)).split(path.sep).join("/");
+  return relative.split("/").map((part) => encodeURIComponent(part)).join("/");
+}
+
 function renderOutputs(rawPresentation, options) {
   const { presentation, manifest } = applyReportVisibility(rawPresentation, {
     visibility: options.visibility,
     reviewerDisclosure: options.reviewerDisclosure
   });
+  if (options.format === "html") {
+    const appendixHref = options.appendix ? encodeRelativeHref(options.output, options.appendix) : null;
+    return {
+      report: renderReportHtml(presentation, { detail: options.detail, appendixHref }),
+      appendix: options.appendix ? renderReportHtml(presentation, { detail: "full" }) : null,
+      manifest,
+      presentation
+    };
+  }
   const renderFull = () => addPublicationNotice(
     hardenMarkdownOutput(renderReportMarkdown(presentation)),
     presentation
@@ -191,6 +211,7 @@ function renderStandalone(options) {
   return {
     status: "PASS",
     input: snapshot.path,
+    format: options.format,
     detail: options.detail,
     visibility: options.visibility,
     ...written
@@ -257,6 +278,7 @@ function renderRunBacked(options) {
     status: "PASS",
     run: runSnapshot.path,
     assessment: assessmentSnapshot.path,
+    format: options.format,
     detail: options.detail,
     visibility: options.visibility,
     ...written
