@@ -167,19 +167,24 @@ const definitions = [
   },
   {
     name: "report",
-    script: "render-audit-report.mjs",
-    summary: "Render a guarded Markdown report from a validated standalone or run-backed assessment.",
+    script: "render-report.mjs",
+    summary: "Render a profile-aware, provenance-explicit Markdown report from a validated standalone or run-backed assessment.",
     usage: [
-      "accessibility-audit report --input <assessment.json> [--output <report.md>]",
-      "accessibility-audit report --run <audit-run.json> --assessment <assessment.json> --output <new-report.md>"
+      "accessibility-audit report --input <assessment.json> [--locale ja|en] [--output <report.md>]",
+      "accessibility-audit report --run <audit-run.json> --assessment <assessment.json> --output <new-report.md> [--locale ja|en]"
     ],
     options: [
       option("--input", "<assessment.json>", "Standalone interface."),
       option("--run", "<audit-run.json>", "Run-backed interface; requires --assessment and --output."),
       option("--assessment", "<assessment.json>", "Merged run-backed assessment."),
+      option("--locale", "<ja|en>", "Human-readable report locale; default ja. IDs and enum values do not change."),
       option("--output", "<report.md>", "New report path. Standalone mode may write to stdout when omitted.")
     ],
-    notes: ["Use either --input or --run/--assessment, never both."]
+    notes: [
+      "Use either --input or --run/--assessment, never both.",
+      "Screening projections are report-only judgements and are never promoted to human-verified profile outcomes.",
+      "Existing files are never overwritten."
+    ]
   },
   {
     name: "retest",
