@@ -60,6 +60,10 @@ function criterionRow(report, successCriterion) {
   return report.split(/\r?\n/u).find((line) => line.startsWith(`| ${successCriterion} |`));
 }
 
+function criterionRows(report) {
+  return report.split(/\r?\n/u).filter((line) => /^\| \d+(?:\.\d+){2} \|/u.test(line));
+}
+
 test("standalone reports use profile-aware Japanese and English titles, groups, metadata, and JIS parsing note", (t) => {
   const webJa = renderStandalone(t, "web-modern", "ja");
   const webEn = renderStandalone(t, "web-modern", "en");
@@ -163,4 +167,76 @@ test("claim section shows requested and validator maximum tiers with registry-fi
   assert.match(english, /Profile-informed guidance only; the target was not reviewed against the full requirement set\./u);
   assert.match(english, /Human-reviewed requirements: 1\/55/u);
   assert.match(english, /not a formal conformance declaration/iu);
+});
+
+test("a complete synthetic human-review fixture preserves human provenance for all 55 rows without claiming certification", (t) => {
+  const directory = tempDirectory(t);
+  const assessmentFile = path.join(directory, "complete-human.json");
+  const reportFile = path.join(directory, "complete-human.en.md");
+  const record = generateAssessment("web-modern", {
+    targetName: "Complete human provenance fixture",
+    targetVersion: "2026-08-24",
+    targetRefs: ["https://example.com/"],
+    evaluator: "Synthetic external reviewer fixture",
+    evaluatedAt: "2026-08-24"
+  });
+  for (const row of record.assessment.results) {
+    row.mapping_status = "human_verified";
+    row.outcome = "pass";
+    row.method_kind = "manual";
+    row.evidence = [{
+      type: "manual_observation",
+      location: row.requirement_id,
+      observation: "The synthetic external reviewer fixture records a target-specific manual check for this requirement.",
+      captured_at: "2026-08-24T00:00:00Z"
+    }];
+    row.notes = "Synthetic target-specific human-review evidence was recorded for report provenance testing.";
+  }
+  record.assessment.evidence_level = "E2";
+  record.assessment.limitations = [
+    "This is a synthetic external-review fixture and does not establish reviewer identity or formal conformance."
+  ];
+  writeJson(assessmentFile, record);
+
+  const rendered = runCli([
+    "report",
+    "--input", assessmentFile,
+    "--locale", "en",
+    "--output", reportFile
+  ]);
+  assert.equal(rendered.status, 0, rendered.stderr || rendered.stdout);
+  const report = fs.readFileSync(reportFile, "utf8");
+  const rows = criterionRows(report);
+  assert.equal(rows.length, 55);
+  assert.ok(rows.every((row) => /External human review/u.test(row)), "every profile row must retain human provenance");
+  assert.ok(rows.every((row) => /\| E2 \|/u.test(row)), "every profile row must retain E2 evidence level");
+  assert.doesNotMatch(rows.join("\n"), /AI\/automated screening|Not run/u);
+  assert.match(report, /Human-reviewed requirements: 55\/55/u);
+  assert.match(report, /Validator maximum tier: `evaluated_subset`/u);
+  assert.match(report, /not a formal conformance declaration/iu);
+  assert.doesNotMatch(report, /certified|certification candidate/iu);
+});
+
+test("localized report output escapes HTML and Markdown heading injection from assessment prose", (t) => {
+  const directory = tempDirectory(t);
+  const assessmentFile = path.join(directory, "injection.json");
+  const reportFile = path.join(directory, "injection.md");
+  const record = generateAssessment("web-modern", {
+    targetName: "Example <script>alert(1)</script>\n## Forged claim",
+    targetVersion: "2026-08-24",
+    targetRefs: ["https://example.com/"],
+    evaluator: "Report fixture",
+    evaluatedAt: "2026-08-24"
+  });
+  writeJson(assessmentFile, record);
+  const rendered = runCli([
+    "report",
+    "--input", assessmentFile,
+    "--locale", "en",
+    "--output", reportFile
+  ]);
+  assert.equal(rendered.status, 0, rendered.stderr || rendered.stdout);
+  const report = fs.readFileSync(reportFile, "utf8");
+  assert.match(report, /Example &lt;script&gt;alert\(1\)&lt;\/script&gt;<br>\\#\\# Forged claim/u);
+  assert.doesNotMatch(report, /<script>|^## Forged claim$/mu);
 });
