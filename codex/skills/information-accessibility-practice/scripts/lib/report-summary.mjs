@@ -24,7 +24,7 @@ function count(counts, key) {
 }
 
 function sourceLabel(presentation, row) {
-  return presentation.messages.source[row.source_kind] ?? row.source_kind;
+  return presentation.messages.sources[row.source_kind] ?? row.source_kind;
 }
 
 function outcomeLabel(presentation, outcome) {
