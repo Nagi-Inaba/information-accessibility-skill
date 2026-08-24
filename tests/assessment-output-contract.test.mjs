@@ -172,7 +172,7 @@ test("standalone reports and catalog candidates share nested safe output creatio
 test("README examples distinguish valid record creation from template creation", () => {
   for (const file of ["README.md", "README.en.md"]) {
     const text = fs.readFileSync(path.join(root, file), "utf8");
-    assert.match(text, /generate-assessment\.mjs[^\n]*--target-name[^\n]*--target-version[^\n]*--target-ref[^\n]*--evaluator[^\n]*--evaluated-at[^\n]*--output/u);
+    assert.match(text, /accessibility-audit\.mjs assessment[^\n]*--target-name[^\n]*--target-version[^\n]*--target-ref[^\n]*--evaluator[^\n]*--evaluated-at[^\n]*--output/u);
     assert.match(text, /generate-assessment\.mjs[^\n]*--template[^\n]*--profile/u);
   }
 });
