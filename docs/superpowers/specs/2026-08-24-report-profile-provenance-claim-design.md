@@ -6,7 +6,7 @@ This design implements the report-core portion of Issues #18, #19, and #23. It a
 
 ## Supported entry points
 
-The supported `accessibility-audit report` command must render both:
+The supported `accessibility-audit report` command renders both:
 
 - standalone: `--input <assessment.json>`
 - run-backed: `--run <audit-run.json> --assessment <assessment.json>`
@@ -15,9 +15,16 @@ Both paths use the same presentation model and Markdown renderer. `--locale ja|e
 
 ## Compatibility boundary
 
-The current `render-audit-report.mjs` exports are imported by existing tests and runtime code. Preserve those exports by copying the current implementation byte-for-byte to `legacy-report-core.mjs`. Replace `render-audit-report.mjs` with a compatibility module that re-exports the legacy functions and delegates direct CLI execution to the new report command.
+The existing `render-audit-report.mjs` module is imported by tests and downstream runtime code, and its direct-script output is a public compatibility surface. Keep that file byte-identical to its pre-change implementation.
 
-The new report command may consume these trusted legacy functions:
+Copy the same implementation byte-for-byte to `legacy-report-core.mjs` so the new supported report command can reuse trusted validation and sanitization functions without changing the old module. Route only the unified CLI command `accessibility-audit report` to `render-report.mjs`.
+
+This boundary provides two explicit paths:
+
+- `render-audit-report.mjs`: legacy-compatible direct renderer for existing callers
+- `accessibility-audit report`: canonical profile-aware, provenance-explicit, locale-aware renderer
+
+The new report command consumes these trusted legacy functions:
 
 - `validateRunBackedAssessment()`
 - `buildPublicReportModel()`
@@ -71,11 +78,12 @@ The report displays:
 - human-readable limiting reasons
 - a statement that report judgement labels are not a formal conformance declaration
 
-The renderer must never synthesize a stronger free-form claim. Fixed wording is selected only from `standards-registry.json`.
+The renderer never synthesizes a stronger free-form claim. Fixed wording is selected only from `standards-registry.json`.
 
 ## Output and safety
 
-- Markdown cells escape untrusted text.
+- Markdown cells escape HTML, table delimiters, line breaks, and injected heading markers from untrusted text.
 - Existing files are never overwritten.
 - Run-backed rendering retains stable-file checks for the run, assessment, and registered artifacts.
+- Run-backed presentation is built only after the existing sanitizer creates the public model.
 - Codex and Claude distributions remain byte-identical through the existing distribution sync check.
