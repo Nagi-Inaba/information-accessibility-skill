@@ -117,7 +117,7 @@ test("control-plane commands route to their intended existing CLI contracts", ()
   }
 });
 
-test("assessment, validation, and report commands preserve existing runtime behavior", (t) => {
+test("assessment, validation, and localized profile-aware report commands preserve runtime safety", (t) => {
   const directory = withTemp(t);
   const assessment = path.join(directory, "assessment.json");
   const report = path.join(directory, "report.md");
@@ -139,11 +139,17 @@ test("assessment, validation, and report commands preserve existing runtime beha
   assert.equal(validated.status, 0, validated.stderr || validated.stdout);
   assert.equal(JSON.parse(validated.stdout).valid, true);
 
-  const rendered = runCli(["report", "--input", assessment, "--output", report]);
+  const reportHelp = runCli(["report", "--help"]);
+  assert.equal(reportHelp.status, 0, reportHelp.stderr || reportHelp.stdout);
+  assert.match(reportHelp.stdout, /--locale\s+<ja\|en>/u);
+  assert.match(reportHelp.stdout, /--run[^]*--assessment[^]*--output/u);
+
+  const rendered = runCli(["report", "--input", assessment, "--locale", "ja", "--output", report]);
   assert.equal(rendered.status, 0, rendered.stderr || rendered.stdout);
   const renderedReport = fs.readFileSync(report, "utf8");
-  assert.match(renderedReport, /^# WCAG参照ガイダンス/mu);
-  assert.match(renderedReport, /文書区分: 規格参照ガイダンス/u);
+  assert.match(renderedReport, /^# WCAG 2\.2 A\/AA 監査レポート$/mu);
+  assert.match(renderedReport, /^## 主張可能な範囲$/mu);
+  assert.match(renderedReport, /人による確認済み: 0\/55/u);
 
   const overwrite = runCli([
     "assessment",
