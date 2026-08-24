@@ -127,7 +127,7 @@ function sanitizeText(value, location, entries) {
   result = replacePattern(result, /\b(?:authorization|api[_ -]?key|access[_ -]?token|refresh[_ -]?token|password|secret|session)\s*[:=]\s*[^\s,;]+/giu, "[redacted credential]", location, "credential_removed", entries);
   result = replacePattern(result, /\b(?:gh[pousr]_[A-Za-z0-9]{20,}|eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{8,})\b/gu, redacted, location, "token_removed", entries);
   result = replacePattern(result, /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/giu, redacted, location, "email_removed", entries);
-  result = replacePattern(result, /(?<![\w.])(?:\+\d{1,3}[ -]?)?(?:\d[ -]?){8,14}\d(?![\w.])/gu, redacted, location, "phone_removed", entries);
+  result = replacePattern(result, /(?<![\w.])(?:\+\d{1,3}[ -]?)?(?:\d[ -]?){8,14}\d(?!\w)/gu, redacted, location, "phone_removed", entries);
   result = replacePattern(result, /\b(?:DESKTOP|LAPTOP|WIN|MAC|HOST)-[A-Z0-9-]+\b/giu, redacted, location, "machine_identifier_removed", entries);
   result = result.replace(/\b(?:\d{1,3}\.){3}\d{1,3}\b/gu, (candidate) => {
     if (!ipv4Private(candidate)) return candidate;
