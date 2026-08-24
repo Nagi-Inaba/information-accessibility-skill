@@ -7,6 +7,7 @@ import { createRequire } from "node:module";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { validateStandardsRegistry } from "./lib/profile-registry.mjs";
+import { normalizeRuntimeLocale, runtimeLocaleFromEnvironment } from "./lib/runtime-locale.mjs";
 
 const scriptRoot = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.dirname(scriptRoot);
@@ -17,17 +18,21 @@ function readJson(file) {
 }
 
 function parseArgs(argv) {
-  const options = { format: "text" };
+  const options = { format: "text", locale: runtimeLocaleFromEnvironment("en") };
+  const seen = new Set();
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
-    if (arg !== "--format") throw new Error(`Unknown argument: ${arg}`);
+    if (!["--format", "--locale"].includes(arg)) throw new Error(`Unknown argument: ${arg}`);
+    if (seen.has(arg)) throw new Error(`Duplicate argument: ${arg}`);
+    seen.add(arg);
     const value = argv[index + 1];
-    if (!value || value.startsWith("--")) throw new Error("Missing value for --format");
-    if (options.format !== "text") throw new Error("Duplicate argument: --format");
-    options.format = value;
+    if (!value || value.startsWith("--")) throw new Error(`Missing value for ${arg}`);
+    if (arg === "--format") options.format = value;
+    if (arg === "--locale") options.locale = value;
     index += 1;
   }
   if (!["text", "json"].includes(options.format)) throw new Error("--format must be text or json");
+  options.locale = normalizeRuntimeLocale(options.locale, "en");
   return options;
 }
 
@@ -133,30 +138,65 @@ export function diagnose(root = skillRoot) {
   };
 }
 
-function renderText(result) {
-  const mark = (value) => value ? "yes" : "no";
+function textLabels(locale) {
+  return locale === "ja" ? {
+    title: "情報アクセシビリティ監査Doctor",
+    supported: "対応",
+    yes: "はい",
+    no: "いいえ",
+    package: "パッケージ",
+    packageRoot: "パッケージroot",
+    registry: "規格レジストリ",
+    valid: "有効",
+    activeProfiles: "利用可能なプロファイル",
+    none: "なし",
+    screenReader: "スクリーンリーダーruntime: 外部機能",
+    mutation: "標準CLIからの対象変更: いいえ",
+    errors: "エラー:",
+    warnings: "警告:"
+  } : {
+    title: "Information Accessibility Audit Doctor",
+    supported: "supported",
+    yes: "yes",
+    no: "no",
+    package: "Package",
+    packageRoot: "Package root",
+    registry: "Registry",
+    valid: "valid",
+    activeProfiles: "Active profiles",
+    none: "none",
+    screenReader: "Screen-reader runtime: external capability",
+    mutation: "Target mutation from standard CLI: no",
+    errors: "Errors:",
+    warnings: "Warnings:"
+  };
+}
+
+function renderText(result, locale) {
+  const text = textLabels(locale);
+  const mark = (value) => value ? text.yes : text.no;
   return [
-    `Information Accessibility Audit Doctor: ${result.status}`,
+    `${text.title}: ${result.status}`,
     "",
-    `Node: ${result.node.version} (supported: ${mark(result.node.supported)})`,
-    `Package: ${result.package.name} ${result.package.version}`,
-    `Package root: ${result.package.root}`,
-    `Registry: ${result.registry.version ?? "unavailable"} (valid: ${mark(result.registry.valid)})`,
-    `Active profiles: ${result.registry.active_profiles.join(", ") || "none"}`,
+    `Node: ${result.node.version} (${text.supported}: ${mark(result.node.supported)})`,
+    `${text.package}: ${result.package.name} ${result.package.version}`,
+    `${text.packageRoot}: ${result.package.root}`,
+    `${text.registry}: ${result.registry.version ?? "unavailable"} (${text.valid}: ${mark(result.registry.valid)})`,
+    `${text.activeProfiles}: ${result.registry.active_profiles.join(", ") || text.none}`,
     `Playwright: ${mark(result.capabilities.browser.playwright.available)}${result.capabilities.browser.playwright.version ? ` (${result.capabilities.browser.playwright.version})` : ""}`,
     `axe-core: ${mark(result.capabilities.browser.axe_core.available)}${result.capabilities.browser.axe_core.version ? ` (${result.capabilities.browser.axe_core.version})` : ""}`,
-    "Screen-reader runtime: external capability",
-    "Target mutation from standard CLI: no",
-    ...(result.errors.length ? ["", "Errors:", ...result.errors.map((item) => `- ${item}`)] : []),
-    ...(result.warnings.length ? ["", "Warnings:", ...result.warnings.map((item) => `- ${item}`)] : [])
+    text.screenReader,
+    text.mutation,
+    ...(result.errors.length ? ["", text.errors, ...result.errors.map((item) => `- ${item}`)] : []),
+    ...(result.warnings.length ? ["", text.warnings, ...result.warnings.map((item) => `- ${item}`)] : [])
   ].join("\n");
 }
 
 export function main(argv = process.argv.slice(2)) {
   const options = parseArgs(argv);
-  const result = diagnose();
+  const result = { ...diagnose(), locale: options.locale };
   if (options.format === "json") process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
-  else process.stdout.write(`${renderText(result)}\n`);
+  else process.stdout.write(`${renderText(result, options.locale)}\n`);
   return result.status === "FAIL" ? 1 : 0;
 }
 
