@@ -14,6 +14,7 @@ import {
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.dirname(scriptDir);
 const patternIds = ["modal-dialog", "disclosure", "menu-button", "fragmented-text"];
+const englishUsageBoundary = "Source or accessibility-tree inspection does not prove spoken output. Record the screen reader, browser, version, voice, and locale for runtime evidence; otherwise retain not_tested or cant_tell.";
 
 function readJson(root, relativePath) {
   return JSON.parse(fs.readFileSync(path.join(root, relativePath), "utf8").replace(/^\uFEFF/u, ""));
@@ -40,7 +41,7 @@ export function buildScreenReaderChecklist(pattern = "all", root = skillRoot, lo
     invariant: registry.invariant,
     patterns: selectedPatterns,
     sources: [...new Set(selectedPatterns.flatMap((item) => item.source_urls))],
-    usage_boundary: labels.usageBoundary
+    usage_boundary: selectedLocale === "en" ? englishUsageBoundary : labels.usageBoundary
   };
 }
 
