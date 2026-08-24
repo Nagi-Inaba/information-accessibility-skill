@@ -64,7 +64,7 @@ powershell -ExecutionPolicy Bypass -File ".\scripts\install-codex.ps1" -WhatIf
 powershell -ExecutionPolicy Bypass -File ".\scripts\install-codex.ps1"
 ```
 
-認可済み修正を明示的に導入する場合だけ`-IncludeAuthorizedFixer`を指定します。認可済み修正agentは読取り専用のhandoffを作成し、対象を直接変更しません。実際の変更、検証、rollbackは、外部許可を確認した信頼された運用者が行います。
+認可済み修正を明示的に導入する場合だけ`-IncludeAuthorizedFixer`を指定します。認可済み修正agentは読み取り専用のhandoffを作成し、対象を直接変更しません。実際の変更、検証、rollbackは、外部許可を確認した信頼された運用者が行います。
 
 macOS／Linuxでは`codex/skills/information-accessibility-practice/`とmanifestで既定指定されたagentを配置します。詳細は[はじめに](docs/getting-started.md)を参照してください。
 
