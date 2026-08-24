@@ -32,7 +32,7 @@ Review this website for information accessibility. Separate observed barriers, p
 | Path | Best for | Main outputs | Important boundary |
 | --- | --- | --- | --- |
 | **Natural-language review** | First-pass barriers and improvement ideas, including documents, media, and events | Conversational review, remediation ideas, human follow-up | Does not preserve a standards ledger or multi-stage history by itself |
-| **Standalone assessment** | A complete WCAG or JIS ledger for one bounded snapshot | Assessment JSON and a profile-aware Markdown report | Every profile row starts as `not_tested`; initialization is not completed inspection |
+| **Standalone assessment** | A complete WCAG or JIS ledger for one bounded snapshot | Assessment JSON and a profile-aware Markdown inspection report | Every profile row starts as `not_tested`; initialization is not completed inspection |
 | **Run-backed audit** | Track screening, human review, remediation, and retesting | Audit run, registered artifacts, merged assessment, report | Requires understanding the schema and artifact relationships |
 
 See the [architecture and glossary](docs/architecture-and-glossary.md) for the complete flow. Use the [runnable examples](examples/README.md) to execute all three paths.
@@ -107,7 +107,7 @@ node .\codex\skills\information-accessibility-practice\scripts\accessibility-aud
 node .\codex\skills\information-accessibility-practice\scripts\accessibility-audit.mjs report --input .\audit-runs\quickstart\audit.json --locale ja --output .\audit-runs\quickstart\audit-report.md
 ```
 
-Creating the ledger does not mean the target was inspected. Until target-specific evidence and outcomes are added, every row remains `Not tested` and `Not run`.
+Creating the ledger does not mean the target was inspected. Until target-specific evidence and outcomes are added, every row remains `Not tested` and `Not run`. At this stage, the document is reference guidance; it is distinct from an inspection report backed by target-specific evidence and judgements.
 
 Each report row shows the criterion number, localized title, level, profile group, primary source, judgement source, evidence level, and rationale. A Run-backed report distinguishes External human review, AI/automated screening, and Not run. A screening projection is a report-only judgement and is never promoted to a profile outcome.
 
