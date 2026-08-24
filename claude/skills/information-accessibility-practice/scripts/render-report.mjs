@@ -163,11 +163,11 @@ function renderOutputs(rawPresentation, options) {
 
 function writeRequestedOutputs(options, rendered, beforeWrite) {
   const written = { output: null, appendix: null, redaction_manifest: null };
-  if (options.output) written.output = writeNewText(path.resolve(options.output), rendered.report, { beforeWrite });
-  if (options.appendix) written.appendix = writeNewText(path.resolve(options.appendix), rendered.appendix, { beforeWrite });
   if (options.redactionManifest) {
     written.redaction_manifest = writeNewJson(path.resolve(options.redactionManifest), rendered.manifest, { beforeWrite });
   }
+  if (options.appendix) written.appendix = writeNewText(path.resolve(options.appendix), rendered.appendix, { beforeWrite });
+  if (options.output) written.output = writeNewText(path.resolve(options.output), rendered.report, { beforeWrite });
   return written;
 }
 
