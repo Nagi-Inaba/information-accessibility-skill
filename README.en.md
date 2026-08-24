@@ -32,7 +32,7 @@ Review this website for information accessibility. Separate observed barriers, p
 | Path | Best for | Main outputs | Important boundary |
 | --- | --- | --- | --- |
 | **Natural-language review** | First-pass barriers and improvement ideas, including documents, media, and events | Conversational review, remediation ideas, human follow-up | Does not preserve a standards ledger or multi-stage history by itself |
-| **Standalone assessment** | A complete WCAG or JIS ledger for one bounded snapshot | Assessment JSON and a profile-aware Markdown inspection report | Every profile row starts as `not_tested`; initialization is not completed inspection |
+| **Standalone assessment** | A complete WCAG or JIS ledger for one bounded snapshot | Assessment JSON and a profile-aware Markdown or HTML inspection report | Every profile row starts as `not_tested`; initialization is not completed inspection |
 | **Run-backed audit** | Track screening, human review, remediation, and retesting | Audit run, registered artifacts, merged assessment, report | Requires understanding the schema and artifact relationships |
 
 See the [architecture and glossary](docs/architecture-and-glossary.md) for the complete flow. Use the [runnable examples](examples/README.md) to execute all three paths.
@@ -113,6 +113,10 @@ Each report row shows the criterion number, localized title, level, profile grou
 
 `--locale ja` and `--locale en` change human-readable text only; internal IDs, schema keys, and enum values remain stable. The claim section shows the requested tier, validator maximum, registry-fixed wording, and limiting reasons.
 
+`--format markdown` is the default editable and diff-friendly format. `--format html` produces accessible HTML for direct browser distribution. Both support `--detail summary` or `--detail full`, a same-format complete `--appendix`, and `--visibility internal` or `--visibility public`.
+
+PDF is unsupported because there is no formally verified tagging and reading-order path. See [Report formats and accessibility](docs/report-formats.md) for HTML semantics, generated-output E2E, the NVDA smoke test, and remaining external checks.
+
 Use template mode only for an editable placeholder.
 
 ```powershell
@@ -131,8 +135,9 @@ node .\codex\skills\information-accessibility-practice\scripts\generate-assessme
 | Audit run | Stores target metadata, permissions, artifact hashes, and state transitions | Not public |
 | Human-review queue | Lists requirements, procedures, and requested evidence for a person | Working material |
 | Markdown report | Presents profile, judgement, provenance, claim, remediation, and missing checks | Shareable after publication review |
+| HTML report | Provides `lang`, landmarks, contents, a skip link, and table semantics for distribution | Shareable after public visibility processing and publication review |
 
-The [artifact map](docs/architecture-and-glossary.md) lists the typical producer, inputs, purpose, and publication boundary for every artifact.
+The [artifact map](docs/architecture-and-glossary.md) lists the typical producer, inputs, purpose, and publication boundary for every artifact. See the [report-format guide](docs/report-formats.md) for format-specific support.
 
 ## Live Web inspection
 
@@ -149,6 +154,7 @@ See the [Web inspection guide](docs/web-inspection.md) for dependencies, network
 
 - [Getting started: first run and usage paths](docs/getting-started.md)
 - [Runnable examples for all three paths](examples/README.md)
+- [Report formats, HTML accessibility, and verification boundaries](docs/report-formats.md)
 - [Architecture, responsibilities, artifacts, and bilingual glossary](docs/architecture-and-glossary.md)
 - [Browser-based Web inspection and network boundaries](docs/web-inspection.md)
 - [Agent orchestration for Codex](codex/skills/information-accessibility-practice/references/agent-orchestration.md)
