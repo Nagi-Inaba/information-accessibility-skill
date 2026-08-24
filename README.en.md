@@ -88,23 +88,26 @@ The multi-agent installation preserves the same role artifact contract as Codex.
 
 ```powershell
 npm install --global .\codex\skills\information-accessibility-practice
-accessibility-audit --help
+accessibility-audit --locale en --help
 accessibility-audit --version
-accessibility-audit profiles list
-accessibility-audit requirements search "focus" --profile web-modern --level AA
-accessibility-audit doctor
+accessibility-audit profiles list --locale en
+accessibility-audit requirements search "focus" --profile web-modern --level AA --locale en
+accessibility-audit screen-reader-checklist --pattern modal-dialog --locale en --format markdown
+accessibility-audit doctor --locale en
 ```
+
+`--locale ja` and `--locale en` change only human-readable CLI help, profile metadata, requirement list/search/show output, the legacy requirement view, the screen-reader checklist, and reports. Internal IDs, schema keys, enum values, evidence types, and claim tiers remain stable.
 
 These discovery commands are read-only. The standard CLI does not modify the audited target.
 
 ## Try it in five minutes
 
-The following example initializes all 55 WCAG 2.2 Level A and AA requirements as `not_tested`, validates the ledger, and creates a profile-aware Japanese report.
+The following example initializes all 55 WCAG 2.2 Level A and AA requirements as `not_tested`, validates the ledger, and creates a profile-aware English report.
 
 ```powershell
 node .\codex\skills\information-accessibility-practice\scripts\accessibility-audit.mjs assessment --profile web-modern --target-name "Example Site" --target-version "2026-08-24" --target-ref "https://example.com/" --evaluator "Accessibility Reviewer" --evaluated-at "2026-08-24" --output .\audit-runs\quickstart\audit.json
 node .\codex\skills\information-accessibility-practice\scripts\accessibility-audit.mjs validate-assessment .\audit-runs\quickstart\audit.json
-node .\codex\skills\information-accessibility-practice\scripts\accessibility-audit.mjs report --input .\audit-runs\quickstart\audit.json --locale ja --output .\audit-runs\quickstart\audit-report.md
+node .\codex\skills\information-accessibility-practice\scripts\accessibility-audit.mjs report --input .\audit-runs\quickstart\audit.json --locale en --output .\audit-runs\quickstart\audit-report.md
 ```
 
 Creating the ledger does not mean the target was inspected. Until target-specific evidence and outcomes are added, every row remains `Not tested` and `Not run`. At this stage, the document is reference guidance; it is distinct from an inspection report backed by target-specific evidence and judgements.

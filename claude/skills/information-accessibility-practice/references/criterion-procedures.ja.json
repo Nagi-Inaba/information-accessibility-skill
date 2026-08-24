@@ -1,0 +1,159 @@
+{
+  "schema_version": "1.0.0",
+  "locale": "ja",
+  "canonical_schema_version": "1.0.0",
+  "procedures": [
+    {
+      "id": "wcag22-sc-1-1-1-non-text-content",
+      "applicability_steps": [
+        "固定した対象範囲で利用者に提示される各非テキスト項目を洗い出します。画像、SVG、icon、画像control、chart、音声、動画、CAPTCHA、装飾要素を含めます。",
+        "目に見える文脈と操作から、各項目の目的を情報提供、機能・入力、時間依存media、test、感覚的体験、CAPTCHA、装飾・整形・不可視のいずれかに分類します。",
+        "分類理由を記録し、interaction後またはstate変更後に目的が変わる項目を特定します。"
+      ],
+      "procedure_steps": [
+        "該当する各項目について、計算済みのprogrammatic name、text alternative、隣接する同等text、または装飾を支援技術から隠す意図的な仕組みを確認します。",
+        "確認した代替を、固定した対象stateで項目が伝える情報、操作、状態、傾向と比較します。短いlabelだけではchartやdiagramの同等情報を伝えられない場合は、data tableまたは文章による代替も確認します。",
+        "画像controlとinputは許可された操作を実行し、accessible nameがcontrolの目的を説明しているか確認します。この条項の範囲外にある関連問題は別に記録します。",
+        "例外を扱う場合は、attributeが存在するだけで結果とせず、該当する例外条件を満たすか確認します。"
+      ],
+      "expected_results": [
+        "該当する情報提供目的の各項目には、同等の目的を果たし、文脈上必要な情報を伝えるtext alternativeがあります。",
+        "該当する機能目的の各項目には目的を説明するprogrammatic nameがあり、装飾内容は意味のない内容として読み上げられず支援技術から無視されます。",
+        "明示的な例外に該当する項目には、その例外に応じた説明的な識別情報または代替modalityがあります。"
+      ],
+      "cant_tell_when": [
+        "項目の目的、目に見える文脈、stateによって変わる意味、または計算済みの代替を許可範囲で観測できない場合。",
+        "複雑なchart、diagram、media、CAPTCHA、第三者assetについて、同等のtext alternativeまたは例外条件と比較できない場合。"
+      ],
+      "counterexamples": {
+        "pass": [
+          "chartに簡潔なlabelがあり、近接する文章またはdata tableが、chartを利用するために必要な傾向と値を同等に伝えています。",
+          "装飾iconは支援技術から意図的に隠され、隣接するtextが唯一の意味をすでに伝えています。"
+        ],
+        "fail": [
+          "情報提供目的のchartが「画像」やfile名のような一般名だけで公開され、傾向やdataを伝える同等textがありません。",
+          "画像controlに、実行される操作の目的を説明するprogrammatic nameがありません。"
+        ],
+        "cant_tell": [
+          "screenshotではSVGにlabelが見えますが、計算済みnameを確認できず、表示dataが別のtextで完全に提供されているかも判定できません。"
+        ]
+      },
+      "ai_boundary": "AIは非テキスト項目の候補を洗い出し、確認質問を下書きできますが、profile outcome、human_verified mapping、E2以上のclaimを記録してはいけません。外部の人手reviewerが対象固有の証拠とともに条項結果を記録します。"
+    },
+    {
+      "id": "wcag22-sc-1-3-1-info-and-relationships",
+      "applicability_steps": [
+        "固定した対象範囲で視覚または聴覚による提示を通じて伝えられる情報、構造、関係を特定します。heading、list、landmark、table、label、必須表示、field group、state／statusの手掛かりを含めます。",
+        "視覚style、位置、group、色、音が利用できない場合でも、内容の理解または操作に必要となる関係を特定します。",
+        "linearized viewまたはaccessibility treeでしか確認できない内容・技術を記録します。"
+      ],
+      "procedure_steps": [
+        "DOM、accessibility tree、または同等のprogrammatic structureを確認し、同じ対象stateにある視覚的な関係と比較します。",
+        "heading、list、table、form label、grouped control、regionなどの該当構造が、理解・操作に必要な関係を公開しているか、または同等のtext説明が内容の近くにあるか確認します。",
+        "必要に応じてlinearized representationまたは支援技術向け表現で内容を確認し、提示方法が変わっても関係が維持されるか判定します。",
+        "tagの存在だけから結果を推定せず、正確な視覚的関係、programmaticまたはtextによる表現、未解決の境界を記録します。"
+      ],
+      "expected_results": [
+        "提示を通じて伝えられる情報、構造、関係が、対象範囲の内容についてprogrammatically determinedまたはtextで利用可能です。",
+        "table、form field、grouped control、heading、list、regionを解釈するために必要な関係が、提示方法を変えても利用できます。",
+        "semantic markupは見た目だけを作るのではなく、実際の内容の関係を表します。"
+      ],
+      "cant_tell_when": [
+        "視覚的提示とDOM、accessibility tree、linearized representationとの間で該当する関係を比較できない場合。",
+        "動的内容または第三者内容により、必要な関係がprogrammatically determinedまたはtextで利用可能か判定できない場合。"
+      ],
+      "counterexamples": {
+        "pass": [
+          "data tableがrow headerとcolumn headerを公開し、data cellを対応するheaderへ関連付けられます。",
+          "必須fieldのindicatorがtextで説明され、提示だけに依存せず該当form fieldへ関連付けられています。"
+        ],
+        "fail": [
+          "視覚的なheadingが太字paragraphだけで作られ、section構造を伝えるprogrammatic headingまたは近接textがありません。",
+          "table風layoutが視覚的なcolumnを使っていますが、値の解釈に必要なheaderとcellの関係を公開していません。"
+        ],
+        "cant_tell": [
+          "静的screenshotからgrouped formまたはdata tableに見えますが、accessibility tree、linearized content、source上の関係を確認できません。"
+        ]
+      },
+      "ai_boundary": "AIは関係の候補を洗い出し、確認質問を下書きできますが、profile outcome、human_verified mapping、E2以上のclaimを記録してはいけません。外部の人手reviewerが対象固有の証拠とともに条項結果を記録します。"
+    },
+    {
+      "id": "wcag22-sc-2-1-1-keyboard",
+      "applicability_steps": [
+        "review範囲を固定し、control、composite widget、drag／drawing interaction、state依存操作を含む、範囲内のすべての利用者操作可能な機能を洗い出します。",
+        "各機能を公開するために必要な許可済みinteraction stateを特定し、pointerまたは利用できない入力なしでは到達できないstateを記録します。",
+        "開始点と終了点だけでなく利用者の移動経路そのものに目的が依存する機能を特定し、経路依存の例外とする前に具体的な理由を求めます。"
+      ],
+      "procedure_steps": [
+        "必要な許可済みstateへ入り、pointerまたはmouse emulationを代替testに使わず、keyboard interfaceだけですべての該当機能を操作します。",
+        "各操作について、開始state、使用した正確なkeyと順序、観測結果、到達できない機能またはstateを記録します。",
+        "操作が個々のkeystrokeに特定のtimingを要求するか確認します。経路依存の例外を主張する場合は、基礎となる機能、必要な移動経路、開始点と終了点だけでは実行できない理由を記録します。",
+        "keyboard trap、文字key shortcut、focus visibility、focus order、関連問題は対応する別条項へ記録します。この条項では、それらがkeyboard interfaceで機能を操作できないことも示す場合に限り利用します。"
+      ],
+      "expected_results": [
+        "固定した範囲と許可済みinteraction stateにある該当機能を、個々のkeystrokeに特定のtimingを要求せずkeyboard interfaceで操作できます。",
+        "除外する経路依存機能には、目的が開始点と終了点だけでなく移動経路に依存することを示す理由が記録されています。",
+        "review証拠には、keyboard event handlerの存在から操作可能性を推定するのではなく、使用key、観測結果、到達不能な機能が記録されています。"
+      ],
+      "cant_tell_when": [
+        "対話runtime、必要なinteraction state、または該当機能を操作するkeyboard経路へ許可環境で到達できない場合。",
+        "主張された経路依存の例外を操作できない、または移動経路への依存を開始点・終了点だけの操作と区別できない場合。"
+      ],
+      "counterexamples": {
+        "pass": [
+          "custom menuを、許可されたすべてのmenu stateで、個々のkeystroke timingに依存せず文書化されたkeyにより開く、移動する、実行する、閉じることができます。",
+          "freehand drawing機能にはkeyboard操作がありませんが、その目的が開始点・終了点だけでなく利用者の移動経路そのものに依存することをreviewerが確認して記録しています。"
+        ],
+        "fail": [
+          "file pickerはkeyboardで開けますが、利用可能なfile操作の一つがpointerでしか完了できません。",
+          "基礎機能が移動経路に依存しないにもかかわらず、controlが狭いtiming window内に押されたkeyだけを認識します。"
+        ],
+        "cant_tell": [
+          "state依存editor controlは見えますが、reviewerが必要stateへ入れず、許可runtimeでkeyboard sequenceを送れません。"
+        ]
+      },
+      "ai_boundary": "AIは機能、state、keyboard経路の候補を洗い出し、review質問を下書きできますが、profile outcome、human_verified mapping、E2以上のclaimを記録してはいけません。外部の人手reviewerが対象固有のkeyboard testとmanual evidenceに基づいて条項結果を記録します。"
+    },
+    {
+      "id": "wcag22-sc-4-1-2-name-role-value",
+      "applicability_steps": [
+        "固定した対象範囲にあるnativeおよびcustom UI componentを洗い出します。許可されたinteraction後またはstate変更後にだけ現れるcomponentも含めます。",
+        "各componentについて、目に見える目的、期待role、利用者が設定可能なすべてのvalue・state・property、それぞれの設定を要求できる支援技術・accessibility API・同等のaccessibility interface control pathを特定します。",
+        "DOM／accessibility treeへの公開、該当するprogrammatic-set control path、変更動作を許可環境で確認できないcomponentを特定します。status messageだけの動作はSC 4.1.3としてこの手順から除外します。"
+      ],
+      "procedure_steps": [
+        "interaction前に、各native／custom componentをDOMとaccessibility treeで確認し、programmatic name、role、現在の利用者設定可能なvalue・state・propertyを記録します。",
+        "各許可interactionを実行し、変更後のDOMとaccessibility treeを確認して、公開されたname、role、value、state、propertyをcomponentの目に見える動作と比較します。",
+        "該当する利用者設定可能な各value・state・propertyについて、支援技術、accessibility API client、または同等のaccessibility interfaceを使用し、そのinterface経由で異なる許可設定をprogrammatically setする操作を試します。",
+        "各programmatic-set操作の前に現在のvalue・state・propertyと要求設定を記録します。操作後のvalue・state・property、要求設定が反映されたか、programmaticおよび視覚的な観測結果を記録します。",
+        "各変更が支援技術を含むuser agentへ公開・通知されるかを別に観測し、変更前の公開状態、変更後の公開状態、観測した通知を記録します。",
+        "status messageだけの動作はSC 4.1.3として別に記録します。status messageだけをcomponentのname、role、value、state、propertyに関するこの手順の証拠として使用しません。"
+      ],
+      "expected_results": [
+        "該当する各componentが、review対象stateで目的と一致するprogrammatically determinableなnameとroleを公開します。",
+        "該当する利用者設定可能なvalue・state・propertyが、支援技術、accessibility API、または同等のaccessibility interfaceを通じて要求された許可設定を受け付け、その結果の設定を公開します。",
+        "該当するvalue・state・propertyの変更が、支援技術を含むuser agentへ別途公開・通知されます。",
+        "native／custom componentが、各許可interactionの前後で正確なprogrammatic exposureを維持します。"
+      ],
+      "cant_tell_when": [
+        "componentのaccessibility treeへの公開、interaction動作、または支援技術への通知を許可環境で観測できない場合。",
+        "programmatic set操作を発行して観測するための、該当する支援技術、accessibility API、または同等のaccessibility interface control pathを利用できない場合。",
+        "必要stateまたは変更を発生させられず、interaction前後のcomponentを比較できない場合。"
+      ],
+      "counterexamples": {
+        "pass": [
+          "accessibility APIのset requestでcustom sliderを20から40へprogrammatically setでき、結果valueが40として公開され、変更通知が支援技術へ読み上げられます。",
+          "custom disclosureがlabelとbutton roleを公開し、expanded stateを設定する支援技術からの要求を受け付け、要求後のstateを公開して変更を通知します。"
+        ],
+        "fail": [
+          "custom toggleをpointer操作すると変更stateが公開され通知も読み上げられますが、accessibility APIのset requestは失敗し、accessibility interfaceからstateをprogrammatically setできません。",
+          "iconだけのcustom controlが操作を実行しますが、目的を説明するprogrammatically determinableなnameがありません。"
+        ],
+        "cant_tell": [
+          "custom controlのvalueはaccessibility treeに見えますが、set requestを発行して観測できる許可済み支援技術またはaccessibility API control pathがありません。"
+        ]
+      },
+      "ai_boundary": "AIはcomponent候補の洗い出し、取得済みDOM／accessibility tree stateの比較、review質問の下書きを行えますが、profile outcome、human_verified mapping、E2以上のclaimを記録してはいけません。外部の人手reviewerが対象固有のbrowserおよび支援技術の証拠とともに条項結果を記録します。"
+    }
+  ]
+}
