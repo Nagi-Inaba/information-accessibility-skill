@@ -136,7 +136,7 @@ test("Japanese full HTML has semantic landmarks, accessible tables, visible prov
   assert.match(html, />判定の出所</u);
   assert.match(html, />証拠レベル</u);
   assert.match(html, />未実施</u);
-  assert.match(html, /aria-label="1\.1\.1[^\"]*一次資料/u);
+  assert.match(html, /aria-label="1\.1\.1[^"]*一次資料/u);
   assert.match(html, /data-outcome="not-tested"/u);
   assert.match(html, /data-source="not-run"/u);
 });
