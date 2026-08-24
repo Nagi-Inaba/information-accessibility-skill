@@ -7,6 +7,7 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { generateAssessment } from "../codex/skills/information-accessibility-practice/scripts/generate-assessment.mjs";
+import { lookupRequirement } from "../codex/skills/information-accessibility-practice/scripts/show-requirement.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const cli = path.join(root, "codex/skills/information-accessibility-practice/scripts/accessibility-audit.mjs");
@@ -180,16 +181,19 @@ test("a complete synthetic human-review fixture preserves human provenance for a
     evaluator: "Synthetic external reviewer fixture",
     evaluatedAt: "2026-08-24"
   });
+  record.assessment.scope.included = ["https://example.com/"];
   for (const row of record.assessment.results) {
+    const requiredEvidenceTypes = lookupRequirement("web-modern", row.requirement_id)
+      .procedure_binding.required_evidence_types;
     row.mapping_status = "human_verified";
     row.outcome = "pass";
     row.method_kind = "manual";
-    row.evidence = [{
-      type: "manual_observation",
+    row.evidence = requiredEvidenceTypes.map((type, index) => ({
+      type,
       location: row.requirement_id,
-      observation: "The synthetic external reviewer fixture records a target-specific manual check for this requirement.",
-      captured_at: "2026-08-24T00:00:00Z"
-    }];
+      observation: `The synthetic external reviewer fixture records target-specific ${type} evidence for this requirement.`,
+      captured_at: `2026-08-24T00:00:${String(index).padStart(2, "0")}Z`
+    }));
     row.notes = "Synthetic target-specific human-review evidence was recorded for report provenance testing.";
   }
   record.assessment.evidence_level = "E2";
