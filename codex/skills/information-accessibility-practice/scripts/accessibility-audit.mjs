@@ -6,18 +6,31 @@ import process from "node:process";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
+import { commandDefinitions } from "./lib/cli-command-registry.mjs";
 import {
-  commandDefinitions,
-  commandHelpText,
-  rootHelpText,
+  localeAwareCommands,
+  localizedCommandHelpText,
+  localizedRootHelpText,
   versionText
-} from "./lib/cli-command-registry.mjs";
+} from "./lib/localized-cli-help.mjs";
+import {
+  normalizeRuntimeLocale,
+  runtimeCliError
+} from "./lib/runtime-locale.mjs";
 
 const scriptRoot = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.dirname(scriptRoot);
 
 function writeError(message) {
   process.stderr.write(`${message}\n`);
+}
+
+function parseGlobalLocale(argv) {
+  if (argv[0] !== "--locale") return { locale: "en", explicit: false, argv };
+  const value = argv[1];
+  if (!value || value.startsWith("--")) return { error: "locale_missing", locale: "ja", argv: [] };
+  if (!["ja", "en"].includes(value)) return { error: "locale_invalid", locale: "en", argv: [] };
+  return { locale: value, explicit: true, argv: argv.slice(2) };
 }
 
 function runCommand(definition, args) {
@@ -36,42 +49,55 @@ function runCommand(definition, args) {
   return 1;
 }
 
-export function main(argv = process.argv.slice(2)) {
+function localizedArgs(command, args, globalLocale) {
+  if (!globalLocale.explicit || !localeAwareCommands.has(command) || args.includes("--locale")) return args;
+  return [...args, "--locale", globalLocale.locale];
+}
+
+export function main(input = process.argv.slice(2)) {
+  const globalLocale = parseGlobalLocale(input);
+  if (globalLocale.error) {
+    writeError(runtimeCliError(globalLocale.locale, globalLocale.error));
+    return 2;
+  }
+  const argv = globalLocale.argv;
+  const locale = normalizeRuntimeLocale(globalLocale.locale, "en");
+
   if (argv.length === 0 || argv[0] === "--help" || argv[0] === "-h") {
-    process.stdout.write(`${rootHelpText()}\n`);
+    process.stdout.write(`${localizedRootHelpText(locale)}\n`);
     return 0;
   }
   if (argv[0] === "--version" || argv[0] === "-V") {
     if (argv.length !== 1) {
-      writeError("--version does not accept additional arguments.");
+      writeError(runtimeCliError(locale, "version_extra"));
       return 2;
     }
     process.stdout.write(`${versionText(skillRoot)}\n`);
     return 0;
   }
 
-  const [command, ...args] = argv;
+  const [command, ...rawArgs] = argv;
   if (["fix", "apply-fix", "apply-authorized-fix"].includes(command)) {
-    writeError("Target mutation is not available from the standard CLI. Use the separately authorized fixer runtime with an exact validated authorization.");
+    writeError(runtimeCliError(locale, "mutation_blocked"));
     return 2;
   }
 
   const definition = commandDefinitions.get(command);
   if (!definition) {
-    writeError(`Unknown command: ${command}`);
-    writeError("Run accessibility-audit --help to list supported commands.");
+    writeError(runtimeCliError(locale, "unknown_command", { command }));
+    writeError(runtimeCliError(locale, "help_hint"));
     return 2;
   }
 
-  if (args.includes("--help") || args.includes("-h")) {
-    if (command === "report") return runCommand(definition, ["--help"]);
-    process.stdout.write(`${commandHelpText(command)}\n`);
+  if (rawArgs.includes("--help") || rawArgs.includes("-h")) {
+    process.stdout.write(`${localizedCommandHelpText(command, locale)}\n`);
     return 0;
   }
 
+  const args = localizedArgs(command, rawArgs, globalLocale);
   if (definition.requiredFlag && !args.includes(definition.requiredFlag)) {
-    writeError(`${command} requires ${definition.requiredFlag}.`);
-    writeError(commandHelpText(command));
+    writeError(runtimeCliError(locale, "required_flag", { command, flag: definition.requiredFlag }));
+    writeError(localizedCommandHelpText(command, locale));
     return 2;
   }
 
