@@ -91,7 +91,7 @@ npm install --global .\codex\skills\information-accessibility-practice
 accessibility-audit --locale ja --help
 accessibility-audit --version
 accessibility-audit profiles list --locale ja
-accessibility-audit requirements search "フォーカス" --profile web-modern --level AA --locale ja
+accessibility-audit requirements search "focus" --profile web-modern --level AA --locale ja
 accessibility-audit screen-reader-checklist --pattern modal-dialog --locale ja --format markdown
 accessibility-audit doctor --locale ja
 ```
