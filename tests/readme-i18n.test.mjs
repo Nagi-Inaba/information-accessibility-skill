@@ -15,6 +15,13 @@ function codeBlocks(markdown) {
     .map((match) => ({ language: match.groups.language.trim(), body: match.groups.body }));
 }
 
+function normalizeExecutableLocale(block) {
+  return {
+    ...block,
+    body: block.body.replace(/--locale\s+(?:ja|en)\b/gu, "--locale <locale>")
+  };
+}
+
 function headingLevels(markdown) {
   return [...markdown.matchAll(/^(?<marks>#{1,6})\s+/gmu)]
     .map((match) => match.groups.marks.length);
@@ -103,9 +110,17 @@ test("Japanese and English READMEs preserve structural and executable parity", (
   assert.deepEqual(headingLevels(english), headingLevels(japanese));
   assert.deepEqual(englishBlocks.map(({ language }) => language), japaneseBlocks.map(({ language }) => language));
   assert.deepEqual(
-    englishBlocks.filter(({ language }) => ["powershell", "sh"].includes(language)),
-    japaneseBlocks.filter(({ language }) => ["powershell", "sh"].includes(language))
+    englishBlocks
+      .filter(({ language }) => ["powershell", "sh"].includes(language))
+      .map(normalizeExecutableLocale),
+    japaneseBlocks
+      .filter(({ language }) => ["powershell", "sh"].includes(language))
+      .map(normalizeExecutableLocale)
   );
+  assert.match(japanese, /accessibility-audit[^\n]*--locale ja/u);
+  assert.match(english, /accessibility-audit[^\n]*--locale en/u);
+  assert.doesNotMatch(japanese, /accessibility-audit[^\n]*--locale en/u);
+  assert.doesNotMatch(english, /accessibility-audit[^\n]*--locale ja/u);
 
   const headingPairs = [
     ["30秒で分かる概要", "In 30 seconds"],
