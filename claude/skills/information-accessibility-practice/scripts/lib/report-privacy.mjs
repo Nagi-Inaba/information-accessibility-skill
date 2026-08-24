@@ -66,7 +66,7 @@ function addRedaction(entries, path, reason, action) {
 
 function pathLike(value) {
   return /\bfile:(?:\/{0,2})/iu.test(value)
-    || /[A-Za-z]:[\\/]/u.test(value)
+    || /\b[A-Za-z]:[\\/](?![\\/])/u.test(value)
     || /\\\\[^\s\\]/u.test(value)
     || /(?:^|[\s(])~[\\/]/u.test(value)
     || /(?:^|[\s(])\.{1,2}[\\/]/u.test(value)
@@ -122,7 +122,7 @@ function replacePattern(value, pattern, replacement, location, reason, entries) 
 function sanitizeText(value, location, entries) {
   let result = String(value ?? "");
   result = result.replace(/https?:\/\/[^\s<>()\[\]]+/giu, (url) => sanitizeUrl(url, location, entries));
-  result = replacePattern(result, /\bfile:(?:\/{0,2})[^\s,;]+|[A-Za-z]:[\\/][^\s,;]+|\\\\[^\s,;]+|\/(?:Users|home|private|var\/folders|tmp)\/[^\s,;]+/giu, redacted, location, "local_path_removed", entries);
+  result = replacePattern(result, /\bfile:(?:\/{0,2})[^\s,;]+|\b[A-Za-z]:[\\/](?![\\/])[^\s,;]+|\\\\[^\s,;]+|\/(?:Users|home|private|var\/folders|tmp)\/[^\s,;]+/giu, redacted, location, "local_path_removed", entries);
   result = replacePattern(result, /\bBearer\s+[A-Za-z0-9._~+\/-]{8,}={0,2}\b/giu, "Bearer [redacted]", location, "authorization_token_removed", entries);
   result = replacePattern(result, /\b(?:authorization|api[_ -]?key|access[_ -]?token|refresh[_ -]?token|password|secret|session)\s*[:=]\s*[^\s,;]+/giu, "[redacted credential]", location, "credential_removed", entries);
   result = replacePattern(result, /\b(?:gh[pousr]_[A-Za-z0-9]{20,}|eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{8,})\b/gu, redacted, location, "token_removed", entries);
