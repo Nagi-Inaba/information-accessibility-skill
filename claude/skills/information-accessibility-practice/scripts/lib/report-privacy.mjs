@@ -83,7 +83,8 @@ function sanitizeUrl(value, location, entries) {
   try {
     parsed = new URL(original);
   } catch {
-    return sanitizeText(original, location, entries);
+    addRedaction(entries, location, "invalid_url_removed", "redacted");
+    return redacted;
   }
   if (!["http:", "https:"].includes(parsed.protocol)) {
     addRedaction(entries, location, "non_http_reference", "redacted");
