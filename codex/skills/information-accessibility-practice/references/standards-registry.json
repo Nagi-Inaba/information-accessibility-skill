@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0.0",
-  "last_verified_at": "2026-07-12",
+  "last_verified_at": "2026-08-24",
   "outcomes": [
     "pass",
     "fail",
@@ -74,6 +74,17 @@
     {
       "id": "web-modern",
       "display_name": "Modern Web accessibility review",
+      "profile_kind": "standard_profile",
+      "explicit_adoption_required": false,
+      "localized": {
+        "ja": {
+          "display_name": "現代Webアクセシビリティレビュー",
+          "target_scope": "Webページ全体、Webアプリケーション、一連の完全なWeb利用手順",
+          "groups": {
+            "wcag_2_2": "WCAG 2.2 A/AA"
+          }
+        }
+      },
       "implementation_status": "active",
       "criteria_catalog_status": "metadata_complete",
       "criteria_catalog_file": "criteria-catalog.json",
@@ -95,6 +106,17 @@
           }
         ]
       },
+      "group_bases": {
+        "wcag_2_2": {
+          "kind": "standard",
+          "adoption": "profile_default",
+          "source_ids": ["WCAG-2.2-A-AA"],
+          "label_en": "Standards basis: WCAG 2.2 A/AA",
+          "label_ja": "規格上の根拠: WCAG 2.2 A/AA",
+          "scope_en": "W3C Recommendation requirements selected by this profile.",
+          "scope_ja": "このprofileが選択するW3C Recommendationの達成基準です。"
+        }
+      },
       "standards": [
         {
           "id": "WCAG-2.2-A-AA",
@@ -103,7 +125,7 @@
           "publisher": "W3C",
           "normative_status": "W3C Recommendation, 2024-12-12",
           "primary_url": "https://www.w3.org/TR/WCAG22/",
-          "last_verified_at": "2026-07-12"
+          "last_verified_at": "2026-08-24"
         },
         {
           "id": "WAI-ARIA-1.2-WHEN-USED",
@@ -112,7 +134,7 @@
           "publisher": "W3C",
           "normative_status": "W3C Recommendation",
           "primary_url": "https://www.w3.org/TR/wai-aria-1.2/",
-          "last_verified_at": "2026-07-12"
+          "last_verified_at": "2026-08-24"
         },
         {
           "id": "ARIA-IN-HTML-2026-04-15-WHEN-USED",
@@ -121,7 +143,7 @@
           "publisher": "W3C",
           "normative_status": "W3C Recommendation, 2026-04-15",
           "primary_url": "https://www.w3.org/TR/html-aria/",
-          "last_verified_at": "2026-07-12"
+          "last_verified_at": "2026-08-24"
         }
       ],
       "evaluation_methods": [
@@ -169,13 +191,125 @@
       "copyright_boundary": "Store requirement identifiers, public URLs, results, and original summaries; do not copy standards text."
     },
     {
-      "id": "jp-public-web",
-      "display_name": "Japanese public Web review",
+      "id": "jis-x-8341-3-2016-aa",
+      "display_name": "JIS X 8341-3:2016 A/AA review",
+      "profile_kind": "standard_profile",
+      "explicit_adoption_required": false,
+      "localized": {
+        "ja": {
+          "display_name": "JIS X 8341-3:2016 A/AAレビュー",
+          "target_scope": "JIS X 8341-3:2016 A/AAを適用するWebページ全体、Webアプリケーション、一連の完全なWeb利用手順",
+          "groups": {
+            "jis_x_8341_3_2016": "JIS X 8341-3:2016 A/AA（38）"
+          }
+        }
+      },
       "implementation_status": "active",
       "criteria_catalog_status": "metadata_complete",
       "criteria_catalog_file": "criteria-catalog.json",
-      "target_scope": "Japanese public-facing web pages and complete web processes",
+      "target_scope": "Full Web pages, Web applications, and complete Web processes assessed against JIS X 8341-3:2016 A/AA",
       "formal_conformance_target": true,
+      "assessment_configuration": {
+        "active": true,
+        "requires_web_interaction_evidence": true,
+        "catalog_keys": [
+          "jis_x_8341_3_2016"
+        ],
+        "groups": [
+          {
+            "id": "jis_x_8341_3_2016",
+            "label": "JIS X 8341-3:2016 A/AA (38)",
+            "requirement_id_prefixes": [
+              "JIS-X-8341-3-2016-SC-"
+            ]
+          }
+        ]
+      },
+      "group_bases": {
+        "jis_x_8341_3_2016": {
+          "kind": "standard",
+          "adoption": "profile_default",
+          "source_ids": ["JIS-X-8341-3-2016-A-AA"],
+          "label_en": "Standards basis: JIS X 8341-3:2016 A/AA",
+          "label_ja": "規格上の根拠: JIS X 8341-3:2016 A/AA",
+          "scope_en": "Japanese Industrial Standard requirements, with public implementation and testing guidance provided by WAIC.",
+          "scope_ja": "日本産業規格の達成基準です。公開実装・試験ガイダンスはWAICが提供しています。"
+        }
+      },
+      "standards": [
+        {
+          "id": "JIS-X-8341-3-2016-A-AA",
+          "title": "JIS X 8341-3:2016",
+          "version": "2016",
+          "publisher": "Japan (Japanese Industrial Standard); public implementation guidance by WAIC",
+          "normative_status": "Japanese Industrial Standard profile based on WCAG 2.0",
+          "primary_url": "https://waic.jp/docs/jis2016/understanding/",
+          "last_verified_at": "2026-08-24"
+        }
+      ],
+      "evaluation_methods": [
+        {
+          "id": "WAIC-COMPLIANCE-WORDING-2021-04",
+          "primary_url": "https://waic.jp/docs/jis2016/compliance-guidelines/202104/"
+        },
+        {
+          "id": "WAIC-TEST-GUIDELINES",
+          "primary_url": "https://waic.jp/docs/jis2016/test-guidelines/"
+        }
+      ],
+      "requirement_ids": [
+        "JIS-X-8341-3-2016-SC-1.1.1",
+        "JIS-X-8341-3-2016-SC-1.2.1", "JIS-X-8341-3-2016-SC-1.2.2", "JIS-X-8341-3-2016-SC-1.2.3", "JIS-X-8341-3-2016-SC-1.2.4", "JIS-X-8341-3-2016-SC-1.2.5",
+        "JIS-X-8341-3-2016-SC-1.3.1", "JIS-X-8341-3-2016-SC-1.3.2", "JIS-X-8341-3-2016-SC-1.3.3",
+        "JIS-X-8341-3-2016-SC-1.4.1", "JIS-X-8341-3-2016-SC-1.4.2", "JIS-X-8341-3-2016-SC-1.4.3", "JIS-X-8341-3-2016-SC-1.4.4", "JIS-X-8341-3-2016-SC-1.4.5",
+        "JIS-X-8341-3-2016-SC-2.1.1", "JIS-X-8341-3-2016-SC-2.1.2",
+        "JIS-X-8341-3-2016-SC-2.2.1", "JIS-X-8341-3-2016-SC-2.2.2",
+        "JIS-X-8341-3-2016-SC-2.3.1",
+        "JIS-X-8341-3-2016-SC-2.4.1", "JIS-X-8341-3-2016-SC-2.4.2", "JIS-X-8341-3-2016-SC-2.4.3", "JIS-X-8341-3-2016-SC-2.4.4", "JIS-X-8341-3-2016-SC-2.4.5", "JIS-X-8341-3-2016-SC-2.4.6", "JIS-X-8341-3-2016-SC-2.4.7",
+        "JIS-X-8341-3-2016-SC-3.1.1", "JIS-X-8341-3-2016-SC-3.1.2",
+        "JIS-X-8341-3-2016-SC-3.2.1", "JIS-X-8341-3-2016-SC-3.2.2", "JIS-X-8341-3-2016-SC-3.2.3", "JIS-X-8341-3-2016-SC-3.2.4",
+        "JIS-X-8341-3-2016-SC-3.3.1", "JIS-X-8341-3-2016-SC-3.3.2", "JIS-X-8341-3-2016-SC-3.3.3", "JIS-X-8341-3-2016-SC-3.3.4",
+        "JIS-X-8341-3-2016-SC-4.1.1", "JIS-X-8341-3-2016-SC-4.1.2"
+      ],
+      "requirement_sources": [
+        {
+          "id_prefix": "JIS-X-8341-3-2016-SC-",
+          "url_prefixes": ["https://waic.jp/docs/jis2016/"]
+        }
+      ],
+      "claim_rules": {
+        "blocking_outcomes": [
+          "fail",
+          "not_tested",
+          "cant_tell"
+        ],
+        "candidate_min_evidence": "E3",
+        "formal_min_evidence": "E4",
+        "human_signoff_required": true,
+        "claim_ceiling": "evaluated_subset"
+      },
+      "copyright_boundary": "Do not reproduce JIS text. Store requirement identifiers, public guidance URLs, results, and original summaries only."
+    },
+    {
+      "id": "jp-public-web",
+      "display_name": "Digital Agency Web policy composite (legacy profile ID)",
+      "profile_kind": "organizational_policy_pattern",
+      "explicit_adoption_required": true,
+      "localized": {
+        "ja": {
+          "display_name": "デジタル庁ウェブ方針由来composite（legacy profile ID）",
+          "target_scope": "デジタル庁方針由来の56項目compositeを組織が明示採用したWeb対象。一般的な日本の公的Web profileではありません。",
+          "groups": {
+            "jis_x_8341_3_2016": "JIS X 8341-3:2016 A/AA（38）",
+            "jp_wcag_2_2_additional": "組織方針extension: 追加WCAG 2.1/2.2 A/AA（18）"
+          }
+        }
+      },
+      "implementation_status": "active",
+      "criteria_catalog_status": "metadata_complete",
+      "criteria_catalog_file": "criteria-catalog.json",
+      "target_scope": "Web targets that explicitly adopt the Digital Agency-derived 56-item composite; not a general Japanese public Web profile",
+      "formal_conformance_target": false,
       "assessment_configuration": {
         "active": true,
         "requires_web_interaction_evidence": true,
@@ -193,12 +327,44 @@
           },
           {
             "id": "jp_wcag_2_2_additional",
-            "label": "Added WCAG 2.2 A/AA (18)",
+            "label": "Organizational policy extension: additional WCAG 2.1/2.2 A/AA (18)",
             "requirement_id_prefixes": [
               "WCAG-2.2-ADDITIONAL-SC-"
             ]
           }
         ]
+      },
+      "group_bases": {
+        "jis_x_8341_3_2016": {
+          "kind": "standard",
+          "adoption": "profile_default",
+          "source_ids": ["JIS-X-8341-3-2016-A-AA"],
+          "label_en": "Standards basis: JIS X 8341-3:2016 A/AA",
+          "label_ja": "規格上の根拠: JIS X 8341-3:2016 A/AA",
+          "scope_en": "Japanese Industrial Standard requirements, reported separately from the organizational extension.",
+          "scope_ja": "日本産業規格の達成基準です。組織方針extensionとは分離して表示します。"
+        },
+        "jp_wcag_2_2_additional": {
+          "kind": "organizational_policy",
+          "adoption": "explicit_only",
+          "source_ids": ["DIGITAL-AGENCY-LEGACY-WCAG-EXTENSION-18"],
+          "label_en": "Organizational policy basis: 18 additional WCAG 2.1/2.2 criteria; explicit adoption required",
+          "label_ja": "組織方針上の根拠: 追加WCAG 2.1/2.2の18件。明示的な採用が必要",
+          "scope_en": "Legacy extension derived from the Digital Agency source recorded by this repository. It is not a general Japanese public-sector requirement.",
+          "scope_ja": "このrepositoryが記録したデジタル庁sourceに由来するlegacy extensionです。一般的な日本の公的Web要件ではありません。"
+        }
+      },
+      "source_context": {
+        "verified_at": "2026-08-24",
+        "current_digital_agency_policy": "The current Digital Agency policy uses JIS X 8341-3:2016 and WCAG 2.2 as agency-wide indicators; it does not define this exact 18-item set as a general Japanese profile.",
+        "current_test_result": "The Digital Agency 2025 test result reports testing under JIS X 8341-3:2016 for pages under https://www.digital.go.jp/.",
+        "policy_url": "https://www.digital.go.jp/accessibility-statement",
+        "test_result_url": "https://www.digital.go.jp/accessibility-statement/test-result-2025"
+      },
+      "migration": {
+        "status": "legacy_ambiguous_id",
+        "recommended_profile_ids": ["jis-x-8341-3-2016-aa", "web-modern"],
+        "guidance": "docs/profile-selection-and-migration.md"
       },
       "standards": [
         {
@@ -206,18 +372,18 @@
           "title": "JIS X 8341-3:2016",
           "version": "2016",
           "publisher": "Japan (Japanese Industrial Standard); public implementation guidance by WAIC",
-          "normative_status": "Current Japanese Industrial Standard profile based on WCAG 2.0",
+          "normative_status": "Japanese Industrial Standard profile based on WCAG 2.0",
           "primary_url": "https://waic.jp/docs/jis2016/understanding/",
-          "last_verified_at": "2026-07-12"
+          "last_verified_at": "2026-08-24"
         },
         {
-          "id": "WCAG-2.2-ADDITIONAL-A-AA-18",
-          "title": "WCAG 2.2 A and AA criteria not included in JIS X 8341-3:2016",
-          "version": "2.2",
-          "publisher": "W3C; profile pattern published by Japan Digital Agency",
-          "normative_status": "Additional target; keep separate from the JIS result",
+          "id": "DIGITAL-AGENCY-LEGACY-WCAG-EXTENSION-18",
+          "title": "Legacy 18-item WCAG 2.1/2.2 organizational policy extension",
+          "version": "legacy-set-18",
+          "publisher": "Profile pattern derived from a Japan Digital Agency source recorded by this repository",
+          "normative_status": "Organizational policy extension; not a Japanese standard or general public-sector requirement; explicit adoption required",
           "primary_url": "https://www.digital.go.jp/accessibility-statement",
-          "last_verified_at": "2026-07-12"
+          "last_verified_at": "2026-08-24"
         }
       ],
       "evaluation_methods": [
@@ -270,7 +436,7 @@
         "human_signoff_required": true,
         "claim_ceiling": "evaluated_subset"
       },
-      "copyright_boundary": "Do not reproduce JIS text. Keep JIS results and the 18 added WCAG 2.2 results distinct."
+      "copyright_boundary": "Do not reproduce JIS text. Keep JIS results and the 18-item organizational policy extension distinct."
     },
     {
       "id": "authoring-agent",
