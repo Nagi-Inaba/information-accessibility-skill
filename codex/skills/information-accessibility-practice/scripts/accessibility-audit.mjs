@@ -64,6 +64,7 @@ export function main(argv = process.argv.slice(2)) {
   }
 
   if (args.includes("--help") || args.includes("-h")) {
+    if (command === "report") return runCommand(definition, ["--help"]);
     process.stdout.write(`${commandHelpText(command)}\n`);
     return 0;
   }
