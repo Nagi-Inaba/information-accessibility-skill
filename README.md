@@ -97,6 +97,15 @@ accessibility-audit --help
 node .\codex\skills\information-accessibility-practice\scripts\accessibility-audit.mjs --help
 ```
 
+導入後は、次のread-only discovery commandsで版、利用可能profile、条項検索、外部依存を確認できます。
+
+```powershell
+accessibility-audit --version
+accessibility-audit profiles list
+accessibility-audit requirements search "focus" --profile web-modern --level AA
+accessibility-audit doctor
+```
+
 ## 5分で試す
 
 次の例は、WCAG 2.2 A／AAの全55件を`not_tested`で初期化したstandalone評価台帳を作り、検証し、参照ガイダンスを生成します。リポジトリのルートで実行してください。
@@ -150,6 +159,7 @@ profileを省略した場合は`web-modern`を使い、WCAG 2.2 A／AAの全55�
 ## 詳細ドキュメント
 
 - [はじめに：最初の1回と利用経路](docs/getting-started.md)
+- [実行可能な3経路のexamples](examples/README.md)
 - [アーキテクチャ、役割、成果物、日英用語集](docs/architecture-and-glossary.md)
 - [実Web検査とbrowser／network境界](docs/web-inspection.md)
 - [Codex向けagent orchestration](codex/skills/information-accessibility-practice/references/agent-orchestration.md)
