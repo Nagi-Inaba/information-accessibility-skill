@@ -7,6 +7,8 @@ const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
 const defaultSkillRoot = path.dirname(path.dirname(scriptDirectory));
 const localeFile = path.join(defaultSkillRoot, "references/runtime-locales.json");
 const checklistLocaleFile = path.join(defaultSkillRoot, "references/screen-reader-ui-checks.ja.json");
+const methodLocaleFile = path.join(defaultSkillRoot, "references/web-audit-methods.ja.json");
+const procedureLocaleFile = path.join(defaultSkillRoot, "references/criterion-procedures.ja.json");
 
 function readJson(file) {
   return JSON.parse(fs.readFileSync(file, "utf8").replace(/^\uFEFF/u, ""));
@@ -186,6 +188,14 @@ function assertString(value, location, errors) {
   if (typeof value !== "string" || value.trim().length === 0) errors.push(`${location} must be a non-empty string.`);
 }
 
+function validateTranslatedArray(canonical, localized, location, errors) {
+  if (!Array.isArray(localized) || localized.length !== canonical.length) {
+    errors.push(`${location} length must match the canonical registry.`);
+    return;
+  }
+  localized.forEach((value, index) => assertString(value, `${location}[${index}]`, errors));
+}
+
 function validateChecklistOverlay(canonical, overlay) {
   const errors = [];
   if (overlay?.schema_version !== "1.0.0") errors.push("screen-reader ja overlay schema_version must be 1.0.0.");
@@ -208,13 +218,58 @@ function validateChecklistOverlay(canonical, overlay) {
       if (translated?.id !== check.id) errors.push(`screen-reader ja overlay ${pattern.id}.checks[${checkIndex}] id must equal ${check.id}.`);
       for (const field of ["title", "expectation"]) assertString(translated?.[field], `${check.id}.${field}`, errors);
       for (const field of ["code_inspection", "runtime_verification", "cant_tell_when"]) {
-        if (!Array.isArray(translated?.[field]) || translated[field].length !== check[field].length) {
-          errors.push(`${check.id}.${field} length must match the canonical registry.`);
-        } else {
-          translated[field].forEach((value, index) => assertString(value, `${check.id}.${field}[${index}]`, errors));
-        }
+        validateTranslatedArray(check[field], translated?.[field], `${check.id}.${field}`, errors);
       }
     });
+  });
+  return errors;
+}
+
+function validateMethodOverlay(canonical, overlay) {
+  const errors = [];
+  if (overlay?.schema_version !== "1.0.0") errors.push("web-audit-methods ja overlay schema_version must be 1.0.0.");
+  if (overlay?.locale !== "ja") errors.push("web-audit-methods ja overlay locale must be ja.");
+  if (overlay?.canonical_schema_version !== canonical?.schema_version) {
+    errors.push("web-audit-methods ja overlay canonical_schema_version must match the canonical registry.");
+  }
+  const methods = Array.isArray(canonical?.methods) ? canonical.methods : [];
+  const localizedMethods = Array.isArray(overlay?.methods) ? overlay.methods : [];
+  if (localizedMethods.length !== methods.length) errors.push("web-audit-methods ja overlay method count must match the canonical registry.");
+  methods.forEach((method, index) => {
+    const localized = localizedMethods[index];
+    if (localized?.id !== method.id) errors.push(`web-audit-methods ja overlay methods[${index}].id must equal ${method.id}.`);
+    assertString(localized?.applicability_gate, `${method.id}.applicability_gate`, errors);
+    validateTranslatedArray(method.procedure_steps, localized?.procedure_steps, `${method.id}.procedure_steps`, errors);
+    assertString(localized?.cant_tell_when, `${method.id}.cant_tell_when`, errors);
+  });
+  return errors;
+}
+
+function validateProcedureOverlay(canonical, overlay) {
+  const errors = [];
+  if (overlay?.schema_version !== "1.0.0") errors.push("criterion-procedures ja overlay schema_version must be 1.0.0.");
+  if (overlay?.locale !== "ja") errors.push("criterion-procedures ja overlay locale must be ja.");
+  if (overlay?.canonical_schema_version !== canonical?.schema_version) {
+    errors.push("criterion-procedures ja overlay canonical_schema_version must match the canonical registry.");
+  }
+  const procedures = Array.isArray(canonical?.procedures) ? canonical.procedures : [];
+  const localizedProcedures = Array.isArray(overlay?.procedures) ? overlay.procedures : [];
+  if (localizedProcedures.length !== procedures.length) errors.push("criterion-procedures ja overlay procedure count must match the canonical registry.");
+  procedures.forEach((procedure, index) => {
+    const localized = localizedProcedures[index];
+    if (localized?.id !== procedure.id) errors.push(`criterion-procedures ja overlay procedures[${index}].id must equal ${procedure.id}.`);
+    for (const field of ["applicability_steps", "procedure_steps", "expected_results", "cant_tell_when"]) {
+      validateTranslatedArray(procedure[field], localized?.[field], `${procedure.id}.${field}`, errors);
+    }
+    for (const outcome of ["pass", "fail", "cant_tell"]) {
+      validateTranslatedArray(
+        procedure.counterexamples[outcome],
+        localized?.counterexamples?.[outcome],
+        `${procedure.id}.counterexamples.${outcome}`,
+        errors
+      );
+    }
+    assertString(localized?.ai_boundary, `${procedure.id}.ai_boundary`, errors);
   });
   return errors;
 }
@@ -245,6 +300,43 @@ export function localizeScreenReaderRegistry(registry, locale = "en", root = def
   return localized;
 }
 
+export function localizeAuditMethod(method, locale = "en", root = defaultSkillRoot) {
+  const normalized = normalizeRuntimeLocale(locale, "en");
+  if (normalized === "en") return clone(method);
+  const canonical = readJson(path.join(root, "references/web-audit-methods.json"));
+  const overlay = readJson(path.join(root, "references/web-audit-methods.ja.json"));
+  const errors = validateMethodOverlay(canonical, overlay);
+  if (errors.length) throw new Error(`Invalid Web audit method locale overlay:\n- ${errors.join("\n- ")}`);
+  const translation = overlay.methods.find((item) => item.id === method.id);
+  if (!translation) throw new Error(`Missing Japanese Web audit method translation: ${method.id}.`);
+  return {
+    ...clone(method),
+    applicability_gate: translation.applicability_gate,
+    procedure_steps: clone(translation.procedure_steps),
+    cant_tell_when: translation.cant_tell_when
+  };
+}
+
+export function localizeCriterionProcedure(procedure, locale = "en", root = defaultSkillRoot) {
+  const normalized = normalizeRuntimeLocale(locale, "en");
+  if (normalized === "en") return clone(procedure);
+  const canonical = readJson(path.join(root, "references/criterion-procedures.json"));
+  const overlay = readJson(path.join(root, "references/criterion-procedures.ja.json"));
+  const errors = validateProcedureOverlay(canonical, overlay);
+  if (errors.length) throw new Error(`Invalid criterion procedure locale overlay:\n- ${errors.join("\n- ")}`);
+  const translation = overlay.procedures.find((item) => item.id === procedure.id);
+  if (!translation) throw new Error(`Missing Japanese criterion procedure translation: ${procedure.id}.`);
+  return {
+    ...clone(procedure),
+    applicability_steps: clone(translation.applicability_steps),
+    procedure_steps: clone(translation.procedure_steps),
+    expected_results: clone(translation.expected_results),
+    cant_tell_when: clone(translation.cant_tell_when),
+    counterexamples: clone(translation.counterexamples),
+    ai_boundary: translation.ai_boundary
+  };
+}
+
 export function localizeKnownReportText(value, locale = "en") {
   const normalized = normalizeRuntimeLocale(locale, "en");
   if (normalized === "en") return value;
@@ -273,5 +365,9 @@ export function validateRuntimeLocaleCatalog({ registry, checklist, root = defau
   const extraProfiles = Object.keys(catalog.ja.profiles).filter((id) => !activeProfiles.some((profile) => profile.id === id));
   if (extraProfiles.length) errors.push(`Unexpected Japanese profile translations: ${extraProfiles.join(", ")}.`);
   errors.push(...validateChecklistOverlay(checklist, readJson(path.join(root, "references/screen-reader-ui-checks.ja.json"))));
+  const methods = readJson(path.join(root, "references/web-audit-methods.json"));
+  errors.push(...validateMethodOverlay(methods, readJson(path.join(root, "references/web-audit-methods.ja.json"))));
+  const procedures = readJson(path.join(root, "references/criterion-procedures.json"));
+  errors.push(...validateProcedureOverlay(procedures, readJson(path.join(root, "references/criterion-procedures.ja.json"))));
   return { valid: errors.length === 0, errors };
 }

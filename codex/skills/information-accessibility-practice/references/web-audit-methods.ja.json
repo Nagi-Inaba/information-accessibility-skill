@@ -1,0 +1,161 @@
+{
+  "schema_version": "1.0.0",
+  "locale": "ja",
+  "canonical_schema_version": "1.0.0",
+  "methods": [
+    {
+      "id": "non-text-content",
+      "applicability_gate": "固定した対象範囲にある、情報提供、機能、感覚的体験、CAPTCHA、テスト、装飾目的の非テキストコンテンツを洗い出します。",
+      "procedure_steps": [
+        "各非テキスト項目を目的別に分類します。",
+        "プログラムで取得できるテキスト代替、または意図的な空の代替を確認します。",
+        "代替テキストを、目に見える文脈および利用者に必要な操作・情報と比較します。",
+        "機能を持つコントロールを操作し、例外は分けて記録します。"
+      ],
+      "cant_tell_when": "目的、文脈、または計算済みの代替テキストを観測できない場合。"
+    },
+    {
+      "id": "time-based-media",
+      "applicability_gate": "収録済みまたはライブの音声・動画を洗い出し、同期メディア、メディア代替、音声のみ、動画のみのいずれかを判定します。",
+      "procedure_steps": [
+        "メディアの種類と条項の適用可否を分類します。",
+        "選択した条項で必要となる字幕、書き起こし、音声解説、手話、またはメディア代替の仕組みを確認します。",
+        "冒頭、中間、末尾の代表的な区間を再生します。",
+        "タイミング、話者識別、意味のある音、視覚情報を原コンテンツと比較します。"
+      ],
+      "cant_tell_when": "メディア、代替トラック、または代表的な再生環境を利用できない場合。"
+    },
+    {
+      "id": "adaptable-structure",
+      "applicability_gate": "視覚的な構造、順序、感覚的特徴に依存する指示、画面方向の制約、利用者情報を収集する入力欄を特定します。",
+      "procedure_steps": [
+        "視覚的な関係をDOMまたは文書のセマンティクスと比較します。",
+        "読み上げ順序およびfocusに依存しない順序を確認します。",
+        "感覚的特徴だけに依存しない指示になっているか確認します。",
+        "該当する場合は回転・reflowを試し、入力目的のメタデータを確認します。"
+      ],
+      "cant_tell_when": "プログラム上の構造または対象端末の画面方向を確認できない場合。"
+    },
+    {
+      "id": "distinguishable-presentation",
+      "applicability_gate": "色で示す意味、音声、文字と文字画像、コントラスト境界、拡大・reflow、文字間隔、hover／focusで表示される内容、文字以外のUI画像を特定します。",
+      "procedure_steps": [
+        "色以外の手掛かりと音声制御を確認します。",
+        "該当する文字、UI、図形のコントラストを測定します。",
+        "情報や機能を失わずに文字拡大、zoom、狭幅reflow、文字間隔変更ができるか試します。",
+        "hover／focusで表示される内容を出現させ、閉じられること、pointerを移せること、表示が維持されることを確認します。"
+      ],
+      "cant_tell_when": "描画済みstyle、コントラストの標本、responsive状態、または対話で表示される内容を再現できない場合。"
+    },
+    {
+      "id": "keyboard-operation",
+      "applicability_gate": "すべての対話機能、shortcut、埋込みwidget、focus可能な領域を特定します。",
+      "procedure_steps": [
+        "該当する各機能をkeyboardだけで完了します。",
+        "componentへの移動、操作、脱出、元の位置への復帰を確認します。",
+        "文字key shortcutについて、無効化、再割当て、focus時のみ有効とする動作を確認します。",
+        "focus位置と、trapまたはpointerだけに依存する操作を記録します。"
+      ],
+      "cant_tell_when": "対話runtimeまたは必要なkeyboard入力経路を利用できない場合。"
+    },
+    {
+      "id": "timing-and-motion",
+      "applicability_gate": "時間制限、および移動、点滅、scroll、自動更新、自動再生する内容を特定します。",
+      "procedure_steps": [
+        "各時間制限を測定し、実際に発生させます。",
+        "該当する延長、調整、一時停止、停止、非表示、例外の動作を確認します。",
+        "時間切れ前にcontrolを操作できる状態が保たれるか観測します。",
+        "本質的な例外と利用者への影響を記録します。"
+      ],
+      "cant_tell_when": "代表的な条件で時間制限または動く動作を発生させられない場合。"
+    },
+    {
+      "id": "seizure-and-physical-reaction",
+      "applicability_gate": "到達可能なすべての状態で、点滅または急速に変化する視覚コンテンツを特定します。",
+      "procedure_steps": [
+        "該当する時間区間を記録します。",
+        "閾値超過の可能性がある場合は、適切な解析toolで閃光を測定します。",
+        "viewport内の面積と例外に関する前提を確認します。",
+        "使用したtool、version、解析区間、結果を記録します。"
+      ],
+      "cant_tell_when": "animationを記録できない、または閾値解析を利用できない場合。"
+    },
+    {
+      "id": "navigation-and-focus",
+      "applicability_gate": "繰り返されるblock、page title、focus順序、link目的、navigation経路、heading、label、focus中componentの可視性を特定します。",
+      "procedure_steps": [
+        "page全体と一連の利用手順をkeyboardで移動します。",
+        "迂回手段、title、heading、label、linkの文脈を確認します。",
+        "focus順序を意味および操作順序と比較します。",
+        "focusが見えること、およびfocus中のcomponentが隠されないことを確認します。"
+      ],
+      "cant_tell_when": "page全体・一連の利用手順、または視覚的なfocus状態を操作して確認できない場合。"
+    },
+    {
+      "id": "input-modalities",
+      "applicability_gate": "複数点・軌跡gesture、pointer操作、目に見えるlabel、motion入力、drag操作、pointer targetを特定します。",
+      "procedure_steps": [
+        "該当するpointer、touch、motionの代替操作を試します。",
+        "取消しと完了のtimingを確認します。",
+        "accessible nameを目に見えるlabelと比較します。",
+        "targetの大きさと間隔を測定し、dragを使わない代替操作を確認します。"
+      ],
+      "cant_tell_when": "必要なpointer、touch、motion、またはviewport環境を利用できない場合。"
+    },
+    {
+      "id": "readable-language",
+      "applicability_gate": "既定の自然言語と、異なる言語で書かれた語句・段落を特定します。",
+      "procedure_steps": [
+        "pageの言語がプログラムで判定可能か確認します。",
+        "語句や段落の言語変更を確認します。",
+        "browserの処理が重要な場合は、計算済みaccessibility情報を確認します。",
+        "固有名詞、専門用語、言語を特定できない内容の例外を記録します。"
+      ],
+      "cant_tell_when": "プログラム上の言語または発音動作を確認できない場合。"
+    },
+    {
+      "id": "predictable-behavior",
+      "applicability_gate": "focusまたは入力で起きる変化、繰り返されるnavigation／component、helpの仕組みを特定します。",
+      "procedure_steps": [
+        "該当するcontrolへfocusを移し、値を変更し、予期しない起動が起きないことを確認します。",
+        "複数page間で繰り返されるnavigationとcomponentの識別を比較します。",
+        "対象page群にあるhelpの仕組みを確認します。",
+        "利用者が開始した文脈変更と例外を記録します。"
+      ],
+      "cant_tell_when": "繰り返されるpageまたは状態を変化させるcontrolを操作できない場合。"
+    },
+    {
+      "id": "input-assistance",
+      "applicability_gate": "利用者入力、validation、法的・金融・data送信、認証、同じ情報の再入力、error recoveryを特定します。",
+      "procedure_steps": [
+        "各validation errorと送信errorを発生させます。",
+        "errorの特定、label／instruction、修正候補、予防・確認の仕組みを確認します。",
+        "代表的な一連の手順をerrorからの回復まで完了します。",
+        "同じ情報の再入力を減らす動作とaccessible authenticationを確認します。"
+      ],
+      "cant_tell_when": "一連のform／手順、validation状態、または認証経路を利用できない場合。"
+    },
+    {
+      "id": "parsing-legacy",
+      "applicability_gate": "JIS X 8341-3:2016など、選択したprofileに従来の構文解析条項が残る場合だけ適用します。",
+      "procedure_steps": [
+        "適切な適合性check toolで提供済みmarkupを解析します。",
+        "重複ID、不正な開始・終了tag、不正な属性を確認します。",
+        "errorが報告された箇所では、要素の入れ子とdocument treeの回復処理を確認します。",
+        "対象document、tool／version、error箇所、プログラム上の解釈へ影響するかを正確に記録します。"
+      ],
+      "cant_tell_when": "提供済みmarkupまたは適切なparser／適合性check toolを利用できない場合。"
+    },
+    {
+      "id": "compatible-semantics",
+      "applicability_gate": "UI component、明示的ARIA、name、role、value、関係、status messageを特定します。",
+      "procedure_steps": [
+        "native semanticsと描画後のaccessibility treeを確認します。",
+        "ARIAを使用している場合はSCREEN-ARIA playbookを適用します。",
+        "componentを操作し、現在のname、role、value、state、関係を比較します。",
+        "status messageを発生させ、focusを移動せずに支援技術へ公開されるか観測します。"
+      ],
+      "cant_tell_when": "accessibility tree、component動作、または支援技術による読み上げを観測できない場合。"
+    }
+  ]
+}

@@ -6,6 +6,8 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { buildRequirementsIndex } from "./browse-requirements.mjs";
 import { profileConfiguration, recordsForProfile } from "./lib/profile-registry.mjs";
 import {
+  localizeAuditMethod,
+  localizeCriterionProcedure,
   localizedProfile,
   normalizeRuntimeLocale,
   requirementsUi,
@@ -49,28 +51,32 @@ export function lookupRequirement(profileId, requirementId, root = skillRoot, lo
     )
     : null;
   const criterionProcedure = directCriterionProcedure ?? equivalentCriterionProcedure;
+  const localizedMethod = localizeAuditMethod(method, selectedLocale, root);
+  const localizedCriterionProcedure = criterionProcedure
+    ? localizeCriterionProcedure(criterionProcedure, selectedLocale, root)
+    : null;
   const procedureOfficialSources = criterionProcedure
     ? [...new Set([
       ...(equivalentCriterionProcedure ? (criterion.official_method_sources ?? []) : []),
       ...criterionProcedure.primary_sources
     ])]
     : null;
-  const procedureBinding = criterionProcedure ? {
+  const procedureBinding = localizedCriterionProcedure ? {
     procedure_availability: "available",
     procedure_ref: `criterion-procedures:${criterionProcedures.schema_version}#${criterionProcedure.id}`,
     generic_method_ref: null,
     official_sources: procedureOfficialSources,
-    human_actions: criterionProcedure.procedure_steps,
-    required_evidence_types: criterionProcedure.required_evidence_types,
-    cant_tell_conditions: criterionProcedure.cant_tell_when
+    human_actions: localizedCriterionProcedure.procedure_steps,
+    required_evidence_types: localizedCriterionProcedure.required_evidence_types,
+    cant_tell_conditions: localizedCriterionProcedure.cant_tell_when
   } : {
     procedure_availability: "unavailable",
     procedure_ref: null,
     generic_method_ref: `web-audit-methods:${methods.schema_version}#${method.id}`,
     official_sources: criterion.official_method_sources,
-    human_actions: method.procedure_steps,
-    required_evidence_types: method.required_evidence_types,
-    cant_tell_conditions: [method.cant_tell_when]
+    human_actions: localizedMethod.procedure_steps,
+    required_evidence_types: localizedMethod.required_evidence_types,
+    cant_tell_conditions: [localizedMethod.cant_tell_when]
   };
 
   const indexed = buildRequirementsIndex(root).requirements.find(
@@ -95,10 +101,10 @@ export function lookupRequirement(profileId, requirementId, root = skillRoot, lo
       display_title: displayTitle,
       title_locale_status: indexed.title_locale_status
     },
-    audit_method: method,
+    audit_method: localizedMethod,
     criterion_procedure_catalog_status: criterionProcedures.catalog_status,
-    criterion_procedure_status: criterionProcedure ? "available" : "not_available",
-    ...(criterionProcedure ? { criterion_procedure: criterionProcedure } : {}),
+    criterion_procedure_status: localizedCriterionProcedure ? "available" : "not_available",
+    ...(localizedCriterionProcedure ? { criterion_procedure: localizedCriterionProcedure } : {}),
     procedure_binding: procedureBinding,
     catalog_verified_at: catalog.verified_at,
     method_catalog_verified_at: methods.verified_at,
