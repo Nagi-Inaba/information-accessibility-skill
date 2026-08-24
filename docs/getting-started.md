@@ -12,6 +12,21 @@ This guide gives a new user one short path through the package without requiring
 | Create a standards ledger / 規格台帳を作る | `accessibility-audit assessment` or `generate-assessment.mjs` | JSON with every profile row initialized as `not_tested` |
 | Preserve a multi-step audit trail / 監査工程を追跡する | `init` → artifacts → `merge` → `report` | Immutable run chain, merged assessment, report |
 
+Before choosing a longer flow, inspect the installed version, active profiles, requirement catalog, and optional browser capability. The commands are read-only and return machine-readable output where appropriate.
+長い監査フローへ進む前に、導入版、active profile、条項カタログ、任意のbrowser capabilityをread-onlyで確認できます。
+
+```powershell
+accessibility-audit --version
+accessibility-audit profiles list
+accessibility-audit requirements show 1.1.1 --profile web-modern
+accessibility-audit requirements search "フォーカス" --profile web-modern
+accessibility-audit requirements search "focus" --profile web-modern --level AA
+accessibility-audit doctor
+```
+
+For complete, reproducible examples of Natural-language review, a Standalone ledger, and a Run-backed audit, see the [runnable examples](../examples/README.md).
+自然言語レビュー、standalone台帳、run-backed監査を最初から最後まで再現する場合は、[実行可能なexamples](../examples/README.md)を参照してください。
+
 The unified CLI manages records and validation and now also exposes a rule-based browser scan. The browser capability requires the exact supported Playwright and axe-core versions. An actual screen-reader session remains an external human or host capability.
 
 ## 2. Five-minute standalone ledger / 5分で試すstandalone台帳
