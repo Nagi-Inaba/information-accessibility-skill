@@ -20,10 +20,10 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 function Resolve-EdgeExecutable {
-  $candidates = @(
+  $candidates = @(@(
     (Join-Path ${env:ProgramFiles(x86)} 'Microsoft\Edge\Application\msedge.exe'),
     (Join-Path $env:ProgramFiles 'Microsoft\Edge\Application\msedge.exe')
-  ) | Where-Object { $_ -and (Test-Path -LiteralPath $_ -PathType Leaf) }
+  ) | Where-Object { $_ -and (Test-Path -LiteralPath $_ -PathType Leaf) })
   if ($candidates.Count -eq 0) {
     $command = Get-Command msedge.exe -ErrorAction SilentlyContinue
     if ($command) { return $command.Source }
@@ -48,9 +48,9 @@ function Activate-ReportWindow {
     [Parameter(Mandatory = $true)][datetime] $StartedAt
   )
   for ($attempt = 0; $attempt -lt 60; $attempt += 1) {
-    $candidates = Get-Process msedge -ErrorAction SilentlyContinue | Where-Object {
+    $candidates = @(Get-Process msedge -ErrorAction SilentlyContinue | Where-Object {
       try { $_.StartTime -ge $StartedAt.AddSeconds(-2) -and $_.MainWindowTitle -match 'Audit Report' } catch { $false }
-    }
+    })
     foreach ($candidate in $candidates) {
       if ($Shell.AppActivate($candidate.Id)) {
         return $candidate.Id
@@ -230,7 +230,7 @@ $record = [ordered]@{
   limitations = @(
     'This is a bounded smoke test of one generated English fixture report on a GitHub-hosted Windows runner.',
     'It confirms that NVDA produced speech for selected major report regions; it is not a complete screen-reader usability study or a WCAG/JIS conformance assessment.',
-    'Audio quality is not evaluated. Evidence is taken from NVDA own IO speech log, not from the accessibility tree or fixture source text.'
+    'Audio quality is not evaluated. Evidence is taken from NVDA own IO speech log rather than inferred from the report source.'
   )
 }
 [System.IO.File]::WriteAllText(
