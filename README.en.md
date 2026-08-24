@@ -70,14 +70,19 @@ On macOS or Linux, copy `codex/skills/information-accessibility-practice/` and t
 
 ### Claude
 
-Install the skill and the four manifest-default agents together.
+Use `shared/agents/agent-manifest.json` entries with `install_by_default: true` as the source of truth, and install the skill with these four default agents:
+
+- `information-accessibility-reviewer`
+- `information-accessibility-e1-inspector`
+- `information-accessibility-human-queue-planner`
+- `information-accessibility-remediation-planner`
 
 ```powershell
 node .\scripts\install-claude.mjs --dry-run
 node .\scripts\install-claude.mjs
 ```
 
-Use `--reviewer-only` only when the host cannot dispatch specialist agents.
+The multi-agent installation preserves the same role artifact contract as Codex. Use `--reviewer-only` only when the Claude host cannot dispatch specialist agents.
 
 ### CLI
 
