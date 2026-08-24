@@ -156,11 +156,11 @@ https://example.com/
 
 ## 証拠と主張の境界
 
-AIエージェントが作成または更新するprofile requirement行は、`mapping_status: "unverified"`と`outcome: "not_tested"`に保ちます。AIの観測は`SCREEN-*`または未検証のhandoffとして記録します。
+AIエージェントが作成または更新するプロファイル要件行は、`mapping_status: "unverified"`と`outcome: "not_tested"`に保ちます。AIの観測は`SCREEN-*`または未検証の引き継ぎとして記録します。
 
 - AIと自動検査はE0／E1のscreening observationを作成できます。
 - 自動・静的検査は`screening_check`、人が一次資料へ対応付ける規格条項は`profile_requirement`として分離します。
-- 外部人手レビューだけが、手順と対象固有の証拠に基づくprofile outcomeを記録できます。
+- 外部の人手レビューだけが、該当手順と対象固有の手動またはハイブリッド証拠に基づき、`pass`、`fail`、`not_applicable`、`cant_tell`のprofile outcomeを記録できます。
 - `reference_only`、`screened`、`evaluated_subset`等のclaim tierは、記録された証拠とprofile ceilingを超えられません。
 - raw DOM、AX tree、private URL、local path、個人情報、authorization情報は、公開方針が明示されない限り内部用です。
 - レポートの判定語は、第三者認証、法的判断、正式な適合表明ではありません。
