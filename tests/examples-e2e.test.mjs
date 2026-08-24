@@ -57,8 +57,9 @@ test("standalone example generates a complete 55-row ledger and guarded report",
   assert.equal(assessment.assessment.results.length, 55);
   assert.ok(assessment.assessment.results.every((row) => row.outcome === "not_tested"));
   const report = fs.readFileSync(reportFile, "utf8");
-  assert.match(report, /^# WCAG参照ガイダンス/mu);
-  assert.match(report, /55/u);
+  assert.match(report, /^# WCAG 2\.2 A\/AA 監査レポート$/mu);
+  assert.match(report, /^## 主張可能な範囲$/mu);
+  assert.match(report, /人による確認済み: 0\/55/u);
   assertPublicFixtureText(report, "standalone public example");
 });
 

@@ -9,7 +9,7 @@ This guide gives a new user one short path through the package without requiring
 | --- | --- | --- |
 | Find machine-detectable Web barriers / Webの機械検出可能な問題を調べる | `accessibility-audit scan-web` | Full internal scan and compact AI context / 内部用scanとAI用context |
 | Find likely barriers and improvement ideas / 問題候補と改善案を知る | Natural-language skill or reviewer agent / 自然言語のスキル・reviewer | Review summary and human follow-up / レビュー要約と人による追加確認 |
-| Create a standards ledger / 規格台帳を作る | `accessibility-audit assessment` or `generate-assessment.mjs` | JSON with every profile row initialized as `not_tested` |
+| Create a standards ledger / 規格台帳を作る | `accessibility-audit assessment` | JSON with every profile row initialized as `not_tested` |
 | Preserve a multi-step audit trail / 監査工程を追跡する | `init` → artifacts → `merge` → `report` | Immutable run chain, merged assessment, report |
 
 Before choosing a longer flow, inspect the installed version, active profiles, requirement catalog, and optional browser capability. The commands are read-only and return machine-readable output where appropriate.
@@ -31,20 +31,26 @@ The unified CLI manages records and validation and now also exposes a rule-based
 
 ## 2. Five-minute standalone ledger / 5分で試すstandalone台帳
 
-Run from the repository root. The example creates a complete WCAG 2.2 A/AA ledger whose rows remain explicitly untested, validates it, and renders a guarded report. Internal artifacts are written below the ignored `audit-runs/` directory so they are not mixed with source files.
+Run from the repository root. The example creates a complete WCAG 2.2 A/AA ledger whose rows remain explicitly untested, validates it, and renders a guarded profile-aware report. Internal artifacts are written below the ignored `audit-runs/` directory so they are not mixed with source files.
 
 ```powershell
-node .\codex\skills\information-accessibility-practice\scripts\generate-assessment.mjs --profile web-modern --target-name "Example Site" --target-version "2026-08-23" --target-ref "https://example.com/" --evaluator "Accessibility Reviewer" --evaluated-at "2026-08-23" --output .\audit-runs\quickstart\audit.json
-node .\codex\skills\information-accessibility-practice\scripts\validate-assessment.mjs .\audit-runs\quickstart\audit.json
-node .\codex\skills\information-accessibility-practice\scripts\render-audit-report.mjs --input .\audit-runs\quickstart\audit.json --output .\audit-runs\quickstart\audit-report.md
+node .\codex\skills\information-accessibility-practice\scripts\accessibility-audit.mjs assessment --profile web-modern --target-name "Example Site" --target-version "2026-08-24" --target-ref "https://example.com/" --evaluator "Accessibility Reviewer" --evaluated-at "2026-08-24" --output .\audit-runs\quickstart\audit.json
+node .\codex\skills\information-accessibility-practice\scripts\accessibility-audit.mjs validate-assessment .\audit-runs\quickstart\audit.json
+node .\codex\skills\information-accessibility-practice\scripts\accessibility-audit.mjs report --input .\audit-runs\quickstart\audit.json --locale ja --output .\audit-runs\quickstart\audit-report.md
 ```
 
 Expected files / 生成物:
 
 - `audit-runs/quickstart/audit.json`: complete profile ledger; initialization is not completed inspection / 完全な規格台帳。初期化は検査完了ではない
-- `audit-runs/quickstart/audit-report.md`: reference guidance showing `未確認` until target-specific evidence and judgement are added / 対象固有の証拠と判定が入るまでは`未確認`を示す参照ガイダンス
+- `audit-runs/quickstart/audit-report.md`: profile-aware report showing every criterion as `未確認`／`Not tested` until target-specific evidence and judgement are added
 
-The generator uses an exclusive safe writer. Existing files are not overwritten, and missing parent directories are created through the guarded output path.
+The report displays criterion number, localized title, level, profile group, primary source, judgement source, evidence level, and rationale. Use `--locale ja` or `--locale en` for human-readable text; requirement IDs and enum values do not change.
+レポートには条項番号、名称、レベル、profile group、一次資料、判定の出所、証拠レベル、根拠が表示されます。`--locale ja`と`--locale en`は人向け表示だけを変更し、内部IDやenumは変更しません。
+
+The claim section separately shows the requested tier and the validator maximum tier. It uses only fixed wording registered in `standards-registry.json`; report judgement labels are not a formal conformance declaration.
+主張可能な範囲では、要求されたtierと検証上限tierを分離し、registryに登録された固定表現だけを表示します。レポートの判定語だけで正式な適合表明を行うことはできません。
+
+The generator and report writer use exclusive safe outputs. Existing files are not overwritten, and missing parent directories are created through the guarded output path.
 
 ## 3. Rule-based live Web scan / ルールベースの実Web検査
 
@@ -74,6 +80,13 @@ Use a run when you need immutable target metadata, explicit permissions, registe
 3. Materialize and register screening, queue, human-review, and remediation artifacts as applicable.
 4. Merge only registered artifacts into a new assessment.
 5. Validate and render the guarded report.
+
+Run-backed reporting uses the same profile title, criterion metadata, group counts, locale contract, and claim section as standalone reporting. Each row distinguishes external human review, AI/automated screening projection, and a check that was not run. Screening projections remain report-only judgements and never become `human_verified` profile outcomes.
+run-backedレポートもstandaloneと同じ表示規則を使い、各行で外部人手レビュー、AI／自動スクリーニング、未実施を区別します。screening projectionはreport-only judgementであり、`human_verified`へ自動昇格しません。
+
+```powershell
+node .\codex\skills\information-accessibility-practice\scripts\accessibility-audit.mjs report --run .\audit-runs\example\audit-run.json --assessment .\audit-runs\example\merged-assessment.json --locale en --output .\audit-runs\example\audit-report.en.md
+```
 
 The complete control-plane contract is documented in:
 

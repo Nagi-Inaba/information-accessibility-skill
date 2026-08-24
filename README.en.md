@@ -32,10 +32,10 @@ Review this website for information accessibility. Separate observed barriers, p
 | Path | Best for | Main outputs | Important boundary |
 | --- | --- | --- | --- |
 | **Natural-language review** | First-pass barriers and improvement ideas, including documents, media, and events | Conversational review, remediation ideas, human follow-up | Does not preserve a standards ledger or multi-stage history by itself |
-| **Standalone assessment** | A complete WCAG or JIS ledger for one bounded snapshot | One assessment JSON and one Markdown report | Every profile row starts as `not_tested`; initialization is not completed inspection |
-| **Run-backed audit** | Multi-role screening, human review, remediation, authorization, and retesting | Audit run, registered artifacts, merged assessment, report | Requires understanding the schema and artifact relationships |
+| **Standalone assessment** | A complete WCAG or JIS ledger for one bounded snapshot | Assessment JSON and a profile-aware Markdown inspection report | Every profile row starts as `not_tested`; initialization is not completed inspection |
+| **Run-backed audit** | Track screening, human review, remediation, and retesting | Audit run, registered artifacts, merged assessment, report | Requires understanding the schema and artifact relationships |
 
-See the [architecture and glossary](docs/architecture-and-glossary.md) for the complete flow and responsibility boundaries.
+See the [architecture and glossary](docs/architecture-and-glossary.md) for the complete flow. Use the [runnable examples](examples/README.md) to execute all three paths.
 
 ## Supported targets and current limits
 
@@ -43,8 +43,8 @@ See the [architecture and glossary](docs/architecture-and-glossary.md) for the c
 | --- | --- | --- | --- |
 | Website or Web application | Supported | `web-modern`, `jp-public-web`, read-only `scan-web` | A real screen-reader session remains an external human or host capability |
 | PDF, Word document, or slide deck | Supported | Guidance-oriented | No active dedicated profile or formal claim path |
-| Video or audio | Supported | Relevant Web requirements when media is inside a named Web scope | No standalone media profile |
-| Event, meeting, or community process | Supported | Review through the five information-use perspectives | No dedicated structured assessment yet |
+| Video or audio | Supported | Relevant Web requirements inside a named Web scope | No standalone media profile |
+| Event, meeting, or community process | Supported | Review through five information-use perspectives | No dedicated structured assessment yet |
 | ATAG or authoring process | Reference guidance | Partial reference information | The `authoring-agent` profile is currently inactive |
 
 `web-modern` covers 55 WCAG 2.2 Level A and AA requirements from [WCAG 2.2](https://www.w3.org/TR/WCAG22/). `jp-public-web` contains 38 Level A and AA requirements from [JIS X 8341-3:2016 guidance by WAIC](https://waic.jp/docs/jis2016/understanding/201604/) plus 18 Level A and AA requirements introduced in WCAG 2.1 and 2.2, for 56 checks in total. JIS retains 4.1.1, Parsing, which [WCAG 2.2 removed](https://www.w3.org/WAI/standards-guidelines/wcag/new-in-22/). Catalog coverage and actual evaluation coverage are recorded separately.
@@ -57,20 +57,20 @@ See the [architecture and glossary](docs/architecture-and-glossary.md) for the c
 
 ### Codex
 
-On Windows, use the manifest-aware installer with backup and dry-run support.
+On Windows, use the manifest-aware installer.
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File ".\scripts\install-codex.ps1" -WhatIf
 powershell -ExecutionPolicy Bypass -File ".\scripts\install-codex.ps1"
 ```
 
-Specify `-IncludeAuthorizedFixer` only when deliberately installing authorized remediation. The authorized fixer is a read-only handoff agent and does not modify the target. A trusted operator performs the actual bounded change, verification, and rollback after checking the external authorization.
+Specify `-IncludeAuthorizedFixer` only when deliberately installing authorized remediation. The authorized fixer is a read-only handoff agent and does not modify the target. A trusted operator performs the actual bounded change, verification, and rollback after checking external authorization.
 
-On macOS or Linux, copy `codex/skills/information-accessibility-practice/` and the manifest-default agents into the Codex installation. See [Getting started](docs/getting-started.md) and the [architecture guide](docs/architecture-and-glossary.md) for the installed roles and usage paths.
+On macOS or Linux, copy `codex/skills/information-accessibility-practice/` and the manifest-default agents. See [Getting started](docs/getting-started.md).
 
 ### Claude
 
-`shared/agents/agent-manifest.json` entries whose `install_by_default` value is `true` are the source of truth. Install the Claude skill and these four default agents together:
+Use `shared/agents/agent-manifest.json` entries with `install_by_default: true` as the source of truth, and install the skill with these four default agents:
 
 - `information-accessibility-reviewer`
 - `information-accessibility-e1-inspector`
@@ -82,51 +82,44 @@ node .\scripts\install-claude.mjs --dry-run
 node .\scripts\install-claude.mjs
 ```
 
-The multi-agent installation preserves the same role artifact contract as the Codex distribution. Use `--reviewer-only` only when the Claude host cannot dispatch specialist agents, not merely to install fewer files.
+The multi-agent installation preserves the same role artifact contract as Codex. Use `--reviewer-only` only when the Claude host cannot dispatch specialist agents.
 
 ### CLI
-
-Install the global command from the skill directory, or invoke the entry point directly through Node.js.
 
 ```powershell
 npm install --global .\codex\skills\information-accessibility-practice
 accessibility-audit --help
-```
-
-```powershell
-node .\codex\skills\information-accessibility-practice\scripts\accessibility-audit.mjs --help
-```
-
-After installation, use these read-only discovery commands to inspect the package version, active profiles, requirement search, and optional dependencies.
-
-```powershell
 accessibility-audit --version
 accessibility-audit profiles list
 accessibility-audit requirements search "focus" --profile web-modern --level AA
 accessibility-audit doctor
 ```
 
+These discovery commands are read-only. The standard CLI does not modify the audited target.
+
 ## Try it in five minutes
 
-The following example creates a complete WCAG 2.2 Level A and AA standalone ledger with all 55 rows initialized as `not_tested`, validates it, and renders guarded reference guidance. Run it from the repository root.
+The following example initializes all 55 WCAG 2.2 Level A and AA requirements as `not_tested`, validates the ledger, and creates a profile-aware Japanese report.
 
 ```powershell
-node .\codex\skills\information-accessibility-practice\scripts\generate-assessment.mjs --profile web-modern --target-name "Example Site" --target-version "2026-08-23" --target-ref "https://example.com/" --evaluator "Accessibility Reviewer" --evaluated-at "2026-08-23" --output .\audit-runs\quickstart\audit.json
-node .\codex\skills\information-accessibility-practice\scripts\validate-assessment.mjs .\audit-runs\quickstart\audit.json
-node .\codex\skills\information-accessibility-practice\scripts\render-audit-report.mjs --input .\audit-runs\quickstart\audit.json --output .\audit-runs\quickstart\audit-report.md
+node .\codex\skills\information-accessibility-practice\scripts\accessibility-audit.mjs assessment --profile web-modern --target-name "Example Site" --target-version "2026-08-24" --target-ref "https://example.com/" --evaluator "Accessibility Reviewer" --evaluated-at "2026-08-24" --output .\audit-runs\quickstart\audit.json
+node .\codex\skills\information-accessibility-practice\scripts\accessibility-audit.mjs validate-assessment .\audit-runs\quickstart\audit.json
+node .\codex\skills\information-accessibility-practice\scripts\accessibility-audit.mjs report --input .\audit-runs\quickstart\audit.json --locale ja --output .\audit-runs\quickstart\audit-report.md
 ```
 
-Creating `audit.json` does not mean the target was inspected. Until target-specific evidence and outcomes are added, the report is reference guidance that keeps unverified requirements visible. See the [five-minute guide](docs/getting-started.md) for macOS or Linux commands and the next steps.
+Creating the ledger does not mean the target was inspected. Until target-specific evidence and outcomes are added, every row remains `Not tested` and `Not run`. At this stage, the document is reference guidance; it is distinct from an inspection report backed by target-specific evidence and judgements.
 
-Use template mode only when you need an editable placeholder rather than a validated record.
+Each report row shows the criterion number, localized title, level, profile group, primary source, judgement source, evidence level, and rationale. A Run-backed report distinguishes External human review, AI/automated screening, and Not run. A screening projection is a report-only judgement and is never promoted to a profile outcome.
+
+`--locale ja` and `--locale en` change human-readable text only; internal IDs, schema keys, and enum values remain stable. The claim section shows the requested tier, validator maximum, registry-fixed wording, and limiting reasons.
+
+Use template mode only for an editable placeholder.
 
 ```powershell
 node .\codex\skills\information-accessibility-practice\scripts\generate-assessment.mjs --template --profile web-modern --output .\audit-runs\quickstart\assessment.template.json
 ```
 
-`--template` returns `TEMPLATE_CREATED` and is not a validated assessment or inspection result. Omit `--template` for normal record creation and provide the target name, version, reference, evaluator, and evaluation date.
-
-A `reference_only` ledger produces **reference guidance**; it is distinct from an evidence-backed **inspection report**.
+`render-audit-report.mjs` remains a legacy-compatible direct renderer for existing users. The canonical route for profile, provenance, locale, and claim presentation is `accessibility-audit report`.
 
 ## Outputs
 
@@ -134,10 +127,10 @@ A `reference_only` ledger produces **reference guidance**; it is distinct from a
 | --- | --- | --- |
 | Assessment JSON | Stores every profile row, evidence, outcome, and claim data | Internal; projected into a report after validation |
 | Automated scan JSON | Stores axe findings and internal DOM or accessibility-tree evidence | Internal by default |
-| Compact scan context | Provides bounded findings and unresolved candidates for AI review | Internal review material |
+| Compact scan context | Provides bounded barrier candidates for AI review | Internal review material |
 | Audit run | Stores target metadata, permissions, artifact hashes, and state transitions | Not public |
 | Human-review queue | Lists requirements, procedures, and requested evidence for a person | Working material |
-| Markdown report | Presents scope, judgements, remediation, and missing checks | Shareable after publication review |
+| Markdown report | Presents profile, judgement, provenance, claim, remediation, and missing checks | Shareable after publication review |
 
 The [artifact map](docs/architecture-and-glossary.md) lists the typical producer, inputs, purpose, and publication boundary for every artifact.
 
@@ -145,14 +138,10 @@ The [artifact map](docs/architecture-and-glossary.md) lists the typical producer
 
 `scan-web` uses pinned Playwright and axe-core versions to inspect a public URL without mutating it. Automated results are never promoted directly to formal WCAG or JIS pass or fail outcomes.
 
-A short URL-based request may start with:
-
 ```text
 Inspect the first screen of this site with the accessibility CLI.
 https://example.com/
 ```
-
-When no profile is named, the reviewer uses `web-modern` and accounts for all 55 WCAG 2.2 Level A and AA requirements through the report projection or a reasoned not-applicable entry. An initial ledger whose 55 rows remain `not_tested` is not completion; the result must include target evidence, barrier candidates, and the next human checks.
 
 See the [Web inspection guide](docs/web-inspection.md) for dependencies, network and redirect controls, private-address rejection, output contracts, compact AI context, and Chromium E2E coverage.
 
@@ -172,18 +161,18 @@ See the [Web inspection guide](docs/web-inspection.md) for dependencies, network
 
 ## Evidence and claim boundary
 
-AI agents that create or update profile requirement rows keep `mapping_status: "unverified"` and `outcome: "not_tested"`. Their observations remain `SCREEN-*` results or unverified handoffs. External human review may record `pass`, `fail`, `not_applicable`, or `cant_tell` only when it uses the applicable procedure and target-specific manual or hybrid evidence.
+AI agents that create or update profile requirement rows keep `mapping_status: "unverified"` and `outcome: "not_tested"`. Their observations remain `SCREEN-*` results or unverified handoffs.
 
 - AI and automated tools may create E0/E1 screening observations.
-- Automated and static checks remain `screening_check` records, separate from standards `profile_requirement` rows mapped to primary sources by a person.
-- Missing, uncertain, and not-applicable states remain visible and are never converted to pass by omission.
+- Automated and static checks remain `screening_check` records, separate from standards `profile_requirement` rows.
+- Only external human review using an applicable procedure and target-specific evidence may record a profile outcome.
 - Claim tiers such as `reference_only`, `screened`, and `evaluated_subset` cannot exceed the recorded evidence or the profile ceiling.
 - Raw DOM, accessibility trees, private URLs, local paths, personal data, and authorization details remain internal unless an explicit publication policy permits them.
-- The authorized fixer is optional. The standard CLI does not modify the audited target.
+- Report judgement terms are not third-party certification, a legal determination, or a formal conformance declaration.
 
 ## Development and maintenance
 
-Read [CONTRIBUTING.md](CONTRIBUTING.md) before changing the package. Verify Codex and Claude parity, schema compatibility, primary-source provenance, claim boundaries, and the full test suite.
+Read [CONTRIBUTING.md](CONTRIBUTING.md) before changing the package. Run the full verification command:
 
 ```powershell
 node .\scripts\verify-all.mjs

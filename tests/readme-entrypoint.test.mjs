@@ -90,13 +90,12 @@ test("README navigation points to the maintained guides and every local link res
   }
 });
 
-test("README command examples refer to scripts that exist in the repository", () => {
+test("README command examples refer to canonical scripts that exist in the repository", () => {
   const requiredScripts = [
     "scripts/install-codex.ps1",
     "scripts/install-claude.mjs",
-    "codex/skills/information-accessibility-practice/scripts/generate-assessment.mjs",
-    "codex/skills/information-accessibility-practice/scripts/validate-assessment.mjs",
-    "codex/skills/information-accessibility-practice/scripts/render-audit-report.mjs"
+    "codex/skills/information-accessibility-practice/scripts/accessibility-audit.mjs",
+    "codex/skills/information-accessibility-practice/scripts/generate-assessment.mjs"
   ];
 
   for (const relative of requiredScripts) {
@@ -113,7 +112,7 @@ test("README command examples refer to scripts that exist in the repository", ()
   }
 });
 
-test("public docs expose installed discovery commands and runnable examples", () => {
+test("public docs expose installed discovery commands, runnable examples, and profile-aware reporting", () => {
   const commands = [
     "accessibility-audit --version",
     "accessibility-audit profiles list",
@@ -126,10 +125,26 @@ test("public docs expose installed discovery commands and runnable examples", ()
     ["docs/getting-started.md", gettingStarted]
   ]) assertContainsAll(text, commands, label);
 
+  for (const [label, text] of [
+    ["README.md", japaneseReadme],
+    ["README.en.md", englishReadme]
+  ]) assertContainsAll(text, [
+    "accessibility-audit.mjs report --input",
+    "--locale ja",
+    "render-audit-report.mjs",
+    "profile",
+    "provenance",
+    "claim"
+  ], label);
+
   assertContainsAll(gettingStarted, [
     "../examples/README.md",
     "requirements show 1.1.1",
-    "requirements search \"フォーカス\""
+    "requirements search \"フォーカス\"",
+    "accessibility-audit.mjs report --input",
+    "--locale ja",
+    "accessibility-audit.mjs report --run",
+    "--locale en"
   ], "docs/getting-started.md");
 });
 
