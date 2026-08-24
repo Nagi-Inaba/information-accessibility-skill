@@ -102,7 +102,7 @@ node .\codex\skills\information-accessibility-practice\scripts\accessibility-aud
 node .\codex\skills\information-accessibility-practice\scripts\accessibility-audit.mjs report --input .\audit-runs\quickstart\audit.json --locale ja --output .\audit-runs\quickstart\audit-report.md
 ```
 
-台帳を生成しただけでは対象を検査したことにはなりません。対象固有の証拠と判定が入るまでは、各行が`未確認`／`未実施`として表示されます。
+初期台帳を作っただけでは完了としないため、対象固有の証拠と判定が入るまでは、全55項目が`未確認`／`未実施`として表示されます。
 
 レポート各行には、条項番号、名称、レベル、profile group、一次資料、判定の出所、証拠レベル、根拠を表示します。run-backedレポートでは、外部人手レビュー、AI／自動スクリーニング、未実施を区別します。screening projectionはreport-only judgementであり、profile outcomeへ自動昇格しません。
 
