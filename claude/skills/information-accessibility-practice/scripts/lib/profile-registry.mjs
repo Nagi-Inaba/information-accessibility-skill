@@ -5,8 +5,12 @@ const configurationFields = new Set([
   "requires_web_interaction_evidence"
 ]);
 const groupFields = new Set(["id", "label", "requirement_id_prefixes"]);
+const basisFields = new Set(["kind", "adoption", "source_ids", "label_en", "label_ja", "scope_en", "scope_ja"]);
 const groupIdPattern = /^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$/u;
 const unsafeGroupIds = new Set(["__proto__", "prototype", "constructor"]);
+const profileKinds = new Set(["standard_profile", "organizational_policy_pattern"]);
+const basisKinds = new Set(["standard", "organizational_policy"]);
+const adoptionKinds = new Set(["profile_default", "explicit_only"]);
 
 function isPlainObject(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -23,6 +27,77 @@ function validateStringArray(value, location, errors, { minItems = 0, unique = f
   });
   if (unique && new Set(value).size !== value.length) errors.push(`${location} must contain unique values.`);
   return true;
+}
+
+function validateLocalizedProfile(profile, groupIds, location, errors) {
+  const localized = profile.localized;
+  if (!isPlainObject(localized) || !isPlainObject(localized.ja)) {
+    errors.push(`${location}.localized.ja must be an object for an active profile.`);
+    return;
+  }
+  for (const field of ["display_name", "target_scope"]) {
+    if (typeof localized.ja[field] !== "string" || localized.ja[field].length === 0) {
+      errors.push(`${location}.localized.ja.${field} must be a non-empty string.`);
+    }
+  }
+  if (!isPlainObject(localized.ja.groups)) {
+    errors.push(`${location}.localized.ja.groups must be an object.`);
+    return;
+  }
+  const localizedGroupIds = Object.keys(localized.ja.groups).sort();
+  if (JSON.stringify(localizedGroupIds) !== JSON.stringify([...groupIds].sort())) {
+    errors.push(`${location}.localized.ja.groups keys must exactly match active report group IDs.`);
+  }
+  for (const [groupId, label] of Object.entries(localized.ja.groups)) {
+    if (typeof label !== "string" || label.length === 0) errors.push(`${location}.localized.ja.groups.${groupId} must be a non-empty string.`);
+  }
+}
+
+function validateGroupBases(profile, groupIds, location, errors) {
+  if (!isPlainObject(profile.group_bases)) {
+    errors.push(`${location}.group_bases must be an object for an active profile.`);
+    return;
+  }
+  const basisGroupIds = Object.keys(profile.group_bases).sort();
+  if (JSON.stringify(basisGroupIds) !== JSON.stringify([...groupIds].sort())) {
+    errors.push(`${location}.group_bases keys must exactly match active report group IDs.`);
+  }
+  const standardIds = new Set((profile.standards ?? []).map((item) => item?.id).filter(Boolean));
+  for (const [groupId, basis] of Object.entries(profile.group_bases)) {
+    const basisLocation = `${location}.group_bases.${groupId}`;
+    if (!isPlainObject(basis)) {
+      errors.push(`${basisLocation} must be an object.`);
+      continue;
+    }
+    for (const key of Object.keys(basis)) if (!basisFields.has(key)) errors.push(`${basisLocation}.${key} is not allowed.`);
+    for (const field of basisFields) if (!Object.hasOwn(basis, field)) errors.push(`${basisLocation}.${field} is required.`);
+    if (!basisKinds.has(basis.kind)) errors.push(`${basisLocation}.kind must be standard or organizational_policy.`);
+    if (!adoptionKinds.has(basis.adoption)) errors.push(`${basisLocation}.adoption must be profile_default or explicit_only.`);
+    if (validateStringArray(basis.source_ids, `${basisLocation}.source_ids`, errors, { minItems: 1, unique: true })) {
+      for (const sourceId of basis.source_ids) {
+        if (!standardIds.has(sourceId)) errors.push(`${basisLocation}.source_ids references an unknown profile source: ${sourceId}.`);
+      }
+    }
+    for (const field of ["label_en", "label_ja", "scope_en", "scope_ja"]) {
+      if (typeof basis[field] !== "string" || basis[field].length === 0) errors.push(`${basisLocation}.${field} must be a non-empty string.`);
+    }
+    if (basis.kind === "organizational_policy" && basis.adoption !== "explicit_only") {
+      errors.push(`${basisLocation} organizational_policy basis must use explicit_only adoption.`);
+    }
+  }
+}
+
+function validateMigration(profile, location, errors) {
+  if (!Object.hasOwn(profile, "migration")) return;
+  const migration = profile.migration;
+  if (!isPlainObject(migration)) {
+    errors.push(`${location}.migration must be an object.`);
+    return;
+  }
+  for (const field of ["status", "guidance"]) {
+    if (typeof migration[field] !== "string" || migration[field].length === 0) errors.push(`${location}.migration.${field} must be a non-empty string.`);
+  }
+  validateStringArray(migration.recommended_profile_ids, `${location}.migration.recommended_profile_ids`, errors, { minItems: 1, unique: true });
 }
 
 function validateProfile(profile, location, errors) {
@@ -55,15 +130,9 @@ function validateProfile(profile, location, errors) {
     validateStringArray(configuration.catalog_keys, `${configurationLocation}.catalog_keys`, errors, { minItems: 1, unique: true });
   }
 
-  const groupsAreArray = Object.hasOwn(configuration, "groups")
-    ? Array.isArray(configuration.groups)
-    : false;
-  if (Object.hasOwn(configuration, "groups") && !groupsAreArray) {
-    errors.push(`${configurationLocation}.groups must be an array.`);
-  }
-  if (groupsAreArray && configuration.groups.length === 0) {
-    errors.push(`${configurationLocation}.groups must contain at least 1 item(s).`);
-  }
+  const groupsAreArray = Object.hasOwn(configuration, "groups") ? Array.isArray(configuration.groups) : false;
+  if (Object.hasOwn(configuration, "groups") && !groupsAreArray) errors.push(`${configurationLocation}.groups must be an array.`);
+  if (groupsAreArray && configuration.groups.length === 0) errors.push(`${configurationLocation}.groups must contain at least 1 item(s).`);
 
   const seenGroupIds = new Set();
   for (const [index, group] of (groupsAreArray ? configuration.groups : []).entries()) {
@@ -72,12 +141,8 @@ function validateProfile(profile, location, errors) {
       errors.push(`${groupLocation} must be an object.`);
       continue;
     }
-    for (const key of Object.keys(group)) {
-      if (!groupFields.has(key)) errors.push(`${groupLocation}.${key} is not allowed.`);
-    }
-    for (const field of groupFields) {
-      if (!Object.hasOwn(group, field)) errors.push(`${groupLocation}.${field} is required.`);
-    }
+    for (const key of Object.keys(group)) if (!groupFields.has(key)) errors.push(`${groupLocation}.${key} is not allowed.`);
+    for (const field of groupFields) if (!Object.hasOwn(group, field)) errors.push(`${groupLocation}.${field} is required.`);
     if (typeof group.id !== "string" || !groupIdPattern.test(group.id) || unsafeGroupIds.has(group.id)) {
       errors.push(`${groupLocation}.id must be a safe group id using lowercase letters, digits, and single underscores.`);
     } else if (seenGroupIds.has(group.id)) {
@@ -91,7 +156,17 @@ function validateProfile(profile, location, errors) {
     }
   }
 
+  validateMigration(profile, location, errors);
   if (!active) return;
+
+  if (!profileKinds.has(profile.profile_kind)) errors.push(`${location}.profile_kind must be standard_profile or organizational_policy_pattern.`);
+  if (typeof profile.explicit_adoption_required !== "boolean") errors.push(`${location}.explicit_adoption_required must be boolean.`);
+  if (profile.profile_kind === "organizational_policy_pattern" && profile.explicit_adoption_required !== true) {
+    errors.push(`${location} organizational_policy_pattern must require explicit adoption.`);
+  }
+  validateLocalizedProfile(profile, seenGroupIds, location, errors);
+  validateGroupBases(profile, seenGroupIds, location, errors);
+
   const requirementIdsValid = validateStringArray(profile.requirement_ids, `${location}.requirement_ids`, errors, { minItems: 1, unique: true });
   if (!requirementIdsValid || !groupsAreArray) return;
   for (const requirementId of profile.requirement_ids) {
@@ -133,6 +208,12 @@ export function validateStandardsRegistry(registry) {
         profileIds.add(profile.id);
       }
     });
+    registry.profiles.forEach((profile, index) => {
+      for (const recommended of profile?.migration?.recommended_profile_ids ?? []) {
+        if (!profileIds.has(recommended)) errors.push(`profiles[${index}](${profile.id}).migration references unknown profile: ${recommended}.`);
+        if (recommended === profile.id) errors.push(`profiles[${index}](${profile.id}).migration cannot recommend itself.`);
+      }
+    });
   }
   return { valid: errors.length === 0, errors };
 }
@@ -159,42 +240,45 @@ export function profileConfiguration(registry, profileId) {
 
 export function recordsForProfile({ profile, catalog }) {
   const configuration = assessmentConfiguration(profile);
-  if (!configuration.active) {
-    throw new Error(`Profile does not have a generated audit catalog: ${profile.id}`);
-  }
-  if (!catalog?.catalogs || typeof catalog.catalogs !== "object") {
-    throw new Error("Criteria catalog is missing catalogs.");
-  }
-
+  if (!configuration.active) throw new Error(`Profile does not have a generated audit catalog: ${profile.id}`);
+  if (!catalog?.catalogs || typeof catalog.catalogs !== "object") throw new Error("Criteria catalog is missing catalogs.");
   return configuration.catalog_keys.flatMap((catalogKey) => {
     const records = catalog.catalogs[catalogKey];
-    if (!Array.isArray(records)) {
-      throw new Error(`Configured catalog key is missing or is not an array: ${catalogKey}`);
-    }
+    if (!Array.isArray(records)) throw new Error(`Configured catalog key is missing or is not an array: ${catalogKey}`);
     return records;
   });
 }
 
 export function groupForRequirement(profile, requirementId) {
   const configuration = assessmentConfiguration(profile);
-  if (!profile.requirement_ids.includes(requirementId)) {
-    throw new Error(`Requirement is not registered for profile ${profile.id}: ${requirementId}`);
-  }
-  if (!configuration.active) {
-    throw new Error(`Profile does not have active report groups: ${profile.id}`);
-  }
-
+  if (!profile.requirement_ids.includes(requirementId)) throw new Error(`Requirement is not registered for profile ${profile.id}: ${requirementId}`);
+  if (!configuration.active) throw new Error(`Profile does not have active report groups: ${profile.id}`);
   const matches = configuration.groups.flatMap((group) => group.requirement_id_prefixes
     .filter((prefix) => requirementId.startsWith(prefix))
     .map(() => group));
-  if (matches.length !== 1) {
-    throw new Error(`Registered requirement must match exactly one report-group prefix: ${requirementId}; matched ${matches.length}`);
-  }
+  if (matches.length !== 1) throw new Error(`Registered requirement must match exactly one report-group prefix: ${requirementId}; matched ${matches.length}`);
   return matches[0].id;
 }
 
-export function reportGroups(profile) {
+export function localizedGroupBasis(profile, groupId, locale = "en") {
+  assessmentConfiguration(profile);
+  const basis = profile.group_bases?.[groupId];
+  if (!basis) throw new Error(`Profile group basis is missing: ${profile.id}:${groupId}`);
+  const selectedLocale = locale === "ja" ? "ja" : "en";
+  return {
+    kind: basis.kind,
+    adoption: basis.adoption,
+    source_ids: structuredClone(basis.source_ids),
+    label: basis[`label_${selectedLocale}`],
+    scope: basis[`scope_${selectedLocale}`]
+  };
+}
+
+export function reportGroups(profile, locale = "en") {
   const configuration = assessmentConfiguration(profile);
   if (!configuration.active) return [];
-  return configuration.groups;
+  return configuration.groups.map((group) => ({
+    ...group,
+    basis: localizedGroupBasis(profile, group.id, locale)
+  }));
 }
