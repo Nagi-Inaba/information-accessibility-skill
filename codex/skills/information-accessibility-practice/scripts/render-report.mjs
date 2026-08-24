@@ -38,6 +38,10 @@ function readReference(relativePath) {
   return JSON.parse(fs.readFileSync(path.join(skillRoot, "references", relativePath), "utf8").replace(/^\uFEFF/u, ""));
 }
 
+function hardenMarkdownOutput(value) {
+  return value.replace(/<br>(#{1,6})(?=\s)/gu, (_match, hashes) => `<br>${hashes.replace(/#/gu, "\\#")}`);
+}
+
 function parseArgs(argv) {
   const options = { locale: "ja" };
   const supported = new Map([
@@ -109,7 +113,7 @@ function renderStandalone(options) {
     catalog,
     locale: options.locale
   });
-  const report = renderReportMarkdown(presentation);
+  const report = hardenMarkdownOutput(renderReportMarkdown(presentation));
   if (!options.output) {
     assertStableFile(snapshot, "standalone assessment");
     process.stdout.write(report);
@@ -163,7 +167,7 @@ function renderRunBacked(options) {
     catalog: runValidation.resources.criteriaCatalog,
     locale: options.locale
   });
-  const report = renderReportMarkdown(presentation);
+  const report = hardenMarkdownOutput(renderReportMarkdown(presentation));
   const artifactSnapshots = [...runValidation.envelopesById.values()]
     .map((record) => record.snapshot)
     .filter(Boolean);
