@@ -1,0 +1,238 @@
+name: Branch hygiene
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/branch-hygiene.yml
+  pull_request:
+    types:
+      - closed
+
+permissions:
+  contents: write
+
+jobs:
+  bootstrap-cleanup:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete reviewed stale branches
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import urllib.error
+          import urllib.parse
+          import urllib.request
+
+          branches = [
+            "automation/next20-batch1",
+            "ci/issue-5-verify-all",
+            "ci/issue-46-source-monitor",
+            "ci/issue-46-standards-source-monitor",
+            "codex/issue-15-jis-procedure-reuse",
+            "codex/issue-52-claude-default-agents",
+            "codex/short-web-wcag-audit",
+            "codex/voice",
+            "docs/finalize-scan-web-review",
+            "docs/issue-6-five-minute-quickstart",
+            "docs/issue-6-quickstart",
+            "docs/issue-8-architecture-glossary",
+            "docs/issue-8-architecture-overview",
+            "docs/issue-26-artifact-storage",
+            "docs/issue-26-artifact-workdir",
+            "docs/issue-35-community-governance",
+            "docs/issue-45-profile-provenance",
+            "docs/issue-50-third-party-notices",
+            "docs/issue-52-claude-default-agents",
+            "docs/issues-6-8-readme-entrypoint",
+            "examples/issue-9-standalone-e2e",
+            "feat/accessible-html-report",
+            "feat/cli-discovery-requirements-examples",
+            "feat/issue-7-requirement-browser",
+            "feat/issue-7-requirements-browser",
+            "feat/issue-11-init-scope-environment",
+            "feat/issue-11-run-scope-environment",
+            "feat/issue-12-cli-discovery",
+            "feat/issue-13-capability-preflight",
+            "feat/issue-13-web-capability-preflight",
+            "feat/issue-14-procedure-batch-focus-errors",
+            "feat/issue-15-jis-procedure-reuse",
+            "feat/issue-16-queue-context",
+            "feat/issue-17-human-review-worksheet",
+            "feat/issue-18-profile-aware-reports",
+            "feat/issue-19-report-evidence-source",
+            "feat/issue-20-report-summary",
+            "feat/issue-20-summary-report",
+            "feat/issue-21-locale-core",
+            "feat/issue-22-standalone-public-report",
+            "feat/issue-25-evidence-references",
+            "feat/issue-27-install-lifecycle-plan",
+            "feat/issue-28-run-migration-plan",
+            "feat/issue-31-artifact-scaffold",
+            "feat/issue-32-screen-reader-pattern-registry",
+            "feat/issue-40-run-claim-tier",
+            "feat/issue-41-audit-metadata",
+            "feat/issue-42-screening-mappings",
+            "feat/issue-43-review-adjudication",
+            "feat/issue-44-audit-status",
+            "feat/issue-48-declared-change-record",
+            "feat/issue-49-run-comparison",
+            "feat/issue-53-change-producer-accountability",
+            "feat/issue-54-target-snapshot",
+            "feat/issue-56-verified-finding",
+            "feat/issue-57-reviewer-assurance",
+            "feat/issue-61-accessible-html-report",
+            "feat/issue-63-network-policy",
+            "feat/issue-64-interaction-policy",
+            "feat/profile-basis-jis-digital-agency",
+            "feat/report-detail-privacy",
+            "feat/report-profile-locale-claim",
+            "feat/runtime-locale-ja-en",
+            "feat/scan-web-deterministic",
+            "fix/issue-3-safe-assessment-output",
+            "fix/issue-4-safe-module-import",
+            "fix/issue-10-runnable-readme-example",
+            "fix/issue-15-jis-procedure-reuse",
+            "fix/issue-18-profile-report-title",
+            "fix/issue-19-report-evidence-origin",
+            "fix/issue-23-report-claim-range",
+            "fix/issue-24-additional-wcag-current",
+            "fix/issue-24-additional-wcag-screening-id",
+            "fix/issue-29-public-sanitizer-false-positives",
+            "fix/issue-34-safe-output-directories",
+            "fix/issue-34-safe-output-parents",
+            "fix/issue-36-empty-coverage-judgement",
+            "fix/issue-36-reference-only-report-mode",
+            "fix/issue-37-screened-evidence-guard",
+            "fix/issue-38-reportable-validation",
+            "fix/issue-38-validator-reportability",
+            "fix/issue-39-strict-assessment-dates",
+            "fix/issue-39-strict-datetime-validation",
+            "fix/issue-47-profile-claim-blockers-current",
+            "fix/issue-47-profile-only-claim-blockers",
+            "fix/issue-52-claude-default-agents",
+            "fix/issue-62-explicit-assessment-template-mode",
+            "fix/safe-assessment-create-and-output",
+            "fix/verify-all-platform-skip",
+            "integration/docs-governance-slice",
+            "integration/report-ux-slice",
+            "integration/web-inspection-e2e"
+          ]
+          repository = os.environ["REPOSITORY"]
+          token = os.environ["GH_TOKEN"]
+          api_root = f"https://api.github.com/repos/{repository}"
+          headers = {
+              "Accept": "application/vnd.github+json",
+              "Authorization": f"Bearer {token}",
+              "X-GitHub-Api-Version": "2022-11-28",
+              "User-Agent": "information-accessibility-skill-branch-hygiene",
+          }
+
+          deleted = []
+          already_absent = []
+          failed = []
+
+          for branch in branches:
+              ref = urllib.parse.quote(f"heads/{branch}", safe="/")
+              request = urllib.request.Request(
+                  f"{api_root}/git/refs/{ref}",
+                  method="DELETE",
+                  headers=headers,
+              )
+              try:
+                  with urllib.request.urlopen(request) as response:
+                      if response.status == 204:
+                          deleted.append(branch)
+                      else:
+                          failed.append((branch, response.status, "unexpected status"))
+              except urllib.error.HTTPError as error:
+                  body = error.read().decode("utf-8", errors="replace")
+                  if error.code == 404:
+                      already_absent.append(branch)
+                  else:
+                      failed.append((branch, error.code, body[:500]))
+
+          def list_branches():
+              names = []
+              page = 1
+              while True:
+                  request = urllib.request.Request(
+                      f"{api_root}/branches?per_page=100&page={page}",
+                      headers=headers,
+                  )
+                  with urllib.request.urlopen(request) as response:
+                      batch = json.load(response)
+                  names.extend(item["name"] for item in batch)
+                  if len(batch) < 100:
+                      return names
+                  page += 1
+
+          remaining = set(list_branches())
+          undeleted = sorted(set(branches) & remaining)
+          protected_missing = sorted(
+              {"main", "codex/michecker-screening-criteria", "integration/evidence-identity-slice"} - remaining
+          )
+
+          print(json.dumps({
+              "requested": len(branches),
+              "deleted": len(deleted),
+              "already_absent": len(already_absent),
+              "remaining_branch_count": len(remaining),
+              "remaining_branches": sorted(remaining),
+              "undeleted_targets": undeleted,
+              "protected_missing": protected_missing,
+              "api_failures": failed,
+          }, ensure_ascii=False, indent=2))
+
+          if failed or undeleted or protected_missing:
+              raise SystemExit(1)
+          PY
+
+  delete-merged-branch:
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref != github.event.repository.default_branch
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete merged same-repository branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          BRANCH: ${{ github.event.pull_request.head.ref }}
+        run: |
+          python - <<'PY'
+          import os
+          import urllib.error
+          import urllib.parse
+          import urllib.request
+
+          repository = os.environ["REPOSITORY"]
+          branch = os.environ["BRANCH"]
+          token = os.environ["GH_TOKEN"]
+          ref = urllib.parse.quote(f"heads/{branch}", safe="/")
+          request = urllib.request.Request(
+              f"https://api.github.com/repos/{repository}/git/refs/{ref}",
+              method="DELETE",
+              headers={
+                  "Accept": "application/vnd.github+json",
+                  "Authorization": f"Bearer {token}",
+                  "X-GitHub-Api-Version": "2022-11-28",
+                  "User-Agent": "information-accessibility-skill-branch-hygiene",
+              },
+          )
+          try:
+              with urllib.request.urlopen(request) as response:
+                  if response.status != 204:
+                      raise SystemExit(f"Unexpected status: {response.status}")
+          except urllib.error.HTTPError as error:
+              if error.code != 404:
+                  raise
+          PY
