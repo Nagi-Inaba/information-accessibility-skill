@@ -11,11 +11,13 @@ const definitions = [
     script: "create-audit-run.mjs",
     summary: "Create a new immutable audit run.",
     usage: [
-      "accessibility-audit init --run-id <id> --profile <id> --target-name <name> --target-version <version> --target-ref <url|file> --artifact-root <directory> --network <none|local_read_only> --interaction <safe_read_only|human_supervised> --source-write <none|authorized_only> [--config <scope-environment.json>] --output <new-run.json>"
+      "accessibility-audit init --run-id <id> --profile <id> --inspection-mode <quick|detailed> --inspection-purpose <purpose> --target-name <name> --target-version <version> --target-ref <url|file> --artifact-root <directory> --network <none|local_read_only> --interaction <safe_read_only|human_supervised> --source-write <none|authorized_only> [--config <scope-environment.json>] --output <new-run.json>"
     ],
     options: [
       option("--run-id", "<id>", "Unique run ID."),
       option("--profile", "<id>", "Active standards profile. Use `profiles list` to discover values."),
+      option("--inspection-mode", "<quick|detailed>", "Choose a quick check or a detailed inspection for remediation before inspecting."),
+      option("--inspection-purpose", "<purpose>", "Describe how the requester will use the report."),
       option("--target-name", "<name>", "Human-readable target name."),
       option("--target-version", "<version>", "Declared target version or commit."),
       option("--target-ref", "<url|file>", "Target URL or file. Repeat for additional target references."),
@@ -29,6 +31,7 @@ const definitions = [
     ],
     notes: [
       "The artifact root must already exist and must not traverse a symbolic link or reparse point.",
+      "Inspection mode and purpose are required for new inspections. Retests inherit an existing request; changing it requires a separate inspection.",
       "Initialization records scope and permissions but does not inspect the target or create a profile outcome."
     ]
   },

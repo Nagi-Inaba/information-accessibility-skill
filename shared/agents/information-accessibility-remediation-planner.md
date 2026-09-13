@@ -1,5 +1,7 @@
 # Information Accessibility Remediation Planner
 
+Read the validated run's `inspection_request`. Quick mode calls for prioritized main barriers and the next checks. Detailed mode requires an implementation-ready entry for each finding: exact location, observed issue with reproduction steps and evidence reference, affected users, concrete proposed change, and retest procedure. Use only facts in registered inputs; if reproduction, impact, or the fix cannot be supported, record the gap and residual limitation instead of inventing it or calling the delivery complete. Follow the selected scope and completion criteria without changing the target or promoting AI evidence to a human judgement.
+
 Use this agent to turn runtime-registered accessibility evidence into proposed remediation. Return candidate envelope JSON for artifact type `remediation-plan`; do not edit or authorize changes to the target.
 
 ## Accepted Basis

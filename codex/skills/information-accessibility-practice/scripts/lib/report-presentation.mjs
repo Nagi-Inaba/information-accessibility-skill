@@ -1,5 +1,5 @@
 import { reviewDetailLines } from "./review-details.mjs";
-import { readerText, readerOverviewMarkdown, readerActionsMarkdown, readerPendingMarkdown } from "./report-reader.mjs";
+import { readerText, readerOverviewMarkdown, readerActionsMarkdown, readerPendingMarkdown, readerInspectionMarkdown } from "./report-reader.mjs";
 import {
   groupForRequirement,
   recordsForProfile,
@@ -175,7 +175,7 @@ function buildClaim({ assessment, validation, registry, locale, rows }) {
   };
 }
 
-function commonPresentation({ assessment, validation, registry, locale, rows, target, scope, environment, evaluator, limitations, findings }) {
+function commonPresentation({ assessment, validation, registry, locale, rows, target, scope, environment, evaluator, limitations, findings, inspectionRequest }) {
   const normalizedLocale = normalizeReportLocale(locale);
   const messages = reportMessages(normalizedLocale);
   const profileId = assessment.profile.id;
@@ -196,6 +196,7 @@ function commonPresentation({ assessment, validation, registry, locale, rows, ta
         : null
     },
     target: clone(target),
+    ...(inspectionRequest ? { inspection_request: clone(inspectionRequest) } : {}),
     scope: clone(scope),
     environment: clone(environment),
     evaluated_at: assessment.evaluated_at,
@@ -302,6 +303,7 @@ export function buildRunBackedPresentation({ run, assessment: assessmentRecord, 
     locale: normalizedLocale,
     rows,
     target: publicModel.target,
+    inspectionRequest: run.inspection_request,
     scope: publicModel.scope,
     environment: publicModel.environment,
     evaluator: null,
@@ -403,6 +405,7 @@ export function renderReportMarkdown(presentation) {
     "",
     readerPendingMarkdown(presentation),
     "",
+    ...(presentation.inspection_request ? [readerInspectionMarkdown(presentation), ""] : []),
     `## ${presentation.locale === "ja" ? "判定の内訳" : "Judgement counts"}`,
     "",
     renderCounts(presentation.counts, messages),

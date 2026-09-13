@@ -1,8 +1,9 @@
 import { reviewDetailLines } from "./review-details.mjs";
+import { inspectionText } from "./inspection-request.mjs";
 
 export function readerText(locale) {
   return locale === "ja" ? {
-    target: "対象", scope: "今回確認した範囲", overall: "総合判定", coverage: "確認の進み具合",
+    target: "対象", scope: "検査対象の範囲", overall: "総合判定", coverage: "確認の進み具合",
     human: "人手で確認した項目", screening: "AI・自動検査の結果を記録した項目", notRun: "未実施の項目",
     coverageNote: "件数は達成基準の数です。人手確認には要確認の判定も含みます。確認したページや操作の範囲は、対象範囲の記録を参照してください。",
     key: "主要な問題と次の行動", noActions: "改善項目の記録はありません。未確認の項目は、続く「残る確認と次の作業」で確認してください。",
@@ -13,7 +14,7 @@ export function readerText(locale) {
     candidate: "AI・自動検査による問題候補（未確認）", genericPending: "個別の確認理由が未記録の項目", commonPending: "共通の確認事項",
     remaining: "未実施の残り達成基準"
   } : {
-    target: "Target", scope: "Scope of this check", overall: "Overall judgement", coverage: "Review progress",
+    target: "Target", scope: "Inspection scope", overall: "Overall judgement", coverage: "Review progress",
     human: "Requirements checked by a human", screening: "Requirements with AI/automated results", notRun: "Requirements not run",
     coverageNote: "Counts refer to requirements. Human checks include cannot-tell judgements. Consult the scope record for the pages and interactions covered.",
     key: "Key findings and next actions", noActions: "No remediation item is recorded. See Remaining checks and next steps for unconfirmed requirements.",
@@ -38,8 +39,11 @@ export function readerOverview(presentation) {
   const text = readerText(presentation.locale);
   const counts = provenanceCounts(presentation);
   const total = presentation.rows.length;
+  const request = presentation.inspection_request;
+  const intake = inspectionText(presentation.locale);
   return [
     [text.target, presentation.target?.name ?? text.none],
+    ...(request ? [[intake.mode, intake[request.mode]], [intake.purpose, request.purpose]] : []),
     [text.scope, presentation.scope?.included?.join(", ") || text.none],
     [text.overall, presentation.messages.outcomes[presentation.overall_outcome]],
     [text.human, `${counts.human_review}/${total}`],
@@ -128,6 +132,17 @@ export function pendingTitle(group, locale) {
 export function readerOverviewMarkdown(presentation) {
   const text = readerText(presentation.locale);
   return [...readerOverview(presentation).map(([label, value]) => `- ${label}: ${escapeReaderMarkdown(value)}`), "", text.coverageNote].join("\n");
+}
+
+export function readerInspectionMarkdown(presentation) {
+  const request = presentation.inspection_request;
+  if (!request) return "";
+  const text = inspectionText(presentation.locale);
+  return [
+    `## ${text.heading}`, "", text.notice, "",
+    `### ${text.deliverables}`, "", ...request.deliverables.map((key) => `- ${escapeReaderMarkdown(text[key])}`), "",
+    `### ${text.criteria}`, "", ...request.completion_criteria.map((key) => `- ${escapeReaderMarkdown(text[key])}`)
+  ].join("\n");
 }
 
 export function readerActionsMarkdown(presentation) {

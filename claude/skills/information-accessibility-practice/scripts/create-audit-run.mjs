@@ -21,11 +21,12 @@ const undeclaredEnvironment = {
 function parseArgs(argv) {
   const options = { targetRefs: [] };
   const repeatable = new Set(["--target-ref"]);
-  const optional = new Set(["--supersedes-run", "--config"]);
+  const optional = new Set(["--supersedes-run", "--config", "--inspection-mode", "--inspection-purpose"]);
   const map = new Map([
     ["--run-id", "runId"], ["--profile", "profile"], ["--target-name", "targetName"],
     ["--target-version", "targetVersion"], ["--target-ref", "targetRefs"],
     ["--artifact-root", "artifactRoot"], ["--network", "network"],
+    ["--inspection-mode", "inspectionMode"], ["--inspection-purpose", "inspectionPurpose"],
     ["--interaction", "interaction"], ["--source-write", "sourceWrite"], ["--supersedes-run", "supersedesRunFile"], ["--config", "configFile"], ["--output", "output"]
   ]);
   for (let index = 0; index < argv.length; index += 1) {

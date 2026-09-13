@@ -43,6 +43,8 @@ Both modes lead with target scope and human/screening/not-run counts, followed b
 
 `--detail`はレポートの表示量を選ぶ指定です。`full`を指定しても、検査の追加実施や証拠レベルの変更は行いません。
 
+検査前に選ぶ`--inspection-mode quick|detailed`は、検査の深さと必要な成果物を定めます。新しいrunに基づくレポートは、冒頭に検査レベルと利用目的を表示し、「依頼した成果物と完了条件」に合意内容を載せます。この欄は達成済みの判定ではありません。実施記録と照合して、未達の条件と次の作業を示す必要があります。旧形式のrunやstandalone評価には、検査レベルを推測して追加しません。
+
 ## 3. Public and internal visibility / 公開用と内部用
 
 ```sh

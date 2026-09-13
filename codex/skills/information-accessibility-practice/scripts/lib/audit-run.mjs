@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import { validateAssessment } from "../validate-assessment.mjs";
 import { lookupRequirement } from "../show-requirement.mjs";
 import { validateJsonSchema } from "./json-schema.mjs";
+import { createInspectionRequest, inspectionRequestErrors } from "./inspection-request.mjs";
 
 const defaultSkillRoot = path.dirname(path.dirname(path.dirname(fileURLToPath(import.meta.url))));
 const noFollow = process.platform === "win32" ? 0 : (fs.constants.O_NOFOLLOW ?? 0);
@@ -16,7 +17,8 @@ const auditRunRegistryCompatibility = new Map([
   ["3.0.0", "2.0.0"],
   ["4.0.0", "3.0.0"],
   ["5.0.0", "4.0.0"],
-  ["6.0.0", "5.0.0"]
+  ["6.0.0", "5.0.0"],
+  ["7.0.0", "6.0.0"]
 ]);
 const auditRunEnvelopeCompatibility = new Map([
   ["1.0.0", "1.0.0"],
@@ -24,21 +26,23 @@ const auditRunEnvelopeCompatibility = new Map([
   ["3.0.0", "1.0.0"],
   ["4.0.0", "1.0.0"],
   ["5.0.0", "2.0.0"],
-  ["6.0.0", "2.0.0"]
+  ["6.0.0", "2.0.0"],
+  ["7.0.0", "2.0.0"]
 ]);
 const currentAuditRunManifestContract = {
   id: "audit-run",
-  latest_schema_version: "6.0.0",
+  latest_schema_version: "7.0.0",
   schema_versions: [
     { version: "1.0.0", schema_file: "audit-run-1.0.0.schema.json", mode: "read_only" },
     { version: "2.0.0", schema_file: "audit-run-2.0.0.schema.json", mode: "read_only" },
     { version: "3.0.0", schema_file: "audit-run-3.0.0.schema.json", mode: "read_only" },
     { version: "4.0.0", schema_file: "audit-run-4.0.0.schema.json", mode: "read_only" },
     { version: "5.0.0", schema_file: "audit-run-5.0.0.schema.json", mode: "read_only" },
+    { version: "6.0.0", schema_file: "audit-run-6.0.0.schema.json", mode: "read_only" },
     {
-      version: "6.0.0",
+      version: "7.0.0",
       schema_file: "audit-run.schema.json",
-      schema_sha256: "9809a64eeb9b93394cf0213e7291e8bdf489853f6e8d660a6756cae32f2178a4",
+      schema_sha256: "f1def19770734c8634b528eba7b139b23362c1ed7623927cabaeb211a20a4e6c",
       mode: "current"
     }
   ]
@@ -454,6 +458,8 @@ export function loadAuditResources(skillRoot = defaultSkillRoot) {
     orchestrationSchemaV3: "references/orchestration-registry-3.0.0.schema.json",
     orchestrationRegistryV4: "references/orchestration-registry-4.0.0.json",
     orchestrationSchemaV4: "references/orchestration-registry-4.0.0.schema.json",
+    orchestrationRegistryV5: "references/orchestration-registry-5.0.0.json",
+    orchestrationSchemaV5: "references/orchestration-registry-5.0.0.schema.json",
     envelopeSchema: "references/audit-artifact-envelope.schema.json",
     envelopeSchemaV1: "references/audit-artifact-envelope-1.0.0.schema.json",
     assessmentSchema: "references/assessment-record.schema.json",
@@ -467,7 +473,8 @@ export function loadAuditResources(skillRoot = defaultSkillRoot) {
     ["frozen 1.0.0", loaded.orchestrationRegistryV1, loaded.orchestrationSchemaV1],
     ["frozen 2.0.0", loaded.orchestrationRegistryV2, loaded.orchestrationSchemaV2],
     ["frozen 3.0.0", loaded.orchestrationRegistryV3, loaded.orchestrationSchemaV3],
-    ["frozen 4.0.0", loaded.orchestrationRegistryV4, loaded.orchestrationSchemaV4]
+    ["frozen 4.0.0", loaded.orchestrationRegistryV4, loaded.orchestrationSchemaV4],
+    ["frozen 5.0.0", loaded.orchestrationRegistryV5, loaded.orchestrationSchemaV5]
   ]) {
     const registryErrors = [];
     validateJsonSchema(registry.value, schema.value, "$", registryErrors);
@@ -539,6 +546,7 @@ export function loadAuditResources(skillRoot = defaultSkillRoot) {
     loaded.orchestrationRegistryV2,
     loaded.orchestrationRegistryV3,
     loaded.orchestrationRegistryV4,
+    loaded.orchestrationRegistryV5,
     loaded.orchestrationRegistry
   ];
   const orchestrationRegistries = new Map(registryFiles.map((registry) => [
@@ -871,6 +879,7 @@ function assertCurrentOperationalRun(run, resources, operation) {
   if (!expectedPermissions || !isDeepStrictEqual(runRecord.permissions, expectedPermissions)) {
     errors.push("permissions must exactly match the canonical command_execution, allowed_actions, and forbidden_actions for network, interaction, and source_write.");
   }
+  errors.push(...inspectionRequestErrors(runRecord.inspection_request));
   if (errors.length) {
     throw new Error(`${operation} requires the latest audit-run schema_version ${String(latestSchemaVersion)}. Legacy and other non-latest audit runs are read-only; no implicit upgrade is performed.\n- ${errors.join("\n- ")}`);
   }
@@ -1169,6 +1178,7 @@ export function validateAuditRun(run, { skillRoot = defaultSkillRoot, runFile } 
   const currentSchemaVersion = resources.auditRunSchema.properties.schema_version.const;
   const usesCurrentPolicy = runRecord.schema_version === currentSchemaVersion;
   if (usesCurrentPolicy) {
+    errors.push(...inspectionRequestErrors(runRecord.inspection_request));
     const profile = resources.standardsRegistry.profiles.find((item) => item.id === runRecord.profile?.id);
     if (!profile?.assessment_configuration?.active) errors.push(`Run profile must be a known active profile: ${String(runRecord.profile?.id)}.`);
     if (runRecord.profile?.registry_version !== resources.standardsRegistry.schema_version) {
@@ -1261,6 +1271,10 @@ export function createAuditRun(options) {
     profile: { id: profile.id, registry_version: resources.standardsRegistry.schema_version },
     scope: structuredClone(options.scope ?? options.supersedesRun?.scope ?? { included: targetRefs, excluded: [], complete_processes: [], third_party_content: [], full_pages_reviewed: false }),
     environment: structuredClone(options.environment ?? options.supersedesRun?.environment ?? { os: ["not_declared"], browsers: [], assistive_technologies: [], input_modes: [] }),
+    inspection_request: createInspectionRequest(
+      options.inspectionMode ?? options.supersedesRun?.inspection_request?.mode,
+      options.inspectionPurpose ?? options.supersedesRun?.inspection_request?.purpose
+    ),
     permissions,
     resource_versions: resources.resourceVersions,
     artifact_root: relativeRoot.split(path.sep).join("/"),
@@ -1272,8 +1286,8 @@ export function createAuditRun(options) {
     if (!options.supersedesRunFile) throw new Error("supersedesRunFile is required for fresh retest initialization.");
     const predecessorValidation = validateAuditRun(options.supersedesRun, { skillRoot, runFile: options.supersedesRunFile });
     if (!predecessorValidation.valid) throw new Error(`Invalid superseded audit run:\n- ${predecessorValidation.errors.join("\n- ")}`);
-    if (!["5.0.0", "6.0.0"].includes(options.supersedesRun.schema_version)) {
-      throw new Error("Fresh retest predecessor must use supported audit-run schema_version 5.0.0 or 6.0.0.");
+    if (!["5.0.0", "6.0.0", "7.0.0"].includes(options.supersedesRun.schema_version)) {
+      throw new Error("Fresh retest predecessor must use supported audit-run schema_version 5.0.0, 6.0.0 or 7.0.0.");
     }
     if (options.supersedesRun.status !== "retest_required") throw new Error("Fresh retest predecessor status must be retest_required.");
     if (run.run_id === options.supersedesRun.run_id) throw new Error("Fresh retest run ID must differ from the predecessor run ID.");
@@ -1287,6 +1301,9 @@ export function createAuditRun(options) {
     if (!isDeepStrictEqual(run.target.urls_or_files, options.supersedesRun.target.urls_or_files)) throw new Error("Fresh retest target references must match the predecessor.");
     if (!isDeepStrictEqual(run.profile, options.supersedesRun.profile)) throw new Error("Fresh retest profile must match the predecessor.");
     if (!isDeepStrictEqual(run.scope, options.supersedesRun.scope)) throw new Error("Fresh retest scope must match the predecessor.");
+    if (options.supersedesRun.inspection_request && !isDeepStrictEqual(run.inspection_request, options.supersedesRun.inspection_request)) {
+      throw new Error("Fresh retest inspection request must match the predecessor; start a separate inspection to change its level or purpose.");
+    }
   }
   const validation = validateAuditRun(run, { skillRoot, runFile });
   if (!validation.valid) throw new Error(`Invalid initialized audit run:\n- ${validation.errors.join("\n- ")}`);

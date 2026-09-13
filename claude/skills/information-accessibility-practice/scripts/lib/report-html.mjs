@@ -1,5 +1,6 @@
 import { reviewDetailLines } from "./review-details.mjs";
 import { readerText, readerOverview, readerActions, actionItems, pendingGroups, pendingTitle, provenanceCounts } from "./report-reader.mjs";
+import { inspectionText } from "./inspection-request.mjs";
 
 const outcomeKeys = ["pass", "fail", "not_applicable", "not_tested", "cant_tell"];
 
@@ -295,11 +296,19 @@ function pendingSection(presentation) {
   return `<section id="pending-checks"><h2>${escapeHtml(text.pending)}</h2>${content}</section>`;
 }
 
+function inspectionSection(presentation) {
+  const request = presentation.inspection_request;
+  const text = inspectionText(presentation.locale);
+  const items = (keys) => `<ul>${keys.map((key) => `<li>${escapeHtml(text[key])}</li>`).join("")}</ul>`;
+  return `<section id="inspection-request"><h2>${escapeHtml(text.heading)}</h2><p>${escapeHtml(text.notice)}</p><h3>${escapeHtml(text.deliverables)}</h3>${items(request.deliverables)}<h3>${escapeHtml(text.criteria)}</h3>${items(request.completion_criteria)}</section>`;
+}
+
 function fullSections(presentation, text) {
   const sections = [];
   sections.push(overviewSection(presentation, text));
   sections.push(`<section id="findings"><h2>${escapeHtml(text.keyFindings)}</h2>${findingsSection(presentation, text)}</section>`);
   sections.push(pendingSection(presentation));
+  if (presentation.inspection_request) sections.push(inspectionSection(presentation));
   sections.push(`<section id="legend"><h2>${escapeHtml(text.legend)}</h2><ul><li><strong>${escapeHtml(presentation.messages.sources.human_review)}:</strong> ${escapeHtml(presentation.messages.text.provenanceHuman)}</li><li><strong>${escapeHtml(presentation.messages.sources.screening)}:</strong> ${escapeHtml(presentation.messages.text.provenanceScreening)}</li><li><strong>${escapeHtml(presentation.messages.sources.not_run)}:</strong> ${escapeHtml(presentation.messages.text.provenanceNotRun)}</li></ul>${presentation.has_screening_projection ? `<p class="notice">${escapeHtml(presentation.messages.text.screeningLegend)}</p>` : ""}</section>`);
   sections.push(`<section id="claim"><h2>${escapeHtml(text.claim)}</h2>${definitionList([
     [text.requestedTier, `<code>${escapeHtml(presentation.claim.requested_tier)}</code>`],
@@ -345,6 +354,7 @@ function summarySections(presentation, text, appendixHref) {
     overviewSection(presentation, text),
     `<section id="key-findings"><h2>${escapeHtml(text.keyFindings)}</h2>${findingsSection(presentation, text)}</section>`,
     pendingSection(presentation),
+    ...(presentation.inspection_request ? [inspectionSection(presentation)] : []),
     `<section id="group-counts"><h2>${escapeHtml(text.groups)}</h2>${groupCountsTable(presentation, text)}</section>`,
     `<section id="provenance"><h2>${escapeHtml(text.provenance)}</h2>${definitionList([[presentation.messages.sources.human_review, escapeHtml(prov.human_review)], [presentation.messages.sources.screening, escapeHtml(prov.screening)], [presentation.messages.sources.not_run, escapeHtml(prov.not_run)], [text.evidence, escapeHtml(presentation.evidence_level)]])}</section>`,
     `<section id="claim"><h2>${escapeHtml(text.claim)}</h2>${definitionList([[text.requestedTier, `<code>${escapeHtml(presentation.claim.requested_tier)}</code>`], [text.maximumTier, `<code>${escapeHtml(presentation.claim.maximum_tier)}</code>`], [text.fixedWording, escapeHtml(presentation.claim.wording)], [text.reasons, escapeHtml(presentation.claim.reasons?.join("; ") || text.noRecord)]])}</section>`,
@@ -355,15 +365,17 @@ function summarySections(presentation, text, appendixHref) {
 }
 
 function tocEntries(detail, presentation, text, appendixHref) {
+  const intake = presentation.inspection_request ? [["inspection-request", inspectionText(presentation.locale).heading]] : [];
   if (detail === "summary") {
     const entries = [
       ["overview", text.overview], ["key-findings", text.keyFindings], ["pending-checks", readerText(presentation.locale).pending],
+      ...intake,
       ["group-counts", text.groups], ["provenance", text.provenance], ["claim", text.claim], ["scope", text.scope]
     ];
     if (appendixHref) entries.push(["appendix", text.appendix]);
     return entries;
   }
-  return [["overview", text.overview], ["findings", text.keyFindings], ["pending-checks", readerText(presentation.locale).pending], ["legend", text.legend], ["claim", text.claim], ["target", text.target], ["criteria", text.criteria], ["scope", text.scope], ["coverage", text.coverage], ["limitations", text.limitations]];
+  return [["overview", text.overview], ["findings", text.keyFindings], ["pending-checks", readerText(presentation.locale).pending], ...intake, ["legend", text.legend], ["claim", text.claim], ["target", text.target], ["criteria", text.criteria], ["scope", text.scope], ["coverage", text.coverage], ["limitations", text.limitations]];
 }
 
 export function renderReportHtml(presentation, { detail = "full", appendixHref = null } = {}) {

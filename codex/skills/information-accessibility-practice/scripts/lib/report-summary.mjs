@@ -1,4 +1,4 @@
-import { provenanceCounts, readerText, readerOverviewMarkdown, readerActionsMarkdown, readerPendingMarkdown } from "./report-reader.mjs";
+import { provenanceCounts, readerText, readerOverviewMarkdown, readerActionsMarkdown, readerPendingMarkdown, readerInspectionMarkdown } from "./report-reader.mjs";
 
 function escapeCell(value) {
   return String(value ?? "")
@@ -132,6 +132,7 @@ export function renderReportSummaryMarkdown(presentation) {
     "",
     `- ${text.remaining}: ${provenance.not_run}`,
     "",
+    ...(presentation.inspection_request ? [readerInspectionMarkdown(presentation), ""] : []),
     `## ${text.groups}`,
     "",
     table(
