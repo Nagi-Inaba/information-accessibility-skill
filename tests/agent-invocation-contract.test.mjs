@@ -31,7 +31,7 @@ test("short Web requests enter the versioned standards-aware audit path", () => 
 });
 
 test("inspection intake resolves depth before work and retains evidence and authority boundaries", () => {
-  for (const text of [read(sharedAgent), read(codexAgent), read(claudeAgent), read(codexSkill), read(claudeSkill)]) {
+  for (const text of [read(sharedAgent), read(codexAgent), read(claudeAgent), read(codexSkill), read(claudeSkill), read(codexPrompt)]) {
     assert.match(text, /quick/);
     assert.match(text, /detailed/);
     assert.match(text, /--inspection-mode/);
