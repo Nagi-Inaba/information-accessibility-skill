@@ -1,4 +1,5 @@
 import { reviewDetailLines } from "./review-details.mjs";
+import { readerText, readerOverview, readerActions, actionItems, pendingGroups, pendingTitle, provenanceCounts } from "./report-reader.mjs";
 
 const outcomeKeys = ["pass", "fail", "not_applicable", "not_tested", "cant_tell"];
 
@@ -185,13 +186,16 @@ a:focus-visible, [tabindex="0"]:focus-visible { outline: 3px solid Highlight; ou
 .skip-link { position: absolute; inset-inline-start: 1rem; inset-block-start: -8rem; z-index: 100; padding: .75rem 1rem; background: Canvas; color: CanvasText; border: 2px solid CanvasText; }
 .skip-link:focus { inset-block-start: 1rem; }
 header, nav, main, footer { width: min(100% - 2rem, 82rem); margin-inline: auto; }
-header { padding-block: 2rem 1rem; }
+header { padding-block: 1rem 0; }
 nav { padding-block: .5rem 1rem; border-block: 1px solid GrayText; }
+main nav { width: 100%; }
+nav ol { display: flex; flex-wrap: wrap; gap: .5rem 2rem; padding-inline-start: 1.5rem; }
 main { padding-block: 1rem 3rem; }
+main > section:first-child { margin-block-start: 0; }
 footer { padding-block: 1.5rem 3rem; border-block-start: 1px solid GrayText; }
 section { margin-block: 2rem; scroll-margin-block-start: 1rem; }
 article { border-inline-start: .35rem solid GrayText; padding-inline-start: 1rem; margin-block: 1rem; }
-h1, h2, h3 { line-height: 1.2; }
+h1, h2, h3 { line-height: 1.2; overflow-wrap: anywhere; }
 dl.meta { display: grid; grid-template-columns: minmax(10rem, 18rem) 1fr; gap: .35rem 1rem; }
 dt { font-weight: 700; }
 dd { margin: 0; overflow-wrap: anywhere; }
@@ -247,14 +251,6 @@ function groupCountsTable(presentation, text) {
   });
 }
 
-function provenanceCounts(presentation) {
-  const counts = { human_review: 0, screening: 0, not_run: 0 };
-  for (const row of presentation.rows ?? []) {
-    if (Object.hasOwn(counts, row.source_kind)) counts[row.source_kind] += 1;
-  }
-  return counts;
-}
-
 function definitionList(items) {
   return `<dl class="meta">${items.map(([term, value]) => `<dt>${escapeHtml(term)}</dt><dd>${value}</dd>`).join("")}</dl>`;
 }
@@ -275,35 +271,35 @@ function criterionTable(group, presentation, text) {
   });
 }
 
-function compactCriterionTable(rows, presentation, text, id, caption) {
-  const rendered = rows.map((row) => `<tr data-requirement-id="${escapeAttribute(row.requirement_id)}" data-outcome="${escapeAttribute(outcomeToken(row.outcome))}" data-source="${escapeAttribute(outcomeToken(row.source_kind))}"><th scope="row">${escapeHtml(row.success_criterion)}</th><td><span class="status">${escapeHtml(row.outcome_label)}</span></td><td>${escapeHtml(row.source_label)}</td><td>${escapeHtml(row.evidence_level)}</td><td>${escapeHtml(row.rationale)}</td></tr>`);
-  return tableRegion({
-    id,
-    caption,
-    headers: [text.criterion, text.outcome, text.source, text.evidence, text.rationale],
-    rows: rendered,
-    text
-  });
+function findingsSection(presentation, text) {
+  const actions = readerActions(presentation);
+  if (!actions.length) return `<p>${escapeHtml(readerText(presentation.locale).noActions)}</p>`;
+  return actions.map((action, index) => {
+    return `<article id="finding-${index + 1}"><h3>${index + 1}. ${escapeHtml(action.title)}</h3>${definitionList(
+      actionItems(action, presentation).map(([label, value]) => [label, escapeHtml(value).replace(/\r\n|[\r\n]/gu, "<br>")])
+    )}</article>`;
+  }).join("\n");
 }
 
-function findingsSection(presentation, text) {
-  if (!presentation.findings?.length) return `<p>${escapeHtml(text.noFindings)}</p>`;
-  return presentation.findings.map((finding, index) => {
-    const id = `finding-${index + 1}-${slug(finding.requirement_id ?? finding.requirement_ids?.join("-") ?? "item")}`;
-    const title = finding.issue ?? finding.observation ?? `${text.findings} ${index + 1}`;
-    return `<article id="${escapeAttribute(id)}"><h3>${escapeHtml(title)}</h3>${definitionList([
-      [text.priority, escapeHtml(finding.priority ?? text.noRecord)],
-      [text.criterion, escapeHtml(finding.requirement_id ?? finding.requirement_ids?.join(", ") ?? text.noRecord)],
-      [text.location, escapeHtml(finding.location ?? text.noRecord)],
-      [text.change, escapeHtml(finding.proposed_change ?? finding.remediation ?? text.noRecord)],
-      [text.verification, escapeHtml(finding.verification ?? text.noRecord)]
-    ])}</article>`;
-  }).join("\n");
+function overviewSection(presentation, text) {
+  const reader = readerText(presentation.locale);
+  return `<section id="overview"><h2>${escapeHtml(text.overview)}</h2>${definitionList(
+    readerOverview(presentation).map(([label, value]) => [label, escapeHtml(value)])
+  )}<p>${escapeHtml(reader.coverageNote)}</p></section>`;
+}
+
+function pendingSection(presentation) {
+  const text = readerText(presentation.locale);
+  const groups = pendingGroups(presentation);
+  const content = groups.length ? groups.map((group) => `<article><h3>${escapeHtml(pendingTitle(group, presentation.locale))} (${group.rows.length})</h3>${group.explicit && group.rows.length > 3 ? `<p>${escapeHtml(text.criterion)}: ${escapeHtml(group.rows.map((row) => row.success_criterion).join(", "))}</p>` : ""}<ul>${group.lines.map((line) => `<li>${escapeHtml(line)}</li>`).join("")}</ul></article>`).join("\n") : `<p>${escapeHtml(text.noPending)}</p>`;
+  return `<section id="pending-checks"><h2>${escapeHtml(text.pending)}</h2>${content}</section>`;
 }
 
 function fullSections(presentation, text) {
   const sections = [];
-  sections.push(`<section id="overview"><h2>${escapeHtml(text.overview)}</h2><p><strong>${escapeHtml(text.overall)}:</strong> ${escapeHtml(presentation.messages.outcomes[presentation.overall_outcome] ?? presentation.overall_outcome)}</p><p><strong>${escapeHtml(text.profileCount)}:</strong> ${escapeHtml(presentation.rows.length)}</p>${countsTable(presentation, text)}</section>`);
+  sections.push(overviewSection(presentation, text));
+  sections.push(`<section id="findings"><h2>${escapeHtml(text.keyFindings)}</h2>${findingsSection(presentation, text)}</section>`);
+  sections.push(pendingSection(presentation));
   sections.push(`<section id="legend"><h2>${escapeHtml(text.legend)}</h2><ul><li><strong>${escapeHtml(presentation.messages.sources.human_review)}:</strong> ${escapeHtml(presentation.messages.text.provenanceHuman)}</li><li><strong>${escapeHtml(presentation.messages.sources.screening)}:</strong> ${escapeHtml(presentation.messages.text.provenanceScreening)}</li><li><strong>${escapeHtml(presentation.messages.sources.not_run)}:</strong> ${escapeHtml(presentation.messages.text.provenanceNotRun)}</li></ul>${presentation.has_screening_projection ? `<p class="notice">${escapeHtml(presentation.messages.text.screeningLegend)}</p>` : ""}</section>`);
   sections.push(`<section id="claim"><h2>${escapeHtml(text.claim)}</h2>${definitionList([
     [text.requestedTier, `<code>${escapeHtml(presentation.claim.requested_tier)}</code>`],
@@ -320,7 +316,6 @@ function fullSections(presentation, text) {
     [text.date, escapeHtml(presentation.evaluated_at ?? text.noRecord)],
     [text.evaluator, escapeHtml(presentation.evaluator ?? text.noRecord)]
   ])}</section>`);
-  sections.push(`<section id="findings"><h2>${escapeHtml(text.findings)}</h2>${findingsSection(presentation, text)}</section>`);
   sections.push(`<section id="criteria"><h2>${escapeHtml(text.criteria)}</h2>${presentation.profile?.id === "jp-public-web" ? `<p class="notice"><strong>${escapeHtml(text.parsingTitle)}:</strong> ${escapeHtml(text.parsingNote)}</p>` : ""}${(presentation.groups ?? []).map((group) => `<section id="criteria-${escapeAttribute(slug(group.id))}"><h3>${escapeHtml(`${group.label} (${group.expected_count})`)}</h3>${group.basis ? `<p>${escapeHtml(group.basis.label)}</p><p>${escapeHtml(group.basis.scope)}</p>` : ""}${criterionTable(group, presentation, text)}</section>`).join("\n")}</section>`);
   sections.push(`<section id="scope"><h2>${escapeHtml(text.scope)}</h2>${definitionList([
     [text.included, list(presentation.scope?.included, text.noRecord)],
@@ -334,7 +329,7 @@ function fullSections(presentation, text) {
     [text.inputModes, list(presentation.environment?.input_modes, text.noRecord)]
   ])}</section>`);
   const prov = provenanceCounts(presentation);
-  sections.push(`<section id="coverage"><h2>${escapeHtml(text.coverage)}</h2>${groupCountsTable(presentation, text)}${definitionList([
+  sections.push(`<section id="coverage"><h2>${escapeHtml(text.coverage)}</h2>${countsTable(presentation, text)}${groupCountsTable(presentation, text)}${definitionList([
     [presentation.messages.sources.human_review, escapeHtml(prov.human_review)],
     [presentation.messages.sources.screening, escapeHtml(prov.screening)],
     [presentation.messages.sources.not_run, escapeHtml(prov.not_run)],
@@ -345,15 +340,13 @@ function fullSections(presentation, text) {
 }
 
 function summarySections(presentation, text, appendixHref) {
-  const actionable = (presentation.rows ?? []).filter((row) => row.source_kind === "screening" || (row.source_kind === "human_review" && ["fail", "cant_tell"].includes(row.outcome)));
-  const human = (presentation.rows ?? []).filter((row) => row.source_kind === "human_review");
   const prov = provenanceCounts(presentation);
   const sections = [
-    `<section id="overview"><h2>${escapeHtml(text.summary)}</h2><p><strong>${escapeHtml(text.overall)}:</strong> ${escapeHtml(presentation.messages.outcomes[presentation.overall_outcome] ?? presentation.overall_outcome)}</p><p><strong>${escapeHtml(presentation.messages.fields.evidenceLevel)}:</strong> ${escapeHtml(presentation.evidence_level)}</p><p><strong>${escapeHtml(text.targetName)}:</strong> ${escapeHtml(presentation.target?.name ?? text.noRecord)}</p></section>`,
-    `<section id="key-findings"><h2>${escapeHtml(text.keyFindings)}</h2>${actionable.length ? compactCriterionTable(actionable, presentation, text, "key-findings-table", text.keyFindings) : `<p>${escapeHtml(text.noActionable)}</p>`}${findingsSection(presentation, text)}</section>`,
-    `<section id="human-reviewed"><h2>${escapeHtml(text.humanReviewed)}</h2>${human.length ? compactCriterionTable(human, presentation, text, "human-reviewed-table", text.humanReviewed) : `<p>${escapeHtml(text.noRecord)}</p>`}</section>`,
+    overviewSection(presentation, text),
+    `<section id="key-findings"><h2>${escapeHtml(text.keyFindings)}</h2>${findingsSection(presentation, text)}</section>`,
+    pendingSection(presentation),
     `<section id="group-counts"><h2>${escapeHtml(text.groups)}</h2>${groupCountsTable(presentation, text)}</section>`,
-    `<section id="provenance"><h2>${escapeHtml(text.provenance)}</h2>${definitionList([[presentation.messages.sources.human_review, escapeHtml(prov.human_review)], [presentation.messages.sources.screening, escapeHtml(prov.screening)], [presentation.messages.sources.not_run, escapeHtml(prov.not_run)]])}</section>`,
+    `<section id="provenance"><h2>${escapeHtml(text.provenance)}</h2>${definitionList([[presentation.messages.sources.human_review, escapeHtml(prov.human_review)], [presentation.messages.sources.screening, escapeHtml(prov.screening)], [presentation.messages.sources.not_run, escapeHtml(prov.not_run)], [text.evidence, escapeHtml(presentation.evidence_level)]])}</section>`,
     `<section id="claim"><h2>${escapeHtml(text.claim)}</h2>${definitionList([[text.requestedTier, `<code>${escapeHtml(presentation.claim.requested_tier)}</code>`], [text.maximumTier, `<code>${escapeHtml(presentation.claim.maximum_tier)}</code>`], [text.fixedWording, escapeHtml(presentation.claim.wording)], [text.reasons, escapeHtml(presentation.claim.reasons?.join("; ") || text.noRecord)]])}</section>`,
     `<section id="scope"><h2>${escapeHtml(text.scope)}</h2>${definitionList([[text.included, list(presentation.scope?.included, text.noRecord)], [text.limitations, escapeHtml(presentation.limitations?.join("; ") || text.noRecord)]])}</section>`
   ];
@@ -364,13 +357,13 @@ function summarySections(presentation, text, appendixHref) {
 function tocEntries(detail, presentation, text, appendixHref) {
   if (detail === "summary") {
     const entries = [
-      ["overview", text.summary], ["key-findings", text.keyFindings], ["human-reviewed", text.humanReviewed],
+      ["overview", text.overview], ["key-findings", text.keyFindings], ["pending-checks", readerText(presentation.locale).pending],
       ["group-counts", text.groups], ["provenance", text.provenance], ["claim", text.claim], ["scope", text.scope]
     ];
     if (appendixHref) entries.push(["appendix", text.appendix]);
     return entries;
   }
-  return [["overview", text.overview], ["legend", text.legend], ["claim", text.claim], ["target", text.target], ["findings", text.findings], ["criteria", text.criteria], ["scope", text.scope], ["coverage", text.coverage], ["limitations", text.limitations]];
+  return [["overview", text.overview], ["findings", text.keyFindings], ["pending-checks", readerText(presentation.locale).pending], ["legend", text.legend], ["claim", text.claim], ["target", text.target], ["criteria", text.criteria], ["scope", text.scope], ["coverage", text.coverage], ["limitations", text.limitations]];
 }
 
 export function renderReportHtml(presentation, { detail = "full", appendixHref = null } = {}) {
@@ -391,12 +384,13 @@ export function renderReportHtml(presentation, { detail = "full", appendixHref =
     "</head>",
     "<body>",
     `<a class="skip-link" href="#main-content">${escapeHtml(text.skip)}</a>`,
-    `<header><h1>${escapeHtml(presentation.title)}</h1><p class="notice">${escapeHtml(publicationNotice)}</p><p>${escapeHtml(presentation.messages.text.reportNotice)}</p></header>`,
-    `<nav aria-label="${escapeAttribute(text.navigation)}"><h2>${escapeHtml(text.contents)}</h2><ol>${toc.map(([id, label]) => `<li><a href="#${escapeAttribute(id)}">${escapeHtml(label)}</a></li>`).join("")}</ol></nav>`,
+    `<header><h1>${escapeHtml(presentation.title)}</h1><p>${escapeHtml(publicationNotice)}</p></header>`,
     '<main id="main-content" tabindex="-1">',
-    ...sections,
+    ...sections.slice(0, 3),
+    `<nav aria-label="${escapeAttribute(text.navigation)}"><h2>${escapeHtml(text.contents)}</h2><ol>${toc.map(([id, label]) => `<li><a href="#${escapeAttribute(id)}">${escapeHtml(label)}</a></li>`).join("")}</ol></nav>`,
+    ...sections.slice(3),
     "</main>",
-    `<footer><p>${escapeHtml(text.formatBoundary)}</p><p>${escapeHtml(presentation.messages.text.formalBoundary)}</p></footer>`,
+    `<footer><p>${escapeHtml(presentation.messages.text.reportNotice)}</p><p>${escapeHtml(text.formatBoundary)}</p><p>${escapeHtml(presentation.messages.text.formalBoundary)}</p></footer>`,
     "</body>",
     "</html>",
     ""

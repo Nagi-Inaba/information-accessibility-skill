@@ -124,6 +124,8 @@ node .\codex\skills\information-accessibility-practice\scripts\accessibility-aud
 
 `--format markdown`が既定の編集・差分管理用形式で、`--format html`はブラウザー配布向けのaccessible HTMLです。`--detail summary`／`--detail full`、同形式の完全版を分ける`--appendix`、`--visibility internal`／`--visibility public`を共通して利用できます。
 
+要約と完全版は、対象範囲、人手確認・自動検査・未実施の件数、優先順の改善項目、残る確認作業を先に示します。改善項目には、記録された箇所・利用者への影響・改善案・再確認方法をまとめます。要約でも未確認理由と次の確認を省略せず、完全版には全達成基準の結果表を残します。`--detail`は表示量の指定であり、検査対象や実施する検査の深さを変更するものではありません。
+
 PDFは、taggingとreading orderを検証できる正式経路がないためサポート対象外です。HTMLの構造、生成物E2E、NVDA smoke test、残る外部確認は[レポート形式とアクセシビリティ](docs/report-formats.md)に整理しています。
 
 編集用プレースホルダーだけが必要な場合はtemplate modeを使います。

@@ -35,6 +35,14 @@ accessibility-audit report --input assessment.json --format html --detail summar
 - `--appendix`は`--detail summary`でのみ利用でき、同じ形式の完全版を別ファイルへ出力します。
 - レポート、付録、redaction manifestは別々の新規pathとして事前検証され、既存ファイルを上書きしません。
 
+Both modes lead with target scope and human/screening/not-run counts, followed by priority-ordered actions and pending checks. Each action combines its recorded location, affected users, proposed change, verification and evidence; distinct findings on one requirement remain separate. Pending reasons and next checks remain visible in summaries. The full criterion table preserves complete coverage. HTML places these decision sections before the table of contents and technical claim details.
+
+どちらの表示でも、対象範囲と確認件数、優先順の改善項目、残る確認作業を先に示します。改善項目には、記録された箇所・影響を受ける利用者・改善案・再確認方法・根拠をまとめます。同じ達成基準に複数の問題がある場合は、それぞれを残します。要約でも未確認理由と次の確認を表示し、完全版には全条項の結果表を残します。HTMLでは、これらの判断材料を目次や主張範囲の技術的な説明より先に配置します。
+
+`--detail` selects presentation length, not inspection effort or evidence strength. Selecting `full` does not perform additional checks.
+
+`--detail`はレポートの表示量を選ぶ指定です。`full`を指定しても、検査の追加実施や証拠レベルの変更は行いません。
+
 ## 3. Public and internal visibility / 公開用と内部用
 
 ```sh

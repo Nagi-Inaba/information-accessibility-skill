@@ -1,4 +1,5 @@
 import { reviewDetailLines } from "./review-details.mjs";
+import { readerText, readerOverviewMarkdown, readerActionsMarkdown, readerPendingMarkdown } from "./report-reader.mjs";
 import {
   groupForRequirement,
   recordsForProfile,
@@ -286,6 +287,7 @@ export function buildRunBackedPresentation({ run, assessment: assessmentRecord, 
       outcome: check.outcome,
       outcome_label: messages.outcomes[check.outcome],
       source_kind: sourceKind,
+      screening_requirement_id: screening?.requirement_id,
       source_label: messages.sources[sourceKind],
       evidence_level: evidenceLevel,
       rationale: check.rationale || messages.text.noEvidence,
@@ -304,7 +306,19 @@ export function buildRunBackedPresentation({ run, assessment: assessmentRecord, 
     environment: publicModel.environment,
     evaluator: null,
     limitations: publicModel.limitations,
-    findings: publicModel.remediation
+    findings: (publicModel.remediation ?? []).map((finding) => {
+      const candidates = (publicModel.screeningCandidates ?? []).filter((candidate) => candidate.requirement_id === finding.requirement_id);
+      return {
+        ...finding,
+        related_requirement_ids: [...new Set(candidates.map((candidate) => candidate.profile_requirement_id).filter(Boolean))],
+        review_records: [...new Map(candidates.map((candidate) => [candidate.requirement_id, {
+          requirement_id: candidate.profile_requirement_id ?? candidate.requirement_id,
+          outcome: candidate.report_outcome,
+          rationale: candidate.report_rationale || candidate.observation || messages.text.noEvidence,
+          review_details: clone(candidate.review_details)
+        }])).values()]
+      };
+    })
   });
 }
 
@@ -363,31 +377,13 @@ function renderCriterionTable(rows, messages, locale) {
   );
 }
 
-function renderFindings(findings, messages) {
-  if (!findings?.length) return messages.text.noFindings;
-  const rows = findings.map((finding) => [
-    finding.priority ?? "",
-    finding.requirement_id ?? finding.requirement_ids?.join(", ") ?? "",
-    finding.location ?? "",
-    finding.issue ?? finding.observation ?? "",
-    finding.proposed_change ?? finding.remediation ?? "",
-    finding.verification ?? ""
-  ]);
-  return markdownTable(
-    messages.locale === "ja"
-      ? ["優先度", "達成基準・検査項目", "箇所", "問題", "改善案", "再確認方法"]
-      : ["Priority", "Requirement or check", "Location", "Issue", "Remediation", "Verification"],
-    rows,
-    messages.text.noFindings
-  );
-}
-
 function listValue(values, messages) {
   return Array.isArray(values) && values.length ? values.join(", ") : messages.text.noRecord;
 }
 
 export function renderReportMarkdown(presentation) {
   const messages = presentation.messages;
+  const reader = readerText(presentation.locale);
   const lines = [
     `# ${presentation.title}`,
     "",
@@ -395,8 +391,19 @@ export function renderReportMarkdown(presentation) {
     "",
     `## ${messages.headings.summary}`,
     "",
-    `- ${messages.text.judgementLabel}: ${messages.outcomes[presentation.overall_outcome]}`,
+    readerOverviewMarkdown(presentation),
+    "",
     `- ${messages.text.profileCountLabel}: ${presentation.rows.length}`,
+    "",
+    `## ${reader.key}`,
+    "",
+    readerActionsMarkdown(presentation),
+    "",
+    `## ${reader.pending}`,
+    "",
+    readerPendingMarkdown(presentation),
+    "",
+    `## ${presentation.locale === "ja" ? "判定の内訳" : "Judgement counts"}`,
     "",
     renderCounts(presentation.counts, messages),
     "",
@@ -447,10 +454,6 @@ export function renderReportMarkdown(presentation) {
   }
 
   lines.push(
-    `## ${messages.headings.findings}`,
-    "",
-    renderFindings(presentation.findings, { ...messages, locale: presentation.locale }),
-    "",
     `## ${messages.headings.scope}`,
     "",
     `- ${messages.fields.included}: ${markdownCell(listValue(presentation.scope?.included, messages))}`,

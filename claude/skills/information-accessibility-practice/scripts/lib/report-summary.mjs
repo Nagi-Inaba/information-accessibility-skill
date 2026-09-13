@@ -1,3 +1,5 @@
+import { provenanceCounts, readerText, readerOverviewMarkdown, readerActionsMarkdown, readerPendingMarkdown } from "./report-reader.mjs";
+
 function escapeCell(value) {
   return String(value ?? "")
     .replace(/&/gu, "&amp;")
@@ -21,24 +23,6 @@ function table(headers, rows, emptyMessage) {
 
 function count(counts, key) {
   return counts?.[key] ?? 0;
-}
-
-function sourceLabel(presentation, row) {
-  return presentation.messages.sources[row.source_kind] ?? row.source_kind;
-}
-
-function outcomeLabel(presentation, outcome) {
-  return presentation.messages.outcomes[outcome] ?? outcome;
-}
-
-function findingRows(findings) {
-  return findings.map((finding) => [
-    finding.priority ?? "-",
-    finding.requirement_id ?? finding.requirement_ids?.join(", ") ?? "-",
-    finding.issue ?? finding.observation ?? finding.rationale ?? "-",
-    finding.proposed_change ?? finding.remediation ?? "-",
-    finding.verification ?? "-"
-  ]);
 }
 
 function localeText(locale) {
@@ -128,58 +112,25 @@ function localeText(locale) {
 
 export function renderReportSummaryMarkdown(presentation) {
   const text = localeText(presentation.locale);
-  const humanRows = presentation.rows.filter((row) => row.source_kind === "human_review");
-  const actionableRows = presentation.rows.filter((row) => row.source_kind === "screening"
-    || (row.source_kind === "human_review" && ["fail", "cant_tell"].includes(row.outcome)));
-  const remainingNotRun = presentation.rows.filter((row) => row.source_kind === "not_run").length;
-  const overall = count(presentation.outcome_counts, "fail") > 0 ? "fail"
-    : count(presentation.outcome_counts, "cant_tell") > 0 ? "cant_tell"
-      : count(presentation.outcome_counts, "not_tested") > 0 ? "not_tested" : "pass";
+  const reader = readerText(presentation.locale);
+  const provenance = provenanceCounts(presentation);
 
   const lines = [
     `# ${escapeCell(presentation.title)}`,
     "",
     `## ${text.summary}`,
     "",
-    `- ${text.overall}: ${escapeCell(outcomeLabel(presentation, overall))}`,
-    `- ${text.evidence}: ${escapeCell(presentation.evidence_level)}`,
-    `- ${text.target}: ${escapeCell(presentation.target.name)}`,
+    readerOverviewMarkdown(presentation),
     "",
     `## ${text.key}`,
     "",
-    table(
-      [text.criterion, text.judgement, text.source, text.strength, text.rationale],
-      actionableRows.map((row) => [
-        row.success_criterion,
-        outcomeLabel(presentation, row.outcome),
-        sourceLabel(presentation, row),
-        row.evidence_level,
-        row.rationale
-      ]),
-      text.noKey
-    ),
+    readerActionsMarkdown(presentation),
     "",
-    table(
-      [text.priority, text.criterion, text.issue, text.change, text.verification],
-      findingRows(presentation.findings),
-      text.noKey
-    ),
+    `## ${reader.pending}`,
     "",
-    `## ${text.human}`,
+    readerPendingMarkdown(presentation),
     "",
-    table(
-      [text.criterion, text.judgement, text.source, text.strength, text.rationale],
-      humanRows.map((row) => [
-        row.success_criterion,
-        outcomeLabel(presentation, row.outcome),
-        sourceLabel(presentation, row),
-        row.evidence_level,
-        row.rationale
-      ]),
-      text.noHuman
-    ),
-    "",
-    `- ${text.remaining}: ${remainingNotRun}`,
+    `- ${text.remaining}: ${provenance.not_run}`,
     "",
     `## ${text.groups}`,
     "",
@@ -198,9 +149,10 @@ export function renderReportSummaryMarkdown(presentation) {
     "",
     `## ${text.provenance}`,
     "",
-    `- ${text.humanCount}: ${count(presentation.provenance_counts, "human_review")}`,
-    `- ${text.screeningCount}: ${count(presentation.provenance_counts, "screening")}`,
-    `- ${text.notRunCount}: ${count(presentation.provenance_counts, "not_run")}`,
+    `- ${text.humanCount}: ${provenance.human_review}`,
+    `- ${text.screeningCount}: ${provenance.screening}`,
+    `- ${text.notRunCount}: ${provenance.not_run}`,
+    `- ${text.evidence}: ${escapeCell(presentation.evidence_level)}`,
     "",
     `## ${text.claim}`,
     "",

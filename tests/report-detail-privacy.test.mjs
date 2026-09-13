@@ -96,7 +96,9 @@ test("summary and full modes separate decision-ready reading from complete profi
   const summaryText = fs.readFileSync(summaryFile, "utf8");
   assert.match(summaryText, /^## Key findings and next actions$/mu);
   assert.match(summaryText, /^## Profile group counts$/mu);
-  assert.match(summaryText, /^## Human-reviewed requirements$/mu);
+  assert.match(summaryText, /^## Remaining checks and next steps$/mu);
+  assert.match(summaryText, /Overall judgement: Not tested/u);
+  assert.match(summaryText, /Requirements not run: 55\/55/u);
   assert.match(summaryText, /Internal report[^\n]*not publication-ready/iu);
   assert.ok(criterionRows(summaryText).length < 55);
 
@@ -148,7 +150,7 @@ test("summary plus appendix preflights every path and emits a complete appendix"
   assert.equal(fs.readFileSync(blockedAppendix, "utf8"), "existing appendix\n");
 });
 
-test("summary keeps human-reviewed and actionable screening rows while omitting bulk not-run rows", (t) => {
+test("summary consolidates findings with their human or screening evidence and correct counts", (t) => {
   const directory = tempDirectory(t);
   const generated = runNode(runBackedExample, ["--output", directory]);
   assert.equal(generated.status, 0, generated.stderr || generated.stdout);
@@ -166,7 +168,14 @@ test("summary keeps human-reviewed and actionable screening rows while omitting 
   ]);
   assert.equal(human.status, 0, human.stderr || human.stdout);
   const humanText = fs.readFileSync(humanSummary, "utf8");
-  assert.match(humanText, /\| 1\.1\.1 \|[^\n]*External human review/u);
+  assert.match(humanText, /\*\*Requirement or check\*\*: 1\.1\.1, WCAG-2\.2-SC-1\.1\.1/u);
+  assert.match(humanText, /\*\*Judgement and source\*\*: Fail \/ External human review/u);
+  assert.match(humanText, /Overall judgement: Fail/u);
+  assert.match(humanText, /Requirements checked by a human: 1\/55/u);
+  assert.match(humanText, /Requirements not run: 54\/55/u);
+  assert.match(humanText, /External human review: 1/u);
+  assert.match(humanText, /Not run: 54/u);
+  assert.equal((humanText.match(/^### /gmu) ?? []).length, 1, "one issue must not become separate finding and human-review action items");
   assert.doesNotMatch(humanText, /^\| 1\.2\.1 \|/mu);
 
   const screeningScenario = path.join(directory, "screening-only");
@@ -182,7 +191,10 @@ test("summary keeps human-reviewed and actionable screening rows while omitting 
   ]);
   assert.equal(screening.status, 0, screening.stderr || screening.stdout);
   const screeningText = fs.readFileSync(screeningSummary, "utf8");
-  assert.match(screeningText, /\| 1\.1\.1 \|[^\n]*AI\/automated screening/u);
+  assert.match(screeningText, /\*\*Requirement or check\*\*: 1\.1\.1, SCREEN-IMAGE-ALT/u);
+  assert.match(screeningText, /AI\/automated screening candidate/u);
+  assert.match(screeningText, /Requirements with AI\/automated results: 1\/55/u);
+  assert.equal((screeningText.match(/^### /gmu) ?? []).length, 1, "explicit screening association must consolidate the finding and projection");
   assert.match(screeningText, /Remaining not-run requirements:/u);
 });
 
