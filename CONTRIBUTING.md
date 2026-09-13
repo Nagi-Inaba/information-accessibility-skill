@@ -8,7 +8,19 @@ Thank you for improving the information-accessibility skill package.
 2. Keep one behavior change per pull request where practical.
 3. Preserve Codex and Claude distribution parity for shared runtime files.
 4. Add or update regression tests for behavior changes.
-5. Do not commit real audit artifacts, credentials, private URLs, local paths, or personally identifying evidence.
+5. Do not commit raw real-audit artifacts, credentials, private URLs, local paths, or personally identifying evidence. Reviewed public case-study documents must meet the conditions below.
+
+## Public case-study documents
+
+Edited case studies and feedback may be proposed in `docs/audits/` when the contributor is authorized to share the included material publicly and the maintainer reviews the document for privacy and evidence accuracy before merging. This is a narrow allowance for written summaries, not for raw audit artifacts. A public target URL does not establish permission to publish user testimony, personal information, or captured evidence.
+
+- Include only observations needed to explain the case and proposed improvements. Do not include identifying user testimony or private target information.
+- Keep HTML/DOM captures, screenshots, accessibility trees, recordings, assessment JSON, and run directories outside the repository.
+- Identify the source of reported observations, the original inspection date, and the target version, tool version, and environment when recorded. State missing provenance rather than inventing it.
+- Distinguish reported experience, observed evidence, hypotheses, unperformed tests, and proposed improvements. An editorial correction is not a new audit or human verification.
+- Check criterion identifiers and result counts against the selected profile. Preserve the boundary between report-only judgements and human-verified profile outcomes.
+
+The accepted PR records the submitted version and the maintainer's corrections; original reports need not be duplicated in the source tree.
 
 ## Verification
 
