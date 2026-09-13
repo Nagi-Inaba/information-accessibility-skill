@@ -2,7 +2,8 @@ const messages = {
   ja: {
     reportTitles: {
       "web-modern": "WCAG 2.2 A/AA 監査レポート",
-      "jp-public-web": "JIS X 8341-3:2016＋追加WCAG A/AA 監査レポート"
+      "jis-x-8341-3-2016-aa": "JIS X 8341-3:2016 A/AA 監査レポート",
+      "jp-public-web": "デジタル庁ウェブ方針由来composite監査レポート"
     },
     groupLabels: {
       wcag_2_2: "WCAG 2.2 A/AA",
@@ -98,7 +99,8 @@ const messages = {
   en: {
     reportTitles: {
       "web-modern": "WCAG 2.2 A/AA Audit Report",
-      "jp-public-web": "JIS X 8341-3:2016 + Additional WCAG A/AA Audit Report"
+      "jis-x-8341-3-2016-aa": "JIS X 8341-3:2016 A/AA Audit Report",
+      "jp-public-web": "Digital Agency Web Policy Composite Audit Report"
     },
     groupLabels: {
       wcag_2_2: "WCAG 2.2 A/AA",

@@ -73,7 +73,7 @@ test("standalone reports use profile-aware Japanese and English titles, groups, 
 
   assert.match(webJa, /^# WCAG 2\.2 A\/AA 監査レポート$/mu);
   assert.match(webEn, /^# WCAG 2\.2 A\/AA Audit Report$/mu);
-  assert.match(jisJa, /^# JIS X 8341-3:2016＋追加WCAG A\/AA 監査レポート$/mu);
+  assert.match(jisJa, /^# デジタル庁ウェブ方針由来composite監査レポート$/mu);
   assert.match(jisEn, /^# JIS X 8341-3:2016 \+ Additional WCAG A\/AA Audit Report$/mu);
 
   assert.match(jisJa, /^## JIS X 8341-3:2016 A\/AA（38）$/mu);

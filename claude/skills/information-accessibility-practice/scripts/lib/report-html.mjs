@@ -314,11 +314,12 @@ function fullSections(presentation, text) {
     [text.version, escapeHtml(presentation.target?.version_or_commit ?? text.noRecord)],
     [text.references, list(presentation.target?.urls_or_files, text.noRecord)],
     [text.profile, escapeHtml(presentation.profile?.id ?? text.noRecord)],
+    ...(presentation.profile?.adoption_notice ? [[text.profile, escapeHtml(presentation.profile.adoption_notice)]] : []),
     [text.date, escapeHtml(presentation.evaluated_at ?? text.noRecord)],
     [text.evaluator, escapeHtml(presentation.evaluator ?? text.noRecord)]
   ])}</section>`);
   sections.push(`<section id="findings"><h2>${escapeHtml(text.findings)}</h2>${findingsSection(presentation, text)}</section>`);
-  sections.push(`<section id="criteria"><h2>${escapeHtml(text.criteria)}</h2>${presentation.profile?.id === "jp-public-web" ? `<p class="notice"><strong>${escapeHtml(text.parsingTitle)}:</strong> ${escapeHtml(text.parsingNote)}</p>` : ""}${(presentation.groups ?? []).map((group) => `<section id="criteria-${escapeAttribute(slug(group.id))}"><h3>${escapeHtml(`${group.label} (${group.expected_count})`)}</h3>${criterionTable(group, presentation, text)}</section>`).join("\n")}</section>`);
+  sections.push(`<section id="criteria"><h2>${escapeHtml(text.criteria)}</h2>${presentation.profile?.id === "jp-public-web" ? `<p class="notice"><strong>${escapeHtml(text.parsingTitle)}:</strong> ${escapeHtml(text.parsingNote)}</p>` : ""}${(presentation.groups ?? []).map((group) => `<section id="criteria-${escapeAttribute(slug(group.id))}"><h3>${escapeHtml(`${group.label} (${group.expected_count})`)}</h3>${group.basis ? `<p>${escapeHtml(group.basis.label)}</p><p>${escapeHtml(group.basis.scope)}</p>` : ""}${criterionTable(group, presentation, text)}</section>`).join("\n")}</section>`);
   sections.push(`<section id="scope"><h2>${escapeHtml(text.scope)}</h2>${definitionList([
     [text.included, list(presentation.scope?.included, text.noRecord)],
     [text.excluded, list(presentation.scope?.excluded, text.noRecord)],

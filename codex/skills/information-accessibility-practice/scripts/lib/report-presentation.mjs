@@ -129,12 +129,13 @@ function selectScreeningCandidate(current, candidate) {
 }
 
 function buildGroups({ profile, rows, locale }) {
-  const configured = reportGroups(profile);
+  const configured = reportGroups(profile, locale);
   return configured.map((group) => {
     const groupRows = rows.filter((row) => row.group_id === group.id).sort(compareCriteria);
     return {
       id: group.id,
       label: localizedGroupLabel(group.id, locale),
+      basis: group.basis,
       expected_count: groupRows.length,
       counts: countRows(groupRows),
       rows: groupRows
@@ -180,7 +181,12 @@ function commonPresentation({ assessment, validation, registry, locale, rows, ta
     title: localizedReportTitle(profileId, normalizedLocale),
     profile: {
       id: profileId,
-      display_name: profile.display_name
+      display_name: profile.display_name,
+      profile_kind: profile.profile_kind,
+      explicit_adoption_required: profile.explicit_adoption_required,
+      adoption_notice: profile.explicit_adoption_required
+        ? (normalizedLocale === "ja" ? "明示採用: 必須" : "Explicit adoption: required")
+        : null
     },
     target: clone(target),
     scope: clone(scope),
@@ -408,6 +414,7 @@ export function renderReportMarkdown(presentation) {
     `- ${messages.fields.version}: ${markdownCell(presentation.target?.version_or_commit ?? messages.text.noRecord)}`,
     `- ${messages.fields.references}: ${markdownCell(listValue(presentation.target?.urls_or_files, messages))}`,
     `- ${messages.fields.profile}: \`${presentation.profile.id}\``,
+    ...(presentation.profile.adoption_notice ? [`- ${presentation.profile.adoption_notice}`] : []),
     `- ${messages.fields.date}: ${markdownCell(presentation.evaluated_at)}`,
     ...(presentation.evaluator ? [`- ${messages.fields.evaluator}: ${markdownCell(presentation.evaluator)}`] : []),
     `- ${messages.fields.evidenceLevel}: ${markdownCell(presentation.evidence_level)}`,
@@ -420,6 +427,7 @@ export function renderReportMarkdown(presentation) {
     lines.push(
       `## ${group.label}${open}${group.expected_count}${close}`,
       "",
+      ...(group.basis ? [markdownCell(group.basis.label), "", markdownCell(group.basis.scope), ""] : []),
       renderCounts(group.counts, messages),
       "",
       renderCriterionTable(group.rows, messages),

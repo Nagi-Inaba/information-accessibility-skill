@@ -117,6 +117,9 @@ test("an active non-Web profile may explicitly disable Web interaction evidence"
   const futureRegistry = structuredClone(registry);
   const profile = futureRegistry.profiles.find((item) => item.id === "web-modern");
   profile.id = "future-document-profile";
+  for (const item of futureRegistry.profiles) {
+    if (item.migration) item.migration.recommended_profile_ids = item.migration.recommended_profile_ids.map((id) => id === "web-modern" ? profile.id : id);
+  }
   profile.assessment_configuration.requires_web_interaction_evidence = false;
 
   assert.equal(profileConfiguration(futureRegistry, profile.id).requires_web_interaction_evidence, false);
@@ -174,7 +177,9 @@ test("each registered requirement resolves to exactly one report group", () => {
 test("report groups preserve registry order and labels", () => {
   const reportGroups = helper("reportGroups");
   const profile = registry.profiles.find((item) => item.id === "jp-public-web");
-  assert.deepEqual(reportGroups(profile), profile.assessment_configuration.groups);
+  const groups = reportGroups(profile);
+  assert.deepEqual(groups.map(({ basis, ...group }) => group), profile.assessment_configuration.groups);
+  assert.deepEqual(groups.map((group) => group.basis.kind), ["standard", "organizational_policy"]);
 });
 
 test("report groups reject duplicate IDs even when prefixes do not overlap", () => {

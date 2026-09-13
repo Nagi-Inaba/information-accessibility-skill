@@ -41,13 +41,19 @@ AIと自動検査が作るものは、原則として問題候補やE0／E1のsc
 
 | 対象 | 自然言語レビュー | 構造化screening／規格台帳 | 現在の制限 |
 | --- | --- | --- | --- |
-| Webサイト／Webアプリ | 対応 | `web-modern`、`jp-public-web`、読取り専用`scan-web` | 実機スクリーンリーダー確認は外部の人またはホスト機能が必要 |
+| Webサイト／Webアプリ | 対応 | WCAG・JISの各プロファイル、読取り専用`scan-web` | 実機スクリーンリーダー確認は外部の人またはホスト機能が必要 |
 | PDF／Word／スライド | 対応 | ガイダンス中心 | 専用のactive profileと正式なclaim経路は未実装 |
 | 動画／音声 | 対応 | Web範囲内の関連条項確認 | 単独media profileは未実装 |
 | イベント／会議／コミュニティ | 対応 | 情報利用の5観点によるレビュー | 専用の構造化assessmentは未実装 |
 | ATAG／authoring process | 参照ガイダンス | 一部の参照情報 | `authoring-agent` profileは現在inactive |
 
-`web-modern`は[WCAG 2.2](https://www.w3.org/TR/WCAG22/) A／AAの55件を扱います。`jp-public-web`は[JIS X 8341-3:2016（WAIC解説）](https://waic.jp/docs/jis2016/understanding/201604/) A／AAの38件と、WCAG 2.1／2.2で追加されたA／AAの18件、合計56件を扱います。JISに残る4.1.1「構文解析」は[WCAG 2.2では削除](https://www.w3.org/WAI/standards-guidelines/wcag/new-in-22/)されています。収録件数と実際の評価件数は別々に記録します。
+評価に使う規格・方針に合わせて、次のプロファイルを選びます。
+
+- JIS単独の評価には`jis-x-8341-3-2016-aa`を使います。[JIS X 8341-3:2016（WAIC解説）](https://waic.jp/docs/jis2016/understanding/201604/) A／AAの38件が対象です。
+- WCAG 2.2単独の評価には`web-modern`を使います。[WCAG 2.2](https://www.w3.org/TR/WCAG22/) A／AAの55件が対象です。
+- legacyプロファイルの`jp-public-web`は、JISの38件と追加WCAGの18件を組み合わせた56件です。この組合せを組織が明示的に採用する場合に使います。日本の公開Web全般に適用される要件を表すものではありません。
+
+選び方と既存記録の扱いは[プロファイル選択・移行ガイド](docs/profile-selection-and-migration.md)を参照してください。JISに残る4.1.1「構文解析」は[WCAG 2.2では削除](https://www.w3.org/WAI/standards-guidelines/wcag/new-in-22/)されています。収録件数と実際の評価件数は別々に記録します。
 
 ## 前提条件と導入
 
