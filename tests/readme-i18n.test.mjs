@@ -135,6 +135,7 @@ test("Japanese and English READMEs preserve structural and executable parity", (
     ["5分で試す", "Try it in five minutes"],
     ["生成されるもの", "Outputs"],
     ["実Web検査", "Live Web inspection"],
+    ["検査を依頼するときのレベル", "Choose the inspection level"],
     ["詳細ドキュメント", "Detailed documentation"],
     ["証拠と主張の境界", "Evidence and claim boundary"],
     ["開発と保守", "Development and maintenance"],

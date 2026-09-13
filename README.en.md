@@ -25,6 +25,7 @@ Review this website for information accessibility. Separate observed barriers, p
 - [Outputs](#outputs)
 - [Live Web inspection](#live-web-inspection)
 - [Detailed documentation](#detailed-documentation)
+- [Choose the inspection level](#choose-the-inspection-level)
 - [Evidence and claim boundary](#evidence-and-claim-boundary)
 
 ## Choose one of three paths
@@ -124,6 +125,8 @@ Each report row shows the criterion number, localized title, level, profile grou
 
 `--format markdown` is the default editable and diff-friendly format. `--format html` produces accessible HTML for direct browser distribution. Both support `--detail summary` or `--detail full`, a same-format complete `--appendix`, and `--visibility internal` or `--visibility public`.
 
+The opening overview shows the target, scope, overall judgement and review progress. Key findings combine the issue, affected users, proposed change and verification in priority order, followed by remaining checks and next steps. Summary and full reports use the same judgements and counts; a full rendering does not mean additional inspection took place.
+
 PDF is unsupported because there is no formally verified tagging and reading-order path. See [Report formats and accessibility](docs/report-formats.md) for HTML semantics, generated-output E2E, the NVDA smoke test, and remaining external checks.
 
 Use template mode only for an editable placeholder.
@@ -158,6 +161,17 @@ https://example.com/
 ```
 
 See the [Web inspection guide](docs/web-inspection.md) for dependencies, network and redirect controls, private-address rejection, output contracts, compact AI context, and Chromium E2E coverage.
+
+## Choose the inspection level
+
+Before inspecting, decide how the report will be used and how much depth it needs. Reuse a clear choice from the conversation; ask about quick or detailed only when the request is ambiguous.
+
+| Level | When to use it | Deliverables |
+| --- | --- | --- |
+| Quick check (`quick`) | Identify major barriers and decide the next investigation or improvement | Basic checks within the named scope, key issues and priorities, evidence, unresolved checks and next steps |
+| Detailed inspection for remediation (`detailed`) | Give an owner enough information to start concrete changes | Agreed states, interactions and environments; each finding's location, reproduction steps, impact, proposed change and retest procedure; complete results |
+
+For a new run, use `init` with `--inspection-mode quick|detailed --inspection-purpose "Intended use of the report"`. Record scope and environments with the existing `--config` option. Reports show the agreed request and completion criteria; criteria not supported by the actual records remain unmet with next steps. This is separate from `--detail summary|full`, which controls rendering length. Historical runs remain readable without adding an inferred level.
 
 ## Detailed documentation
 
