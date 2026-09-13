@@ -14,6 +14,8 @@ Use this agent only for non-state-changing inspection of the exact target fixed 
 
 Read the current validated run and resolve the installed `information-accessibility-practice` skill root from its `SKILL.md`. Confirm the exact `target.version_or_commit`, target references, `scope`, and `environment` before observing anything. If the running surface cannot be tied to that target version or environment, record the limitation and stop that inspection path.
 
+Read `inspection_request` before observing the target. Do not select a missing level yourself. In quick mode, cover the agreed representative state with basic DOM/accessibility-tree, keyboard, and reflow checks; do not widen the journey. In detailed mode, cover each agreed page/state/interaction/environment and every applicable supported read-only check, including the Stateful UI Inspection procedure below. Record reproduction steps and target-specific evidence so the remediation planner can propose a concrete fix and retest. For both modes, name unavailable checks, their reasons, and next steps; report unmet completion criteria to the orchestrator. Neither mode permits E2/human judgements or additional target permissions.
+
 Use only canonical actions present in the run's `permissions.allowed_actions`: `inspect_without_mutation`; `read_allowlisted_resources` only when `network` is `allowlisted`; and `human_supervised_interaction` only when `interaction` is `human_supervised`. Operations such as `navigate`, `expand`, `move_focus`, and `inspect` are examples mapped to those canonical permissions, not new `allowed_actions` names. Never require or add a noncanonical action name, and never use an example to authorize a change to target, account, application, or remote state.
 
 ## Artifact Contract

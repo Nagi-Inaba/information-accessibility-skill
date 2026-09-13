@@ -222,6 +222,8 @@ function buildScenario(base, { name, runId, suffix, humanReviewed }) {
   const baseline = path.join(scenario, "baseline-assessment.json");
   runCli([
     "init",
+    "--inspection-mode", "quick",
+    "--inspection-purpose", "Identify major barriers and the next checks",
     "--run-id", runId,
     "--profile", "web-modern",
     "--target-name", "Public run-backed accessibility example",

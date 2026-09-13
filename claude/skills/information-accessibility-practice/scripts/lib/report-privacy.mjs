@@ -269,9 +269,14 @@ export function applyReportVisibility(presentation, { visibility = "internal", r
   copy.rows = copy.rows.map((row, index) => ({
     ...row,
     primary_url: sanitizeUrl(row.primary_url, `rows[${index}].primary_url`, entries),
-    rationale: sanitizeText(row.rationale, `rows[${index}].rationale`, entries)
+    rationale: sanitizeText(row.rationale, `rows[${index}].rationale`, entries),
+    review_details: sanitizeNested(row.review_details, `rows[${index}].review_details`, entries, "review_details")
   }));
+  // Full reports render group rows; keep them on the same sanitized objects as summaries.
+  const rowsById = new Map(copy.rows.map((row) => [row.requirement_id, row]));
+  copy.groups = (copy.groups ?? []).map((group) => ({ ...group, rows: group.rows.map((row) => rowsById.get(row.requirement_id)) }));
   copy.findings = sanitizeNested(copy.findings, "findings", entries, "findings");
+  if (copy.inspection_request) copy.inspection_request = sanitizeNested(copy.inspection_request, "inspection_request", entries, "inspection_request");
   copy.limitations = copy.limitations.map((value, index) => sanitizeText(value, `limitations[${index}]`, entries));
   copy.claim.wording = sanitizeText(copy.claim.wording, "claim.wording", entries);
   copy.claim.reasons = copy.claim.reasons.map((value, index) => sanitizeText(value, `claim.reasons[${index}]`, entries));

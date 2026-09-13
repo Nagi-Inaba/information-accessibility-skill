@@ -30,6 +30,19 @@ test("short Web requests enter the versioned standards-aware audit path", () => 
   }
 });
 
+test("inspection intake resolves depth before work and retains evidence and authority boundaries", () => {
+  for (const text of [read(sharedAgent), read(codexAgent), read(claudeAgent), read(codexSkill), read(claudeSkill), read(codexPrompt)]) {
+    assert.match(text, /quick/);
+    assert.match(text, /detailed/);
+    assert.match(text, /--inspection-mode/);
+    assert.match(text, /--inspection-purpose/);
+    assert.match(text, /ask once/);
+    assert.match(text, /Do not ask again/);
+    assert.match(text, /completion criteri(?:a|on)|completion_criteria/);
+    assert.match(text, /partial/);
+  }
+});
+
 test("development-site request template is mirrored and captures safe audit inputs", () => {
   assert.equal(fs.existsSync(codexTemplate), true);
   assert.equal(fs.existsSync(claudeTemplate), true);

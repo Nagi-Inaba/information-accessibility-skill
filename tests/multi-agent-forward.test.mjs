@@ -106,6 +106,7 @@ test("installed CLIs carry a local public-like fixture through the read-only age
   const runId = dynamicRunId();
   const runFiles = [0, 1, 2, 3].map((version) => path.join(temp, `audit-run.${version}.json`));
   const create = runNode(cli.create, [
+    "--inspection-mode", "detailed", "--inspection-purpose", "Prepare specific improvements",
     "--run-id", runId,
     "--profile", "web-modern",
     "--target-name", "Community open day fixture",
@@ -119,7 +120,7 @@ test("installed CLIs carry a local public-like fixture through the read-only age
   ]);
   assertSucceeded(create);
   const run0 = readJson(runFiles[0]);
-  assert.equal(run0.schema_version, "6.0.0");
+  assert.equal(run0.schema_version, "7.0.0");
   assert.equal(run0.permissions.network, "allowlisted");
   assert.equal(run0.permissions.interaction, "read_only");
   assert.equal(run0.permissions.source_write, "denied");

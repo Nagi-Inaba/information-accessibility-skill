@@ -74,11 +74,22 @@ Choose the target before reviewing. Load only the relevant reference when detail
 - **Source provenance or maintenance from new research**: read `references/source-basis.md`.
 Do not split the five gates into separate workflows. They are shared evaluation axes. Route by target surface because concrete checks, evidence, and fixes differ by target.
 
+## Inspection Level And Requested Report
+
+Before inspecting a target, establish `quick` (簡易チェック) or `detailed` (詳細検査・改善用), the intended use of the report, the scope and exclusions, and the states, interactions and environments to check. Reuse an explicit choice from the conversation: a brief/basic check means `quick`; a request for reproduction steps and a report ready for remediation means `detailed`. If ambiguous, ask once: 「大きな問題を短く把握する簡易チェックと、再現手順・修正案・再検査方法まで含む詳細検査のどちらを希望しますか？」 Prepare the scope from supplied information while waiting, but do not inspect before the choice is resolved. Do not ask again when the user has already chosen.
+
+State the chosen level, purpose, scope, deliverables and completion criteria before inspection. For run-backed work, initialize with `--inspection-mode quick|detailed --inspection-purpose <purpose>` and use the existing scope/environment fields for agreed coverage. Read `references/inspection-levels.md` for the exact mode contract. Inspection level is separate from the standards profile, report `--detail`, evidence level and edit authority.
+
+- **Quick**: perform the agreed basic checks on the named target; return a short decision summary with priorities, evidence and remaining checks. Retain complete profile coverage in the underlying record.
+- **Detailed**: inspect the agreed states, interactions and environments; provide exact locations, reproduction steps, evidence, affected users, concrete changes and retest procedures for each finding. Deliver the decision summary, remediation details and complete results appendix.
+- Before calling either inspection complete, compare every recorded completion criterion with actual registered evidence and delivered sections, citing them and naming unmet conditions and next steps. A run record, a count of observations, or a rendered report alone does not establish completion. Missing agreed coverage or required details means a partial inspection; do not silently downgrade to quick.
+- Keep E0/E1 screening separate from external human results. Preserve historical runs without inventing a level or retroactively applying this intake contract.
+
 ## Short Web/CLI Request Defaults
 
 Treat a short request as a standards-aware Web inspection when it contains a Web URL or local Web target and asks to inspect, audit, check accessibility, or use the accessibility CLI. The user does not need to name WCAG, a profile, an evidence level, or an output directory.
 
-When those details are omitted, apply these safe defaults without asking the user to fill a template:
+After resolving the inspection level above, apply these safe defaults for omitted technical details without asking the user to fill a template:
 
 - Profile: `web-modern` (WCAG 2.2 A/AA, 55 requirements).
 - Scope: only the page, screen, or state named by the user. “First screen” or “initial screen” means the loaded page and same-origin content embedded in that visible screen; do not follow links or widen the journey.
@@ -89,15 +100,15 @@ For this short-request path:
 
 1. Create a versioned audit run and generate the complete 55-row `web-modern` assessment through the installed CLI/runtime.
 2. Do not stop after generating an assessment whose 55 profile outcomes are all `not_tested`; that is initialization, not a completed inspection.
-3. Exercise every supported read-only check against the real target and register target-specific E0/E1 `SCREEN-*` evidence. Keep machine-readable profile rows at `mapping_status: "unverified"` and `outcome: "not_tested"` unless a separate external human result exists.
-4. Enumerate all 55 requirements exactly once in the report projection or the separate `not_applicable` section. Use the report vocabulary exactly: `適合`, `不適合`, `要確認`, and `未確認`. Give every `not_applicable` entry a concrete rationale. Use `未確認` only when the needed test was unavailable, and name the next test or evidence required.
-5. Finish with zero omitted requirements. Return the four report-category counts, the main barriers, the full 55-row projection, the evidence paths, and the next human checks.
+3. Exercise the supported read-only checks agreed for the selected level against the real target and register target-specific E0/E1 `SCREEN-*` evidence. Keep machine-readable profile rows at `mapping_status: "unverified"` and `outcome: "not_tested"` unless a separate external human result exists.
+4. Enumerate all 55 requirements exactly once in the report projection or the separate `not_applicable` section. Use the report vocabulary exactly: `適合`, `不適合`, `要確認`, and `未確認`. Give every `not_applicable` entry a concrete rationale. For `未確認`, say whether the needed test was unavailable or outside the agreed inspection depth, and name the next test or evidence required.
+5. Finish with zero omitted requirements in the underlying report projection. Return the four report-category counts, main barriers, evidence paths and next human checks. For quick, deliver a short summary and a path to the complete record; for detailed, also deliver the full 55-row results appendix and actionable remediation details.
 
 The optional development request template is for custom scope, named environments, retained evidence, or authorized remediation. Do not make it a prerequisite for a clear read-only inspection request.
 
 ## Workflow
 
-1. Choose the review mode:
+1. Resolve the inspection level and intended report above, then choose the review mode:
    - Use participation review by default.
    - When the request names WCAG, JIS, ATAG, a standards profile, or asks for a standards-based inspection, use standards assessment from the start and produce the report format in this skill.
    - Use the Short Web/CLI Request Defaults for a Web URL or local Web target paired with an accessibility inspection or CLI request.
@@ -181,6 +192,8 @@ For a quick review:
 ```markdown
 ## Accessibility Review
 
+- Inspection level, intended report use and agreed scope:
+
 | Priority | Issue | Who is affected | Fix | Verification |
 | --- | --- | --- | --- | --- |
 | P0 |  |  |  |  |
@@ -189,14 +202,18 @@ For a quick review:
 
 - Not checked:
 - Needs human/user confirmation:
+
+## Completion review
+
+- Each requested criterion, its evidence/section, and any unmet condition with next steps:
 ```
 
-For a development-site request, use this report instead of collapsing observed facts, remediation, and unknowns into one list:
+For a detailed inspection, including a development-site request at that level, use this report:
 
 ```markdown
 ## Scope and evidence level
 
-- Target, profile, included scope, performed operations, and evidence level:
+- Inspection level, intended report use, target, profile, agreed states/environments, performed operations, and evidence level:
 
 ## Evidence-backed checks
 
@@ -205,7 +222,7 @@ For a development-site request, use this report instead of collapsing observed f
 
 ## Actionable barriers and remediation
 
-| Priority | Location | Affected users | Observed evidence | Remediation | Retest |
+| Priority | Location and reproduction steps | Affected users | Observed evidence | Remediation | Retest |
 | --- | --- | --- | --- | --- | --- |
 
 ## Human verification required
@@ -215,6 +232,8 @@ For a development-site request, use this report instead of collapsing observed f
 - Next evidence or test:
 
 ## Claim boundary and artifacts
+
+- Each requested completion criterion, its evidence/section, and any unmet condition with next steps:
 
 - Allowed claim tier:
 - Validated assessment record and generated report:

@@ -1,4 +1,5 @@
 ﻿import assert from "node:assert/strict";
+import { createInspectionRequest } from "../codex/skills/information-accessibility-practice/scripts/lib/inspection-request.mjs";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
@@ -138,7 +139,8 @@ function assertRejected(result, pattern) {
 
 function initialRun(artifactRoot) {
   return {
-    schema_version: "6.0.0",
+    schema_version: "7.0.0",
+    inspection_request: createInspectionRequest("quick", "Identify the next investigation"),
     run_id: RUN_ID,
     supersedes_run_id: null,
     status: "initialized",

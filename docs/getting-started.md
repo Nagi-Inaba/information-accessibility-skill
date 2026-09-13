@@ -75,11 +75,11 @@ See [`web-inspection.md`](web-inspection.md) for network, interaction, output, a
 
 Use a run when you need immutable target metadata, explicit permissions, registered evidence artifacts, external human review, remediation provenance, or retest history.
 
-1. Initialize the run with a dedicated artifact root and explicit permissions.
+1. Agree on `quick` or `detailed`, intended report use, scope and environments before inspecting. Initialize the run with `--inspection-mode quick|detailed --inspection-purpose <purpose>`, a dedicated artifact root and explicit permissions.
 2. Create the baseline assessment for the same target and profile.
 3. Materialize and register screening, queue, human-review, and remediation artifacts as applicable.
 4. Merge only registered artifacts into a new assessment.
-5. Validate and render the guarded report.
+5. Validate and render the guarded report. Check each requested completion criterion against actual evidence and delivered sections; identify any unmet conditions and next steps.
 
 Run-backed reporting uses the same profile title, criterion metadata, group counts, locale contract, and claim section as standalone reporting. Each row distinguishes external human review, AI/automated screening projection, and a check that was not run. Screening projections remain report-only judgements and never become `human_verified` profile outcomes.
 run-backedレポートもstandaloneと同じ表示規則を使い、各行で外部人手レビュー、AI／自動スクリーニング、未実施を区別します。screening projectionはreport-only judgementであり、`human_verified`へ自動昇格しません。

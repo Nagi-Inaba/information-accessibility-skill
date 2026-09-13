@@ -14,7 +14,7 @@ const script = path.join(skillRoot, "scripts/create-audit-run.mjs");
 const targetRef = "https://example.invalid/checkout";
 
 function args(temp, configPath, output, runId) {
-  return [script, "--run-id", runId, "--profile", "web-modern", "--target-name", "Example", "--target-version", "v1", "--target-ref", targetRef, "--artifact-root", path.join(temp, "artifacts"), "--network", "denied", "--interaction", "read_only", "--source-write", "denied", "--config", configPath, "--output", output];
+  return [script, "--inspection-mode", "detailed", "--inspection-purpose", "Prepare specific improvements", "--run-id", runId, "--profile", "web-modern", "--target-name", "Example", "--target-version", "v1", "--target-ref", targetRef, "--artifact-root", path.join(temp, "artifacts"), "--network", "denied", "--interaction", "read_only", "--source-write", "denied", "--config", configPath, "--output", output];
 }
 
 function runWithConfig(config, runId) {

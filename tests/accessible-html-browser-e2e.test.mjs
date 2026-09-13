@@ -7,6 +7,11 @@ import test from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { generateAssessment } from "../codex/skills/information-accessibility-practice/scripts/generate-assessment.mjs";
+import { validateAssessment } from "../codex/skills/information-accessibility-practice/scripts/validate-assessment.mjs";
+import { loadAuditResources } from "../codex/skills/information-accessibility-practice/scripts/lib/audit-run.mjs";
+import { createInspectionRequest } from "../codex/skills/information-accessibility-practice/scripts/lib/inspection-request.mjs";
+import { buildRunBackedPresentation } from "../codex/skills/information-accessibility-practice/scripts/lib/report-presentation.mjs";
+import { renderReportHtml } from "../codex/skills/information-accessibility-practice/scripts/lib/report-html.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const cli = path.join(root, "codex/skills/information-accessibility-practice/scripts/accessibility-audit.mjs");
@@ -45,6 +50,27 @@ function makeAssessment(directory, locale) {
   ]);
   assert.equal(result.status, 0, result.stderr || result.stdout);
   return report;
+}
+
+function makeIntakeReports(directory, locale) {
+  const { standardsRegistry: registry, criteriaCatalog: catalog, assessmentSchema: schema, auditMethods: methods } = loadAuditResources();
+  const record = generateAssessment("web-modern", { targetName: "Inspection intake browser fixture", targetVersion: "v1",
+    targetRefs: ["https://example.com/"], evaluator: "Report browser E2E", evaluatedAt: "2026-09-14" });
+  const validation = validateAssessment(record, registry, schema, catalog, methods);
+  assert.equal(validation.valid, true, validation.errors.join("\n"));
+  const reports = [];
+  for (const mode of ["quick", "detailed"]) {
+    const model = buildRunBackedPresentation({ run: { profile: record.assessment.profile,
+      inspection_request: createInspectionRequest(mode, locale === "ja" ? "改善担当者が次の作業を判断する" : "Help the remediation owner choose the next action") },
+      assessment: record, validation, registry, catalog, locale,
+      publicModel: { target: record.assessment.target, scope: record.assessment.scope, environment: record.assessment.environment } });
+    for (const detail of ["summary", "full"]) {
+      const report = path.join(directory, `${locale}.${mode}.${detail}.html`);
+      fs.writeFileSync(report, renderReportHtml(model, { detail }), "utf8");
+      reports.push(report);
+    }
+  }
+  return reports;
 }
 
 async function auditPage(browser, report, axeSource) {
@@ -130,7 +156,8 @@ test("generated Japanese and English HTML reports pass Chromium, axe, keyboard, 
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), "a11y-report-browser-"));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
 
-  const reports = [makeAssessment(directory, "ja"), makeAssessment(directory, "en")];
+  const reports = [makeAssessment(directory, "ja"), makeAssessment(directory, "en"),
+    ...makeIntakeReports(directory, "ja"), ...makeIntakeReports(directory, "en")];
   const browser = await playwright.chromium.launch({ headless: true });
   t.after(() => browser.close());
   const records = [];
