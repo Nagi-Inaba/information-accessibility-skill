@@ -25,6 +25,11 @@ function runCli(args, cwd = root) {
   return runNode(cli, args, cwd);
 }
 
+function actionItemCount(text) {
+  const section = text.split("## Key findings and next actions")[1]?.split("\n## ")[0] ?? "";
+  return (section.match(/^### /gmu) ?? []).length;
+}
+
 function writeJson(file, value) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`, "utf8");
@@ -175,7 +180,7 @@ test("summary consolidates findings with their human or screening evidence and c
   assert.match(humanText, /Requirements not run: 54\/55/u);
   assert.match(humanText, /External human review: 1/u);
   assert.match(humanText, /Not run: 54/u);
-  assert.equal((humanText.match(/^### /gmu) ?? []).length, 1, "one issue must not become separate finding and human-review action items");
+  assert.equal(actionItemCount(humanText), 1, "one issue must not become separate finding and human-review action items");
   assert.doesNotMatch(humanText, /^\| 1\.2\.1 \|/mu);
 
   const screeningScenario = path.join(directory, "screening-only");
@@ -194,7 +199,7 @@ test("summary consolidates findings with their human or screening evidence and c
   assert.match(screeningText, /\*\*Requirement or check\*\*: 1\.1\.1, SCREEN-IMAGE-ALT/u);
   assert.match(screeningText, /AI\/automated screening candidate/u);
   assert.match(screeningText, /Requirements with AI\/automated results: 1\/55/u);
-  assert.equal((screeningText.match(/^### /gmu) ?? []).length, 1, "explicit screening association must consolidate the finding and projection");
+  assert.equal(actionItemCount(screeningText), 1, "explicit screening association must consolidate the finding and projection");
   assert.match(screeningText, /Remaining not-run requirements:/u);
 });
 
