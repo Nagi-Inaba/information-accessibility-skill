@@ -101,7 +101,72 @@
                   }
                 }
               },
-              "notes": {"type": "string"}
+              "notes": {"type": "string"},
+              "review_details": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "reason",
+                  "performed_checks",
+                  "next_checks"
+                ],
+                "properties": {
+                  "reason": {
+                    "enum": [
+                      null,
+                      "unknown",
+                      "test_not_run",
+                      "applicability_pending",
+                      "meaning_review",
+                      "scope_incomplete",
+                      "evidence_incomplete"
+                    ]
+                  },
+                  "performed_checks": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "id",
+                        "outcome",
+                        "environment",
+                        "evidence"
+                      ],
+                      "properties": {
+                        "id": {
+                          "enum": [
+                            "text_resize_200",
+                            "skip_link_navigation"
+                          ]
+                        },
+                        "outcome": {
+                          "enum": [
+                            "pass",
+                            "fail",
+                            "cant_tell"
+                          ]
+                        },
+                        "environment": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "evidence": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    }
+                  },
+                  "next_checks": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                }
+              }
             }
           }
         },

@@ -94,10 +94,14 @@ test("READMEs explain WCAG and JIS profile counts with primary guidance links", 
     assert.equal(readme.includes(wcagChangesUrl), true);
   }
   assert.match(japanese, /`web-modern`[^\n]*55件/u);
-  assert.match(japanese, /`jp-public-web`[^\n]*38件[^\n]*18件[^\n]*合計56件/u);
+  assert.match(japanese, /`jis-x-8341-3-2016-aa`[^\n]*38件/u);
+  assert.match(japanese, /`jp-public-web`[^\n]*38件[^\n]*18件[^\n]*56件/u);
+  assert.match(japanese, /組織が明示的に採用/u);
   assert.match(japanese, /4\.1\.1「構文解析」[^\n]*WCAG 2\.2では削除/u);
-  assert.match(english, /`web-modern`[^\n]*55 WCAG 2\.2/iu);
-  assert.match(english, /`jp-public-web`[^\n]*38[^\n]*18[^\n]*56 checks in total/iu);
+  assert.match(english, /`web-modern`[^\n]*55 Level A and AA/iu);
+  assert.match(english, /`jis-x-8341-3-2016-aa`[^\n]*38 Level A and AA/iu);
+  assert.match(english, /`jp-public-web`[^\n]*38[^\n]*18[^\n]*56 in total/iu);
+  assert.match(english, /requires explicit organizational adoption/iu);
   assert.match(english, /4\.1\.1, Parsing[^\n]*WCAG 2\.2 removed/iu);
 });
 

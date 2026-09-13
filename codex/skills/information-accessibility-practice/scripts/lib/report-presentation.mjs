@@ -1,3 +1,4 @@
+import { reviewDetailLines } from "./review-details.mjs";
 import {
   groupForRequirement,
   recordsForProfile,
@@ -83,6 +84,11 @@ function criterionMetadata(registry, catalog, profileId, locale) {
   const profile = registry.profiles.find((item) => item.id === profileId);
   if (!profile) throw new Error(`Unknown profile: ${profileId}`);
   const records = recordsForProfile({ profile, catalog });
+  const recordIds = records.map((record) => record.id);
+  const expectedIds = new Set(profile.requirement_ids);
+  if (new Set(recordIds).size !== recordIds.length || recordIds.length !== expectedIds.size || recordIds.some((id) => !expectedIds.has(id))) {
+    throw new Error("Report catalog must contain every registered requirement exactly once.");
+  }
   const everyRecord = allCatalogRecords(catalog);
   const recordsById = new Map(everyRecord.map((record) => [record.id, record]));
   const recordsByCriterion = new Map();
@@ -230,6 +236,7 @@ export function buildStandalonePresentation({ record, validation, registry, cata
       source_label: messages.sources[sourceKind],
       evidence_level: evidenceLevel,
       rationale: resultRationale(result, messages),
+      review_details: clone(result?.review_details),
       applicability: outcome === "not_applicable" ? "not_applicable" : humanReviewed ? "applicable" : "undetermined"
     };
   });
@@ -282,6 +289,7 @@ export function buildRunBackedPresentation({ run, assessment: assessmentRecord, 
       source_label: messages.sources[sourceKind],
       evidence_level: evidenceLevel,
       rationale: check.rationale || messages.text.noEvidence,
+      review_details: clone(check.review_details),
       applicability: check.applicability ?? (check.outcome === "not_applicable" ? "not_applicable" : "undetermined")
     };
   });
@@ -327,7 +335,7 @@ function renderCounts(counts, messages) {
   );
 }
 
-function renderCriterionTable(rows, messages) {
+function renderCriterionTable(rows, messages, locale) {
   return markdownTable(
     [
       messages.fields.criterion,
@@ -349,7 +357,7 @@ function renderCriterionTable(rows, messages) {
       row.source_label,
       row.evidence_level,
       row.primary_url,
-      row.rationale
+      reviewDetailLines(row, locale).join("\n")
     ]),
     messages.text.noRecord
   );
@@ -430,7 +438,7 @@ export function renderReportMarkdown(presentation) {
       ...(group.basis ? [markdownCell(group.basis.label), "", markdownCell(group.basis.scope), ""] : []),
       renderCounts(group.counts, messages),
       "",
-      renderCriterionTable(group.rows, messages),
+      renderCriterionTable(group.rows, messages, presentation.locale),
       ""
     );
     if (presentation.profile.id === "jp-public-web" && group.id === "jis_x_8341_3_2016") {

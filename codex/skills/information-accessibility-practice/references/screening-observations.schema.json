@@ -24,7 +24,72 @@
           "profile_requirement_id": { "type": ["string", "null"], "pattern": "^(?:WCAG-2\\.2-SC-[0-9]+(?:\\.[0-9]+){2}|WCAG-2\\.2-ADDITIONAL-SC-[0-9]+(?:\\.[0-9]+){2}|JIS-X-8341-3-2016-SC-[0-9]+(?:\\.[0-9]+){2})$" },
           "report_outcome": { "enum": ["pass", "fail", "not_tested", "cant_tell", null] },
           "applicability": { "enum": ["applicable", "not_applicable", "undetermined"] },
-          "report_rationale": { "type": "string", "minLength": 1 }
+          "report_rationale": { "type": "string", "minLength": 1 },
+          "review_details": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "reason",
+              "performed_checks",
+              "next_checks"
+            ],
+            "properties": {
+              "reason": {
+                "enum": [
+                  null,
+                  "unknown",
+                  "test_not_run",
+                  "applicability_pending",
+                  "meaning_review",
+                  "scope_incomplete",
+                  "evidence_incomplete"
+                ]
+              },
+              "performed_checks": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "id",
+                    "outcome",
+                    "environment",
+                    "evidence"
+                  ],
+                  "properties": {
+                    "id": {
+                      "enum": [
+                        "text_resize_200",
+                        "skip_link_navigation"
+                      ]
+                    },
+                    "outcome": {
+                      "enum": [
+                        "pass",
+                        "fail",
+                        "cant_tell"
+                      ]
+                    },
+                    "environment": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "evidence": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                }
+              },
+              "next_checks": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            }
+          }
         },
         "allOf": [
           {

@@ -304,6 +304,48 @@ function reportRunFixture(temp) {
   return { run, runFile, assessment, assessmentFile, artifactFiles };
 }
 
+test("public follow-up projection keeps counts and source records coherent and withholds private prose", (t) => {
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), "audit-follow-up-"));
+  t.after(() => fs.rmSync(temp, { recursive: true, force: true }));
+  const fixture = reportRunFixture(temp);
+  const envelopesById = new Map([...fixture.artifactFiles].map(([id, file]) => [id, readJson(file)]));
+  const observation = envelopesById.get("ART-SCREEN-REPORT").payload.observations[0];
+  observation.profile_requirement_id = "WCAG-2.2-SC-1.4.4";
+  observation.report_outcome = "pass";
+  observation.report_rationale = "Viewport setting only.";
+  const resources = loadAuditResources(skill);
+  const render = () => buildPublicReportModel({ run: fixture.run, assessment: fixture.assessment, envelopesById, resources });
+  const before = structuredClone(fixture.assessment);
+  fixture.assessment.assessment.results.find((item) => item.mapping_status === "human_verified").review_details = {
+    reason: "scope_incomplete", performed_checks: [], next_checks: ["Unregistered extra assessment detail"]
+  };
+  let model = render();
+  assert.equal(JSON.stringify(model).includes("Unregistered extra assessment detail"), false);
+  const row = () => model.reportChecks.find((item) => item.requirement_id === observation.profile_requirement_id);
+  assert.equal(row().outcome, "cant_tell");
+  assert.equal(model.screeningCandidates[0].report_outcome, "cant_tell");
+  assert.equal(model.reportChecks.filter((item) => item.outcome === "cant_tell").length, model.reportOutcomeCounts.cant_tell);
+  assert.match(renderRunBackedReport(model), /必要な検査記録が不足/u);
+  assert.equal(observation.report_outcome, "pass");
+  observation.review_details = {
+    reason: null, performed_checks: [{ id: "text_resize_200", outcome: "pass",
+      environment: "Fixture browser 1 / OS 1", evidence: "Up to 200%: content and functions retained." }], next_checks: []
+  };
+  model = render();
+  assert.equal(row().outcome, "pass");
+  const privateText = "C:\\Users\\Example\\PrivateClient\\evidence.txt";
+  observation.review_details.performed_checks[0].environment = privateText;
+  observation.review_details.performed_checks[0].evidence = privateText;
+  observation.review_details.next_checks = [privateText];
+  model = render();
+  assert.equal(row().outcome, "cant_tell");
+  assert.equal(JSON.stringify(model).includes("PrivateClient"), false);
+  assert.equal(renderRunBackedReport(model).includes("PrivateClient"), false);
+  const withoutExtra = structuredClone(fixture.assessment);
+  delete withoutExtra.assessment.results.find((item) => item.mapping_status === "human_verified").review_details;
+  assert.deepEqual(withoutExtra, before);
+});
+
 function resourcesSha256(file) {
   return crypto.createHash("sha256").update(fs.readFileSync(file)).digest("hex");
 }
