@@ -1,3 +1,4 @@
+import { reviewDetailLines } from "./review-details.mjs";
 import {
   groupForRequirement,
   recordsForProfile,
@@ -83,6 +84,11 @@ function criterionMetadata(registry, catalog, profileId, locale) {
   const profile = registry.profiles.find((item) => item.id === profileId);
   if (!profile) throw new Error(`Unknown profile: ${profileId}`);
   const records = recordsForProfile({ profile, catalog });
+  const recordIds = records.map((record) => record.id);
+  const expectedIds = new Set(profile.requirement_ids);
+  if (new Set(recordIds).size !== recordIds.length || recordIds.length !== expectedIds.size || recordIds.some((id) => !expectedIds.has(id))) {
+    throw new Error("Report catalog must contain every registered requirement exactly once.");
+  }
   const everyRecord = allCatalogRecords(catalog);
   const recordsById = new Map(everyRecord.map((record) => [record.id, record]));
   const recordsByCriterion = new Map();
@@ -129,12 +135,13 @@ function selectScreeningCandidate(current, candidate) {
 }
 
 function buildGroups({ profile, rows, locale }) {
-  const configured = reportGroups(profile);
+  const configured = reportGroups(profile, locale);
   return configured.map((group) => {
     const groupRows = rows.filter((row) => row.group_id === group.id).sort(compareCriteria);
     return {
       id: group.id,
       label: localizedGroupLabel(group.id, locale),
+      basis: group.basis,
       expected_count: groupRows.length,
       counts: countRows(groupRows),
       rows: groupRows
@@ -180,7 +187,12 @@ function commonPresentation({ assessment, validation, registry, locale, rows, ta
     title: localizedReportTitle(profileId, normalizedLocale),
     profile: {
       id: profileId,
-      display_name: profile.display_name
+      display_name: profile.display_name,
+      profile_kind: profile.profile_kind,
+      explicit_adoption_required: profile.explicit_adoption_required,
+      adoption_notice: profile.explicit_adoption_required
+        ? (normalizedLocale === "ja" ? "明示採用: 必須" : "Explicit adoption: required")
+        : null
     },
     target: clone(target),
     scope: clone(scope),
@@ -224,6 +236,7 @@ export function buildStandalonePresentation({ record, validation, registry, cata
       source_label: messages.sources[sourceKind],
       evidence_level: evidenceLevel,
       rationale: resultRationale(result, messages),
+      review_details: clone(result?.review_details),
       applicability: outcome === "not_applicable" ? "not_applicable" : humanReviewed ? "applicable" : "undetermined"
     };
   });
@@ -276,6 +289,7 @@ export function buildRunBackedPresentation({ run, assessment: assessmentRecord, 
       source_label: messages.sources[sourceKind],
       evidence_level: evidenceLevel,
       rationale: check.rationale || messages.text.noEvidence,
+      review_details: clone(check.review_details),
       applicability: check.applicability ?? (check.outcome === "not_applicable" ? "not_applicable" : "undetermined")
     };
   });
@@ -321,7 +335,7 @@ function renderCounts(counts, messages) {
   );
 }
 
-function renderCriterionTable(rows, messages) {
+function renderCriterionTable(rows, messages, locale) {
   return markdownTable(
     [
       messages.fields.criterion,
@@ -343,7 +357,7 @@ function renderCriterionTable(rows, messages) {
       row.source_label,
       row.evidence_level,
       row.primary_url,
-      row.rationale
+      reviewDetailLines(row, locale).join("\n")
     ]),
     messages.text.noRecord
   );
@@ -408,6 +422,7 @@ export function renderReportMarkdown(presentation) {
     `- ${messages.fields.version}: ${markdownCell(presentation.target?.version_or_commit ?? messages.text.noRecord)}`,
     `- ${messages.fields.references}: ${markdownCell(listValue(presentation.target?.urls_or_files, messages))}`,
     `- ${messages.fields.profile}: \`${presentation.profile.id}\``,
+    ...(presentation.profile.adoption_notice ? [`- ${presentation.profile.adoption_notice}`] : []),
     `- ${messages.fields.date}: ${markdownCell(presentation.evaluated_at)}`,
     ...(presentation.evaluator ? [`- ${messages.fields.evaluator}: ${markdownCell(presentation.evaluator)}`] : []),
     `- ${messages.fields.evidenceLevel}: ${markdownCell(presentation.evidence_level)}`,
@@ -420,9 +435,10 @@ export function renderReportMarkdown(presentation) {
     lines.push(
       `## ${group.label}${open}${group.expected_count}${close}`,
       "",
+      ...(group.basis ? [markdownCell(group.basis.label), "", markdownCell(group.basis.scope), ""] : []),
       renderCounts(group.counts, messages),
       "",
-      renderCriterionTable(group.rows, messages),
+      renderCriterionTable(group.rows, messages, presentation.locale),
       ""
     );
     if (presentation.profile.id === "jp-public-web" && group.id === "jis_x_8341_3_2016") {

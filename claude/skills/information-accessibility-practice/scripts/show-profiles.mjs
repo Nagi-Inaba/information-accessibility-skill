@@ -5,7 +5,7 @@ import path from "node:path";
 import process from "node:process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import { assertValidStandardsRegistry } from "./lib/profile-registry.mjs";
+import { assertValidStandardsRegistry, localizedGroupBasis } from "./lib/profile-registry.mjs";
 import {
   localizedProfile,
   normalizeRuntimeLocale,
@@ -57,6 +57,9 @@ export function buildProfilesIndex(root = skillRoot, locale = "en") {
       id: profile.id,
       display_name: profile.display_name,
       target_scope: profile.target_scope,
+      profile_kind: profile.profile_kind,
+      explicit_adoption_required: profile.explicit_adoption_required,
+      migration: profile.migration ?? null,
       active: true,
       implementation_status: profile.implementation_status,
       registry_version: registry.schema_version,
@@ -64,6 +67,7 @@ export function buildProfilesIndex(root = skillRoot, locale = "en") {
       groups: profile.assessment_configuration.groups.map((group) => ({
         id: group.id,
         label: group.label,
+        basis: localizedGroupBasis(profile, group.id, selectedLocale),
         requirement_count: profile.requirement_ids.filter((id) => group.requirement_id_prefixes.some((prefix) => id.startsWith(prefix))).length
       })),
       requires_web_interaction_evidence: profile.assessment_configuration.requires_web_interaction_evidence,
@@ -93,7 +97,10 @@ function labels(locale) {
     registryVersion: "レジストリ版",
     verified: "確認日",
     profile: "プロファイル",
-    none: "なし"
+    none: "なし",
+    adoption: "明示採用",
+    required: "必須",
+    migration: "移行ガイド"
   } : {
     title: "Active accessibility profiles",
     active: "Active profiles",
@@ -105,7 +112,10 @@ function labels(locale) {
     registryVersion: "Registry version",
     verified: "Verified",
     profile: "Profile",
-    none: "none"
+    none: "none",
+    adoption: "Explicit adoption",
+    required: "required",
+    migration: "Migration guide"
   };
 }
 
@@ -119,10 +129,19 @@ function renderText(index) {
       `  ${text.requirements}: ${profile.requirement_count}`,
       `  ${text.claimCeiling}: ${profile.claim_ceiling}`,
       `  ${text.target}: ${profile.target_scope}`,
+      ...profileDetails(profile, text).map((line) => `  ${line}`),
       `  ${text.groups}: ${profile.groups.map((group) => `${group.label} (${group.requirement_count})`).join(", ")}`,
       `  ${text.sources}: ${profile.source_urls.join(", ") || text.none}`
     ])
   ].join("\n");
+}
+
+function profileDetails(profile, text) {
+  return [
+    ...(profile.explicit_adoption_required ? [`${text.adoption}: ${text.required}`] : []),
+    ...profile.groups.flatMap((group) => [group.basis.label, group.basis.scope]),
+    ...(profile.migration ? [`${text.migration}: ${profile.migration.guidance}`] : [])
+  ];
 }
 
 function renderMarkdown(index) {
@@ -140,6 +159,7 @@ function renderMarkdown(index) {
     ...index.profiles.flatMap((profile) => [
       `## ${profile.id} — ${profile.display_name}`,
       "",
+      ...profileDetails(profile, text).map((line) => `- ${line}`),
       ...profile.source_urls.map((url) => `- ${url}`),
       ""
     ])

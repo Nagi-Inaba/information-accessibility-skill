@@ -47,7 +47,13 @@ See the [architecture and glossary](docs/architecture-and-glossary.md) for the c
 | Event, meeting, or community process | Supported | Review through five information-use perspectives | No dedicated structured assessment yet |
 | ATAG or authoring process | Reference guidance | Partial reference information | The `authoring-agent` profile is currently inactive |
 
-`web-modern` covers 55 WCAG 2.2 Level A and AA requirements from [WCAG 2.2](https://www.w3.org/TR/WCAG22/). `jp-public-web` contains 38 Level A and AA requirements from [JIS X 8341-3:2016 guidance by WAIC](https://waic.jp/docs/jis2016/understanding/201604/) plus 18 Level A and AA requirements introduced in WCAG 2.1 and 2.2, for 56 checks in total. JIS retains 4.1.1, Parsing, which [WCAG 2.2 removed](https://www.w3.org/WAI/standards-guidelines/wcag/new-in-22/). Catalog coverage and actual evaluation coverage are recorded separately.
+Choose the profile for the standard or policy your assessment uses:
+
+- JIS-only: `jis-x-8341-3-2016-aa` covers 38 Level A and AA requirements from [JIS X 8341-3:2016 guidance by WAIC](https://waic.jp/docs/jis2016/understanding/201604/).
+- WCAG 2.2-only: `web-modern` covers 55 Level A and AA requirements from [WCAG 2.2](https://www.w3.org/TR/WCAG22/).
+- The legacy `jp-public-web` profile combines 38 JIS and 18 additional WCAG requirements, for 56 in total, and requires explicit organizational adoption. It does not represent a general Japanese public-sector requirement.
+
+See the [profile selection and migration guide](docs/profile-selection-and-migration.md). JIS retains 4.1.1, Parsing, which [WCAG 2.2 removed](https://www.w3.org/WAI/standards-guidelines/wcag/new-in-22/). Catalog coverage and actual evaluation coverage are recorded separately.
 
 ## Requirements and installation
 

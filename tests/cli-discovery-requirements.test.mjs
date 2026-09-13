@@ -55,7 +55,8 @@ test("profiles list reports active profiles, counts, versions, and claim ceiling
   const output = parseJson(runCli(["profiles", "list", "--format", "json"]));
   assert.equal(output.schema_version, "1.0.0");
   assert.equal(output.registry_version, "1.0.0");
-  assert.deepEqual(output.profiles.map((profile) => profile.id), ["jp-public-web", "web-modern"]);
+  assert.deepEqual(output.profiles.map((profile) => profile.id), ["jis-x-8341-3-2016-aa", "jp-public-web", "web-modern"]);
+  assert.equal(output.profiles.find((profile) => profile.id === "jis-x-8341-3-2016-aa").requirement_count, 38);
   assert.equal(output.profiles.find((profile) => profile.id === "web-modern").requirement_count, 55);
   assert.equal(output.profiles.find((profile) => profile.id === "jp-public-web").requirement_count, 56);
   assert.ok(output.profiles.every((profile) => profile.active === true));
@@ -68,7 +69,7 @@ test("doctor reports runtime, installation, registry, and optional browser capab
   assert.equal(output.node.supported, true);
   assert.equal(output.package.name, "information-accessibility-practice-cli");
   assert.equal(output.registry.valid, true);
-  assert.deepEqual(output.registry.active_profiles, ["jp-public-web", "web-modern"]);
+  assert.deepEqual(output.registry.active_profiles, ["jis-x-8341-3-2016-aa", "jp-public-web", "web-modern"]);
   assert.equal(typeof output.capabilities.browser.playwright.available, "boolean");
   assert.equal(typeof output.capabilities.browser.axe_core.available, "boolean");
   assert.equal(output.mutation_available, false);

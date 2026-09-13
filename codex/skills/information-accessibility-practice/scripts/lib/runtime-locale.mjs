@@ -159,7 +159,7 @@ export function localizedCommandDefinition(definition, locale = "en") {
 export function localizedProfile(profile, locale = "en") {
   const normalized = normalizeRuntimeLocale(locale, "en");
   if (normalized === "en") return clone(profile);
-  const override = catalog.ja.profiles[profile.id];
+  const override = profile.localized?.ja ?? catalog.ja.profiles[profile.id];
   if (!override) return clone(profile);
   const localized = clone(profile);
   localized.display_name = override.display_name;
@@ -351,7 +351,7 @@ export function validateRuntimeLocaleCatalog({ registry, checklist, root = defau
   if (JSON.stringify(catalog.supported_locales) !== JSON.stringify(["ja", "en"])) errors.push("runtime locale supported_locales must be [ja, en].");
   const activeProfiles = (registry?.profiles ?? []).filter((profile) => profile.assessment_configuration?.active === true);
   for (const profile of activeProfiles) {
-    const translation = catalog.ja.profiles[profile.id];
+    const translation = profile.localized?.ja ?? catalog.ja.profiles[profile.id];
     if (!translation) {
       errors.push(`Missing Japanese profile translation: ${profile.id}.`);
       continue;

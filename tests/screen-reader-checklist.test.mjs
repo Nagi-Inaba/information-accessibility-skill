@@ -30,7 +30,8 @@ test("screen-reader checklist registry is schema-valid and supporting-only", () 
     "modal-dialog",
     "disclosure",
     "menu-button",
-    "fragmented-text"
+    "fragmented-text",
+    "in-page-links"
   ]);
 
   const checks = registry.patterns.flatMap((pattern) => pattern.checks);
@@ -61,6 +62,29 @@ test("screen-reader checklist CLI filters one pattern as JSON", () => {
   ]) {
     assert.ok(output.patterns[0].checks.some((check) => check.id === id), `missing ${id}`);
   }
+});
+
+test("in-page-links pattern has required checks and evidence", () => {
+  const result = run(["--pattern", "in-page-links", "--format", "json"]);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const output = JSON.parse(result.stdout);
+  assert.equal(output.patterns.length, 1);
+  assert.equal(output.patterns[0].id, "in-page-links");
+  assert.ok(output.patterns[0].checks.length >= 3);
+  for (const id of [
+    "SCREEN-SR-IN-PAGE-IDENTITY-CONDITIONS",
+    "SCREEN-SR-IN-PAGE-FOCUS-AND-TAB",
+    "SCREEN-SR-IN-PAGE-AT-READING"
+  ]) {
+    assert.ok(output.patterns[0].checks.some((check) => check.id === id), `missing ${id}`);
+  }
+  assert.ok(output.patterns[0].checks.some((check) => check.code_inspection.some((line) => /tabindex/i.test(line))));
+  const runtimeText = JSON.stringify(output.patterns[0].checks.flatMap((check) => check.runtime_verification)).toLowerCase();
+  assert.ok(runtimeText.includes("os"));
+  assert.ok(runtimeText.includes("browser"));
+  assert.ok(runtimeText.includes("assistive"));
+  assert.ok(runtimeText.includes("version"));
 });
 
 test("screen-reader checklist semantic validation rejects duplicate and missing pattern IDs", () => {

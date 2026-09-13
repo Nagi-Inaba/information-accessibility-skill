@@ -13,7 +13,7 @@ import {
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.dirname(scriptDir);
-const patternIds = ["modal-dialog", "disclosure", "menu-button", "fragmented-text"];
+const patternIds = ["modal-dialog", "disclosure", "menu-button", "fragmented-text", "in-page-links"];
 const englishUsageBoundary = "Source or accessibility-tree inspection does not prove spoken output. Record the screen reader, browser, version, voice, and locale for runtime evidence; otherwise retain not_tested or cant_tell.";
 
 function readJson(root, relativePath) {
@@ -140,12 +140,12 @@ function parseArgs(argv) {
 function usage(locale = "en") {
   return locale === "ja" ? [
     "使用方法:",
-    "  node scripts/show-screen-reader-checklist.mjs [--pattern modal-dialog|disclosure|menu-button|fragmented-text|all] [--locale ja|en] [--format json|markdown]",
+    "  node scripts/show-screen-reader-checklist.mjs [--pattern modal-dialog|disclosure|menu-button|fragmented-text|in-page-links|all] [--locale ja|en] [--format json|markdown]",
     "",
     "これは補助チェックリストです。適合性を判定せず、対象も変更しません。"
   ].join("\n") : [
     "Usage:",
-    "  node scripts/show-screen-reader-checklist.mjs [--pattern modal-dialog|disclosure|menu-button|fragmented-text|all] [--locale ja|en] [--format json|markdown]",
+    "  node scripts/show-screen-reader-checklist.mjs [--pattern modal-dialog|disclosure|menu-button|fragmented-text|in-page-links|all] [--locale ja|en] [--format json|markdown]",
     "",
     "This is a supporting checklist. It does not evaluate conformance or modify the target."
   ].join("\n");

@@ -1,3 +1,5 @@
+import { reviewDetailLines } from "./review-details.mjs";
+
 const outcomeKeys = ["pass", "fail", "not_applicable", "not_tested", "cant_tell"];
 
 function escapeHtml(value) {
@@ -262,7 +264,7 @@ function criterionTable(group, presentation, text) {
     const source = /^https?:\/\//u.test(String(row.primary_url ?? ""))
       ? `<a href="${escapeAttribute(row.primary_url)}" aria-label="${escapeAttribute(`${row.success_criterion} ${text.primarySource}`)}">${escapeHtml(text.primarySource)}</a>`
       : escapeHtml(row.primary_url || text.noRecord);
-    return `<tr data-requirement-id="${escapeAttribute(row.requirement_id)}" data-outcome="${escapeAttribute(outcomeToken(row.outcome))}" data-source="${escapeAttribute(outcomeToken(row.source_kind))}"><th scope="row">${escapeHtml(row.success_criterion)}</th><td>${escapeHtml(row.title)}</td><td>${escapeHtml(row.level)}</td><td>${escapeHtml(row.group_label)}</td><td><span class="status">${escapeHtml(row.outcome_label)}</span></td><td>${escapeHtml(row.source_label)}</td><td>${escapeHtml(row.evidence_level)}</td><td>${source}</td><td>${escapeHtml(row.rationale)}</td></tr>`;
+    return `<tr data-requirement-id="${escapeAttribute(row.requirement_id)}" data-outcome="${escapeAttribute(outcomeToken(row.outcome))}" data-source="${escapeAttribute(outcomeToken(row.source_kind))}"><th scope="row">${escapeHtml(row.success_criterion)}</th><td>${escapeHtml(row.title)}</td><td>${escapeHtml(row.level)}</td><td>${escapeHtml(row.group_label)}</td><td><span class="status">${escapeHtml(row.outcome_label)}</span></td><td>${escapeHtml(row.source_label)}</td><td>${escapeHtml(row.evidence_level)}</td><td>${source}</td><td>${reviewDetailLines(row, presentation.locale).map(escapeHtml).join("<br>")}</td></tr>`;
   });
   return tableRegion({
     id: `criteria-${slug(group.id)}`,
@@ -314,11 +316,12 @@ function fullSections(presentation, text) {
     [text.version, escapeHtml(presentation.target?.version_or_commit ?? text.noRecord)],
     [text.references, list(presentation.target?.urls_or_files, text.noRecord)],
     [text.profile, escapeHtml(presentation.profile?.id ?? text.noRecord)],
+    ...(presentation.profile?.adoption_notice ? [[text.profile, escapeHtml(presentation.profile.adoption_notice)]] : []),
     [text.date, escapeHtml(presentation.evaluated_at ?? text.noRecord)],
     [text.evaluator, escapeHtml(presentation.evaluator ?? text.noRecord)]
   ])}</section>`);
   sections.push(`<section id="findings"><h2>${escapeHtml(text.findings)}</h2>${findingsSection(presentation, text)}</section>`);
-  sections.push(`<section id="criteria"><h2>${escapeHtml(text.criteria)}</h2>${presentation.profile?.id === "jp-public-web" ? `<p class="notice"><strong>${escapeHtml(text.parsingTitle)}:</strong> ${escapeHtml(text.parsingNote)}</p>` : ""}${(presentation.groups ?? []).map((group) => `<section id="criteria-${escapeAttribute(slug(group.id))}"><h3>${escapeHtml(`${group.label} (${group.expected_count})`)}</h3>${criterionTable(group, presentation, text)}</section>`).join("\n")}</section>`);
+  sections.push(`<section id="criteria"><h2>${escapeHtml(text.criteria)}</h2>${presentation.profile?.id === "jp-public-web" ? `<p class="notice"><strong>${escapeHtml(text.parsingTitle)}:</strong> ${escapeHtml(text.parsingNote)}</p>` : ""}${(presentation.groups ?? []).map((group) => `<section id="criteria-${escapeAttribute(slug(group.id))}"><h3>${escapeHtml(`${group.label} (${group.expected_count})`)}</h3>${group.basis ? `<p>${escapeHtml(group.basis.label)}</p><p>${escapeHtml(group.basis.scope)}</p>` : ""}${criterionTable(group, presentation, text)}</section>`).join("\n")}</section>`);
   sections.push(`<section id="scope"><h2>${escapeHtml(text.scope)}</h2>${definitionList([
     [text.included, list(presentation.scope?.included, text.noRecord)],
     [text.excluded, list(presentation.scope?.excluded, text.noRecord)],

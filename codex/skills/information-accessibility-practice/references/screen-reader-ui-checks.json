@@ -8,7 +8,9 @@
     "https://www.w3.org/WAI/ARIA/apg/patterns/disclosure/",
     "https://www.w3.org/WAI/ARIA/apg/patterns/menu-button/",
     "https://www.w3.org/TR/wai-aria-1.2/#aria-hidden",
-    "https://www.w3.org/WAI/WCAG22/Understanding/info-and-relationships.html"
+    "https://www.w3.org/WAI/WCAG22/Understanding/info-and-relationships.html",
+    "https://www.w3.org/WAI/WCAG22/Techniques/general/G1.html",
+    "https://www.w3.org/WAI/WCAG22/Techniques/general/G124.html"
   ],
   "invariant": "Visual state, operability, accessibility-tree exposure, and focus must describe the same current UI state.",
   "patterns": [
@@ -203,6 +205,76 @@
           "runtime_verification": ["Record the exact spoken result and environment for representative values and punctuation."],
           "evidence_types": ["assistive_technology_test", "environment_record", "spoken_output_note"],
           "cant_tell_when": ["The target screen reader, voice, browser, version, or locale is unavailable."],
+          "human_review_required": true
+        }
+      ]
+    },
+    {
+      "id": "in-page-links",
+      "title": "In-page links, focus, and reading position",
+      "applicability": "A link navigates to a different element in the same page and users may activate it by keyboard, mouse, touch, or assistive-tech commands.",
+      "source_urls": [
+        "https://www.w3.org/WAI/WCAG22/Techniques/general/G1.html",
+        "https://www.w3.org/WAI/WCAG22/Techniques/general/G124.html"
+      ],
+      "checks": [
+        {
+          "id": "SCREEN-SR-IN-PAGE-IDENTITY-CONDITIONS",
+          "title": "Environment and target identity are captured for each run",
+          "expectation": "Record operating system, browser, screen-reader version, activation method, and page revision or version before validating position behavior.",
+          "code_inspection": [
+            "Capture the target ID/anchor, hash reference, and the actual activation paths offered by the page.",
+            "Record whether the trigger is native `<a href=\"#...\">` or a custom behavior and whether any experimental local-copy changes are required.",
+            "Confirm any local-copy-only `tabindex=\"-1\"` or `focus()` experiment is documented as conditional and not a prerequisite for the target."
+          ],
+          "runtime_verification": [
+            "Record environment details (OS, browser, version, assistive technology, screen-reader mode).",
+            "Capture the page version or commit and activation method before running each verification pass."
+          ],
+          "evidence_types": ["environment_record", "source_trace", "rendered_dom", "assistive_technology_test"],
+          "cant_tell_when": [
+            "OS/browser/AT versions or mode cannot be recorded.",
+            "The page revision cannot be resolved for stable reporting.",
+            "No supported activation method can be run safely."
+          ],
+          "human_review_required": true
+        },
+        {
+          "id": "SCREEN-SR-IN-PAGE-FOCUS-AND-TAB",
+          "title": "Activation shifts and Tab navigation are consistent",
+          "expectation": "In-page navigation can be validated by separately checking scroll, DOM focus, and next Tab behavior without treating either alone as the full definition of success.",
+          "code_inspection": [
+            "Verify the trigger behavior for each supported mode (keyboard, pointer, touch, AT command) and whether focus is intentionally moved.",
+            "For valid native in-page links, absence of `tabindex` is not treated as a failure."
+          ],
+          "runtime_verification": [
+            "Activate each supported method and record whether the target region is scrolled into view.",
+            "Check whether `document.activeElement` changes as intended, or document that the target is intentionally non-focusable with no additional failure signal.",
+            "Press Tab once after activation and record the resulting keyboard focus destination; record screen-reader reading position separately."
+          ],
+          "evidence_types": ["rendered_dom", "active_element", "focus_sequence", "keyboard_test", "assistive_technology_test"],
+          "cant_tell_when": [
+            "The runtime target does not expose whether DOM focus moved.",
+            "The navigation sequence cannot be advanced by one Tab in a safe test pass."
+          ],
+          "human_review_required": true
+        },
+        {
+          "id": "SCREEN-SR-IN-PAGE-AT-READING",
+          "title": "Assistive reading position confirms intended target",
+          "expectation": "Screen-reader output should confirm that reading starts at or near the in-page target after activation, and missing evidence remains `not_tested` or `cant_tell`.",
+          "code_inspection": [
+            "Tie AT evidence to the recorded target ID, activation method, and environment record rather than inferring from DOM output alone."
+          ],
+          "runtime_verification": [
+            "In the recorded environment and mode, activate the in-page link and capture announcement text, landmark context, and line/heading position.",
+            "If runtime AT reading output is unavailable, explicitly classify the check as not verified."
+          ],
+          "evidence_types": ["assistive_technology_test", "spoken_output_note", "focus_sequence", "state_transition"],
+          "cant_tell_when": [
+            "No in-page reading position can be recorded in the available environment.",
+            "AT output cannot be captured for security or policy reasons."
+          ],
           "human_review_required": true
         }
       ]

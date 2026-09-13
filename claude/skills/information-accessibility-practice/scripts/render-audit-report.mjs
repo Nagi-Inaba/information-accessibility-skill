@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { guardScreeningProjection, reviewDetailLines } from "./lib/review-details.mjs";
 import { isIP } from "node:net";
 import path from "node:path";
 import process from "node:process";
@@ -687,7 +688,8 @@ function reportOutcomeRank(outcome) {
 function buildReportProjection(profileResults, screeningObservations) {
   const profileIds = new Set(profileResults.map((result) => result.requirement_id));
   const aiByProfile = new Map();
-  for (const observation of screeningObservations) {
+  for (const suppliedObservation of screeningObservations) {
+    const observation = guardScreeningProjection(suppliedObservation);
     const hasProjection = observation.profile_requirement_id !== null
       && observation.profile_requirement_id !== undefined;
     if (hasProjection) {
@@ -732,7 +734,8 @@ function buildReportProjection(profileResults, screeningObservations) {
       requirement_id: result.requirement_id,
       outcome: observation.report_outcome,
       rationale: observation.report_rationale,
-      applicability: observation.applicability
+      applicability: observation.applicability,
+      review_details: observation.review_details
     };
     (row.applicability === "not_applicable" ? notApplicable : checks).push(row);
   }
@@ -914,6 +917,7 @@ export function buildPublicReportModel({ run, assessment, envelopesById, resourc
     .sort((left, right) => String(left.requirement_id).localeCompare(String(right.requirement_id), "en")
       || String(left.remediation?.proposed_change ?? "").localeCompare(String(right.remediation?.proposed_change ?? ""), "en"));
   const screeningCandidates = evidence.screeningObservations
+    .map(guardScreeningProjection)
     .flatMap((observation) => {
       const remediations = evidence.remediationItems
         .filter((item) => item.basis === "unverified_screening_candidate" && item.requirement_id === observation.requirement_id)
@@ -1036,7 +1040,7 @@ export function renderRunBackedReport(model) {
     "",
     publicTable(
       ["達成基準・検査項目", "判定", "根拠・未確認事項"],
-      reportChecks.map((item) => [item.requirement_id, reportJudgementForOutcome(item.outcome), item.rationale]),
+      reportChecks.map((item) => [item.requirement_id, reportJudgementForOutcome(item.outcome), reviewDetailLines(item, "ja").join("\n")]),
       "判定対象の達成基準はありません。"
     ),
     "",
