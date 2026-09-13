@@ -274,7 +274,7 @@ export function applyReportVisibility(presentation, { visibility = "internal", r
   }));
   // Full reports render group rows; keep them on the same sanitized objects as summaries.
   const rowsById = new Map(copy.rows.map((row) => [row.requirement_id, row]));
-  copy.groups = copy.groups.map((group) => ({ ...group, rows: group.rows.map((row) => rowsById.get(row.requirement_id)) }));
+  copy.groups = (copy.groups ?? []).map((group) => ({ ...group, rows: group.rows.map((row) => rowsById.get(row.requirement_id)) }));
   copy.findings = sanitizeNested(copy.findings, "findings", entries, "findings");
   copy.limitations = copy.limitations.map((value, index) => sanitizeText(value, `limitations[${index}]`, entries));
   copy.claim.wording = sanitizeText(copy.claim.wording, "claim.wording", entries);
