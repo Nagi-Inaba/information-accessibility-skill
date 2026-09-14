@@ -45,6 +45,12 @@ Both modes lead with target scope and human/screening/not-run counts, followed b
 
 検査前に選ぶ`--inspection-mode quick|detailed`は、検査の深さと必要な成果物を定めます。新しいrunに基づくレポートは、冒頭に検査レベルと利用目的を表示し、「依頼した成果物と完了条件」に合意内容を載せます。この欄は達成済みの判定ではありません。実施記録と照合して、未達の条件と次の作業を示す必要があります。旧形式のrunやstandalone評価には、検査レベルを推測して追加しません。
 
+完了条件には「記録あり」「記録不足」「照合待ち」と次の作業を表示します。「記録あり」は必要な欄の記入状況を示し、内容の十分性や検査完了を認定するものではありません。冒頭には登録記録中の未実施検査を表示し、合意範囲・画面状態・環境との照合は残件として示します。検査していないカタログ行の件数だけで、簡易チェックを未完了とは判定しません。
+
+「登録した検査記録」を開くと、箇所・検査方法・実際の観測・判定理由・次の確認を読めます。同じ達成基準に紐づく複数の検査も保持します。一般的なDOM・キーボード検査の観測がある場合に「構造化した検査記録なし」と表示せず、200%文字拡大などの専用検査が未実施なら、その状態を別に示します。追加した表示項目にも公開用の伏字とHTML・Markdownのエスケープを適用します。
+
+Completion criteria show Recorded, Missing records, or Needs comparison, with next steps. Recorded refers to field presence, not sufficiency or completion. Registered unperformed checks appear in the overview; untouched catalog rows do not by themselves make a quick inspection incomplete. Expand Registered inspection records to read each check's location, method, actual observation, rationale and follow-up, including multiple checks mapped to the same criterion. The new evidence surfaces use the same public redaction and escaping as the rest of the report.
+
 ## 3. Public and internal visibility / 公開用と内部用
 
 ```sh

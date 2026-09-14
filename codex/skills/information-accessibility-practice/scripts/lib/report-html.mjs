@@ -1,6 +1,7 @@
 import { reviewDetailLines } from "./review-details.mjs";
 import { readerText, readerOverview, readerActions, actionItems, pendingGroups, pendingTitle, provenanceCounts } from "./report-reader.mjs";
 import { inspectionText } from "./inspection-request.mjs";
+import { inspectionCompletion, inspectionRecordLines } from "./report-completion.mjs";
 
 const outcomeKeys = ["pass", "fail", "not_applicable", "not_tested", "cant_tell"];
 
@@ -300,7 +301,10 @@ function inspectionSection(presentation) {
   const request = presentation.inspection_request;
   const text = inspectionText(presentation.locale);
   const items = (keys) => `<ul>${keys.map((key) => `<li>${escapeHtml(text[key])}</li>`).join("")}</ul>`;
-  return `<section id="inspection-request"><h2>${escapeHtml(text.heading)}</h2><p>${escapeHtml(text.notice)}</p><h3>${escapeHtml(text.deliverables)}</h3>${items(request.deliverables)}<h3>${escapeHtml(text.criteria)}</h3>${items(request.completion_criteria)}</section>`;
+  const progress = inspectionCompletion(presentation);
+  const criteria = progress.criteria.map((item) => `<li><p><strong>${escapeHtml(text[item.key])} — ${escapeHtml(item.status)}</strong></p><p>${escapeHtml(item.detail)}</p><p>${escapeHtml(text.next)}: ${escapeHtml(item.next)}</p></li>`).join("");
+  const records = progress.records.map((record, index) => `<article><h4>${index + 1}. ${escapeHtml(record.evidence?.[0]?.location || record.profile_requirement_id || record.requirement_id)}</h4><ul>${inspectionRecordLines(record, presentation).map((line) => `<li>${escapeHtml(line)}</li>`).join("")}</ul></article>`).join("");
+  return `<section id="inspection-request"><h2>${escapeHtml(text.heading)}</h2><p>${escapeHtml(text.notice)}</p><h3>${escapeHtml(text.deliverables)}</h3>${items(request.deliverables)}<h3>${escapeHtml(text.criteria)}</h3><p>${escapeHtml(text.progressNotice)}</p><ul>${criteria}</ul><details><summary>${escapeHtml(text.records)} (${progress.records.length})</summary>${records}</details></section>`;
 }
 
 function fullSections(presentation, text) {

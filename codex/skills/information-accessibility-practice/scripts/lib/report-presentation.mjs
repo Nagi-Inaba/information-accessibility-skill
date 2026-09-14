@@ -1,4 +1,4 @@
-import { reviewDetailLines } from "./review-details.mjs";
+import { guardScreeningProjection, reviewDetailLines } from "./review-details.mjs";
 import { readerText, readerOverviewMarkdown, readerActionsMarkdown, readerPendingMarkdown, readerInspectionMarkdown } from "./report-reader.mjs";
 import {
   groupForRequirement,
@@ -175,7 +175,7 @@ function buildClaim({ assessment, validation, registry, locale, rows }) {
   };
 }
 
-function commonPresentation({ assessment, validation, registry, locale, rows, target, scope, environment, evaluator, limitations, findings, inspectionRequest }) {
+function commonPresentation({ assessment, validation, registry, locale, rows, target, scope, environment, evaluator, limitations, findings, inspectionRequest, inspectionRecords }) {
   const normalizedLocale = normalizeReportLocale(locale);
   const messages = reportMessages(normalizedLocale);
   const profileId = assessment.profile.id;
@@ -197,6 +197,7 @@ function commonPresentation({ assessment, validation, registry, locale, rows, ta
     },
     target: clone(target),
     ...(inspectionRequest ? { inspection_request: clone(inspectionRequest) } : {}),
+    ...(inspectionRecords ? { inspection_records: clone(inspectionRecords) } : {}),
     scope: clone(scope),
     environment: clone(environment),
     evaluated_at: assessment.evaluated_at,
@@ -239,6 +240,7 @@ export function buildStandalonePresentation({ record, validation, registry, cata
       evidence_level: evidenceLevel,
       rationale: resultRationale(result, messages),
       review_details: clone(result?.review_details),
+      evidence: clone(result?.evidence ?? []),
       applicability: outcome === "not_applicable" ? "not_applicable" : humanReviewed ? "applicable" : "undetermined"
     };
   });
@@ -266,8 +268,10 @@ export function buildRunBackedPresentation({ run, assessment: assessmentRecord, 
   const checks = [...(publicModel.reportChecks ?? []), ...(publicModel.notApplicableChecks ?? [])];
   const checkById = new Map(checks.map((item) => [item.requirement_id, item]));
   const humanById = new Map((publicModel.recordedHumanChecks ?? []).map((item) => [item.requirement_id, item]));
+  const screeningCandidates = [...new Map((publicModel.screeningCandidates ?? []).map(guardScreeningProjection)
+    .map((candidate) => [candidate.requirement_id, candidate])).values()];
   const screeningByProfileId = new Map();
-  for (const candidate of publicModel.screeningCandidates ?? []) {
+  for (const candidate of screeningCandidates) {
     const requirementId = candidate.profile_requirement_id;
     if (!requirementId) continue;
     screeningByProfileId.set(requirementId, selectScreeningCandidate(screeningByProfileId.get(requirementId), candidate));
@@ -293,6 +297,7 @@ export function buildRunBackedPresentation({ run, assessment: assessmentRecord, 
       evidence_level: evidenceLevel,
       rationale: check.rationale || messages.text.noEvidence,
       review_details: clone(check.review_details),
+      evidence: human ? clone(human.evidence ?? []) : screeningEvidence(screening),
       applicability: check.applicability ?? (check.outcome === "not_applicable" ? "not_applicable" : "undetermined")
     };
   });
@@ -304,19 +309,34 @@ export function buildRunBackedPresentation({ run, assessment: assessmentRecord, 
     rows,
     target: publicModel.target,
     inspectionRequest: run.inspection_request,
+    inspectionRecords: [
+      ...screeningCandidates.map((candidate) => ({
+        requirement_id: candidate.requirement_id,
+        profile_requirement_id: candidate.profile_requirement_id,
+        outcome: candidate.report_outcome,
+        source_kind: "screening",
+        evidence_level: candidate.evidence_level,
+        rationale: candidate.report_rationale,
+        evidence: screeningEvidence(candidate),
+        review_details: clone(candidate.review_details)
+      })),
+      ...(publicModel.recordedHumanChecks ?? []).map((human) => ({ ...clone(human), source_kind: "human_review" }))
+    ],
     scope: publicModel.scope,
     environment: publicModel.environment,
     evaluator: null,
     limitations: publicModel.limitations,
     findings: (publicModel.remediation ?? []).map((finding) => {
-      const candidates = (publicModel.screeningCandidates ?? []).filter((candidate) => candidate.requirement_id === finding.requirement_id);
+      const candidates = screeningCandidates.filter((candidate) => candidate.requirement_id === finding.requirement_id);
+      const human = humanById.get(finding.requirement_id);
       return {
         ...finding,
         related_requirement_ids: [...new Set(candidates.map((candidate) => candidate.profile_requirement_id).filter(Boolean))],
-        review_records: [...new Map(candidates.map((candidate) => [candidate.requirement_id, {
+        review_records: human && finding.evidence_status === "Verified failure" ? [clone(human)] : [...new Map(candidates.map((candidate) => [candidate.requirement_id, {
           requirement_id: candidate.profile_requirement_id ?? candidate.requirement_id,
           outcome: candidate.report_outcome,
           rationale: candidate.report_rationale || candidate.observation || messages.text.noEvidence,
+          evidence: screeningEvidence(candidate),
           review_details: clone(candidate.review_details)
         }])).values()]
       };
@@ -324,8 +344,16 @@ export function buildRunBackedPresentation({ run, assessment: assessmentRecord, 
   });
 }
 
+function screeningEvidence(candidate) {
+  if (!candidate || ![candidate.location, candidate.method, candidate.observation].some(Boolean)) return [];
+  const { location, method, observation, captured_at } = candidate;
+  return [{ location, method, observation, captured_at }];
+}
+
 function markdownCell(value) {
   return String(value ?? "")
+    .replace(/\\/gu, "\\\\")
+    .replace(/([`*_{}\[\]()!])/gu, "\\$1")
     .replace(/&/gu, "&amp;")
     .replace(/</gu, "&lt;")
     .replace(/>/gu, "&gt;")
