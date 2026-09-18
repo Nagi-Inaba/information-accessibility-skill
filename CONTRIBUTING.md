@@ -42,7 +42,11 @@ Platform-specific behavior must remain covered by the Ubuntu/Windows CI matrix.
 
 ## Source and distribution parity
 
-Shared behavior exists in both the Codex and Claude distributions. Until the repository is moved to a single generated canonical source tree, shared changes must be applied to both distributions and verified with the package parity checks.
+Edit shared skill/runtime files in `codex/skills/information-accessibility-practice/`. Edit shared agent bodies and metadata in `shared/agents/`. Generate the Claude mirror and both agent formats with `node scripts/sync-distributions.mjs --write`, then check with `node scripts/sync-distributions.mjs --check`. Do not hand-edit generated mirrors to make a parity failure disappear. Platform-specific files listed as excluded by the synchronizer remain separate.
+
+For schema changes, document current and frozen versions, read/write support and migration limits in [version support](docs/version-support.md) and [CHANGELOG](CHANGELOG.md). Keep historical schemas and recorded resource hashes immutable. A version-number replacement is not a migration; preserve signed/submitted records and create new runs when new evidence is needed. Changes to the evidence or claim ceiling need explicit regression coverage.
+
+Release preparation uses [the release runbook](docs/releasing.md). A local archive or a green test does not authorize publication.
 
 ## Standards and source changes
 

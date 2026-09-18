@@ -209,6 +209,8 @@ https://example.com/
 - [セキュリティ方針](SECURITY.md)
 - [コントリビューション手順](CONTRIBUTING.md)
 - [変更履歴](CHANGELOG.md)
+- [対応版と移行方針](docs/version-support.md)
+- [配布候補の作成とリリース手順](docs/releasing.md)
 - [第三者資料の帰属と利用条件](THIRD_PARTY_NOTICES.md)
 
 ## 証拠と主張の境界
@@ -231,6 +233,8 @@ node .\scripts\verify-all.mjs
 ```
 
 セキュリティ上の問題は公開Issueへ秘密情報を貼らず、[SECURITY.md](SECURITY.md)の案内に従ってください。
+
+現在のpackage `0.1.0` は開発版です。再現にはcommit SHAも記録してください。配布候補には版とcommit、SHA-256一覧を添え、公開済みreleaseとローカルでの検証結果を区別します。
 
 ## ライセンス
 

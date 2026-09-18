@@ -8,6 +8,8 @@ This project uses a Keep a Changelog-style structure. Until a tagged release is 
 
 ### Added
 
+- Supported package/schema policy, private security-report routing, complete issue forms, versioned release notes and commit-pinned local release archives with per-file SHA-256 manifests.
+
 - Source/version/terms register, archived W3C license editions, generated third-party notices, attribution in Markdown/HTML reports, and pending-review provenance companions for catalog refresh candidates. Package and catalog checks reject provenance or notice drift.
 
 - Read-only `status --run ... --format text|json` with evidence validation, coverage, next transitions, operation readiness and sibling successor warnings.
@@ -44,5 +46,8 @@ This project uses a Keep a Changelog-style structure. Until a tagged release is 
 
 - The optional finding/status fields are additive. Existing planned findings and declared-review payloads remain valid; null remediation/verification require `remediation_status: "unplanned"`. Existing run resource hashes remain immutable. Use the pinned package for historical runs; migration across resource hashes remains Issue #28.
 - `scan-web` requires axe-core `4.13.0` and the optional Playwright host capability `1.62.1` with Chromium installed.
-- `automated-web-scan-context` is experimental until the later run-artifact import and binding slice is complete.
+- `scanner-import` now binds supported axe-core 4.x raw results to measured targets and registered screening evidence. Native raw JSON alone does not prove simultaneous DOM capture; unsupported scanners remain unsupported.
+- **Breaking audit workflow changes:** new runs use audit-run 10.0.0 / orchestration registry 9.0.0 / envelope 3.0.0. Measured target identities, saved E1 evidence, explicit network permissions and live supervised interaction approval cannot be supplied by changing an old run's version number. Frozen run 1–9 schemas remain available for read-only use; start a new run to use current execution paths.
+- **Breaking assessment change:** new assessments use 2.0.0 and bind declared human outcomes to portable review records. Assessment 1.0.0 remains readable, with human_verified treated as legacy self-declaration rather than authenticated identity. Re-review and new signatures are required where authenticated provenance is needed; no automatic migration is provided.
+- Screening 3.0.0 requires saved evidence references for E1. Historical schema files and resource hashes remain unchanged; hashes and signatures must never be rewritten merely to pass current validation. See [supported versions and migration](docs/version-support.md).
 - Schema or claim-boundary changes that require migration must include an explicit migration note in this file before release.

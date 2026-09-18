@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Private security report
+    url: https://github.com/Nagi-Inaba/information-accessibility-skill/security/advisories/new
+    about: Report vulnerabilities privately; never paste exploits or private audit evidence into public issues.
+  - name: Supported versions and migration
+    url: https://github.com/Nagi-Inaba/information-accessibility-skill/blob/main/docs/version-support.md
+    about: Check package/commit identity, schema compatibility and migration limits.

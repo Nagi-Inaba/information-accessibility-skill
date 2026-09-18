@@ -209,6 +209,8 @@ For a new run, use `init` with `--inspection-mode quick|detailed --inspection-pu
 - [Security policy](SECURITY.md)
 - [Contribution guide](CONTRIBUTING.md)
 - [Changelog](CHANGELOG.md)
+- [Supported versions and migration](docs/version-support.md)
+- [Release candidate preparation and publication](docs/releasing.md)
 - [Third-party attribution and terms](THIRD_PARTY_NOTICES.md)
 
 ## Evidence and claim boundary
@@ -231,6 +233,8 @@ node .\scripts\verify-all.mjs
 ```
 
 Do not place secrets or private evidence in a public issue. Follow [SECURITY.md](SECURITY.md) for security reporting.
+
+Package `0.1.0` is a development version. Record the full commit SHA for reproduction. Release candidates include the package version, commit and SHA-256 inventory; local verification is distinct from a published release.
 
 ## License
 
