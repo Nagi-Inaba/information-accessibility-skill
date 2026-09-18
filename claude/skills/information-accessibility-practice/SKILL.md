@@ -145,7 +145,7 @@ The optional development request template is for custom scope, named environment
    - After an available named criterion procedure, or the returned generic playbook plus primary sources when no criterion procedure is available, and target-specific manual or hybrid evidence, a separate external human review workflow may record profile requirement outcomes as `pass`, `fail`, `not_applicable`, `not_tested`, or `cant_tell`.
    - Before evaluating each row, run `show-requirement.mjs` for that exact profile and requirement. Follow the returned method and any available criterion procedure, open its primary sources, and do not evaluate from the title alone.
    - Attach evidence to the exact page, element, screen, file, process step, environment, or test.
-   - For every human-recorded `fail`, add a structured finding with `P0`/`P1`/`P2`, the related requirement ID, location, affected users, observation, remediation, and retest method. Do not leave a failed result without an actionable finding.
+   - For every human-recorded `fail`, add a structured finding with `P0`/`P1`/`P2`, the related requirement ID, location, affected users, and observation. When remediation and a retest method are not yet available, preserve the confirmed finding with `remediation_status: unplanned`; add the plan later without dropping the finding. An unplanned finding does not complete remediation planning or retesting.
    - Record the evidence level from E0 to E5 and keep `participation_coverage` separate from standards results.
    - Run `node <skill_root>/scripts/validate-assessment.mjs <assessment.json>` before proposing claim wording.
 

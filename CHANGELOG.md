@@ -25,6 +25,7 @@ This project uses a Keep a Changelog-style structure. Until a tagged release is 
 
 ### Fixed
 
+- Claude installation uses the existing exclusive-copy routine for staging as well as activation, avoiding a native `fs.cpSync` crash observed on Windows with Node 22.19.0.
 - Human findings no longer require a remediation plan when the reviewer records the required finding details; later plans preserve the original finding.
 - Run-backed reports accept evidence-supported fixed claim templates and display their actual claim tier.
 - Empty or incomplete profile results no longer become implicit passes.

@@ -245,12 +245,7 @@ function install(plan) {
   const createdDirectories = [];
 
   try {
-    fs.cpSync(plan.skill.source, stagedSkill, {
-      recursive: true,
-      force: false,
-      errorOnExist: true,
-      dereference: false
-    });
+    copyDirectoryExclusive(plan.skill.source, stagedSkill);
     fs.mkdirSync(stagedAgentsDirectory);
     for (const agent of plan.agents) {
       fs.copyFileSync(agent.source, path.join(stagedAgentsDirectory, path.basename(agent.destination)));
