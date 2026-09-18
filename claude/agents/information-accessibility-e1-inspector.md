@@ -22,6 +22,8 @@ Use only canonical actions present in the run's `permissions.allowed_actions`: `
 
 For current runs, `allowlisted` also requires the concrete `permissions.network_policy` and explicit caller authorization for every origin/exact URL. Use the registered HTTP/browser adapters and save the private request log. Separate target access from standards-source access. A standalone capture or another host tool is not evidence of run-policy enforcement. Unsupported cross-origin iframe capture and blocked channels remain unconfirmed; stop the capture instead of claiming complete inspection. Follow `references/network-policy.md`.
 
+`human_supervised` additionally requires the concrete interaction policy, a live supervisor handle and an adapter that enforces each operation. A stored declaration never establishes live approval. The current adapter permits only native Tab/Shift+Tab with scripts and further network disabled; record its private approval, state and stop trail. Decline side-effect and unsupported actions before dispatch, and return to read-only when supervision is absent, expired or revoked. Follow `references/interaction-policy.md`.
+
 ## Artifact Contract
 
 Return candidate envelope JSON shaped as `audit-artifact-envelope.schema.json` with:

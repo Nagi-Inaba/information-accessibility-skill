@@ -76,6 +76,8 @@ CLIの台帳作成・登録・統合・レポート機能は、ブラウザな�
 
 run-backedの実通信には、[具体的な通信方針と非公開ログ](codex/skills/information-accessibility-practice/references/network-policy.md)が必要です。対象と規格資料の許可先を分け、実行時にも呼出側の許可を照合します。別originのiframeなど、現在のadapterで強制を確認できない経路は停止します。
 
+監督付きの入力操作には、[操作範囲・承認者・期限と実行時の承認](codex/skills/information-accessibility-practice/references/interaction-policy.md)が必要です。承認者情報と操作履歴は内部に保存し、公開レポートには出しません。現在はスクリプトと追加通信を停止したページでのTab／Shift+Tabに対応し、実行時の承認がないCLI処理はread-onlyになります。
+
 ### Codex
 
 Windowsではmanifest対応installerを利用できます。

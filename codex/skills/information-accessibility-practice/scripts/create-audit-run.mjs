@@ -21,12 +21,12 @@ const undeclaredEnvironment = {
 function parseArgs(argv) {
   const options = { targetRefs: [] };
   const repeatable = new Set(["--target-ref"]);
-  const optional = new Set(["--supersedes-run", "--config", "--inspection-mode", "--inspection-purpose", "--network-policy"]);
+  const optional = new Set(["--supersedes-run", "--config", "--inspection-mode", "--inspection-purpose", "--network-policy", "--interaction-policy"]);
   const map = new Map([
     ["--run-id", "runId"], ["--profile", "profile"], ["--target-name", "targetName"],
     ["--target-version", "targetVersion"], ["--target-ref", "targetRefs"],
     ["--artifact-root", "artifactRoot"], ["--network", "network"],
-    ["--network-policy", "networkPolicyFile"],
+    ["--network-policy", "networkPolicyFile"], ["--interaction-policy", "interactionPolicyFile"],
     ["--inspection-mode", "inspectionMode"], ["--inspection-purpose", "inspectionPurpose"],
     ["--interaction", "interaction"], ["--source-write", "sourceWrite"], ["--supersedes-run", "supersedesRunFile"], ["--config", "configFile"], ["--output", "output"]
   ]);
@@ -115,6 +115,8 @@ export function main(argv = process.argv.slice(2)) {
   const loadedConfig = options.configFile ? loadAuditInitConfig(options.configFile) : undefined;
   const policySnapshot = options.networkPolicyFile ? readStableFile(options.networkPolicyFile, { label: "network policy", maxBytes: 1048576 }) : undefined;
   const networkPolicy = policySnapshot ? parseSnapshotJson(policySnapshot, "network policy") : undefined;
+  const interactionSnapshot = options.interactionPolicyFile ? readStableFile(options.interactionPolicyFile, { label: "interaction policy", maxBytes: 1048576 }) : undefined;
+  const interactionPolicy = interactionSnapshot ? parseSnapshotJson(interactionSnapshot, "interaction policy") : undefined;
   let predecessor;
   if (options.supersedesRunFile) {
     const snapshot = readStableFile(options.supersedesRunFile, { label: "superseded audit run" });
@@ -132,6 +134,7 @@ export function main(argv = process.argv.slice(2)) {
   const run = createAuditRun({
     ...options,
     networkPolicy,
+    interactionPolicy,
     runFile: output,
     supersedesRun: predecessor?.value,
     supersedesRunFile: predecessor?.snapshot.path,
@@ -142,6 +145,7 @@ export function main(argv = process.argv.slice(2)) {
   if (predecessor) assertStableFile(predecessor.snapshot, "superseded audit run");
   if (loadedConfig) assertAuditInitConfigStable(loadedConfig);
   if (policySnapshot) assertStableFile(policySnapshot, "network policy");
+  if (interactionSnapshot) assertStableFile(interactionSnapshot, "interaction policy");
   writeNewJson(output, run);
   process.stdout.write(`${JSON.stringify({ status: "PASS", run_id: run.run_id, output })}\n`);
 }

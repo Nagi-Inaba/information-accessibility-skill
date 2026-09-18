@@ -3,6 +3,7 @@ import { canonicalJson } from "./canonical-json.mjs";
 import { compareInstants } from "./date-time.mjs";
 import { createEvidenceReference, validateEvidenceReference, verifyEvidenceReference } from "./evidence-reference.mjs";
 import { validateNetworkEvidence } from "./network-evidence.mjs";
+import { validateInteractionEvidence } from "./interaction-evidence.mjs";
 
 const hash = (bytes) => crypto.createHash("sha256").update(bytes).digest("hex");
 
@@ -21,7 +22,7 @@ export function evidenceContext(run, targetRef) {
 // that a live target still has the captured content or authenticate a producer.
 export function createRunEvidenceReference({ run, targetRef, ...options }) {
   const context = evidenceContext(run, targetRef);
-  const measuredRun = ["8.0.0", "9.0.0"].includes(run.schema_version);
+  const measuredRun = ["8.0.0", "9.0.0", "10.0.0"].includes(run.schema_version);
   const measured = measuredRun ? run.target_inventory?.snapshots?.find((snapshot) => snapshot.target_ref === targetRef) : null;
   if (measuredRun && !measured) throw new Error("Bind a measured target inventory before adding saved observation evidence.");
   if (measured && options.targetSnapshotId !== undefined && options.targetSnapshotId !== measured.snapshot_id) throw new Error("Evidence snapshot ID must match the run target inventory.");
@@ -40,7 +41,7 @@ export function evidenceBindingErrors(reference, run) {
     for (const [key, expected] of Object.entries(evidenceContext(run, reference.target_ref))) {
       if (reference[key] !== expected) errors.push(`Evidence ${key} does not match the audit run.`);
     }
-    if (["8.0.0", "9.0.0"].includes(run.schema_version)) {
+    if (["8.0.0", "9.0.0", "10.0.0"].includes(run.schema_version)) {
       const measured = run.target_inventory?.snapshots?.find((snapshot) => snapshot.target_ref === reference.target_ref);
       if (!measured || reference.target_snapshot_id !== measured.snapshot_id) errors.push("Evidence target_snapshot_id does not match the measured run target.");
       else if (["dom_snapshot", "accessibility_tree"].includes(reference.evidence_type)) {
@@ -84,6 +85,7 @@ export function collectScreeningEvidence(run, artifacts, readEvidence) {
           if (!snapshot || !Buffer.isBuffer(snapshot.bytes)) throw new Error("Registered raw evidence bytes are required.");
           verifyEvidenceReference(reference, snapshot.bytes);
           if (reference.evidence_type === "network_log") validateNetworkEvidence(snapshot.bytes, run, reference);
+          if (reference.evidence_type === "interaction_log") validateInteractionEvidence(snapshot.bytes, run, reference);
           if (snapshot.sha256 !== reference.sha256) throw new Error("Raw evidence snapshot hash mismatch.");
           snapshots.set(reference.path, snapshot);
         } catch (error) {

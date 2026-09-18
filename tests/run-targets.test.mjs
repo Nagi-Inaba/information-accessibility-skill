@@ -14,7 +14,7 @@ function setup(t, refs) {
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   fs.writeFileSync(path.join(root, "page.html"), "<main>Before</main>");
   return { root, options: { baseDir: root }, run: {
-    schema_version: "9.0.0",
+    schema_version: "10.0.0",
     run_id: "RUN-20260918T000000Z-TARGET01",
     target: { name: "Fixture", version_or_commit: "fixture-1", urls_or_files: refs ?? ["page.html"] },
     environment: { os: ["Fixture"], browsers: [], assistive_technologies: [], input_modes: [] },

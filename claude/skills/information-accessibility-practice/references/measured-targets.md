@@ -1,6 +1,6 @@
 # Measured target identities
 
-Current run schema 9.0.0 fixes a measured target inventory before the first artifact is registered. Envelope 3.0.0 records the exact inventory snapshot IDs. Registration remeasures the targets and rejects drift before adding evidence. Run 8 and earlier retain their frozen read contracts; create a new run for current registration.
+Current run schema 10.0.0 fixes a measured target inventory before the first artifact is registered. Envelope 3.0.0 records the exact inventory snapshot IDs. Registration remeasures the targets and rejects drift before adding evidence. Run 9 and earlier retain their frozen read contracts; create a new run for current registration.
 
 `capture-targets` measures the references declared in an existing valid run and writes a new private JSON companion inside its artifact root. It does not change the run, the target, evidence levels or accessibility judgements. Existing outputs are never overwritten.
 

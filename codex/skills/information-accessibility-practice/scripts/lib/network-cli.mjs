@@ -29,7 +29,7 @@ export function prepareNetworkCapture(options, outputs = []) {
   const snapshot = readStableFile(runFile);
   const run = JSON.parse(snapshot.bytes.toString("utf8").replace(/^\uFEFF/u, ""));
   const validation = validateAuditRun(run, { runFile });
-  if (!validation.valid || run.schema_version !== "9.0.0" || run.permissions.network !== "allowlisted") throw new Error("Browser capture requires a validated current run with concrete network permission.");
+  if (!validation.valid || run.schema_version !== "10.0.0" || run.permissions.network !== "allowlisted") throw new Error("Browser capture requires a validated current run with concrete network permission.");
   assertNetworkPolicy(run.permissions.network_policy);
   if (!run.target.urls_or_files.some((value) => { try { return new URL(value).href === new URL(options.url).href; } catch { return false; } })) throw new Error("Browser URL must be a declared run target.");
   const caller = { network: "allowlisted", allowedOrigins: options.allowOrigins ?? [], exactUrls: options.allowUrls ?? [], allowLocalhost: options.allowLocalhost === true };

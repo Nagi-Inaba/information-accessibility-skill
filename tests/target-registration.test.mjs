@@ -148,6 +148,7 @@ test("run7 retains its frozen read contract and cannot register or bind current 
   const legacy = structuredClone(f.run);
   legacy.schema_version = "7.0.0";
   delete legacy.permissions.network_policy;
+  delete legacy.permissions.interaction_policy;
   delete legacy.target_inventory;
   legacy.resource_versions.orchestration_registry_version = "6.0.0";
   legacy.resource_versions.orchestration_registry_sha256 = resources.orchestrationRegistries.get("6.0.0").sha256;

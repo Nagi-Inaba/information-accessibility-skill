@@ -35,7 +35,7 @@ function schemaErrors(value, schemaName) {
 
 function validAuditRun() {
   return {
-    schema_version: "9.0.0",
+    schema_version: "10.0.0",
     target_inventory: null,
     inspection_request: createInspectionRequest("quick", "Identify the next investigation"),
     run_id: runId,
@@ -65,7 +65,7 @@ function validAuditRun() {
     },
     permissions: {
       network: "denied", network_policy: null,
-      interaction: "read_only",
+      interaction: "read_only", interaction_policy: null,
       source_write: "denied",
       command_execution: "denied",
       allowed_actions: ["inspect_without_mutation"],
@@ -73,7 +73,7 @@ function validAuditRun() {
     },
     resource_versions: {
       standards_registry_version: "1.0.0",
-      orchestration_registry_version: "8.0.0",
+      orchestration_registry_version: "9.0.0",
       orchestration_registry_sha256: sha256,
       criteria_catalog_sha256: sha256,
       criterion_procedures_sha256: sha256,
@@ -250,18 +250,18 @@ test("current queue and remediation schemas are version 2 while frozen version 1
 
 test("versioned contracts freeze prior runs while run 8, registry 7, and envelope 3 are current", async () => {
   const versions = [
-    ["orchestration-registry.json", "schema_version", "8.0.0"],
+    ["orchestration-registry.json", "schema_version", "9.0.0"],
     ["orchestration-registry-6.0.0.json", "schema_version", "6.0.0"],
     ["orchestration-registry-5.0.0.json", "schema_version", "5.0.0"],
     ["orchestration-registry-4.0.0.json", "schema_version", "4.0.0"],
     ["orchestration-registry-3.0.0.json", "schema_version", "3.0.0"],
     ["orchestration-registry-2.0.0.json", "schema_version", "2.0.0"],
-    ["orchestration-registry.schema.json", "schema", "8.0.0"],
+    ["orchestration-registry.schema.json", "schema", "9.0.0"],
     ["orchestration-registry-6.0.0.schema.json", "schema", "6.0.0"],
     ["orchestration-registry-5.0.0.schema.json", "schema", "5.0.0"],
     ["orchestration-registry-4.0.0.schema.json", "schema", "4.0.0"],
     ["orchestration-registry-2.0.0.schema.json", "schema", "2.0.0"],
-    ["audit-run.schema.json", "schema", "9.0.0"],
+    ["audit-run.schema.json", "schema", "10.0.0"],
     ["audit-run-7.0.0.schema.json", "schema", "7.0.0"],
     ["audit-artifact-envelope.schema.json", "schema", "3.0.0"],
     ["audit-artifact-envelope-2.0.0.schema.json", "schema", "2.0.0"],
@@ -640,7 +640,7 @@ test("the orchestration registry fixes the complete role, artifact, and transiti
   assert.deepEqual(registry.artifact_types, [
     {
       id: "audit-run",
-      latest_schema_version: "9.0.0",
+      latest_schema_version: "10.0.0",
       schema_versions: [
         { version: "1.0.0", schema_file: "audit-run-1.0.0.schema.json", mode: "read_only" },
         { version: "2.0.0", schema_file: "audit-run-2.0.0.schema.json", mode: "read_only" },
@@ -650,7 +650,8 @@ test("the orchestration registry fixes the complete role, artifact, and transiti
         { version: "6.0.0", schema_file: "audit-run-6.0.0.schema.json", mode: "read_only" },
         { version: "7.0.0", schema_file: "audit-run-7.0.0.schema.json", mode: "read_only" },
         { version: "8.0.0", schema_file: "audit-run-8.0.0.schema.json", mode: "read_only" },
-        { version: "9.0.0", schema_file: "audit-run.schema.json", schema_sha256: "94dcd37a190aaa7ef570312bb02adc9ccb50f52a98b4389269d69c6edf202a5b", mode: "current" }
+        { version: "9.0.0", schema_file: "audit-run-9.0.0.schema.json", mode: "read_only" },
+        { version: "10.0.0", schema_file: "audit-run.schema.json", schema_sha256: "1b9dcb511484fb1c92ee058937804ae1b9dc98147e2954978d8389a3c7abaf6c", mode: "current" }
       ]
     },
     {
@@ -815,7 +816,7 @@ test("audit-run 6 permissions grant only authorized verification command executi
   const authorized = validAuditRun();
   authorized.permissions = {
     network: "denied", network_policy: null,
-    interaction: "read_only",
+    interaction: "read_only", interaction_policy: null,
     source_write: "authorized_only",
     command_execution: "authorized_verification_only",
     allowed_actions: ["execute_authorized_verification_commands", "inspect_without_mutation", "write_authorized_files"],

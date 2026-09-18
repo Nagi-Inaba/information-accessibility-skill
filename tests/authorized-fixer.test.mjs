@@ -144,7 +144,7 @@ function assertRejected(result, pattern) {
 
 function initialRun(artifactRoot) {
   const run = {
-    schema_version: "9.0.0",
+    schema_version: "10.0.0",
     inspection_request: createInspectionRequest("quick", "Identify the next investigation"),
     run_id: RUN_ID,
     supersedes_run_id: null,
@@ -170,7 +170,7 @@ function initialRun(artifactRoot) {
     },
     permissions: {
       network: "allowlisted", network_policy: createNetworkPolicy({ targetOrigins: ["http://127.0.0.1:4173", "https://example.com"], allowLocalhost: true }),
-      interaction: "read_only",
+      interaction: "read_only", interaction_policy: null,
       source_write: "authorized_only",
       command_execution: "authorized_verification_only",
       allowed_actions: [
@@ -564,7 +564,7 @@ test("validate-fix-authorization CLI rejects missing operation permissions and m
 
   const deniedCanonicalPermissions = {
     network: "allowlisted", network_policy: createNetworkPolicy({ targetOrigins: ["http://127.0.0.1:4173", "https://example.com"], allowLocalhost: true }),
-    interaction: "read_only",
+    interaction: "read_only", interaction_policy: null,
     source_write: "denied",
     command_execution: "denied",
     allowed_actions: ["inspect_without_mutation", "read_allowlisted_resources"],

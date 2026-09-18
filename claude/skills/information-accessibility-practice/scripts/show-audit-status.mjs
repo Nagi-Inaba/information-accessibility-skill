@@ -7,6 +7,7 @@ import { generateAssessment } from "./generate-assessment.mjs";
 import { validateAssessment } from "./validate-assessment.mjs";
 import { validateRunBackedAssessment } from "./render-audit-report.mjs";
 import { networkScopeSummary } from "./lib/network-policy.mjs";
+import { interactionScopeSummary } from "./lib/interaction-policy.mjs";
 import { assertStableFile, defaultSkillRoot, mergeArtifacts, readStableFile, validateAuditRun } from "./lib/audit-run.mjs";
 
 function parse(snapshot) {
@@ -84,7 +85,7 @@ export function auditStatus(runFile, { skillRoot = defaultSkillRoot } = {}) {
     run: { id: stringOrNull(run?.run_id), schema_version: stringOrNull(run?.schema_version), state: stringOrNull(run?.status),
       profile: stringOrNull(run?.profile?.id), revision: Array.isArray(run?.artifacts) ? run.artifacts.length : null,
       permissions: run?.permissions && typeof run.permissions === "object" && !Array.isArray(run.permissions) ? run.permissions : null,
-      network_scope: networkScopeSummary(run?.permissions) },
+      network_scope: networkScopeSummary(run?.permissions), interaction_scope: interactionScopeSummary(run?.permissions) },
     artifacts: (Array.isArray(run?.artifacts) ? run.artifacts : []).map((item) => ({
       id: stringOrNull(item?.artifact_id), type: stringOrNull(item?.artifact_type), producer: stringOrNull(item?.producer_role),
       sha256: stringOrNull(item?.sha256), validation: validation.valid ? "valid" : "run_invalid"
@@ -131,7 +132,7 @@ export function auditStatus(runFile, { skillRoot = defaultSkillRoot } = {}) {
         result.recovery.push("Complete the registered finding details or required artifact bindings, then merge from a fresh E0 baseline.");
       }
     }
-    const retest = ["5.0.0", "6.0.0", "7.0.0", "8.0.0", "9.0.0"].includes(run.schema_version) && run.status === "retest_required";
+    const retest = ["5.0.0", "6.0.0", "7.0.0", "8.0.0", "9.0.0", "10.0.0"].includes(run.schema_version) && run.status === "retest_required";
     result.operations.retest = { available: retest, reason: retest ? "new_run_id_and_target_version_required" : "requires_completed_authorized_change" };
   }
   assertStableFile(snapshot, "audit run");
@@ -151,6 +152,7 @@ export function statusText(result, locale = "en") {
     `${ja ? "証拠が許す主張の上限" : "Evidence claim ceiling"}: ${result.claim.max_tier ?? "unknown"}`,
     `${ja ? "権限" : "Permissions"}: ${JSON.stringify(result.run.permissions)}`,
     `${ja ? "通信範囲と強制の状態" : "Network scope and enforcement"}: ${JSON.stringify(result.run.network_scope)}`,
+    `${ja ? "操作承認の状態" : "Interaction approval state"}: ${JSON.stringify(result.run.interaction_scope)}`,
     "", ja ? "登録済み成果物" : "Registered artifacts",
     ...result.artifacts.map((item) => `- ${item.type} / ${item.producer} / ${item.validation} / ${item.id} / SHA-256 ${item.sha256}`),
     "", ja ? "次の遷移（成果物の作成・検証が必要）" : "Next transitions (create and validate the required artifact)",

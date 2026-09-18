@@ -132,7 +132,7 @@ test("installed CLIs carry a local public-like fixture through the read-only age
   runFiles[0] = path.join(temp, "audit-run.bound.json");
   assertSucceeded(runNode(cli.bind, ["--run", unboundFile, "--targets", inventoryFile, "--output", runFiles[0]]));
   const run0 = readJson(runFiles[0]);
-  assert.equal(run0.schema_version, "9.0.0");
+  assert.equal(run0.schema_version, "10.0.0");
   assert.equal(run0.permissions.network, "allowlisted");
   assert.equal(run0.permissions.interaction, "read_only");
   assert.equal(run0.permissions.source_write, "denied");

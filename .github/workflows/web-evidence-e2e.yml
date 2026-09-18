@@ -17,6 +17,9 @@ on:
       - "**/scripts/lib/network-*.mjs"
       - "**/scripts/lib/browser-network-gateway.mjs"
       - "tests/network-*.test.mjs"
+      - "**/scripts/lib/interaction-*.mjs"
+      - "**/scripts/lib/browser-interaction-adapter.mjs"
+      - "tests/interaction-*.test.mjs"
       - "tests/scan-web-e2e.test.mjs"
       - "**/scripts/import-scanner-results.mjs"
       - "**/scripts/lib/scanner-import.mjs"
@@ -53,4 +56,5 @@ jobs:
           node --test tests/scanner-import.test.mjs tests/scanner-import-e2e.test.mjs
           node --test tests/web-capabilities.test.mjs tests/web-capabilities-e2e.test.mjs
           node --test tests/network-policy.test.mjs tests/network-transport.test.mjs tests/network-workflow.test.mjs tests/network-browser-e2e.test.mjs
+          node --test tests/interaction-supervision.test.mjs tests/interaction-browser-e2e.test.mjs
           node scripts/verify-package.mjs

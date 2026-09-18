@@ -86,6 +86,7 @@ const definitions = [
       option("--network", "<none|local_read_only>", "Network policy alias. `none` denies access; `local_read_only` maps to an allowlisted read policy."),
       option("--network-policy", "<policy.json>", "Required for allowlisted/local_read_only: explicit origins or exact URLs, GET/HEAD and redirect/resource policy. Propose with network-policy."),
       option("--interaction", "<safe_read_only|human_supervised>", "Interaction policy alias."),
+      option("--interaction-policy", "<policy.json>", "Required for human_supervised: concrete operations, supervisor, scope, expiry and approval mode. A saved policy does not authorize runtime interaction."),
       option("--source-write", "<none|authorized_only>", "Source-write policy. Standard audits normally use `none`."),
       option("--config", "<file>", "Optional JSON file declaring scope and/or environment."),
       option("--supersedes-run", "<file>", "Validated predecessor required only for retest initialization."),

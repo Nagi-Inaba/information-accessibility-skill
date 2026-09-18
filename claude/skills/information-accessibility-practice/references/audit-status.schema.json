@@ -15,7 +15,7 @@
         "id": {"type": ["string", "null"]}, "schema_version": {"type": ["string", "null"]},
         "state": {"type": ["string", "null"]}, "profile": {"type": ["string", "null"]},
         "revision": {"type": ["integer", "null"], "minimum": 0}, "permissions": {"type": ["object", "null"]},
-        "network_scope": {"type": "object"}
+        "network_scope": {"type": "object"}, "interaction_scope": {"type": "object"}
       }
     },
     "artifacts": {

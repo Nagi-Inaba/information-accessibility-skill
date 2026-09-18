@@ -76,6 +76,8 @@ Host-native browser tools are not automatically detected. Record measured capabi
 
 Run-backed network access requires a [concrete policy and private request logs](codex/skills/information-accessibility-practice/references/network-policy.md). Target and standards-source destinations remain separate, and each request also needs caller authorization. Paths this adapter cannot enforce, including cross-origin iframes, stop the capture.
 
+Supervised input requires [concrete operations, a supervisor, expiry and live approval](codex/skills/information-accessibility-practice/references/interaction-policy.md). Supervisor details and operation trails stay private. The current adapter supports native Tab/Shift+Tab with page scripts and further network access disabled; CLI capture without live supervision remains read-only.
+
 ### Codex
 
 On Windows, use the manifest-aware installer.

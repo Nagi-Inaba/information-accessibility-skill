@@ -10,6 +10,8 @@ import { canonicalJson } from "./lib/canonical-json.mjs";
 import { createNetworkSession } from "./lib/network-transport.mjs";
 import { prepareNetworkCapture } from "./lib/network-cli.mjs";
 import { installBrowserNetworkGateway } from "./lib/browser-network-gateway.mjs";
+import { createBrowserInteractionAdapter } from "./lib/browser-interaction-adapter.mjs";
+import { createInteractionSession } from "./lib/interaction-session.mjs";
 import { assertWebCapabilities, browserLaunchOptions, loadWebRuntime, preflightWeb, unavailableWebCapabilities, WebCapabilityError } from "./lib/web-capabilities.mjs";
 
 const DEFAULT_VIEWPORT = { width: 1280, height: 800 };
@@ -461,6 +463,7 @@ export async function withWebInspectionSession(options, inspect) {
       browser,
       preflight,
       networkSession,
+      gateway,
       requested,
       finalUrl,
       response,
@@ -514,9 +517,28 @@ export async function collectWebEvidence(session, options = {}) {
   const accessibilityNodes = JSON.parse(canonicalJson(accessibility.nodes));
   const focusPath = [];
   const baselineNavigation = navigationIdentity(finalUrl.href);
+  const interaction = { declared_mode: options.networkRun?.permissions?.interaction ?? "unmanaged",
+    effective_mode: "read_only", adapter: null, reason: options.networkRun ? "live_supervisor_not_supplied" : "standalone_not_run_verified",
+    requested_steps: options.focusSteps ?? 0, completed_steps: 0 };
+  let supervised;
+  if (options.interaction) {
+    if (!options.networkRun || !options.interaction.runFile || !options.interaction.logFile) throw new Error("Live interaction requires a run file and a private interaction log path.");
+    const adapter = await createBrowserInteractionAdapter(session);
+    supervised = createInteractionSession({ run: options.networkRun, runFile: options.interaction.runFile,
+      targetRef: requested.href, supervisor: options.interaction.supervisor, adapter, logFile: options.interaction.logFile });
+    interaction.adapter = adapter.id;
+  }
+  try {
   for (let step = 0; step < (options.focusSteps ?? 0); step += 1) {
-    await page.keyboard.press("Tab");
-    focusPath.push(await focusSnapshot(page));
+    if (supervised) {
+      const result = await supervised.execute({ operation: "focus", direction: "next" });
+      interaction.effective_mode = result.effective_mode;
+      interaction.reason = result.reason ?? "native_focus_only_scripts_and_network_disabled";
+      if (!result.executed || !result.after) break;
+      focusPath.push(result.after.focus);
+    } else if (options.networkRun) break;
+    else { await page.keyboard.press("Tab"); focusPath.push(await focusSnapshot(page)); }
+    interaction.completed_steps = focusPath.length;
     if (options.guardFocusNavigation && navigationIdentity(page.url()) !== baselineNavigation) {
       throw new WebInspectionError("Focus sampling navigated away from the inspected document; scan aborted.", {
         exitCode: 3,
@@ -524,6 +546,7 @@ export async function collectWebEvidence(session, options = {}) {
       });
     }
   }
+  } finally { supervised?.close(); }
   const activeElement = await focusSnapshot(page);
   const environment = {
     adapter: "playwright-chromium",
@@ -562,7 +585,8 @@ export async function collectWebEvidence(session, options = {}) {
       ax_tree_sha256: sha256(JSON.stringify(accessibilityNodes))
     },
     environment,
-    capabilities: ["rendered_dom", "accessibility_tree", "keyboard_focus_path", "request_policy_log"],
+    capabilities: ["rendered_dom", "accessibility_tree", ...(focusPath.length ? ["keyboard_focus_path"] : []), "request_policy_log"],
+    interaction,
     evidence: {
       dom,
       accessibility_tree: accessibilityNodes,
