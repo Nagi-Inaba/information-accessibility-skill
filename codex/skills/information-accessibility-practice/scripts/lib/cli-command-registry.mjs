@@ -36,9 +36,11 @@ const definitions = [
   },
   {
     name: "human-review", script: "human-review.mjs",
-    summary: "Prepare, verify or apply portable human-review records under recipient-selected trust.",
+    summary: "Export/import human review worksheets; prepare, verify or apply portable review records.",
     usage: [
       "accessibility-audit human-review prepare --assessment <assessment.json> --review <declared-review.json> --reviewer-id <id> --output <new-record.json>",
+      "accessibility-audit human-review export --run <run.json> --queue <registered-queue-id> --format xlsx|csv|markdown --output <new-sheet>",
+      "accessibility-audit human-review import --run <run.json> --queue <registered-queue-id> --input <completed-sheet> --output <new-artifact.json> [--artifact-id <id>]",
       "accessibility-audit human-review prepare --run <run.json> --artifact-id <id> --reviewer-id <id> --output <new-record.json>",
       "accessibility-audit human-review verify --record <record.json> --assessment <assessment.json> [trust options]",
       "accessibility-audit human-review apply --record <record.json> --assessment <assessment.json> --output <new-assessment.json> [trust options]"

@@ -8,6 +8,8 @@ This project uses a Keep a Changelog-style structure. Until a tagged release is 
 
 ### Added
 
+- `human-review export/import` creates Japanese CSV, Markdown and XLSX worksheets from a registered queue and validates actual human answers into a private review candidate. Fixed run/queue hashes, procedure bindings, partial submissions, finding details and immutable output paths are checked; ExcelJS 4.4.0 is pinned for XLSX support. Formula and active workbook content are rejected. Import does not authenticate a reviewer or register an artifact.
+
 - Supported package/schema policy, private security-report routing, complete issue forms, versioned release notes and commit-pinned local release archives with per-file SHA-256 manifests.
 
 - Source/version/terms register, archived W3C license editions, generated third-party notices, attribution in Markdown/HTML reports, and pending-review provenance companions for catalog refresh candidates. Package and catalog checks reject provenance or notice drift.
@@ -41,6 +43,8 @@ This project uses a Keep a Changelog-style structure. Until a tagged release is 
 - Formal claim blockers are separated from auxiliary screening candidates.
 
 ## Compatibility notes
+
+- For current run 11 only, a `not_tested` human review records non-performance using `manual_observation` notes exclusively. It does not require invented browser/keyboard/AT results and does not promote an otherwise E0/E1 assessment to E2. Historical run 10 and standalone review validation retain their prior evidence requirements. Worksheet imports require the exact current run file and registered queue; re-export after updating the run. Registered review replacement and conflict adjudication remain unsupported.
 
 - Source notices are additive. Existing catalog metadata bytes and audit resource hashes are unchanged by their introduction; no audit schema migration is required. Third-party metadata retains source-specific terms, with unknown terms and uncompleted legal review explicitly recorded.
 

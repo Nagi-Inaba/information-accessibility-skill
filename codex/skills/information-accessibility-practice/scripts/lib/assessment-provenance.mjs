@@ -21,7 +21,7 @@ export function reviewerVerificationOptions({ run, envelopesById, trust }) {
 
 // Standalone records have no queue envelope, so their procedure/source binding
 // must be checked against the same installed catalogs used by run validation.
-export function validateReviewBindings(record, catalogRecords, auditMethods, procedures) {
+export function validateReviewBindings(record, catalogRecords, auditMethods, procedures, options = {}) {
   const errors = [];
   if (record?.schema_version !== "2.0.0") return errors;
   const exactSet = (left, right) => Array.isArray(left) && Array.isArray(right)
@@ -42,7 +42,10 @@ export function validateReviewBindings(record, catalogRecords, auditMethods, pro
       }
       if (!exactSet(review.official_sources, procedure?.primary_sources ?? catalog.official_method_sources)) errors.push(`Human review official_sources must exactly match the registered procedure or catalog: ${id}`);
       const types = new Set((review.target_specific_evidence ?? []).map((entry) => entry?.type));
-      for (const type of procedure?.required_evidence_types ?? method?.required_evidence_types ?? []) {
+      const nonPerformance = options.run?.schema_version === "11.0.0" && review.profile_outcome === "not_tested";
+      const requiredTypes = nonPerformance ? ["manual_observation"] : procedure?.required_evidence_types ?? method?.required_evidence_types ?? [];
+      if (nonPerformance && [...types].some((type) => type !== "manual_observation")) errors.push(`Human review not_tested accepts only manual_observation non-performance notes: ${id}`);
+      for (const type of requiredTypes) {
         if (!types.has(type)) errors.push(`Human review is missing required evidence type ${type}: ${id}`);
       }
       if (review.finding && review.profile_outcome !== "fail") errors.push(`Human review finding requires profile_outcome fail: ${id}`);

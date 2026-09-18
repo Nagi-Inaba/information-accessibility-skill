@@ -852,7 +852,9 @@ export function validateRunBackedAssessment({ run, assessment, envelopesById, re
   if (humanByRequirement.size > 0) {
     const expectedReviewers = [...new Set(evidence.humanReviews.map((review) => review.reviewer_name))].sort().join(", ");
     const expectedDate = evidence.humanReviews.map((review) => review.review_date).sort().at(-1);
-    if (record.evidence_level !== "E2" || record.evaluator !== expectedReviewers || record.evaluated_at !== expectedDate) {
+    const hasPerformedReview = run.schema_version !== "11.0.0" || evidence.humanReviews.some((review) => review.profile_outcome !== "not_tested");
+    const expectedLevel = hasPerformedReview ? "E2" : screeningByRequirement.size > 0 ? "E1" : "E0";
+    if (record.evidence_level !== expectedLevel || record.evaluator !== expectedReviewers || record.evaluated_at !== expectedDate) {
       throw new Error("Assessment evaluation identity does not match the current run human review declarations.");
     }
   } else if (screeningByRequirement.size > 0 && record.evidence_level !== "E1") {
@@ -908,7 +910,8 @@ export function buildPublicReportModel({ run, assessment, envelopesById, resourc
   }));
   const reportProjection = buildReportProjection(profileResults, evidence.screeningObservations);
   const expectedProfileCount = registeredRequirementIds.length;
-  const reviewedIds = new Set(evidence.humanReviews.map((review) => review.requirement_id));
+  const performedReviews = evidence.humanReviews.filter((review) => run.schema_version !== "11.0.0" || review.profile_outcome !== "not_tested");
+  const reviewedIds = new Set(performedReviews.map((review) => review.requirement_id));
   const resultByRequirement = new Map(assessment.assessment.results.map((result) => [result.requirement_id, result]));
   const findingById = uniqueMap(assessment.assessment.findings ?? [], "id", "assessment finding ID");
   const remediationById = uniqueMap(evidence.remediationItems, "remediation_id", "remediation ID");
@@ -1024,7 +1027,7 @@ export function buildPublicReportModel({ run, assessment, envelopesById, resourc
       wording: validation.guard.assured_claim_wording.ja
     },
     evidenceLevel: displayedEvidenceLevel(assessment.assessment.evidence_level, validation.guard.reviewer_assurance),
-    reviewedCount: evidence.humanReviews.length,
+    reviewedCount: performedReviews.length,
     screeningCount: evidence.screeningObservations.length,
     profileOutcomeCounts: outcomeCountsFor(profileResults),
     screeningOutcomeCounts: outcomeCountsFor(screeningResults),
@@ -1033,7 +1036,7 @@ export function buildPublicReportModel({ run, assessment, envelopesById, resourc
     reportOutcomeCounts: reportProjection.counts,
     catalogCoverage: { recorded: recordedProfileResults.length, expected: expectedProfileCount },
     evaluationCoverage: {
-      humanReviewed: profileResults.filter(isHumanReviewMapping).length,
+      humanReviewed: profileResults.filter((result) => isHumanReviewMapping(result) && (run.schema_version !== "11.0.0" || result.outcome !== "not_tested")).length,
       expected: expectedProfileCount
     }
   };

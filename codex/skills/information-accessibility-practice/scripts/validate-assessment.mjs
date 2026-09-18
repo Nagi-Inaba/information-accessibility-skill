@@ -127,7 +127,7 @@ export function validateAssessment(record, registry, schema, criteriaCatalog, au
     }
   }
   const methodRecords = auditMethods?.methods ?? [];
-  try { errors.push(...validateReviewBindings(record, catalogRecords, auditMethods, criterionProcedures)); }
+  try { errors.push(...validateReviewBindings(record, catalogRecords, auditMethods, criterionProcedures, reviewOptions)); }
   catch (error) { errors.push(`Invalid human review binding: ${error.message}`); }
   if (profile?.requirement_ids?.length && catalogRecords.length === 0) errors.push("criteria catalog is required for a standards profile");
   if (profile?.requirement_ids?.length && methodRecords.length === 0) errors.push("audit methods catalog is required for a standards profile");

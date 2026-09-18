@@ -243,3 +243,5 @@ Original code and documentation use the [MIT License](LICENSE). Third-party stan
 The [machine-readable source register](codex/skills/information-accessibility-practice/references/third-party-sources.json) records sources, adopted versions, terms and modifications. Markdown/HTML reports retain attribution, and catalog refresh candidates include a companion record requiring renewed source/terms review. Unknown terms are never replaced with MIT; these records do not establish legal clearance for commercial use or redistribution.
 
 Use `review-queue` to create target-bound review candidates. See [human-review queue generation, registration and historical formats](codex/skills/information-accessibility-practice/references/human-review-queue.md).
+
+Use `human-review export` for CSV, Markdown or Excel worksheets, then `human-review import` to turn the person's answers into a review candidate. See [input fields, partial submissions, multiple reviewers and resubmission (Japanese)](codex/skills/information-accessibility-practice/references/human-review-worksheet.md). Import does not authenticate reviewer identity or update the run automatically.

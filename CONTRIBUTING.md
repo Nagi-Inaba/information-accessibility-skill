@@ -27,8 +27,11 @@ The accepted PR records the submitted version and the maintainer's corrections; 
 Run the unified verifier before requesting review:
 
 ```sh
+npm install --no-save --ignore-scripts --package-lock=false exceljs@4.4.0
 node scripts/verify-all.mjs
 ```
+
+Install test dependencies at the repository root so that local `node_modules` is not part of a skill distribution. XLSX tests use the same pinned ExcelJS version as the CLI package; its dependencies retain their own licenses and are not vendored in release archives.
 
 For focused work, the underlying checks are:
 

@@ -45,6 +45,10 @@ function parseArgs(argv) {
 
 export function humanReviewUsage() {
   return [
+    "Human review worksheets (Japanese, private, one reviewer per file):",
+    "  accessibility-audit human-review export --run <run.json> --queue <registered-queue-id> --format xlsx|csv|markdown --output <new-sheet>",
+    "  accessibility-audit human-review import --run <run.json> --queue <registered-queue-id> --input <completed-sheet> --output <new-artifact.json> [--artifact-id <id>]",
+    "Only input value cells may change. Import creates a candidate; register it separately. See references/human-review-worksheet.md.",
     "Portable human review provenance (offline; no keys are created and no data is sent):",
     "  node scripts/human-review.mjs prepare --run <run.json> --artifact-id <id> --reviewer-id <id> --output <new-private-record.json>",
     "  node scripts/human-review.mjs prepare --assessment <assessment.json> --review <declared-review.json> --reviewer-id <id> --output <new-private-record.json>",
@@ -60,6 +64,7 @@ export function humanReviewUsage() {
 }
 
 export function runHumanReviewCommand(argv) {
+  if (["export", "import"].includes(argv[0])) return import("./human-review-worksheet.mjs").then(({ runWorksheetCommand }) => runWorksheetCommand(argv));
   const options = parseArgs(argv);
   if (options.help) return { help: humanReviewUsage() };
   const snapshots = [];
@@ -119,7 +124,7 @@ export function runHumanReviewCommand(argv) {
 
 if (process.argv[1] && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url) {
   try {
-    const result = runHumanReviewCommand(process.argv.slice(2));
+    const result = await runHumanReviewCommand(process.argv.slice(2));
     process.stdout.write(result.help ? `${result.help}\n` : `${JSON.stringify(result, null, 2)}\n`);
   } catch (error) {
     console.error(error instanceof Error ? error.message : String(error));

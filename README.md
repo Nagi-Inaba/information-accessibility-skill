@@ -243,3 +243,5 @@ node .\scripts\verify-all.mjs
 出典・採用版・利用条件・加工内容は[機械可読の出典台帳](codex/skills/information-accessibility-practice/references/third-party-sources.json)に記録しています。Markdown／HTMLレポートにも帰属表示を付け、カタログ更新候補には利用条件の再確認待ちを示す付属ファイルを生成します。利用条件が未確認の資料をMITで補完せず、商用利用や再配布の権利確認が完了したとも扱いません。
 
 対象箇所に結び付いた確認候補は `review-queue` で作成できます。[人手確認queueの作成・登録・旧形式の扱い](codex/skills/information-accessibility-practice/references/human-review-queue.md)を参照してください。
+
+登録済みのキューは `human-review export` でCSV・Markdown・Excelへ出力し、確認者の記入後に `human-review import` でレビュー候補へ変換できます。[入力方法、一部提出、複数の確認者、再提出の扱い](codex/skills/information-accessibility-practice/references/human-review-worksheet.md)を確認してください。取り込みでは本人性を認証せず、runも自動更新しません。

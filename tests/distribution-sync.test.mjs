@@ -7,6 +7,7 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { buildDistribution } from "../scripts/sync-distributions.mjs";
+import { verifyPackage } from "../scripts/verify-package.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -58,6 +59,15 @@ function withFixture(callback) {
     fs.rmSync(target, { recursive: true, force: true });
   }
 }
+
+test("package JSON validation excludes installed dependencies and private audit output, but still validates source JSON", () => withFixture((target) => {
+  for (const relative of ["node_modules/vendor/tsconfig.json", "audit-runs/partial.json", ".git/private.json"]) {
+    const file = path.join(target, relative); fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, "{ /* not package JSON */", "utf8");
+  }
+  assert.equal(verifyPackage(target).status, "PASS");
+  fs.writeFileSync(path.join(target, "broken-source.json"), "{", "utf8");
+  const result = verifyPackage(target); assert.equal(result.status, "FAIL"); assert.ok(result.errors.some((error) => error.includes("broken-source.json")));
+}));
 
 function fixtureManifest(target) {
   return JSON.parse(fs.readFileSync(path.join(target, "shared/agents/agent-manifest.json"), "utf8"));

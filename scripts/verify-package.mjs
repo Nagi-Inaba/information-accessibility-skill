@@ -13,6 +13,9 @@ function walk(base, current = base) {
   return fs.readdirSync(current, { withFileTypes: true }).flatMap((entry) => {
     const full = path.join(current, entry.name);
     if (entry.isSymbolicLink()) return [];
+    // Third-party dependencies may contain JSONC; private run outputs are not
+    // package sources. Validate their own contracts through the runtime instead.
+    if (entry.isDirectory() && (entry.name === "node_modules" || (current === base && ["audit-runs", ".git"].includes(entry.name)))) return [];
     return entry.isDirectory() ? walk(base, full) : [path.relative(base, full).split(path.sep).join("/")];
   }).sort();
 }

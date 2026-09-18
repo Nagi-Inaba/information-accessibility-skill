@@ -329,6 +329,11 @@ export function writeNewText(output, value, hooks = {}) {
   return writeNewContent(output, value, hooks);
 }
 
+export function writeNewBytes(output, value, hooks = {}) {
+  if (!Buffer.isBuffer(value)) throw new Error("Binary output must be a Buffer.");
+  return writeNewContent(output, value, hooks);
+}
+
 export function sha256Bytes(bytes) {
   return crypto.createHash("sha256").update(bytes).digest("hex");
 }
@@ -1193,6 +1198,13 @@ function validateDeclaredHumanBindings(envelopesById, profileId, resources, erro
         }
       }
       const evidenceTypes = new Set((review.target_specific_evidence ?? []).map((item) => item?.type));
+      // Current run 11 may explicitly record non-performance without inventing
+      // keyboard/browser/AT results. Frozen run 10 keeps its original checks.
+      if (resources.orchestrationRegistry.schema_version === "10.0.0" && review.profile_outcome === "not_tested") {
+        requiredEvidenceTypes.clear();
+        requiredEvidenceTypes.add("manual_observation");
+        if ([...evidenceTypes].some((type) => type !== "manual_observation")) errors.push(`Declared human review ${artifactId} not_tested accepts only manual_observation non-performance notes for ${requirementId}.`);
+      }
       for (const requiredType of requiredEvidenceTypes) {
         if (!evidenceTypes.has(requiredType)) {
           errors.push(`Declared human review ${artifactId} is missing required evidence type ${requiredType} for ${requirementId}.`);
@@ -1204,6 +1216,23 @@ function validateDeclaredHumanBindings(envelopesById, profileId, resources, erro
 
 function artifactEnvelopeFromRecord(record) {
   return record?.envelope ?? record;
+}
+
+// Validates a new human-review candidate without writing a temporary artifact.
+// Registration still performs the live target check and immutable file binding.
+export function validateHumanReviewCandidate(run, artifact, validation) {
+  const errors = [...validateArtifact(artifact, validation.resources).errors];
+  if (artifact.artifact_type !== "declared-human-review") errors.push("Expected declared-human-review candidate.");
+  if (run.artifacts.some((entry) => entry.artifact_id === artifact.artifact_id)) errors.push("Duplicate artifact ID.");
+  if (errors.length) return { valid: false, errors };
+  const envelopes = new Map([...validation.envelopesById, [artifact.artifact_id, artifact]]);
+  const entries = new Map(run.artifacts.map((entry) => [entry.artifact_id, entry]));
+  entries.set(artifact.artifact_id, { artifact_id: artifact.artifact_id, artifact_type: artifact.artifact_type,
+    producer_role: artifact.producer.role_id, created_at: artifact.created_at });
+  validateArtifactEnvelopeSemantics(run, validation.resources, entries, envelopes, errors);
+  validateDeclaredHumanBindings(envelopes, run.profile.id, validation.resources, errors);
+  errors.push(...targetBindingErrors(run, [artifact]));
+  return { valid: errors.length === 0, errors };
 }
 
 function remediationItems(envelopesById) {
@@ -1857,7 +1886,7 @@ export function mergeArtifacts({ run, assessment, artifacts, registries, claimTi
     throw new Error("Merged assessment profile outcomes must exactly match the current run declared review set.");
   }
   if (humanReviews.size) {
-    merged.assessment.evidence_level = "E2";
+    merged.assessment.evidence_level = [...humanReviews.values()].some((review) => review.profile_outcome !== "not_tested") ? "E2" : screeningResults.length ? "E1" : "E0";
     merged.assessment.evaluator = [...reviewerNames].sort(compareText).join(", ");
     merged.assessment.evaluated_at = reviewDates.sort(compareText).at(-1);
     const identityLimitation = "Reviewer identity assurance must be reverified from the portable review records under the recipient's external trust policy; declarations and role labels do not authenticate a person.";

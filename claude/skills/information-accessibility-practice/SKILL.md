@@ -18,6 +18,8 @@ This release is a reusable accessibility-audit workflow. It can initialize every
 
 For target-specific human follow-up, read [`references/human-review-queue.md`](references/human-review-queue.md). The orchestrator can create a private `review-queue` candidate from registered observations, all profile requirements or explicitly requested criteria. Preserve measured locations and observation references, review priority reasons before registration, and never equate a queue with completed human evaluation.
 
+For a person to complete a registered queue without editing JSON, use `human-review export` and `human-review import` as described in [`references/human-review-worksheet.md`](references/human-review-worksheet.md). CSV, Markdown and XLSX share fixed bindings and explicit input fields. Preserve actual human answers; never fill review outcomes or evidence on a person's behalf. Import creates a private self-declared candidate, not authenticated identity or an automatic registration. Blank criteria are unsubmitted; `not_tested` records only a human non-performance note and cannot promote evidence to E2.
+
 When an AI agent performs a review with this package:
 
 - The AI agent is not the human reviewer. Records created by the AI agent must remain at evidence level `E0` or `E1`.

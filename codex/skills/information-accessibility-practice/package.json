@@ -12,7 +12,8 @@
     "accessibility-audit": "./scripts/accessibility-audit.mjs"
   },
   "dependencies": {
-    "axe-core": "4.13.0"
+    "axe-core": "4.13.0",
+    "exceljs": "4.4.0"
   },
   "peerDependencies": {
     "playwright": "1.62.1"
