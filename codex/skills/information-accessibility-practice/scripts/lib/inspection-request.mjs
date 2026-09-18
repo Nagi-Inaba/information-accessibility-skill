@@ -31,6 +31,8 @@ export function inspectionText(locale = "ja") {
   return locale === "ja" ? {
     mode: "検査レベル", purpose: "レポートの利用目的", quick: "簡易チェック", detailed: "詳細検査・改善用",
     heading: "依頼した成果物と完了条件", deliverables: "必要な成果物", criteria: "検査の完了条件",
+    progress: "検査の完了状況", next: "次の作業", records: "登録した検査記録",
+    progressNotice: "「記録あり」は必要な記入欄が埋まっている状態です。内容の十分性や合意範囲との一致は、検査記録と照合してください。達成基準の件数から検査完了を判定していません。",
     notice: "以下は検査前に定めた条件です。達成済みという意味ではありません。実施記録と照合し、満たせない条件と次の作業を明示してください。",
     decision_summary: "判断用の要約", remediation_details: "指摘ごとの改善手順", complete_results: "全項目の結果と根拠", remaining_checks: "未確認事項と次の確認",
     agreed_scope_checked: "合意した対象範囲の検査を実施し、範囲外を明示する",
@@ -43,6 +45,8 @@ export function inspectionText(locale = "ja") {
   } : {
     mode: "Inspection level", purpose: "Intended use of the report", quick: "Quick check", detailed: "Detailed inspection for remediation",
     heading: "Requested deliverables and completion criteria", deliverables: "Required deliverables", criteria: "Inspection completion criteria",
+    progress: "Inspection completion", next: "Next step", records: "Registered inspection records",
+    progressNotice: "Recorded means the required fields contain entries. Compare their substance with the evidence and agreed scope. Requirement counts do not establish inspection completion.",
     notice: "These conditions were set before inspection; listing them does not mean they are met. Compare them with the recorded evidence and identify unmet conditions and next steps.",
     decision_summary: "Decision summary", remediation_details: "Remediation instructions for each finding", complete_results: "Complete results and evidence", remaining_checks: "Remaining checks and next steps",
     agreed_scope_checked: "Perform the agreed scope of checks and identify exclusions",

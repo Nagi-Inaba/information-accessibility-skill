@@ -6,6 +6,7 @@ const requiredChecks = {
 const messages = {
   ja: {
     observation: "観測・根拠", performed: "実施した検査", reason: "確認が残る理由", next: "次の確認",
+    location: "箇所", method: "記録した検査方法", captured: "記録日時", rationale: "判定理由",
     unknown: "理由の記録なし", test_not_run: "検査未実施", applicability_pending: "適用条件の確認待ち",
     meaning_review: "意味の確認待ち", scope_incomplete: "対象範囲の不足", evidence_incomplete: "必要な検査記録が不足",
     noPerformed: "構造化した検査記録なし", defaultNext: "一次資料の適用条件と検査手順を確認し、対象固有の証拠を記録する。",
@@ -16,6 +17,7 @@ const messages = {
   },
   en: {
     observation: "Observation / rationale", performed: "Performed checks", reason: "Pending reason", next: "Next check",
+    location: "Location", method: "Recorded test method", captured: "Captured at", rationale: "Judgement rationale",
     unknown: "Reason not recorded", test_not_run: "Test not performed", applicability_pending: "Applicability pending",
     meaning_review: "Meaning review pending", scope_incomplete: "Scope incomplete", evidence_incomplete: "Required test evidence missing",
     noPerformed: "No structured test record", defaultNext: "Check applicability and the primary-source test procedure, then record target-specific evidence.",
@@ -59,10 +61,17 @@ export function reviewDetailLines(row, locale = "ja") {
   const text = messages[locale] ?? messages.ja;
   const details = row.review_details;
   const pending = ["not_tested", "cant_tell"].includes(row.outcome);
-  if (!details && !pending) return [row.rationale];
+  const evidence = row.evidence ?? [];
+  if (!details && !pending && !evidence.length) return [row.rationale];
   const checks = details?.performed_checks ?? [];
-  const lines = [`${text.observation}: ${row.rationale}`];
-  lines.push(`${text.performed}: ${checks.length ? checks.map((check) =>
+  const lines = evidence.length ? evidence.flatMap((item) => [
+    ...(item.location ? [`${text.location}: ${item.location}`] : []),
+    ...(item.method ? [`${text.method}: ${item.method}`] : []),
+    ...(item.observation ? [`${text.observation}: ${item.observation}`] : []),
+    ...(item.captured_at ? [`${text.captured}: ${item.captured_at}`] : [])
+  ]) : [`${text.observation}: ${row.rationale}`];
+  if (evidence.length && row.rationale) lines.push(`${text.rationale}: ${row.rationale}`);
+  if (checks.length || !evidence.length) lines.push(`${text.performed}: ${checks.length ? checks.map((check) =>
     `${text.checks[check.id]} ${text[check.outcome]} / ${check.environment} / ${check.evidence}`).join("; ") : text.noPerformed}`);
   if (pending || details?.reason || details?.next_checks?.length) {
     lines.push(`${text.reason}: ${text[details?.reason] ?? text.unknown}`);

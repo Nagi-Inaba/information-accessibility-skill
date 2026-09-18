@@ -205,7 +205,8 @@ export function buildInternalRunBackedModel({ run, assessment, publicModel, enve
   model.recordedHumanChecks = humanReviews.map((review) => ({
     requirement_id: review.requirement_id,
     outcome: review.profile_outcome,
-    rationale: review.rationale
+    rationale: review.rationale,
+    evidence: structuredClone(review.target_specific_evidence ?? [])
   }));
   model.screeningCandidates = screenings.map((observation) => ({
     ...structuredClone(observation),
@@ -270,12 +271,14 @@ export function applyReportVisibility(presentation, { visibility = "internal", r
     ...row,
     primary_url: sanitizeUrl(row.primary_url, `rows[${index}].primary_url`, entries),
     rationale: sanitizeText(row.rationale, `rows[${index}].rationale`, entries),
+    evidence: sanitizeNested(row.evidence, `rows[${index}].evidence`, entries, "evidence"),
     review_details: sanitizeNested(row.review_details, `rows[${index}].review_details`, entries, "review_details")
   }));
   // Full reports render group rows; keep them on the same sanitized objects as summaries.
   const rowsById = new Map(copy.rows.map((row) => [row.requirement_id, row]));
   copy.groups = (copy.groups ?? []).map((group) => ({ ...group, rows: group.rows.map((row) => rowsById.get(row.requirement_id)) }));
   copy.findings = sanitizeNested(copy.findings, "findings", entries, "findings");
+  if (copy.inspection_records) copy.inspection_records = sanitizeNested(copy.inspection_records, "inspection_records", entries, "inspection_records");
   if (copy.inspection_request) copy.inspection_request = sanitizeNested(copy.inspection_request, "inspection_request", entries, "inspection_request");
   copy.limitations = copy.limitations.map((value, index) => sanitizeText(value, `limitations[${index}]`, entries));
   copy.claim.wording = sanitizeText(copy.claim.wording, "claim.wording", entries);

@@ -902,7 +902,8 @@ export function buildPublicReportModel({ run, assessment, envelopesById, resourc
   const recordedHumanChecks = sortedByRequirement(evidence.humanReviews.map((review) => ({
     requirement_id: review.requirement_id,
     outcome: review.profile_outcome,
-    rationale: review.rationale
+    rationale: review.rationale,
+    evidence: publicEvidence(review.target_specific_evidence)
   })));
   const verifiedFailures = evidence.humanReviews
     .filter((review) => review.profile_outcome === "fail")

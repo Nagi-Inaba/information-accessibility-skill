@@ -241,6 +241,6 @@ test("localized report output escapes HTML and Markdown heading injection from a
   ]);
   assert.equal(rendered.status, 0, rendered.stderr || rendered.stdout);
   const report = fs.readFileSync(reportFile, "utf8");
-  assert.match(report, /Example &lt;script&gt;alert\(1\)&lt;\/script&gt;<br>\\#\\# Forged claim/u);
+  assert.ok(report.includes("Example &lt;script&gt;alert\\(1\\)&lt;/script&gt;<br>\\#\\# Forged claim"));
   assert.doesNotMatch(report, /<script>|^## Forged claim$/mu);
 });

@@ -103,7 +103,7 @@ test("summary and full modes separate decision-ready reading from complete profi
   assert.match(summaryText, /^## Profile group counts$/mu);
   assert.match(summaryText, /^## Remaining checks and next steps$/mu);
   assert.match(summaryText, /Overall judgement: Not tested/u);
-  assert.match(summaryText, /Requirements not run: 55\/55/u);
+  assert.match(summaryText, /Requirements without inspection records: 55\/55/u);
   assert.match(summaryText, /Internal report[^\n]*not publication-ready/iu);
   assert.ok(criterionRows(summaryText).length < 55);
 
@@ -177,7 +177,7 @@ test("summary consolidates findings with their human or screening evidence and c
   assert.match(humanText, /\*\*Judgement and source\*\*: Fail \/ External human review/u);
   assert.match(humanText, /Overall judgement: Fail/u);
   assert.match(humanText, /Requirements checked by a human: 1\/55/u);
-  assert.match(humanText, /Requirements not run: 54\/55/u);
+  assert.match(humanText, /Requirements without inspection records: 54\/55/u);
   assert.match(humanText, /External human review: 1/u);
   assert.match(humanText, /Not run: 54/u);
   assert.equal(actionItemCount(humanText), 1, "one issue must not become separate finding and human-review action items");

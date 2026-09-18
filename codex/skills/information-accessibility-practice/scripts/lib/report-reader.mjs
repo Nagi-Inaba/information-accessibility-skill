@@ -1,11 +1,12 @@
 import { reviewDetailLines } from "./review-details.mjs";
 import { inspectionText } from "./inspection-request.mjs";
+import { inspectionCompletion, inspectionRecordLines } from "./report-completion.mjs";
 
 export function readerText(locale) {
   return locale === "ja" ? {
     target: "対象", scope: "検査対象の範囲", overall: "総合判定", coverage: "確認の進み具合",
-    human: "人手で確認した項目", screening: "AI・自動検査の結果を記録した項目", notRun: "未実施の項目",
-    coverageNote: "件数は達成基準の数です。人手確認には要確認の判定も含みます。確認したページや操作の範囲は、対象範囲の記録を参照してください。",
+    human: "人手で確認した項目", screening: "AI・自動検査の結果を記録した項目", notRun: "検査記録のない項目",
+    coverageNote: "件数は達成基準の数です。人手確認には要確認の判定も、AI・自動検査の記録には未実施の検査の報告も含みます。確認したページや操作の範囲は、対象範囲の記録を参照してください。",
     key: "主要な問題と次の行動", noActions: "改善項目の記録はありません。未確認の項目は、続く「残る確認と次の作業」で確認してください。",
     pending: "残る確認と次の作業", noPending: "主要な問題の欄に記載したもの以外に、追加の確認待ちは記録されていません。",
     count: "対象項目数", criterion: "達成基準・検査項目", priority: "優先度", unprioritized: "優先度未設定",
@@ -15,8 +16,8 @@ export function readerText(locale) {
     remaining: "未実施の残り達成基準"
   } : {
     target: "Target", scope: "Inspection scope", overall: "Overall judgement", coverage: "Review progress",
-    human: "Requirements checked by a human", screening: "Requirements with AI/automated results", notRun: "Requirements not run",
-    coverageNote: "Counts refer to requirements. Human checks include cannot-tell judgements. Consult the scope record for the pages and interactions covered.",
+    human: "Requirements checked by a human", screening: "Requirements with AI/automated results", notRun: "Requirements without inspection records",
+    coverageNote: "Counts refer to requirements. Human checks include cannot-tell judgements; AI/automated records can report unperformed tests. Consult the scope record for the pages and interactions covered.",
     key: "Key findings and next actions", noActions: "No remediation item is recorded. See Remaining checks and next steps for unconfirmed requirements.",
     pending: "Remaining checks and next steps", noPending: "No additional pending check is recorded beyond those in the findings above.",
     count: "Requirement count", criterion: "Requirement or check", priority: "Priority", unprioritized: "Priority not set",
@@ -45,6 +46,7 @@ export function readerOverview(presentation) {
     [text.target, presentation.target?.name ?? text.none],
     ...(request ? [[intake.mode, intake[request.mode]], [intake.purpose, request.purpose]] : []),
     [text.scope, presentation.scope?.included?.join(", ") || text.none],
+    ...(request ? [[intake.progress, inspectionCompletion(presentation).summary]] : []),
     [text.overall, presentation.messages.outcomes[presentation.overall_outcome]],
     [text.human, `${counts.human_review}/${total}`],
     [text.screening, `${counts.screening}/${total}`],
@@ -84,14 +86,18 @@ export function actionItems(action, presentation) {
   const ids = [...new Set([...rows, ...linkedRows].map((row) => row.success_criterion).concat(finding.requirement_id, finding.requirement_ids ?? []).filter(Boolean))];
   const judgement = finding.evidence_status === "Unverified screening candidate" ? text.candidate
     : rows.map((row) => `${row.outcome_label} / ${row.source_label}`).join("; ") || text.none;
+  const hasFinding = Object.keys(finding).length > 0;
+  const location = finding.location || rows.flatMap((row) => row.evidence ?? []).map((item) => item.location).filter(Boolean).join("; ");
   return [
-    [text.priority, finding.priority ?? text.unprioritized],
+    ...(hasFinding ? [[text.priority, finding.priority ?? text.unprioritized]] : []),
     [text.criterion, ids.join(", ") || text.none],
     [text.judgement, judgement],
-    [text.location, finding.location ?? text.none],
+    [text.location, location || text.none],
+    ...(hasFinding ? [
     [text.affected, (Array.isArray(finding.affected_users) ? finding.affected_users.join(", ") : finding.affected_users) || text.none],
     [text.change, finding.proposed_change ?? finding.remediation ?? text.none],
     [text.verification, finding.verification ?? text.none],
+    ] : []),
     ...(finding.owner ? [[text.owner, finding.owner]] : []),
     ...(finding.residual_limitation ? [[text.residual, finding.residual_limitation]] : []),
     ...(finding.review_records?.length ? finding.review_records : rows)
@@ -105,7 +111,7 @@ export function pendingGroups(presentation) {
   for (const row of presentation.rows) {
     if (covered.has(row.requirement_id)) continue;
     if (!["not_tested", "cant_tell"].includes(row.outcome) && !row.review_details?.reason && !row.review_details?.next_checks?.length) continue;
-    const explicit = Boolean(row.review_details || (row.rationale?.trim()
+    const explicit = Boolean(row.evidence?.length || row.review_details || (row.rationale?.trim()
       && row.rationale !== presentation.messages.text.noEvidence && !/^Not yet evaluated\./u.test(row.rationale)));
     // Unperformed catalog rows share a short follow-up instead of filling the summary with 55 copies.
     const lines = reviewDetailLines(row, presentation.locale);
@@ -138,10 +144,15 @@ export function readerInspectionMarkdown(presentation) {
   const request = presentation.inspection_request;
   if (!request) return "";
   const text = inspectionText(presentation.locale);
+  const progress = inspectionCompletion(presentation);
   return [
     `## ${text.heading}`, "", text.notice, "",
     `### ${text.deliverables}`, "", ...request.deliverables.map((key) => `- ${escapeReaderMarkdown(text[key])}`), "",
-    `### ${text.criteria}`, "", ...request.completion_criteria.map((key) => `- ${escapeReaderMarkdown(text[key])}`)
+    `### ${text.criteria}`, "", text.progressNotice, "",
+    ...progress.criteria.map((item) => `- **${escapeReaderMarkdown(text[item.key])} — ${escapeReaderMarkdown(item.status)}**\n\n  ${escapeReaderMarkdown(item.detail)}\n\n  ${text.next}: ${escapeReaderMarkdown(item.next)}`), "",
+    `<details><summary>${text.records} (${progress.records.length})</summary>`, "",
+    ...progress.records.map((record, index) => `#### ${index + 1}. ${escapeReaderMarkdown(record.evidence?.[0]?.location || record.profile_requirement_id || record.requirement_id)}\n\n${inspectionRecordLines(record, presentation).map((line) => `- ${escapeReaderMarkdown(line)}`).join("\n")}`), "",
+    "</details>"
   ].join("\n");
 }
 
