@@ -12,17 +12,20 @@ import {
   validateAuditRun,
   writeNewJson
 } from "./lib/audit-run.mjs";
+import { parseAttestationJson } from "./lib/attestation-canonical.mjs";
+import { loadReviewTrust, readReviewJson } from "./lib/review-trust-input.mjs";
 
 function parseArgs(argv) {
-  const options = { artifacts: [] };
-  const flags = new Map([["--run", "run"], ["--assessment", "assessment"], ["--artifact", "artifacts"], ["--output", "output"], ["--claim-tier", "claimTier"]]);
+  const options = { artifacts: [], reviewRecords: [] };
+  const flags = new Map([["--run", "run"], ["--assessment", "assessment"], ["--artifact", "artifacts"], ["--output", "output"], ["--claim-tier", "claimTier"],
+    ["--review-record", "reviewRecords"], ["--trust-policy", "trustPolicy"], ["--trust-policy-sha256", "trustPolicySha256"]]);
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (!flags.has(arg)) throw new Error(`Unknown argument: ${arg}`);
     const value = argv[index + 1];
     if (!value || value.startsWith("--")) throw new Error(`Missing value for ${arg}`);
     const key = flags.get(arg);
-    if (key === "artifacts") options.artifacts.push(value);
+    if (["artifacts", "reviewRecords"].includes(key)) options[key].push(value);
     else {
       if (options[key] !== undefined) throw new Error(`Duplicate argument: ${arg}`);
       options[key] = value;
@@ -30,7 +33,7 @@ function parseArgs(argv) {
     index += 1;
   }
   for (const [flag, key] of flags) {
-    if (!["artifacts", "claimTier"].includes(key) && !options[key]) throw new Error(`${flag} is required`);
+    if (["run", "assessment", "output"].includes(key) && !options[key]) throw new Error(`${flag} is required`);
   }
   if (!options.artifacts.length) throw new Error("--artifact is required");
   return options;
@@ -38,7 +41,7 @@ function parseArgs(argv) {
 
 function parseSnapshot(snapshot, label) {
   try {
-    return JSON.parse(snapshot.bytes.toString("utf8").replace(/^\uFEFF/u, ""));
+    return structuredClone(parseAttestationJson(snapshot.bytes));
   } catch (error) {
     throw new Error(`Invalid JSON in ${label}: ${error.message}`);
   }
@@ -80,14 +83,19 @@ export function main(argv = process.argv.slice(2)) {
   const resources = loadAuditResources();
   resources.artifact_snapshots_by_id = artifactSnapshotsById;
   resources.evidence_snapshots_by_path = runValidation.evidenceSnapshots;
+  const trustInput = loadReviewTrust(options);
+  resources.reviewTrust = trustInput.trust;
+  const reviewInputs = options.reviewRecords.map((file) => readReviewJson(file, "portable human review"));
   const assessment = parseSnapshot(assessmentSnapshot, "assessment input");
-  const merged = mergeArtifacts({ run, assessment, artifacts, registries: resources, claimTier: options.claimTier });
+  const merged = mergeArtifacts({ run, assessment, artifacts, registries: resources, claimTier: options.claimTier, reviewRecords: reviewInputs.map((input) => input.value) });
   assertStableFile(runSnapshot, "audit run input");
   assertStableFile(assessmentSnapshot, "assessment input");
   for (const snapshot of artifactSnapshots) assertStableFile(snapshot, "merge artifact");
   for (const { snapshot } of runValidation.envelopesById.values()) assertStableFile(snapshot, "registered artifact");
   for (const snapshot of runValidation.evidenceSnapshots.values()) assertStableFile(snapshot, "raw evidence");
-  writeNewJson(output, merged);
+  writeNewJson(output, merged, { beforeWrite() {
+    for (const snapshot of [...trustInput.snapshots, ...reviewInputs.map((input) => input.snapshot)]) assertStableFile(snapshot, "review verification input");
+  } });
   process.stdout.write(`${JSON.stringify({ status: "PASS", output, artifacts: artifacts.length, assessment_valid: true })}\n`);
 }
 

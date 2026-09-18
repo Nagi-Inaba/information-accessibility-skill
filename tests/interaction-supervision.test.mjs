@@ -13,6 +13,7 @@ import { validateInteractionEvidence } from "../codex/skills/information-accessi
 import { createRunEvidenceReference, collectScreeningEvidence } from "../codex/skills/information-accessibility-practice/scripts/lib/run-evidence.mjs";
 import { fixtureInventory, fixtureBytes } from "./helpers/measured-targets.mjs";
 import { buildPublicReportModel, renderRunBackedReport } from "../codex/skills/information-accessibility-practice/scripts/render-audit-report.mjs";
+import { generateAssessment } from "../codex/skills/information-accessibility-practice/scripts/generate-assessment.mjs";
 
 const targetRef = "https://example.com/";
 export function supervisionPolicy(ref = targetRef, overrides = {}) {
@@ -171,8 +172,8 @@ test("expiry during the durable before-state write is refused before dispatch", 
 
 test("public report models and rendered reports withhold supervisor identity and private approval trail", (t) => {
   const f = fixture(t);
-  const assessment = { assessment: { results: [], findings: [], overall_notes: [], limitations: [], evidence_level: "E1",
-    claim: { requested_tier: "reference_only", proposed_wording: "Unverified focus screening" } } };
+  const assessment = generateAssessment("web-modern", { targetName: f.run.target.name, targetVersion: f.run.target.version_or_commit,
+    targetRefs: f.run.target.urls_or_files, evaluator: "Synthetic coordinator", evaluatedAt: "2026-09-19" });
   const model = buildPublicReportModel({ run: f.run, assessment, envelopesById: new Map() });
   const outputs = [JSON.stringify(model), renderRunBackedReport(model)];
   for (const output of outputs) {

@@ -6,14 +6,15 @@ import { validateAssessment } from "./validate-assessment.mjs";
 import { parseAttestationJson } from "./lib/attestation-canonical.mjs";
 import { createAttestationTrust } from "./lib/attestation-verifier.mjs";
 import { createHumanReviewRecord, humanReviewContext, humanReviewRunContext, verifyHumanReviewRecord } from "./lib/human-review-provenance.mjs";
+import { applyStandaloneHumanReview } from "./lib/apply-human-review.mjs";
 
-const flags = new Set(["--record", "--run", "--artifact-id", "--assessment", "--assessment-id", "--review", "--reviewer-id", "--output", "--trust-policy", "--trust-policy-sha256", "--minimum-assurance"]);
+const flags = new Set(["--record", "--run", "--artifact-id", "--assessment", "--assessment-id", "--review", "--reviewer-id", "--output", "--trust-policy", "--trust-policy-sha256", "--minimum-assurance", "--claim-tier"]);
 const assuranceOrder = ["self_declared", "self_signed", "signed", "organization_attested", "independent"];
 
 function parseArgs(argv) {
   if (argv.length === 1 && argv[0] === "--help") return { help: true };
   const [command, ...args] = argv;
-  if (!["prepare", "verify"].includes(command)) throw new Error("Choose human-review prepare or verify; use --help for usage.");
+  if (!["prepare", "verify", "apply"].includes(command)) throw new Error("Choose human-review prepare, verify, or apply; use --help for usage.");
   const options = { command };
   for (let index = 0; index < args.length; index += 2) {
     const flag = args[index], value = args[index + 1];
@@ -27,13 +28,15 @@ function parseArgs(argv) {
   if (runBacked && (!options["--artifact-id"] || options["--assessment-id"] || options["--review"])) {
     throw new Error("Run mode requires --artifact-id and takes the declared review directly from the registered artifact.");
   }
-  if (!runBacked && (!options["--assessment-id"] || options["--artifact-id"])) throw new Error("Standalone mode requires --assessment-id; --artifact-id is run-only.");
+  if (!runBacked && options["--artifact-id"]) throw new Error("--artifact-id is run-only.");
+  if (options["--claim-tier"] && command !== "apply") throw new Error("--claim-tier is apply-only.");
   if (command === "prepare") {
     if (!options["--reviewer-id"] || !options["--output"] || (!runBacked && !options["--review"])) throw new Error("Prepare requires --reviewer-id, --output, and --review for standalone mode.");
     if (["--record", "--trust-policy", "--trust-policy-sha256", "--minimum-assurance"].some((flag) => options[flag])) throw new Error("Prepare creates an unsigned record; verification-only options are not accepted.");
   } else {
-    if (!options["--record"]) throw new Error("Verify requires --record.");
-    if (options["--review"] || options["--reviewer-id"] || options["--output"]) throw new Error("Verify is read-only and does not accept prepare-only options.");
+    if (!options["--record"]) throw new Error("Verify/apply requires --record.");
+    if (options["--review"] || options["--reviewer-id"] || (command === "verify" && options["--output"])) throw new Error("Verify/apply does not accept prepare-only options; verify is read-only.");
+    if (command === "apply" && (runBacked || !options["--output"])) throw new Error("Apply requires --assessment and --output; use merge-audit-artifacts for run-backed reviews.");
     if (Boolean(options["--trust-policy"]) !== Boolean(options["--trust-policy-sha256"])) throw new Error("External trust policy and its independently supplied SHA-256 pin must be provided together.");
     if (options["--minimum-assurance"] && !assuranceOrder.includes(options["--minimum-assurance"])) throw new Error("Invalid --minimum-assurance.");
   }
@@ -44,13 +47,15 @@ export function humanReviewUsage() {
   return [
     "Portable human review provenance (offline; no keys are created and no data is sent):",
     "  node scripts/human-review.mjs prepare --run <run.json> --artifact-id <id> --reviewer-id <id> --output <new-private-record.json>",
-    "  node scripts/human-review.mjs prepare --assessment <assessment.json> --assessment-id <id> --review <declared-review.json> --reviewer-id <id> --output <new-private-record.json>",
+    "  node scripts/human-review.mjs prepare --assessment <assessment.json> --review <declared-review.json> --reviewer-id <id> --output <new-private-record.json>",
     "  node scripts/human-review.mjs verify --record <record.json> --run <run.json> --artifact-id <id> [trust options]",
-    "  node scripts/human-review.mjs verify --record <record.json> --assessment <assessment.json> --assessment-id <id> [trust options]",
+    "  node scripts/human-review.mjs verify --record <record.json> --assessment <assessment.json> [trust options]",
+    "  node scripts/human-review.mjs apply --record <record.json> --assessment <assessment.json> --output <new-assessment.json> [--claim-tier evaluated_subset] [trust options]",
+    "Standalone schema 2 uses its stored assessment_id; --assessment-id must match it if supplied. Legacy schema 1 requires an explicit --assessment-id and cannot be changed by apply.",
     "Trust options: --trust-policy <recipient-selected.json> --trust-policy-sha256 <independently trusted canonical SHA-256>",
     "Optional: --minimum-assurance <self_declared|self_signed|signed|organization_attested|independent>",
     "The policy and pin must be selected outside the submitted review/audit bundle. A self-signed key never authenticates a reviewer.",
-    "This verifies reviewer provenance only; it does not promote assessment rows, prove review correctness, or verify a final audit bundle."
+    "Verify checks reviewer provenance only. Apply binds the declared results to an assessment, without proving review correctness or verifying a final audit bundle."
   ].join("\n");
 }
 
@@ -65,7 +70,8 @@ export function runHumanReviewCommand(argv) {
     // schema/runtime checks, which compare ordinary JSON object prototypes.
     return { snapshot, value: structuredClone(parseAttestationJson(snapshot.bytes)) };
   }
-  let context, sourceArtifactBytes, review;
+  const trust = options["--trust-policy"] ? createAttestationTrust(read(options["--trust-policy"], "external trust policy").value, options["--trust-policy-sha256"]) : undefined;
+  let context, sourceArtifactBytes, review, standaloneAssessment, resources;
   if (options["--run"]) {
     const { snapshot, value: run } = read(options["--run"], "audit run");
     const validation = validateAuditRun(run, { runFile: snapshot.path });
@@ -81,10 +87,14 @@ export function runHumanReviewCommand(argv) {
     review = source.envelope.payload;
   } else {
     const { value: record } = read(options["--assessment"], "assessment");
-    const resources = loadAuditResources();
-    const validation = validateAssessment(record, resources.standardsRegistry, resources.assessmentSchema, resources.criteriaCatalog, resources.auditMethods);
+    resources = loadAuditResources();
+    standaloneAssessment = record;
+    const validation = validateAssessment(record, resources.standardsRegistry, resources.assessmentSchema, resources.criteriaCatalog, resources.auditMethods, { trust });
     if (!validation.valid) throw new Error(`Assessment validation failed:\n- ${validation.errors.join("\n- ")}`);
-    context = humanReviewContext({ assessmentId: options["--assessment-id"], assessment: record.assessment });
+    const storedId = record.assessment.assessment_id, suppliedId = options["--assessment-id"];
+    if (storedId && suppliedId && storedId !== suppliedId) throw new Error("--assessment-id differs from the stored assessment identity.");
+    if (!storedId && !suppliedId) throw new Error("Legacy standalone mode requires --assessment-id.");
+    context = humanReviewContext({ assessmentId: storedId ?? suppliedId, assessment: record.assessment });
     if (options.command === "prepare") review = read(options["--review"], "declared human review").value;
   }
   const assertInputsStable = () => { for (const snapshot of snapshots) assertStableFile(snapshot, "review verification input"); };
@@ -95,10 +105,14 @@ export function runHumanReviewCommand(argv) {
     return { status: "prepared", assurance: "self_declared", reviewer_identity_authenticated: false, private_record_created: true };
   }
   const { value: record } = read(options["--record"], "human review record");
-  const trust = options["--trust-policy"] ? createAttestationTrust(read(options["--trust-policy"], "external trust policy").value, options["--trust-policy-sha256"]) : undefined;
   const verification = verifyHumanReviewRecord({ record, expectedContext: context, sourceArtifactBytes, trust });
   const minimum = options["--minimum-assurance"] ?? "self_declared";
   if (assuranceOrder.indexOf(verification.assurance) < assuranceOrder.indexOf(minimum)) throw new Error(`Review assurance ${verification.assurance} does not meet the explicitly requested minimum ${minimum}.`);
+  if (options.command === "apply") {
+    const merged = applyStandaloneHumanReview({ assessment: standaloneAssessment, reviewRecord: record, resources, trust, claimTier: options["--claim-tier"] });
+    writeNewJson(path.resolve(options["--output"]), merged, { beforeWrite: assertInputsStable });
+    return { status: "applied", ...verification, minimum_assurance: minimum, assessment_result_binding_verified: true, final_bundle_verified: false };
+  }
   assertInputsStable();
   return { status: "PASS", ...verification, minimum_assurance: minimum, assessment_result_binding_verified: false, final_bundle_verified: false };
 }

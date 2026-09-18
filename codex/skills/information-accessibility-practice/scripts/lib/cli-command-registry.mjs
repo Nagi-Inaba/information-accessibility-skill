@@ -7,6 +7,19 @@ function option(flag, value, description) {
 
 const definitions = [
   {
+    name: "human-review", script: "human-review.mjs",
+    summary: "Prepare, verify or apply portable human-review records under recipient-selected trust.",
+    usage: [
+      "accessibility-audit human-review prepare --assessment <assessment.json> --review <declared-review.json> --reviewer-id <id> --output <new-record.json>",
+      "accessibility-audit human-review prepare --run <run.json> --artifact-id <id> --reviewer-id <id> --output <new-record.json>",
+      "accessibility-audit human-review verify --record <record.json> --assessment <assessment.json> [trust options]",
+      "accessibility-audit human-review apply --record <record.json> --assessment <assessment.json> --output <new-assessment.json> [trust options]"
+    ],
+    notes: ["Trust options: --trust-policy <recipient-selected.json> --trust-policy-sha256 <independent canonical SHA-256> [--minimum-assurance signed].",
+      "Verify also accepts --run and --artifact-id. Run-backed results are applied by merge --review-record.",
+      "No signing keys are created. Stored flags, self-signed keys and declarations never authenticate a person. See references/reviewer-assurance.md."]
+  },
+  {
     name: "network-policy", script: "propose-network-policy.mjs",
     summary: "Propose concrete target and official-source network scopes without granting or using network access.",
     usage: ["accessibility-audit network-policy [--target <URL>] [--exact-target <URL>] [--include-official-sources true] [--profile <id>] [--method GET|HEAD] [--allow-localhost true] [--output <new-policy.json>]"],
@@ -113,6 +126,7 @@ const definitions = [
       option("--target-ref", "<url|file>", "Required in record mode; repeatable."),
       option("--evaluator", "<name>", "Required in record mode."),
       option("--evaluated-at", "<YYYY-MM-DD>", "Calendar date for the record."),
+      option("--assessment-id", "<unique-id>", "Optional assessment identity. The default is a fresh UUID-based ID; never reuse an ID for another target or scope."),
       option("--template", "", "Create an editable placeholder, not a validated inspection record."),
       option("--output", "<file>", "New output path.")
     ],
@@ -224,7 +238,8 @@ const definitions = [
     name: "validate-assessment",
     script: "validate-assessment.mjs",
     summary: "Validate an assessment and print its coverage and claim guard result.",
-    usage: ["accessibility-audit validate-assessment <assessment.json>"]
+    usage: ["accessibility-audit validate-assessment <assessment.json> [--run <run.json>] [--trust-policy <recipient-selected.json> --trust-policy-sha256 <independent canonical SHA-256>]"],
+    notes: ["Current run-backed review records require --run and its original artifacts. Stored authenticated flags are never accepted."]
   },
   {
     name: "register",
@@ -250,6 +265,9 @@ const definitions = [
       option("--run", "<run.json>", "Validated current run."),
       option("--assessment", "<assessment.json>", "Baseline assessment."),
       option("--artifact", "<artifact.json>", "Registered artifact; repeatable."),
+      option("--review-record", "<record.json>", "Portable review record bound to a registered human artifact; repeatable."),
+      option("--trust-policy", "<recipient-selected.json>", "External recipient policy; requires --trust-policy-sha256."),
+      option("--trust-policy-sha256", "<canonical SHA-256>", "Policy pin obtained independently of the audit bundle."),
       option("--claim-tier", "<reference_only|screened|evaluated_subset>", "Explicit claim request checked against registered evidence. Default: reference_only. Wording comes from the registry."),
       option("--output", "<new-assessment.json>", "New merged assessment.")
     ]
@@ -266,6 +284,8 @@ const definitions = [
       option("--input", "<assessment.json>", "Standalone interface."),
       option("--run", "<audit-run.json>", "Run-backed interface; requires --assessment and --output."),
       option("--assessment", "<assessment.json>", "Merged run-backed assessment."),
+      option("--trust-policy", "<recipient-selected.json>", "Reverify reviewer signatures under an external policy; requires its independent pin."),
+      option("--trust-policy-sha256", "<canonical SHA-256>", "Independent policy pin. Omitting both trust flags leaves valid signatures self-signed."),
       option("--locale", "<ja|en>", "Human-readable report locale; default ja. IDs and enum values do not change."),
       option("--output", "<report.md>", "New report path. Standalone mode may write to stdout when omitted.")
     ],

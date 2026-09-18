@@ -121,7 +121,8 @@ export function auditStatus(runFile, { skillRoot = defaultSkillRoot } = {}) {
         baseline.assessment.environment = structuredClone(run.environment);
         const registries = { ...resources, artifact_snapshots_by_id: new Map([...validation.envelopesById].map(([id, record]) => [id, record.snapshot])), evidence_snapshots_by_path: validation.evidenceSnapshots };
         const assessment = mergeArtifacts({ run, assessment: baseline, artifacts: envelopes, registries });
-        const guard = validateAssessment(assessment, resources.standardsRegistry, resources.assessmentSchema, resources.criteriaCatalog, resources.auditMethods).guard;
+        const guard = validateAssessment(assessment, resources.standardsRegistry, resources.assessmentSchema, resources.criteriaCatalog, resources.auditMethods,
+          { run, artifactSnapshotsById: registries.artifact_snapshots_by_id }).guard;
         result.coverage.evaluation = guard.evaluation_coverage;
         result.claim.max_tier = guard.max_tier;
         result.operations.merge = { available: envelopes.length > 0, reason: envelopes.length ? "registered_artifacts_valid" : "no_artifacts" };

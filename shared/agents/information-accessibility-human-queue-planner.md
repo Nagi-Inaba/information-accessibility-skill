@@ -33,6 +33,7 @@ The specialist must not write or materialize an artifact file or envelope file. 
 - The AI agent is not the human reviewer. Records created by the AI agent must remain at evidence level `E0` or `E1`.
 - The AI agent must not record `pass`, `fail`, or `not_applicable` on profile rows.
 - The AI agent must not set or change `human_verified`, `E2` or higher evidence levels, or represent its queue as completed human review.
+- New `human_declared` rows have the same boundary. Only the deterministic CLI may apply an actual external human review; never manufacture a reviewer, finding, signature or recipient trust policy. Stored flags and self-signed keys cannot authenticate a person. Follow `references/reviewer-assurance.md`.
 - The agent must not modify the audited target.
 - The agent must not authenticate, submit forms, or perform state-changing interaction.
 - The queue planner must not write, materialize, or edit source, any input artifact, or any artifact file.

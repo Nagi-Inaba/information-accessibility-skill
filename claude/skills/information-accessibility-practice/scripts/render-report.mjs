@@ -33,13 +33,16 @@ import {
 } from "./lib/report-privacy.mjs";
 import { renderReportSummaryMarkdown } from "./lib/report-summary.mjs";
 import { validateAssessment } from "./validate-assessment.mjs";
+import { parseAttestationJson } from "./lib/attestation-canonical.mjs";
+import { reviewerVerificationOptions } from "./lib/assessment-provenance.mjs";
+import { loadReviewTrust } from "./lib/review-trust-input.mjs";
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.dirname(scriptDir);
 
 function parseSnapshotJson(snapshot, label) {
   try {
-    return JSON.parse(snapshot.bytes.toString("utf8").replace(/^\uFEFF/u, ""));
+    return structuredClone(parseAttestationJson(snapshot.bytes));
   } catch (error) {
     throw new Error(`Invalid JSON in ${label}: ${error.message}`);
   }
@@ -66,7 +69,9 @@ function parseArgs(argv) {
     ["--visibility", "visibility"],
     ["--reviewer-disclosure", "reviewerDisclosure"],
     ["--redaction-manifest", "redactionManifest"],
-    ["--format", "format"]
+    ["--format", "format"],
+    ["--trust-policy", "trustPolicy"],
+    ["--trust-policy-sha256", "trustPolicySha256"]
   ]);
   const seen = new Set();
   for (let index = 0; index < argv.length; index += 1) {
@@ -133,6 +138,7 @@ export function usage() {
     "  --reviewer-disclosure <include|redact>   Required for public output.",
     "  --redaction-manifest <manifest.json>     Required internal review record for public output.",
     "  --output <report.md|html>                New output. Existing files are never overwritten.",
+    "  --trust-policy <file> --trust-policy-sha256 <hash>  Recipient-selected reviewer key policy and independently selected pin.",
     "",
     "Public redaction is not publication approval. Human publication review remains required.",
     "HTML is the supported distribution format. PDF is not supported until tagging and reading order can be verified.",
@@ -140,12 +146,12 @@ export function usage() {
   ].join("\n");
 }
 
-function validateStandalone(record) {
+function validateStandalone(record, trust) {
   const registry = readReference("standards-registry.json");
   const schema = readReference("assessment-record.schema.json");
   const catalog = readReference("criteria-catalog.json");
   const methods = readReference("web-audit-methods.json");
-  const validation = validateAssessment(record, registry, schema, catalog, methods);
+  const validation = validateAssessment(record, registry, schema, catalog, methods, { trust });
   if (!validation.valid) throw new Error(`Assessment validation failed:\n- ${validation.errors.join("\n- ")}`);
   return { registry, catalog, validation };
 }
@@ -194,7 +200,8 @@ function writeRequestedOutputs(options, rendered, beforeWrite) {
 function renderStandalone(options) {
   const snapshot = readStableFile(path.resolve(options.input), { label: "standalone assessment" });
   const record = parseSnapshotJson(snapshot, "standalone assessment");
-  const { registry, catalog, validation } = validateStandalone(record);
+  const trustInput = loadReviewTrust(options);
+  const { registry, catalog, validation } = validateStandalone(record, trustInput.trust);
   const rawPresentation = buildStandalonePresentation({
     record,
     validation,
@@ -203,9 +210,13 @@ function renderStandalone(options) {
     locale: options.locale
   });
   const rendered = renderOutputs(rawPresentation, options);
-  const written = writeRequestedOutputs(options, rendered, () => assertStableFile(snapshot, "standalone assessment"));
-  if (!options.output) {
+  const assertInputsStable = () => {
     assertStableFile(snapshot, "standalone assessment");
+    for (const policySnapshot of trustInput.snapshots) assertStableFile(policySnapshot, "external reviewer trust policy");
+  };
+  const written = writeRequestedOutputs(options, rendered, assertInputsStable);
+  if (!options.output) {
+    assertInputsStable();
     process.stdout.write(rendered.report);
   }
   return {
@@ -229,25 +240,30 @@ function renderRunBacked(options) {
   if (run.schema_version !== currentRunVersion) {
     throw new Error(`Run-backed reporting requires the current audit-run schema_version ${currentRunVersion}.`);
   }
+  const trustInput = loadReviewTrust(options);
+  const reviewOptions = reviewerVerificationOptions({ run, envelopesById: runValidation.envelopesById, trust: trustInput.trust });
   const validation = validateAssessment(
     assessment,
     runValidation.resources.standardsRegistry,
     runValidation.resources.assessmentSchema,
     runValidation.resources.criteriaCatalog,
-    runValidation.resources.auditMethods
+    runValidation.resources.auditMethods,
+    reviewOptions
   );
   if (!validation.valid) throw new Error(`Assessment validation failed:\n- ${validation.errors.join("\n- ")}`);
   validateRunBackedAssessment({
     run,
     assessment,
     envelopesById: runValidation.envelopesById,
-    resources: runValidation.resources
+    resources: runValidation.resources,
+    trust: trustInput.trust
   });
   const publicModel = buildPublicReportModel({
     run,
     assessment,
     envelopesById: runValidation.envelopesById,
-    resources: runValidation.resources
+    resources: runValidation.resources,
+    trust: trustInput.trust
   });
   const internalModel = buildInternalRunBackedModel({
     run,
@@ -273,6 +289,7 @@ function renderRunBacked(options) {
     assertStableFile(assessmentSnapshot, "run-backed assessment");
     for (const snapshot of artifactSnapshots) assertStableFile(snapshot, "registered artifact");
     for (const snapshot of runValidation.evidenceSnapshots.values()) assertStableFile(snapshot, "raw evidence");
+    for (const snapshot of trustInput.snapshots) assertStableFile(snapshot, "external reviewer trust policy");
   };
   const written = writeRequestedOutputs(options, rendered, assertInputsStable);
   return {

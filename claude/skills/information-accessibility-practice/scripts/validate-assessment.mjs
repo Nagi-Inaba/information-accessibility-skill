@@ -10,6 +10,10 @@ import {
 } from "./lib/profile-registry.mjs";
 import { validateJsonSchema } from "./lib/json-schema.mjs";
 import { calendarDateExample, dateTimeExample, isCalendarDate, isRfc3339DateTime } from "./lib/date-time.mjs";
+import { assessReviewerProvenance, isHumanReviewMapping, reviewerAssuranceText, validateReviewBindings } from "./lib/assessment-provenance.mjs";
+
+const legacyAssessmentSchema = JSON.parse(fs.readFileSync(new URL("../references/assessment-record-1.0.0.schema.json", import.meta.url), "utf8"));
+const criterionProcedures = JSON.parse(fs.readFileSync(new URL("../references/criterion-procedures.json", import.meta.url), "utf8"));
 
 const tierOrder = [
   "reference_only",
@@ -78,7 +82,7 @@ export function classifyClaimBlockers({
   };
 }
 
-export function validateAssessment(record, registry, schema, criteriaCatalog, auditMethods) {
+export function validateAssessment(record, registry, schema, criteriaCatalog, auditMethods, reviewOptions = {}) {
   const errors = [];
   const warnings = [];
   const assessment = record?.assessment;
@@ -86,15 +90,19 @@ export function validateAssessment(record, registry, schema, criteriaCatalog, au
   if (!schema) {
     errors.push("assessment schema is required");
   } else {
-    validateJsonSchema(record, schema, "$", errors);
+    const selectedSchema = record?.schema_version === "1.0.0" && schema.$id === "urn:information-accessibility:assessment-record:2.0.0" ? legacyAssessmentSchema : schema;
+    validateJsonSchema(record, selectedSchema, "$", errors);
   }
 
-  if (record?.schema_version !== "1.0.0") {
-    errors.push("schema_version must be 1.0.0");
+  if (!["1.0.0", "2.0.0"].includes(record?.schema_version)) {
+    errors.push("schema_version must be 1.0.0 (legacy self-declared) or 2.0.0");
   }
   if (!assessment || typeof assessment !== "object") {
     return { valid: false, errors: ["assessment object is required"], warnings, guard: null };
   }
+  const reviewerProvenance = assessReviewerProvenance(record, reviewOptions);
+  errors.push(...reviewerProvenance.errors);
+  if (reviewerProvenance.summary.legacy_requirement_count) warnings.push("Legacy human_verified records are self-declared; reviewer identity is not authenticated.");
 
   const profileId = assessment.profile?.id;
   const profile = registry.profiles.find((item) => item.id === profileId);
@@ -119,6 +127,8 @@ export function validateAssessment(record, registry, schema, criteriaCatalog, au
     }
   }
   const methodRecords = auditMethods?.methods ?? [];
+  try { errors.push(...validateReviewBindings(record, catalogRecords, auditMethods, criterionProcedures)); }
+  catch (error) { errors.push(`Invalid human review binding: ${error.message}`); }
   if (profile?.requirement_ids?.length && catalogRecords.length === 0) errors.push("criteria catalog is required for a standards profile");
   if (profile?.requirement_ids?.length && methodRecords.length === 0) errors.push("audit methods catalog is required for a standards profile");
 
@@ -183,16 +193,16 @@ export function validateAssessment(record, registry, schema, criteriaCatalog, au
         errors.push(`${prefix}.evidence must include a type required by playbook ${auditMethod.id}: ${auditMethod.required_evidence_types.join(", ")}`);
       }
       const reviewedByPerson = ["manual", "hybrid"].includes(result.method_kind) && hasManualEvidence;
-      if (result.outcome !== "not_tested" && result.mapping_status !== "human_verified") {
-        errors.push(`${prefix}.mapping_status must be human_verified for an evaluated profile requirement`);
+      if (result.outcome !== "not_tested" && !isHumanReviewMapping(result)) {
+        errors.push(`${prefix}.mapping_status must be human_declared (legacy: human_verified) for an evaluated profile requirement`);
       }
-      if (result.mapping_status === "human_verified" && !["manual", "hybrid"].includes(result.method_kind)) {
-        errors.push(`${prefix}.method_kind must be manual or hybrid for a human-verified profile requirement`);
+      if (isHumanReviewMapping(result) && !["manual", "hybrid"].includes(result.method_kind)) {
+        errors.push(`${prefix}.method_kind must be manual or hybrid for a human-declared profile requirement`);
       }
       if (["pass", "fail"].includes(result.outcome) && !hasManualEvidence) {
         errors.push(`${prefix}.evidence must include a manual evidence type for a profile-requirement ${result.outcome}`);
       }
-      if (result.mapping_status === "human_verified" && reviewedByPerson && result.outcome !== "not_tested") {
+      if (isHumanReviewMapping(result) && reviewedByPerson && result.outcome !== "not_tested") {
         manuallyMappedRequirementCount += 1;
         humanVerifiedRequirementIds.add(result.requirement_id);
       }
@@ -300,6 +310,9 @@ export function validateAssessment(record, registry, schema, criteriaCatalog, au
   if (typeof dossier?.prepared !== "boolean") errors.push("assurance.legal_or_procurement_dossier.prepared must be boolean");
 
   if (evidenceOrder.indexOf(evidenceLevel) >= evidenceOrder.indexOf("E4")) {
+    if (record.schema_version === "2.0.0" && !reviewerProvenance.summary.all_reviewed_requirements_independent) {
+      errors.push("E4+ requires independently authenticated provenance for every evaluated human-review requirement under the recipient's external trust policy.");
+    }
     if (!independentAudit?.performed || !independentAudit?.evaluator_independent) {
       errors.push("E4+ requires a performed audit by an independent evaluator");
     }
@@ -345,7 +358,7 @@ export function validateAssessment(record, registry, schema, criteriaCatalog, au
     evidenceCeiling = "evaluated_subset";
   }
   if (evidenceOrder.indexOf(evidenceLevel) >= evidenceOrder.indexOf("E2") && manuallyMappedRequirementCount === 0) {
-    errors.push("E2+ requires at least one human-verified profile requirement reviewed by a non-automated method");
+    errors.push("E2+ requires at least one human-declared profile requirement reviewed by a non-automated method");
   }
   if (evidenceOrder.indexOf(evidenceLevel) >= evidenceOrder.indexOf("E2")) {
     if (!assessment.target?.urls_or_files?.length) errors.push("E2+ requires at least one target URL or file");
@@ -361,13 +374,15 @@ export function validateAssessment(record, registry, schema, criteriaCatalog, au
     if (!environment?.os?.length || !environment?.browsers?.length) errors.push("E3+ requires real OS and browser environments");
     if (!environment?.assistive_technologies?.length) errors.push("E3+ requires relevant assistive-technology evidence");
     const profileEvidenceTypes = new Set(results
-      .filter((result) => result.requirement_kind === "profile_requirement" && result.mapping_status === "human_verified")
+      .filter((result) => result.requirement_kind === "profile_requirement" && isHumanReviewMapping(result))
       .flatMap((result) => result.evidence?.map((item) => item.type) ?? []));
-    if (!profileEvidenceTypes.has("keyboard_test")) errors.push("E3+ requires at least one keyboard_test evidence item on a human-verified profile requirement");
-    if (!profileEvidenceTypes.has("assistive_technology_test")) errors.push("E3+ requires at least one assistive_technology_test evidence item on a human-verified profile requirement");
+    if (!profileEvidenceTypes.has("keyboard_test")) errors.push("E3+ requires at least one keyboard_test evidence item on a human-declared profile requirement");
+    if (!profileEvidenceTypes.has("assistive_technology_test")) errors.push("E3+ requires at least one assistive_technology_test evidence item on a human-declared profile requirement");
   }
 
   let maxTier = evidenceCeiling;
+  const reviewerCeiling = reviewerProvenance.summary.all_reviewed_requirements_authenticated ? "human_signoff_required" : "evaluated_subset";
+  if (!tierAtMost(maxTier, reviewerCeiling)) maxTier = reviewerCeiling;
   if (profile) {
     const profileCeiling = profile.claim_rules.claim_ceiling;
     if (!tierAtMost(maxTier, profileCeiling)) maxTier = profileCeiling;
@@ -450,6 +465,19 @@ return {
       profile_id: profileId ?? null,
       requested_tier: requestedTier ?? null,
       max_tier: maxTier,
+      reviewer_assurance_ceiling: reviewerCeiling,
+      reviewer_assurance: reviewerProvenance.summary,
+      reviewer_assurance_text: {
+        ja: reviewerAssuranceText(reviewerProvenance.summary, "ja"),
+        en: reviewerAssuranceText(reviewerProvenance.summary, "en")
+      },
+      assured_claim_wording: requestedTier === "evaluated_subset" ? (reviewerProvenance.summary.all_reviewed_requirements_authenticated ? {
+        ja: "一部の条項について、受領者の外部信頼方針で署名者を確認した人手レビュー記録があります。全条項は評価していません。",
+        en: "Selected requirements have human-review records whose signer identities were authenticated under the recipient's external trust policy; the full requirement set was not reviewed."
+      } : {
+        ja: "一部の条項について人手レビューが申告されています。すべての担当者の本人性を確認したものではなく、全条項は評価していません。",
+        en: "Selected requirements have declared human-review records; reviewer identity is not authenticated for all records. The full requirement set was not reviewed."
+      }) : { en: registry.claim_templates?.[requestedTier]?.[0] ?? "", ja: registry.claim_templates?.[requestedTier]?.[1] ?? "" },
       blocking_outcomes: blockingOutcomes,
       profile_blocking_outcomes: claimBlockerSummary.profile_blocking_outcomes,
       screening_open_candidates: claimBlockerSummary.screening_open_candidates,
@@ -467,7 +495,9 @@ return {
         complete: expectedRequirementIds.length > 0 && missingRequirementIds.length === 0 && extraRequirementIds.length === 0
       },
       evaluation_coverage: {
-        human_verified: evaluatedRequirementCount,
+        human_declared: evaluatedRequirementCount,
+        human_authenticated: reviewerProvenance.summary.authenticated_requirement_count,
+        ...(record.schema_version === "1.0.0" ? { human_verified: evaluatedRequirementCount } : {}),
         not_tested: profileOutcomeCounts.not_tested,
         cant_tell: profileOutcomeCounts.cant_tell,
         complete: expectedRequirementIds.length > 0 && evaluatedRequirementCount === expectedRequirementIds.length && profileOutcomeCounts.not_tested === 0 && profileOutcomeCounts.cant_tell === 0
@@ -483,22 +513,41 @@ function readJson(filePath) {
 
 const isMain = process.argv[1] && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url;
 if (isMain) {
-  const assessmentPath = process.argv[2];
-  if (!assessmentPath) {
-    console.error("Usage: node validate-assessment.mjs <assessment.json> [standards-registry.json] [assessment-record.schema.json] [criteria-catalog.json] [web-audit-methods.json]");
-    process.exit(2);
+  async function runValidationCli() {
+    try {
+      const positional = [], options = {}, flags = new Map([["--run", "run"], ["--trust-policy", "trustPolicy"], ["--trust-policy-sha256", "trustPolicySha256"]]);
+      const args = process.argv.slice(2);
+      for (let index = 0; index < args.length; index++) {
+        const arg = args[index];
+        if (!arg.startsWith("--")) { positional.push(arg); continue; }
+        const key = flags.get(arg), value = args[++index];
+        if (!key || !value || value.startsWith("--") || options[key] !== undefined) throw new Error(`Invalid, repeated or missing argument: ${arg}`);
+        options[key] = value;
+      }
+      if (!positional.length || positional.length > 5) throw new Error("Usage: node validate-assessment.mjs <assessment.json> [registry.json] [schema.json] [catalog.json] [methods.json] [--run run.json] [--trust-policy policy.json --trust-policy-sha256 hash]");
+      const { loadReviewTrust, readReviewJson } = await import("./lib/review-trust-input.mjs");
+      const { assertStableFile, validateAuditRun } = await import("./lib/audit-run.mjs");
+      const { reviewerVerificationOptions } = await import("./lib/assessment-provenance.mjs");
+      const input = readReviewJson(positional[0], "assessment"), trustInput = loadReviewTrust(options);
+      const snapshots = [input.snapshot, ...trustInput.snapshots];
+      let reviewOptions = { trust: trustInput.trust };
+      if (options.run) {
+        const runInput = readReviewJson(options.run, "audit run");
+        const runValidation = validateAuditRun(runInput.value, { runFile: runInput.snapshot.path });
+        if (!runValidation.valid) throw new Error(`Audit run validation failed: ${runValidation.errors.join("; ")}`);
+        reviewOptions = reviewerVerificationOptions({ run: runInput.value, envelopesById: runValidation.envelopesById, trust: trustInput.trust });
+        snapshots.push(runInput.snapshot, ...[...runValidation.envelopesById.values()].map((item) => item.snapshot), ...runValidation.evidenceSnapshots.values());
+      }
+      const references = ["standards-registry.json", "assessment-record.schema.json", "criteria-catalog.json", "web-audit-methods.json"]
+        .map((name, index) => readJson(positional[index + 1] ?? fileURLToPath(new URL(`../references/${name}`, import.meta.url))));
+      const result = validateAssessment(input.value, ...references, reviewOptions);
+      for (const snapshot of snapshots) assertStableFile(snapshot, "assessment verification input");
+      console.log(JSON.stringify(result, null, 2));
+      process.exit(result.valid ? 0 : 1);
+    } catch (error) {
+      console.error(error instanceof Error ? error.message : String(error));
+      process.exit(2);
+    }
   }
-  const scriptDir = path.dirname(fileURLToPath(import.meta.url));
-  const registryPath = process.argv[3] ?? path.join(scriptDir, "..", "references", "standards-registry.json");
-  const schemaPath = process.argv[4] ?? path.join(scriptDir, "..", "references", "assessment-record.schema.json");
-  const catalogPath = process.argv[5] ?? path.join(scriptDir, "..", "references", "criteria-catalog.json");
-  const methodsPath = process.argv[6] ?? path.join(scriptDir, "..", "references", "web-audit-methods.json");
-  try {
-    const result = validateAssessment(readJson(assessmentPath), readJson(registryPath), readJson(schemaPath), readJson(catalogPath), readJson(methodsPath));
-    console.log(JSON.stringify(result, null, 2));
-    process.exit(result.valid ? 0 : 1);
-  } catch (error) {
-    console.error(error instanceof Error ? error.message : String(error));
-    process.exit(2);
-  }
+  runValidationCli();
 }

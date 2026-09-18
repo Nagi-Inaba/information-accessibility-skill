@@ -77,6 +77,7 @@ When an AI agent performs a review with this package:
 - Record AI observations only as `SCREEN-*` screening evidence or unverified draft evidence for a human handoff.
 - The AI agent must not record `pass`, `fail`, or `not_applicable` on profile rows.
 - The AI agent must not set or change `human_verified`, `E2` or higher evidence levels, or represent its work as human review.
+- New `human_declared` rows have the same boundary. Only the deterministic CLI may apply an actual external human review; never manufacture a reviewer, finding, signature or recipient trust policy. Stored flags and self-signed keys cannot authenticate a person. Follow `references/reviewer-assurance.md`.
 - Only a separate external human review workflow may record profile requirement outcomes or E2/evaluated_subset after the named criterion procedure and target-specific manual or hybrid evidence, plus a human mapping of the registered requirement.
 - The schema and validator cannot prove a reviewer's human identity; they only check record consistency.
 

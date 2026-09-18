@@ -292,7 +292,7 @@ test("installed CLIs carry a local public-like fixture through the read-only age
   assert.match(report, /- 要確認: 3/u);
   assert.match(report, /- 未確認: 52/u);
   assert.match(report, /登録済み達成基準: 55\/55/u);
-  assert.match(report, /人による確認済み達成基準: 0\/55/u);
+  assert.match(report, /人手レビューが申告された達成基準: 0\/55/u);
   for (const internal of [
     runId,
     ...finalRun.artifacts.flatMap((item) => [item.artifact_id, item.producer_role]),

@@ -1,3 +1,4 @@
+import { legacyAssessment } from "./helpers/legacy-assessment.mjs";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -16,7 +17,7 @@ const registry = readJson("references/standards-registry.json");
 const schema = readJson("references/assessment-record.schema.json");
 const catalog = readJson("references/criteria-catalog.json");
 const methods = readJson("references/web-audit-methods.json");
-const template = readJson("assets/assessment-record.template.json");
+const template = legacyAssessment(readJson("assets/assessment-record.template.json"));
 
 function zeroCounts() {
   return { pass: 0, fail: 0, not_applicable: 0, not_tested: 0, cant_tell: 0 };

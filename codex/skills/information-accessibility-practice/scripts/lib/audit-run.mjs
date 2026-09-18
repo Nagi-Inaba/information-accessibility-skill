@@ -13,6 +13,8 @@ import { compareInstants } from "./date-time.mjs";
 import { canonicalJson } from "./canonical-json.mjs";
 import { interactionPolicyErrors } from "./interaction-policy.mjs";
 import { networkPolicyErrors } from "./network-policy.mjs";
+import { createHumanReviewRecord, humanReviewRunContext } from "./human-review-provenance.mjs";
+import { declaredReviewMethod, isHumanReviewMapping, reviewRecordSha256 } from "./assessment-provenance.mjs";
 import { collectScreeningEvidence } from "./run-evidence.mjs";
 import { targetInventoryErrors, targetBindingErrors, checkLocalRunTargets, consumeRunTargetCheck, checkRunTargets } from "./run-targets.mjs";
 export { canonicalJson } from "./canonical-json.mjs";
@@ -1557,14 +1559,16 @@ function expectedMethodRef(requirementId, resources, profileId) {
   return `web-audit-methods:${resources.auditMethods.schema_version}#${method.id}`;
 }
 
-function validateAssessmentOrThrow(assessment, resources, label) {
-  const result = validateAssessment(assessment, resources.standardsRegistry, resources.assessmentSchema, resources.criteriaCatalog, resources.auditMethods);
+function validateAssessmentOrThrow(assessment, resources, label, run) {
+  const result = validateAssessment(assessment, resources.standardsRegistry, resources.assessmentSchema, resources.criteriaCatalog, resources.auditMethods,
+    { run, artifactSnapshotsById: resources.artifact_snapshots_by_id, trust: resources.reviewTrust });
   if (!result.valid) throw new Error(`${label}:\n- ${result.errors.join("\n- ")}`);
   return result;
 }
 
 function assertAssessmentMergeBaseline(assessment, resources) {
   const record = assessment?.assessment;
+  if (record?.human_review_records?.length) throw new Error("Merge baseline must not contain prior human review records.");
   if (record?.evidence_level !== "E0") {
     throw new Error("Merge input must be an E0 assessment baseline reconstructed only from current-run artifacts.");
   }
@@ -1620,7 +1624,7 @@ function assertAssessmentMergeBaseline(assessment, resources) {
   }
 }
 
-export function mergeArtifacts({ run, assessment, artifacts, registries, claimTier = "reference_only" }) {
+export function mergeArtifacts({ run, assessment, artifacts, registries, claimTier = "reference_only", reviewRecords = [] }) {
   const resources = registries ?? loadAuditResources();
   assertCurrentOperationalRun(run, resources, "Artifact merge");
   const permissionError = remediationPermissionError(run, artifacts);
@@ -1689,6 +1693,18 @@ export function mergeArtifacts({ run, assessment, artifacts, registries, claimTi
   }
   if (bindingErrors.length) throw new Error(`Invalid merge artifact binding:\n- ${bindingErrors.join("\n- ")}`);
   const merged = structuredClone(assessment);
+  merged.schema_version = "2.0.0";
+  merged.assessment.assessment_id = run.run_id;
+  merged.assessment.human_review_records = [];
+  const suppliedReviewRecords = new Map();
+  for (const record of reviewRecords) {
+    reviewRecordSha256(record);
+    const origin = record.context.origin;
+    if (origin.kind !== "audit_run" || origin.run_id !== run.run_id || suppliedReviewRecords.has(origin.artifact_id)) {
+      throw new Error("Review records must uniquely identify same-run human review artifacts.");
+    }
+    suppliedReviewRecords.set(origin.artifact_id, record);
+  }
   const existingIds = new Set(merged.assessment.results.map((item) => item.requirement_id));
   const screeningResults = [];
   const humanReviews = new Map();
@@ -1717,6 +1733,15 @@ export function mergeArtifacts({ run, assessment, artifacts, registries, claimTi
       }
       reviewerNames.add(artifact.payload.reviewer_name);
       reviewDates.push(artifact.payload.review_date);
+      const sourceHash = resources.artifact_snapshots_by_id.get(artifact.artifact_id).sha256;
+      const reviewRecord = suppliedReviewRecords.get(artifact.artifact_id) ?? createHumanReviewRecord({
+        reviewerId: `declared-${sourceHash.slice(0, 32)}`,
+        review: artifact.payload,
+        context: humanReviewRunContext({ run, artifact, artifactSha256: sourceHash })
+      });
+      suppliedReviewRecords.delete(artifact.artifact_id);
+      merged.assessment.human_review_records.push(structuredClone(reviewRecord));
+      const reviewHash = reviewRecordSha256(reviewRecord);
       for (const review of artifact.payload.reviews) {
         if (humanReviews.has(review.requirement_id)) throw new Error(`Duplicate declared-human profile row conflict: ${review.requirement_id}`);
         const index = merged.assessment.results.findIndex((item) => item.requirement_kind === "profile_requirement" && item.requirement_id === review.requirement_id);
@@ -1725,21 +1750,23 @@ export function mergeArtifacts({ run, assessment, artifacts, registries, claimTi
         const current = merged.assessment.results[index];
         merged.assessment.results[index] = {
           ...current,
-          mapping_status: "human_verified",
+          mapping_status: "human_declared",
+          review_record_sha256: reviewHash,
           outcome: review.profile_outcome,
           method_kind: "manual",
           method_ref: expectedMethodRef(review.requirement_id, resources, run.profile.id),
-          method: `Declared external human review: ${review.rationale}`,
+          method: declaredReviewMethod(review),
           evidence: structuredClone(review.target_specific_evidence),
           notes: review.rationale
         };
       }
     }
   }
+  if (suppliedReviewRecords.size) throw new Error("A supplied review record does not match a registered human review artifact.");
   screeningResults.sort((left, right) => compareText(left.requirement_id, right.requirement_id));
   merged.assessment.results.push(...screeningResults);
   const reflectedProfileIds = merged.assessment.results
-    .filter((item) => item.requirement_kind === "profile_requirement" && (item.mapping_status === "human_verified" || item.outcome !== "not_tested"))
+    .filter((item) => item.requirement_kind === "profile_requirement" && (isHumanReviewMapping(item) || item.outcome !== "not_tested"))
     .map((item) => item.requirement_id)
     .sort(compareText);
   const declaredReviewIds = [...humanReviews.keys()].sort(compareText);
@@ -1750,7 +1777,7 @@ export function mergeArtifacts({ run, assessment, artifacts, registries, claimTi
     merged.assessment.evidence_level = "E2";
     merged.assessment.evaluator = [...reviewerNames].sort(compareText).join(", ");
     merged.assessment.evaluated_at = reviewDates.sort(compareText).at(-1);
-    const identityLimitation = "External human reviewer identity was declared but not authenticated (identity_authenticated: false).";
+    const identityLimitation = "Reviewer identity assurance must be reverified from the portable review records under the recipient's external trust policy; declarations and role labels do not authenticate a person.";
     if (!merged.assessment.limitations.includes(identityLimitation)) merged.assessment.limitations.push(identityLimitation);
   } else if (screeningResults.length && merged.assessment.evidence_level === "E0") {
     merged.assessment.evidence_level = "E1";
@@ -1769,7 +1796,7 @@ export function mergeArtifacts({ run, assessment, artifacts, registries, claimTi
     requested_tier: claimTier,
     proposed_wording: resources.standardsRegistry.claim_templates[claimTier][0]
   };
-  validateAssessmentOrThrow(merged, resources, "Merged assessment failed existing assessment validation");
+  validateAssessmentOrThrow(merged, resources, "Merged assessment failed existing assessment validation", run);
   return merged;
 }
 

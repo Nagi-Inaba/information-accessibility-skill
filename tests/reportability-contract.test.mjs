@@ -1,3 +1,4 @@
+import { legacyAssessment } from "./helpers/legacy-assessment.mjs";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -39,7 +40,7 @@ function failedRecord() {
     captured_at: "2026-08-22T00:00:00Z"
   }];
   result.notes = "Keyboard operation failed.";
-  return record;
+  return legacyAssessment(record);
 }
 
 function validate(record) {

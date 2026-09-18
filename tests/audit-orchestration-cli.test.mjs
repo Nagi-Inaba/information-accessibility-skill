@@ -2274,7 +2274,7 @@ test("declared external human review updates only the exact profile row and pass
   ]);
   assert.equal(result.status, 0, result.stderr || result.stdout);
   const merged = readJson(output);
-  const reviewed = merged.assessment.results.filter((item) => item.mapping_status === "human_verified");
+  const reviewed = merged.assessment.results.filter((item) => item.mapping_status === "human_declared");
   assert.deepEqual(reviewed.map((item) => item.requirement_id), ["WCAG-2.2-SC-1.1.1"]);
   assert.equal(reviewed[0].outcome, "pass");
   assert.equal(merged.assessment.evidence_level, "E2");
@@ -2439,7 +2439,7 @@ test("merge reconstructs only from an E0 assessment baseline with no prior resul
       "--run", runFile, "--assessment", assessmentFile, "--artifact", screenFile,
       "--output", path.join(temp, `${name}-merged.json`)
     ]);
-    assertRejected(result, /E0 assessment baseline|baseline.*unverified|prior.*screening|prior.*finding|prior.*evidence|current.run provenance/i);
+    assertRejected(result, /E0 assessment baseline|baseline.*unverified|prior.*screening|prior.*finding|prior.*evidence|current.run provenance|mapping_status must be one of/i);
   }
 }));
 
@@ -2454,7 +2454,7 @@ test("merge rejects human result injection that is not the current run's declare
     "--artifact", fixture.screenFile, "--artifact", fixture.queueFile, "--artifact", fixture.humanFile,
     "--output", path.join(temp, "merged.json")
   ]);
-  assertRejected(result, /E0 assessment baseline|current.run provenance|declared review set/i);
+  assertRejected(result, /E0 assessment baseline|current.run provenance|declared review set|mapping_status must be one of/i);
 }));
 
 test("merge rejects unregistered and duplicate declared-human profile rows", (t) => withTemp(t, ({ temp, artifactRoot }) => {
@@ -2675,7 +2675,7 @@ test("declared human merge preserves the unauthenticated identity limitation", (
     "--output", output
   ]);
   assert.equal(result.status, 0, result.stderr || result.stdout);
-  assert.ok(readJson(output).assessment.limitations.some((item) => /identity.*not authenticated|unauthenticated identity/i.test(item)));
+  assert.ok(readJson(output).assessment.limitations.some((item) => /identity assurance must be reverified.*external trust policy/i.test(item)));
 }));
 
 test("run validation and pure merge enforce the same remediation evidence semantics", (t) => withTemp(t, ({ temp }) => {

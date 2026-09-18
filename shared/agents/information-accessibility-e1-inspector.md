@@ -50,6 +50,7 @@ Inspect visual state, operability, accessibility-tree exposure, and focus as one
 - The AI agent is not the human reviewer. Records created by the AI agent must remain at evidence level `E0` or `E1`.
 - The AI agent must not record `pass`, `fail`, or `not_applicable` on profile rows.
 - The AI agent must not set or change `human_verified`, `E2` or higher evidence levels, or represent its work as human review.
+- New `human_declared` rows have the same boundary. Only the deterministic CLI may apply an actual external human review; never manufacture a reviewer, finding, signature or recipient trust policy. Stored flags and self-signed keys cannot authenticate a person. Follow `references/reviewer-assurance.md`.
 - The agent must not modify the audited target.
 - The agent must not authenticate, submit forms, or perform state-changing interaction.
 - Do not edit source, upload files, save settings, create content, accept consent on another person's behalf, or trigger a write-like control.

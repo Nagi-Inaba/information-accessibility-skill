@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import crypto from "node:crypto";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -47,8 +48,10 @@ export function generateAssessment(profileId, options = {}) {
   }
 
   return {
-    schema_version: "1.0.0",
+    schema_version: "2.0.0",
     assessment: {
+      assessment_id: options.assessmentId ?? `ASSESSMENT-${crypto.randomUUID()}`,
+      human_review_records: [],
       target: {
         name: options.targetName ?? "REPLACE_ME",
         version_or_commit: options.targetVersion ?? "REPLACE_ME",
@@ -112,6 +115,7 @@ export function generateAssessment(profileId, options = {}) {
 const valueFlags = new Map([
   ["--profile", "profileId"],
   ["--output", "output"],
+  ["--assessment-id", "assessmentId"],
   ["--target-name", "targetName"],
   ["--target-version", "targetVersion"],
   ["--evaluator", "evaluator"],
@@ -186,6 +190,7 @@ function usage() {
     "Options:",
     "  --template               Create an editable placeholder template; not a validated assessment",
     "  --output <file>          Write a new file through the safe exclusive writer",
+    "  --assessment-id <id>     Stable record identity; generated when omitted",
     "  --target-name <name>     Required in record mode",
     "  --target-version <value> Required in record mode",
     "  --target-ref <url|file>  Required and repeatable in record mode",

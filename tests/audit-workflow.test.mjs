@@ -96,7 +96,7 @@ test("audit generators initialize complete catalogs without claiming evaluation"
     assert.equal(result.valid, true);
     assert.equal(result.guard.catalog_coverage.complete, true);
     assert.equal(result.guard.evaluation_coverage.complete, false);
-    assert.equal(result.guard.evaluation_coverage.human_verified, 0);
+    assert.equal(result.guard.evaluation_coverage.human_declared, 0);
     assert.equal(result.guard.max_tier, "reference_only");
     if (profile === "jp-public-web") {
       assert.equal(result.guard.profile_group_outcome_counts.jis_x_8341_3_2016.not_tested, 38);
@@ -194,7 +194,7 @@ test("evaluation coverage counts only evidence-backed human review", () => {
   first.evidence = [{ type: "manual_observation", location: "page", observation: "Observed", captured_at: "2026-07-12T12:00:00+09:00" }];
   const result = validate(record);
   assert.equal(result.valid, false);
-  assert.equal(result.guard.evaluation_coverage.human_verified, 1);
+  assert.equal(result.guard.evaluation_coverage.human_declared, 1);
   assert.equal(result.guard.evaluation_coverage.complete, false);
 });
 

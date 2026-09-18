@@ -2,7 +2,7 @@
 
 `scripts/human-review.mjs` は、人手レビューを非公開JSONへまとめ、署名とレビュー担当者の帰属をオフラインで検証するCLIです。対象情報、レビュー全文、担当者IDを結び付けます。run付きでは、登録済みartifactの実ファイル、測定対象の台帳、入力artifactのハッシュも照合します。
 
-この機能は#57／#58の部分実装です。assessment結果行、claim guard、公開レポートには、ここで得た認証結果をまだ反映しません。既存の`human_verified`は人手レビューの申告を表し、本人認証を証明しません。CLIの成功を理由に、この値、証拠レベル、適合主張を変更しないでください。最終bundle全体と過去の署名鎖の検証は未実装です。
+assessment 2.0.0では、この共通記録を結果行へ結び付け、claim guardと公開レポートで保証水準を表示します。既存の`human_verified`は旧形式の自己申告として扱い、本人認証を証明しません。単なるCLIの成功を理由に、認証済みと解釈したり適合主張を強めたりしないでください。最終bundle全体と過去の署名鎖の検証は#58で扱う別の機能です。
 
 ## 検証結果
 
@@ -32,13 +32,13 @@ node scripts/human-review.mjs prepare --run audit-run.json --artifact-id ART-HUM
 
 CLIは現在のrun契約、登録artifactの関係とハッシュ、保存済みの証拠を検証します。署名対象のcontextをrunから組み立て、登録元のレビューをそのまま保存します。対象サイトへの通信は行いません。対象の現在状態を再検査したことにはなりません。
 
-単独のassessmentでは、実際の担当者から受け取った`declared-human-review` 1.0.0のpayloadと、その評価を一意に識別するIDを指定します。
+単独のassessmentでは、実際の担当者から受け取った`declared-human-review` 1.0.0のpayloadを指定します。新しいassessment 2.0.0には生成時に一意の`assessment_id`が入り、そのIDを使います。
 
 ```powershell
-node scripts/human-review.mjs prepare --assessment assessment.json --assessment-id ASSESSMENT-001 --review declared-review.json --reviewer-id reviewer-001 --output private-review-record.json
+node scripts/human-review.mjs prepare --assessment assessment.json --review declared-review.json --reviewer-id reviewer-001 --output private-review-record.json
 ```
 
-`assessment-id`は検証側でも同じ値を明示し、別の評価に再利用しないでください。単独経路では対象・規格・範囲・環境を照合しますが、assessment結果行とレビュー本文の一致はまだ検証しません。AIは実在する外部レビューの記録整形を支援できますが、人の実施内容や本人情報を作って補ってはいけません。
+`--assessment-id`を明示した場合は保存済みIDとの完全一致が必要です。旧assessment 1.0.0の準備・検証に限り、検証側でも同じIDを明示してください。別の評価にIDを再利用しないでください。AIは実在する外部レビューの記録整形を支援できますが、人の実施内容や本人情報を作って補ってはいけません。
 
 ## 外部で署名するプロトコル
 
@@ -82,8 +82,32 @@ JSONの空白やプロパティ順の違いは、正規化後の署名対象を�
 node scripts/human-review.mjs verify --record signed-review-record.json --run audit-run.json --artifact-id ART-HUMAN-001 --trust-policy recipient-trust.json --trust-policy-sha256 <外部で確認した方針のハッシュ> --minimum-assurance signed
 ```
 
-単独経路では、同じ`--assessment`と`--assessment-id`を指定します。`--trust-policy`を省略した署名は、暗号学的に一致しても`self_signed`です。方針とハッシュは必ず対で指定します。
+単独経路では、同じ`--assessment`を指定します。旧形式では`--assessment-id`も必要です。`--trust-policy`を省略した署名は、暗号学的に一致しても`self_signed`です。方針とハッシュは必ず対で指定します。
 
 `--minimum-assurance`を省略すると、構造とcontextが正しい自己申告でも終了コード0を返します。認証が必要な処理は`--minimum-assurance signed`以上を明示してください。不足・改変・期限切れ・失効などは終了コード1です。終了コード0だけを本人認証の証拠として扱ってはいけません。
 
-現在の出力は`review_correctness_verified: false`、`assessment_result_binding_verified: false`、`final_bundle_verified: false`を含みます。次にassessment結果行との対応、旧`human_verified`の表示、claim guardと公開レポートの保証水準表示を接続します。その後、#58で最終bundleの実ファイルハッシュと前段の署名鎖を検証します。
+`verify`の出力は`review_correctness_verified: false`、`assessment_result_binding_verified: false`、`final_bundle_verified: false`を含みます。この操作は元のレビューと対象contextを確認するもので、結果行の反映を行いません。
+
+## assessmentへの反映とレポート
+
+単独経路では、新規ファイルへ結果を反映します。
+
+```powershell
+node scripts/human-review.mjs apply --assessment assessment.json --record signed-review-record.json --output reviewed-assessment.json --claim-tier evaluated_subset --trust-policy recipient-trust.json --trust-policy-sha256 <外部で確認した方針のハッシュ>
+node scripts/validate-assessment.mjs reviewed-assessment.json --trust-policy recipient-trust.json --trust-policy-sha256 <外部で確認した方針のハッシュ>
+node scripts/render-report.mjs --input reviewed-assessment.json --output report.md --trust-policy recipient-trust.json --trust-policy-sha256 <外部で確認した方針のハッシュ>
+```
+
+`apply`は未評価の登録条項に限って結果を反映し、既存結果を置き換えません。対象・規格・範囲・環境とIDを照合し、手順、一次資料、必要な証拠種別も登録内容に照合します。不適合には担当者が記録した構造化findingが必要です。反映成功時は`assessment_result_binding_verified: true`になりますが、レビュー内容の正しさや最終bundleを検証したことにはなりません。
+
+run付きでは`merge-audit-artifacts.mjs`の既存引数に`--review-record signed-review-record.json`を追加します。複数の元artifactについて繰り返せます。指定しなかった元レビューも、非認証の自己申告recordとして統合します。検証には`validate-assessment.mjs reviewed-assessment.json --run audit-run.json`を使い、レポートには`render-report.mjs --run audit-run.json --assessment reviewed-assessment.json --output report.md`を使います。署名者確認が必要な操作では、いずれも上と同じ外部信頼方針とハッシュを渡してください。元artifactの実バイト列も毎回照合します。
+
+assessment 2.0.0は`human_review_records`を持ち、`human_declared`行が署名対象のSHA-256を参照します。結果・証拠・手順説明・根拠・担当者が作成したfindingの一致を確認します。署名に含まれない`review_details`を行へ追加することはできません。改善計画、他のスクリーニング行、報告書全体などはこのレビュー署名の対象外です。
+
+認証状態はファイルに保存しません。validatorの`guard.reviewer_assurance`とレポートで、検証時に保証水準を再計算します。全レビューの担当者を確認できない場合、claimは最大でも`evaluated_subset`に制限し、固定文言で自己申告を明示します。全員を確認できた場合にも、既存の証拠・網羅性・profileの上限を超えません。新形式のE4以上には、全評価済みレビューが外部方針で`independent`と検証されることも必要です。
+
+旧assessment 1.0.0は凍結schemaで読み取り、`human_verified`を`legacy_self_declared`として表示します。既存の結果を自動で認証済みに移行しません。旧E4／E5の表示には「自己申告・独立した担当者の本人性は未確認」と付記します。旧形式へ`apply`はできません。担当者の確認を伴う新しい評価を作成してください。
+
+公開用Markdown／HTMLでは、保証水準の件数と固定ラベルを使い、元の署名記録・担当者ID・鍵・所属を出しません。`--visibility public --reviewer-disclosure redact --redaction-manifest private-redactions.json`を指定すると、通常の公開出力処理で担当者表示名も伏せます。元のレビュー記録とassessmentは非公開で管理してください。
+
+#58の最終bundleの実ファイルハッシュ・前段の署名鎖は別の契約です。現在のレビュー検証から、その検証済み状態を推定してはいけません。

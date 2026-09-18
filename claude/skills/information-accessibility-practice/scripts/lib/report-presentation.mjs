@@ -1,6 +1,7 @@
 import { guardScreeningProjection, reviewDetailLines } from "./review-details.mjs";
 import { networkScopeText } from "./network-policy.mjs";
 import { interactionScopeText } from "./interaction-policy.mjs";
+import { isHumanReviewMapping, publicReviewerAssurance, reviewerAssuranceLabel, reviewerAssuranceText, displayedEvidenceLevel } from "./assessment-provenance.mjs";
 import { readerText, readerOverviewMarkdown, readerActionsMarkdown, readerPendingMarkdown, readerInspectionMarkdown } from "./report-reader.mjs";
 import {
   groupForRequirement,
@@ -170,10 +171,10 @@ function buildClaim({ assessment, validation, registry, locale, rows }) {
   return {
     requested_tier: requested,
     maximum_tier: maximum,
-    wording: fixedClaimWording(registry, requested, locale),
+    wording: validation.guard.assured_claim_wording?.[locale] ?? fixedClaimWording(registry, requested, locale),
     human_reviewed: humanReviewed,
     expected: rows.length,
-    reasons: localizedClaimReasons(validation, humanReviewed, rows.length, reportMessages(locale))
+    reasons: [...localizedClaimReasons(validation, humanReviewed, rows.length, reportMessages(locale)), reviewerAssuranceText(validation.guard.reviewer_assurance, locale)]
   };
 }
 
@@ -204,7 +205,8 @@ function commonPresentation({ assessment, validation, registry, locale, rows, ta
     environment: clone(environment),
     evaluated_at: assessment.evaluated_at,
     evaluator: evaluator ?? null,
-    evidence_level: assessment.evidence_level,
+    evidence_level: displayedEvidenceLevel(assessment.evidence_level, validation.guard.reviewer_assurance, normalizedLocale),
+    reviewer_assurance: publicReviewerAssurance(validation.guard.reviewer_assurance),
     rows: [...rows].sort(compareCriteria),
     groups,
     counts,
@@ -228,7 +230,7 @@ export function buildStandalonePresentation({ record, validation, registry, cata
     .map((result) => [result.requirement_id, result]));
   const rows = metadata.map((item) => {
     const result = resultById.get(item.requirement_id);
-    const humanReviewed = result?.mapping_status === "human_verified";
+    const humanReviewed = isHumanReviewMapping(result);
     const outcome = result?.outcome ?? "not_tested";
     const sourceKind = humanReviewed ? "human_review" : "not_run";
     const evidenceLevel = humanReviewed ? "E2" : "E0";
@@ -238,7 +240,7 @@ export function buildStandalonePresentation({ record, validation, registry, cata
       outcome,
       outcome_label: messages.outcomes[outcome],
       source_kind: sourceKind,
-      source_label: messages.sources[sourceKind],
+      source_label: humanReviewed ? `${messages.sources[sourceKind]} (${reviewerAssuranceLabel(validation.guard.reviewer_assurance?.requirement_assurances?.[item.requirement_id], normalizedLocale)})` : messages.sources[sourceKind],
       evidence_level: evidenceLevel,
       rationale: resultRationale(result, messages),
       review_details: clone(result?.review_details),
@@ -295,7 +297,7 @@ export function buildRunBackedPresentation({ run, assessment: assessmentRecord, 
       outcome_label: messages.outcomes[check.outcome],
       source_kind: sourceKind,
       screening_requirement_id: screening?.requirement_id,
-      source_label: messages.sources[sourceKind],
+      source_label: human ? `${messages.sources[sourceKind]} (${reviewerAssuranceLabel(validation.guard.reviewer_assurance?.requirement_assurances?.[item.requirement_id], normalizedLocale)})` : messages.sources[sourceKind],
       evidence_level: evidenceLevel,
       rationale: check.rationale || messages.text.noEvidence,
       review_details: clone(check.review_details),

@@ -1,3 +1,4 @@
+import { legacyAssessment } from "./helpers/legacy-assessment.mjs";
 import { createNetworkPolicy } from "../codex/skills/information-accessibility-practice/scripts/lib/network-policy.mjs";
 import assert from "node:assert/strict";
 import { bindFixtureEvidence, fixtureEvidenceSnapshots } from "./helpers/saved-evidence.mjs";
@@ -21,7 +22,7 @@ import { validateAssessment } from "../codex/skills/information-accessibility-pr
 import { auditStatus, statusText } from "../codex/skills/information-accessibility-practice/scripts/show-audit-status.mjs";
 import { validateJsonSchema } from "../codex/skills/information-accessibility-practice/scripts/lib/json-schema.mjs";
 import {
-  buildPublicReportModel,
+  buildPublicReportModel as buildCurrentPublicReportModel,
   overallReportJudgement,
   reportJudgementForOutcome,
   renderRunBackedReport
@@ -34,6 +35,11 @@ const schema = JSON.parse(fs.readFileSync(path.join(skill, "references/assessmen
 const catalog = JSON.parse(fs.readFileSync(path.join(skill, "references/criteria-catalog.json"), "utf8"));
 const methods = JSON.parse(fs.readFileSync(path.join(skill, "references/web-audit-methods.json"), "utf8"));
 
+// These projection unit tests retain their legacy, unsigned inputs. Current
+// provenance is exercised end-to-end in assessment-review-provenance.test.mjs.
+function buildPublicReportModel(options) {
+  return buildCurrentPublicReportModel({ ...options, assessment: legacyAssessment(options.assessment) });
+}
 function validate(record) {
   return validateAssessment(record, registry, schema, catalog, methods);
 }
@@ -71,7 +77,7 @@ function reviewedRecord() {
     remediation: "Use a native control or implement complete keyboard focus and operation.",
     verification: "Retest the full checkout process with keyboard-only operation."
   }];
-  return record;
+  return legacyAssessment(record);
 }
 
 function writeJson(file, value) {
@@ -335,7 +341,7 @@ test("human findings survive without a remediation plan and can acquire a plan l
   assert.equal(finding.priority, "P1");
   assert.equal(finding.remediation_status, "unplanned");
   assert.equal(finding.remediation, null);
-  assert.equal(validate(fixture.assessment).valid, true);
+  assert.equal(validateAssessment(fixture.assessment, registry, schema, catalog, methods, { run: fixture.run, artifactSnapshotsById: fixture.resources.artifact_snapshots_by_id }).valid, true);
   for (const format of ["markdown", "html"]) {
     const result = spawnSync(process.execPath, [path.join(skill, "scripts/render-report.mjs"),
       "--run", fixture.runFile, "--assessment", fixture.assessmentFile,
@@ -431,11 +437,11 @@ test("merge CLI selects only evidence-backed fixed claims and leaves prior recor
     const model = buildPublicReportModel({ run: fixture.run, assessment: record,
       envelopesById: new Map(fixture.artifacts.map((artifact) => [artifact.artifact_id, artifact])), resources: fixture.resources });
     assert.equal(model.claim.tier, { reference_only: "Reference only", screened: "Screened", evaluated_subset: "Evaluated subset" }[tier]);
-    assert.match(renderRunBackedReport(model), new RegExp({ reference_only: "規格参照のみ", screened: "スクリーニング", evaluated_subset: "一部を人手評価" }[tier], "u"));
+    assert.match(renderRunBackedReport(model), new RegExp({ reference_only: "規格参照のみ", screened: "スクリーニング", evaluated_subset: "一部の条項について人手レビュー" }[tier], "u"));
     const report = spawnSync(process.execPath, [cli, "report", "--run", fixture.runFile,
       "--assessment", output, "--output", path.join(temp, `${tier}.md`)], { encoding: "utf8" });
     assert.equal(report.status, 0, report.stderr);
-    assert.match(fs.readFileSync(path.join(temp, `${tier}.md`), "utf8"), /declared but not authenticated/u);
+    assert.match(fs.readFileSync(path.join(temp, `${tier}.md`), "utf8"), /申告|external trust policy/u);
   }
   assert.deepEqual(sourceFiles.map(resourcesSha256), before);
   const screenRun = structuredClone(fixture.run);
@@ -563,7 +569,7 @@ test("public follow-up projection keeps counts and source records coherent and w
   const resources = loadAuditResources(skill);
   const render = () => buildPublicReportModel({ run: fixture.run, assessment: fixture.assessment, envelopesById, resources });
   const before = structuredClone(fixture.assessment);
-  fixture.assessment.assessment.results.find((item) => item.mapping_status === "human_verified").review_details = {
+  fixture.assessment.assessment.results.find((item) => item.mapping_status === "human_declared").review_details = {
     reason: "scope_incomplete", performed_checks: [], next_checks: ["Unregistered extra assessment detail"]
   };
   let model = render();
@@ -589,7 +595,7 @@ test("public follow-up projection keeps counts and source records coherent and w
   assert.equal(JSON.stringify(model).includes("PrivateClient"), false);
   assert.equal(renderRunBackedReport(model).includes("PrivateClient"), false);
   const withoutExtra = structuredClone(fixture.assessment);
-  delete withoutExtra.assessment.results.find((item) => item.mapping_status === "human_verified").review_details;
+  delete withoutExtra.assessment.results.find((item) => item.mapping_status === "human_declared").review_details;
   assert.deepEqual(withoutExtra, before);
 });
 
@@ -691,7 +697,7 @@ test("run-backed renderer rejects tampering, mismatched or foreign assessment ev
     const mismatchOutput = path.join(temp, "mismatch.md");
     const mismatch = invoke(mismatchFile, mismatchOutput);
     assert.notEqual(mismatch.status, 0);
-    assert.match(mismatch.stderr || mismatch.stdout, /target does not match the audit run/);
+    assert.match(mismatch.stderr || mismatch.stdout, /target (?:does not match|differs from)/);
     assert.equal(fs.existsSync(mismatchOutput), false);
 
     const foreignAssessment = structuredClone(fixture.assessment);
@@ -699,13 +705,13 @@ test("run-backed renderer rejects tampering, mismatched or foreign assessment ev
     foreignRow.method = "A different but otherwise valid manual review.";
     foreignRow.notes = "A different but otherwise valid manual review.";
     const foreignValidation = validate(foreignAssessment);
-    assert.equal(foreignValidation.valid, true, foreignValidation.errors.join("\n"));
+    assert.equal(foreignValidation.valid, false, "A current assessment also requires the original run and exactly bound review.");
     const foreignFile = path.join(temp, "foreign.json");
     writeJson(foreignFile, foreignAssessment);
     const foreignOutput = path.join(temp, "foreign.md");
     const foreign = invoke(foreignFile, foreignOutput);
     assert.notEqual(foreign.status, 0);
-    assert.match(foreign.stderr || foreign.stdout, /does not match the current run evidence/);
+    assert.match(foreign.stderr || foreign.stdout, /differs from the referenced human review/);
     assert.equal(fs.existsSync(foreignOutput), false);
 
     const existingOutput = path.join(temp, "existing.md");
@@ -956,7 +962,8 @@ test("run-backed public model recursively withholds sensitive values from every 
     fixture.assessment.assessment.environment = structuredClone(fixture.run.environment);
     fixture.assessment.assessment.findings[0].observation = privateSentence;
     fixture.assessment.assessment.limitations.push(privateSentence, relativeSecretFile, relativePrivateDirectory);
-    fixture.assessment.assessment.claim.proposed_wording = commaPrivateSentence;
+    // Claim wording is now fixed and validated even in the projection API.
+    fixture.assessment.assessment.limitations.push(commaPrivateSentence);
 
     const envelopesById = new Map([...fixture.artifactFiles].map(([artifactId, file]) => [artifactId, readJson(file)]));
     envelopesById.get("ART-SCREEN-REPORT").payload.observations[0].observation = privateSentence;

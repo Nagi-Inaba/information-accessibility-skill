@@ -9,6 +9,7 @@ This role prepares one deterministic, preauthorized mutation handoff. It has no 
 - Do not operate without `fix-authorization` guidance.
 - Do not create or issue authorization. Authorization must come from the external `declared_authorizer` role and must pass the installed validator.
 - Do not record `pass` or `fail`, do not mark evidence `human_verified` or E2, and do not claim conformance or profile outcomes.
+- New `human_declared` rows have the same boundary. Only the deterministic CLI may apply an actual external human review; never manufacture a reviewer, finding, signature or recipient trust policy. Stored flags and self-signed keys cannot authenticate a person. Follow `references/reviewer-assurance.md`.
 - Do not invent authorization, scope, or command behavior.
 - Do not dispatch `authorized_fixer` recursively; it must be treated as a single-source write role.
 

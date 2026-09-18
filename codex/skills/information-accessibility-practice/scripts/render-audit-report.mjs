@@ -9,12 +9,16 @@ import { isDeepStrictEqual } from "node:util";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import {
   assertStableFile,
+  loadAuditResources,
   readStableFile,
   validateAuditRun,
   writeNewText
 } from "./lib/audit-run.mjs";
 import { validateAssessment } from "./validate-assessment.mjs";
 import { buildRunFindings, findingPlanMetadata } from "./lib/run-findings.mjs";
+import { isHumanReviewMapping, publicReviewerAssurance, reviewerAssuranceText, reviewerVerificationOptions, displayedEvidenceLevel } from "./lib/assessment-provenance.mjs";
+import { loadReviewTrust } from "./lib/review-trust-input.mjs";
+import { parseAttestationJson } from "./lib/attestation-canonical.mjs";
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.dirname(scriptDir);
@@ -155,7 +159,7 @@ export function renderAuditReport(record, validation) {
     `- 適用プロファイル: ${assessment.profile.id}`,
     `- 確認日: ${assessment.evaluated_at}`,
     `- 確認者: ${cell(assessment.evaluator)}`,
-    `- 証拠レベル: ${assessment.evidence_level}`,
+    `- 証拠レベル: ${displayedEvidenceLevel(assessment.evidence_level, validation.guard.reviewer_assurance)}`,
     "",
     "## 3. 対象範囲",
     "",
@@ -209,7 +213,9 @@ export function renderAuditReport(record, validation) {
     outcomeRows(profileCounts, guard.screening_outcome_counts),
     "",
     `- 登録件数: ${guard.catalog_coverage.recorded}/${guard.catalog_coverage.expected}`,
-    `- 人による確認済み件数: ${guard.evaluation_coverage.human_verified}`,
+    `- 人手レビューの申告件数: ${guard.evaluation_coverage.human_declared}`,
+    `- ${reviewerAssuranceText(guard.reviewer_assurance, "ja")}`,
+    `- 主張可能な範囲: ${guard.assured_claim_wording.ja}`,
     ""
   );
 
@@ -248,7 +254,7 @@ export function renderAuditReport(record, validation) {
 
 function parseSnapshotJson(snapshot, label) {
   try {
-    return JSON.parse(snapshot.bytes.toString("utf8").replace(/^\uFEFF/u, ""));
+    return structuredClone(parseAttestationJson(snapshot.bytes));
   } catch (error) {
     throw new Error(`Invalid JSON in ${label}: ${error.message}`);
   }
@@ -293,13 +299,14 @@ function uniqueMap(values, key, label) {
   return result;
 }
 
-function expectedRunBackedLimitations(evidence) {
+function expectedRunBackedLimitations(evidence, assessmentVersion = "1.0.0") {
   const limitations = [
     "All profile requirements are initialized as not_tested; no accessibility conclusion has been made.",
     "Automated checks, if added, are supporting screening evidence and do not determine requirement outcomes."
   ];
   if (evidence.humanReviews.length > 0) {
-    limitations.push("External human reviewer identity was declared but not authenticated (identity_authenticated: false).");
+    limitations.push(assessmentVersion === "1.0.0" ? "External human reviewer identity was declared but not authenticated (identity_authenticated: false)."
+      : "Reviewer identity assurance must be reverified from the portable review records under the recipient's external trust policy; declarations and role labels do not authenticate a person.");
   }
   for (const item of [...evidence.remediationItems]
     .sort((left, right) => left.remediation_id.localeCompare(right.remediation_id, "en"))) {
@@ -733,7 +740,7 @@ function buildReportProjection(profileResults, screeningObservations) {
   const checks = [];
   const notApplicable = [];
   for (const result of profileResults) {
-    if (result.mapping_status === "human_verified") {
+    if (isHumanReviewMapping(result)) {
       const row = {
         requirement_id: result.requirement_id,
         outcome: result.outcome,
@@ -762,7 +769,7 @@ function buildReportProjection(profileResults, screeningObservations) {
   return { checks: sortedByRequirement(checks), notApplicable: sortedByRequirement(notApplicable), counts };
 }
 
-export function validateRunBackedAssessment({ run, assessment, envelopesById, resources }) {
+export function validateRunBackedAssessment({ run, assessment, envelopesById, resources, trust }) {
   const record = assessment?.assessment;
   if (!record) throw new Error("Run-backed report requires an assessment record.");
   if (record.profile?.id !== run.profile?.id || record.profile?.registry_version !== run.profile?.registry_version) {
@@ -794,7 +801,7 @@ export function validateRunBackedAssessment({ run, assessment, envelopesById, re
     const result = resultByRequirement.get(requirementId);
     if (!result
         || result.requirement_kind !== "profile_requirement"
-        || result.mapping_status !== "human_verified"
+        || !isHumanReviewMapping(result)
         || result.outcome !== review.profile_outcome
         || result.method_kind !== "manual"
         || result.method !== `Declared external human review: ${review.rationale}`
@@ -859,7 +866,7 @@ export function validateRunBackedAssessment({ run, assessment, envelopesById, re
   if (!isDeepStrictEqual(record.assurance, expectedAssurance)) {
     throw new Error("Run-backed assessment must not add assurance claims that are absent from the registered artifacts.");
   }
-  const expectedLimitations = expectedRunBackedLimitations(evidence);
+  const expectedLimitations = expectedRunBackedLimitations(evidence, assessment.schema_version);
   if (!isDeepStrictEqual(record.limitations, expectedLimitations)) {
     throw new Error("Assessment limitations do not exactly match the current run evidence.");
   }
@@ -868,7 +875,8 @@ export function validateRunBackedAssessment({ run, assessment, envelopesById, re
   if (!["reference_only", "screened", "evaluated_subset"].includes(tier) || record.claim?.proposed_wording !== expectedClaim) {
     throw new Error("Run-backed assessment claim must use a supported tier and its fixed registry wording.");
   }
-  const claimValidation = validateAssessment(assessment, resources.standardsRegistry, resources.assessmentSchema, resources.criteriaCatalog, resources.auditMethods);
+  const claimValidation = validateAssessment(assessment, resources.standardsRegistry, resources.assessmentSchema, resources.criteriaCatalog, resources.auditMethods,
+    reviewerVerificationOptions({ run, envelopesById, trust }));
   if (!claimValidation.valid) {
     throw new Error(`Run-backed assessment claim/evidence validation failed: ${claimValidation.errors.join("; ")}`);
   }
@@ -876,7 +884,10 @@ export function validateRunBackedAssessment({ run, assessment, envelopesById, re
   return evidence;
 }
 
-export function buildPublicReportModel({ run, assessment, envelopesById, resources }) {
+export function buildPublicReportModel({ run, assessment, envelopesById, resources = loadAuditResources(), trust }) {
+  const validation = validateAssessment(assessment, resources.standardsRegistry, resources.assessmentSchema, resources.criteriaCatalog, resources.auditMethods,
+    reviewerVerificationOptions({ run, envelopesById, trust }));
+  if (!validation.valid) throw new Error(`Assessment reviewer/evidence validation failed: ${validation.errors.join("; ")}`);
   const evidence = collectRunEvidence(envelopesById);
   const recordedProfileResults = assessment.assessment.results.filter((result) => result.requirement_kind === "profile_requirement");
   const screeningResults = assessment.assessment.results.filter((result) => result.requirement_kind === "screening_check");
@@ -975,6 +986,7 @@ export function buildPublicReportModel({ run, assessment, envelopesById, resourc
     });
   }
   const model = {
+    reviewerAssurance: publicReviewerAssurance(validation.guard.reviewer_assurance),
     networkScope: networkScopeSummary(run.permissions, { publicOutput: true }),
     interactionScope: interactionScopeSummary(run.permissions),
     target: {
@@ -1007,9 +1019,9 @@ export function buildPublicReportModel({ run, assessment, envelopesById, resourc
     limitations: publicLimitations(assessment.assessment.limitations),
     claim: {
       tier: publicClaimTier(assessment.assessment.claim.requested_tier),
-      wording: assessment.assessment.claim.proposed_wording
+      wording: validation.guard.assured_claim_wording.ja
     },
-    evidenceLevel: assessment.assessment.evidence_level,
+    evidenceLevel: displayedEvidenceLevel(assessment.assessment.evidence_level, validation.guard.reviewer_assurance),
     reviewedCount: evidence.humanReviews.length,
     screeningCount: evidence.screeningObservations.length,
     profileOutcomeCounts: outcomeCountsFor(profileResults),
@@ -1019,7 +1031,7 @@ export function buildPublicReportModel({ run, assessment, envelopesById, resourc
     reportOutcomeCounts: reportProjection.counts,
     catalogCoverage: { recorded: recordedProfileResults.length, expected: expectedProfileCount },
     evaluationCoverage: {
-      humanReviewed: profileResults.filter((result) => result.mapping_status === "human_verified").length,
+      humanReviewed: profileResults.filter(isHumanReviewMapping).length,
       expected: expectedProfileCount
     }
   };
@@ -1068,6 +1080,7 @@ export function renderRunBackedReport(model) {
     `- 規格台帳の版: ${cell(model.standardsRegistryVersion)}`,
     ...(model.networkScope ? [`- ${cell(networkScopeText(model.networkScope, "ja"))}`] : []),
     ...(model.interactionScope ? [`- ${cell(interactionScopeText(model.interactionScope, "ja"))}`] : []),
+    `- ${cell(reviewerAssuranceText(model.reviewerAssurance, "ja"))}`,
     "",
     "## 3. 達成基準別の判定",
     "",
@@ -1148,7 +1161,8 @@ export function renderRunBackedReport(model) {
     "## 7. 記録の範囲",
     "",
     `- 登録済み達成基準: ${model.catalogCoverage.recorded}/${model.catalogCoverage.expected}`,
-    `- 人による確認済み達成基準: ${model.evaluationCoverage.humanReviewed}/${model.evaluationCoverage.expected}`,
+    `- 人手レビューが申告された達成基準: ${model.evaluationCoverage.humanReviewed}/${model.evaluationCoverage.expected}`,
+    `- 主張可能な範囲: ${cell(model.claim.wording)}`,
     `- 記録済みスクリーニング: ${model.screeningCount}`,
     `- 証拠レベル: ${cell(model.evidenceLevel)}`,
     "- 結果は、記載した対象の版・範囲・環境・証拠を越えて適用しません。",
@@ -1165,10 +1179,12 @@ function parseArgs(argv) {
       options.help = true;
       continue;
     }
-    if (!["--input", "--run", "--assessment", "--output"].includes(arg)) throw new Error(`Unknown argument: ${arg}`);
+    if (!["--input", "--run", "--assessment", "--output", "--trust-policy", "--trust-policy-sha256"].includes(arg)) throw new Error(`Unknown argument: ${arg}`);
     const value = argv[index + 1];
     if (!value || value.startsWith("--")) throw new Error(`Missing value for ${arg}`);
-    options[arg.slice(2)] = value;
+    const key = ({ "--trust-policy": "trustPolicy", "--trust-policy-sha256": "trustPolicySha256" })[arg] ?? arg.slice(2);
+    if (options[key] !== undefined) throw new Error(`Duplicate argument: ${arg}`);
+    options[key] = value;
     index += 1;
   }
   return options;
@@ -1178,7 +1194,8 @@ function usage() {
   return [
     "Usage:",
     "  node scripts/render-audit-report.mjs --input <assessment.json> [--output <report.md>]",
-    "  node scripts/render-audit-report.mjs --run <audit-run.json> --assessment <assessment.json> --output <new-report.md>"
+    "  node scripts/render-audit-report.mjs --run <audit-run.json> --assessment <assessment.json> --output <new-report.md>",
+    "  Optional: --trust-policy <recipient-policy.json> --trust-policy-sha256 <independently selected hash>"
   ].join("\n");
 }
 
@@ -1189,6 +1206,7 @@ function main() {
     return;
   }
   const runBacked = Boolean(options.run || options.assessment);
+  const trustInput = loadReviewTrust(options);
   if (options.input && runBacked) throw new Error("Use either --input or the --run/--assessment interface, not both.");
   if (runBacked) {
     if (!options.run || !options.assessment || !options.output) {
@@ -1209,20 +1227,23 @@ function main() {
       runValidation.resources.standardsRegistry,
       runValidation.resources.assessmentSchema,
       runValidation.resources.criteriaCatalog,
-      runValidation.resources.auditMethods
+      runValidation.resources.auditMethods,
+      reviewerVerificationOptions({ run, envelopesById: runValidation.envelopesById, trust: trustInput.trust })
     );
     if (!validation.valid) throw new Error(`Assessment validation failed:\n- ${validation.errors.join("\n- ")}`);
     validateRunBackedAssessment({
       run,
       assessment,
       envelopesById: runValidation.envelopesById,
-      resources: runValidation.resources
+      resources: runValidation.resources,
+      trust: trustInput.trust
     });
     const report = renderRunBackedReport(buildPublicReportModel({
       run,
       assessment,
       envelopesById: runValidation.envelopesById,
-      resources: runValidation.resources
+      resources: runValidation.resources,
+      trust: trustInput.trust
     }));
     const artifactSnapshots = [...runValidation.envelopesById.values()].map((record) => record.snapshot).filter(Boolean);
     const output = writeNewText(path.resolve(options.output), report, {
@@ -1231,28 +1252,36 @@ function main() {
         assertStableFile(assessmentSnapshot, "merged assessment");
         for (const snapshot of artifactSnapshots) assertStableFile(snapshot, "registered artifact");
         for (const snapshot of runValidation.evidenceSnapshots.values()) assertStableFile(snapshot, "raw evidence");
+        for (const snapshot of trustInput.snapshots) assertStableFile(snapshot, "external reviewer trust policy");
       }
     });
     console.log(JSON.stringify({ status: "PASS", report: output }));
     return;
   }
   if (!options.input) throw new Error("--input is required");
-  const record = readJson(path.resolve(options.input));
+  const inputSnapshot = readStableFile(path.resolve(options.input), { label: "standalone assessment" });
+  const record = parseSnapshotJson(inputSnapshot, "standalone assessment");
   const validation = validateAssessment(
     record,
     readReference("standards-registry.json"),
     readReference("assessment-record.schema.json"),
     readReference("criteria-catalog.json"),
-    readReference("web-audit-methods.json")
+    readReference("web-audit-methods.json"),
+    { trust: trustInput.trust }
   );
   if (!validation.valid) throw new Error(`Assessment validation failed:\n- ${validation.errors.join("\n- ")}`);
   const report = renderAuditReport(record, validation);
+  const assertInputsStable = () => {
+    assertStableFile(inputSnapshot, "standalone assessment");
+    for (const snapshot of trustInput.snapshots) assertStableFile(snapshot, "external reviewer trust policy");
+  };
   if (!options.output) {
+    assertInputsStable();
     process.stdout.write(report);
     return;
   }
   const legacyOutput = path.resolve(options.output);
-  const output = writeNewText(legacyOutput, report);
+  const output = writeNewText(legacyOutput, report, { beforeWrite: assertInputsStable });
   console.log(JSON.stringify({ status: "PASS", input: path.resolve(options.input), output }));
 }
 

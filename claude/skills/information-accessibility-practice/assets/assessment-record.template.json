@@ -1,6 +1,7 @@
 {
-  "schema_version": "1.0.0",
+  "schema_version": "2.0.0",
   "assessment": {
+    "assessment_id": "ASSESSMENT-REPLACE-ME",
     "target": {
       "name": "REPLACE_ME",
       "version_or_commit": "REPLACE_ME",
@@ -55,6 +56,7 @@
     "limitations": [
       "No criterion-level evaluation has been recorded."
     ],
-    "next_review_at": null
+    "next_review_at": null,
+    "human_review_records": []
   }
 }
