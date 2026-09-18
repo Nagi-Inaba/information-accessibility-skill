@@ -143,7 +143,7 @@ test("placeholder audit identity and invalid evidence timestamps are rejected", 
   };
   const result = validate(record);
   assert.equal(result.valid, false);
-  assert.ok(result.errors.some((error) => error.includes("parseable ISO 8601")));
+  assert.ok(result.errors.some((error) => error.includes("real RFC 3339") && error.includes("2026-09-18T09:00:00+09:00")));
 });
 
 test("generic audit report template exposes scope, findings, coverage, limits, and retest", () => {

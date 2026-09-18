@@ -1207,6 +1207,29 @@ test("expired lease recovery requires unchanged baseline and exact prior identit
   assert.equal(fs.existsSync(recovered.recovery_tombstone_path), false);
 }));
 
+test("lease recovery validates real instants and preserves expiry across DST offsets and fractions", async (t) => withTemp(t, async ({ temp, sourceRoot, artifactRoot }) => {
+  fs.writeFileSync(path.join(sourceRoot, "index.html"), "baseline\n", "utf8");
+  const lockDir = path.join(temp, "locks");
+  fs.mkdirSync(lockDir);
+  const auth = writeLeaseAuthorization(artifactRoot, sourceRoot);
+  const { acquireFixLease, releaseFixLease } = await import(pathToFileURL(fixLeaseLib));
+  const options = { authorization: auth.authorization, authorizationSha256: auth.authorizationSha256, sourceRoot, lockDir, runId: RUN_ID };
+  assert.throws(() => acquireFixLease({ ...options, now: "2026-02-30T00:00:00Z" }), /real RFC 3339/);
+  const first = acquireFixLease({ ...options, now: "2026-11-01T00:30:00-04:00" });
+  const lease = JSON.parse(fs.readFileSync(first.lease_path, "utf8"));
+  const recovery = { ...options, recoverExpired: true, expectedRunId: RUN_ID, expectedAuthorizationSha256: auth.authorizationSha256 };
+  for (const expires_at of ["2026-02-30T00:00:00Z", "2026-11-01T04:00:00Z"]) {
+    fs.writeFileSync(first.lease_path, JSON.stringify({ ...lease, expires_at }), "utf8");
+    assert.throws(() => acquireFixLease({ ...recovery, now: "2026-11-01T07:00:00Z" }), /real RFC 3339|must be after/);
+    assert.equal(fs.existsSync(first.lease_path), true);
+  }
+  fs.writeFileSync(first.lease_path, JSON.stringify({ ...lease, acquired_at: "2026-11-01T00:30:00-04:00", expires_at: "2026-11-01T01:30:00.000000001-05:00" }), "utf8");
+  assert.throws(() => acquireFixLease({ ...recovery, now: "2026-11-01T01:30:00-05:00" }), /not expired|conflict/);
+  const recovered = acquireFixLease({ ...recovery, now: "2026-11-01T01:30:00.001-05:00" });
+  assert.equal(recovered.recovery.previous_lease_id, first.lease_id);
+  releaseFixLease({ receipt: recovered, runId: RUN_ID, authorizationSha256: auth.authorizationSha256 });
+}));
+
 test("expired recovery fails closed after an allowed path changes or appears", async (t) => withTemp(t, async ({ temp, sourceRoot, artifactRoot }) => {
   const target = path.join(sourceRoot, "index.html");
   fs.writeFileSync(target, "baseline\n", "utf8");

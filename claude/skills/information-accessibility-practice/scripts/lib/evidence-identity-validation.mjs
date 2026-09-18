@@ -1,7 +1,7 @@
 import path from "node:path";
 import { isRfc3339DateTime } from "./date-time.mjs";
 
-export const isRealUtcInstant = (value) => isRfc3339DateTime(value) && value.endsWith("Z");
+export const isRealInstant = isRfc3339DateTime;
 export const isNonemptyText = (value) => typeof value === "string" && Boolean(value.trim());
 
 // The serialized path has the same meaning on Windows and POSIX. This does

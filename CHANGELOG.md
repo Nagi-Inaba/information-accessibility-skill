@@ -25,6 +25,7 @@ This project uses a Keep a Changelog-style structure. Until a tagged release is 
 
 ### Fixed
 
+- Current audit timestamps accept and preserve RFC 3339 offsets consistently. History, artifact input order, and fix-lease expiry compare actual instants without losing fractional precision; invalid legacy calendar values are rejected without rewriting frozen schemas.
 - Claude installation uses the existing exclusive-copy routine for staging as well as activation, avoiding a native `fs.cpSync` crash observed on Windows with Node 22.19.0.
 - Human findings no longer require a remediation plan when the reviewer records the required finding details; later plans preserve the original finding.
 - Run-backed reports accept evidence-supported fixed claim templates and display their actual claim tier.

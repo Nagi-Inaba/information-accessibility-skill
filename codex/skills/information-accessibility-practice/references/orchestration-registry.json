@@ -91,7 +91,7 @@
         { "version": "4.0.0", "schema_file": "audit-run-4.0.0.schema.json", "mode": "read_only" },
         { "version": "5.0.0", "schema_file": "audit-run-5.0.0.schema.json", "mode": "read_only" },
         { "version": "6.0.0", "schema_file": "audit-run-6.0.0.schema.json", "mode": "read_only" },
-        { "version": "7.0.0", "schema_file": "audit-run.schema.json", "schema_sha256": "f1def19770734c8634b528eba7b139b23362c1ed7623927cabaeb211a20a4e6c", "mode": "current" }
+        { "version": "7.0.0", "schema_file": "audit-run.schema.json", "schema_sha256": "28a9e55ca605a23265fa43b3efb6ac021b83a078f59a5cb8cf1580e9b4b24e6f", "mode": "current" }
       ]
     },
     {
@@ -99,7 +99,7 @@
       "latest_schema_version": "2.0.0",
       "schema_versions": [
         { "version": "1.0.0", "schema_file": "screening-observations-1.0.0.schema.json", "mode": "read_only" },
-        { "version": "2.0.0", "schema_file": "screening-observations.schema.json", "schema_sha256": "4711a800166bd214d00189062ce35f69ac3446e6673315a8751dd0dbe1a58215", "mode": "current" }
+        { "version": "2.0.0", "schema_file": "screening-observations.schema.json", "schema_sha256": "9af1013793af9e250e0a16521d8241fe82e1a20d6eff415d965e89fcfef6b7f2", "mode": "current" }
       ]
     },
     {
@@ -114,7 +114,7 @@
       "id": "declared-human-review",
       "latest_schema_version": "1.0.0",
       "schema_versions": [
-        { "version": "1.0.0", "schema_file": "declared-human-review.schema.json", "schema_sha256": "d733cde8d974fb0e2adf64d6285e22ebb160268e5235e7a7af16a6950855f220", "mode": "current" }
+        { "version": "1.0.0", "schema_file": "declared-human-review.schema.json", "schema_sha256": "f4732affdb197ae02d56bf1cdccda2978422b127a1b8c5f173ed452ba1198f7a", "mode": "current" }
       ]
     },
     {
@@ -130,7 +130,7 @@
       "latest_schema_version": "2.0.0",
       "schema_versions": [
         { "version": "1.0.0", "schema_file": "fix-authorization-1.0.0.schema.json", "mode": "read_only" },
-        { "version": "2.0.0", "schema_file": "fix-authorization.schema.json", "schema_sha256": "8dfb9241a6f75d5dd9225d3f8b7e57ea2f3b8e3e6ac442a9493ed0a80a2b0cb7", "mode": "current" }
+        { "version": "2.0.0", "schema_file": "fix-authorization.schema.json", "schema_sha256": "13579db07d5c0f86f70fd41bb490ad61167051372072ad633ed0c9c1775a5e62", "mode": "current" }
       ]
     },
     {
@@ -138,7 +138,7 @@
       "latest_schema_version": "2.0.0",
       "schema_versions": [
         { "version": "1.0.0", "schema_file": "change-record-1.0.0.schema.json", "mode": "read_only" },
-        { "version": "2.0.0", "schema_file": "change-record.schema.json", "schema_sha256": "304927774cbdb78f8f770736b0cbfa4b591b858ab78b3f1f2ad310c036b631da", "mode": "current" }
+        { "version": "2.0.0", "schema_file": "change-record.schema.json", "schema_sha256": "0e7318a19b0a7e8b69ab2c30ab613866666cd4892f04721c419cb128a10fcb84", "mode": "current" }
       ]
     }
   ],

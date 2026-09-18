@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
-import { digestBytes, isNonemptyText, isRealUtcInstant, isSafeRelativePath } from "./evidence-identity-validation.mjs";
+import { digestBytes, isNonemptyText, isRealInstant, isSafeRelativePath } from "./evidence-identity-validation.mjs";
+import { dateTimeExample } from "./date-time.mjs";
 
 function digest(bytes) {
   return crypto.createHash("sha256").update(digestBytes(bytes)).digest("hex");
@@ -7,7 +8,7 @@ function digest(bytes) {
 
 function common(snapshotId, capturedAt, kind) {
   if (!isNonemptyText(snapshotId)) throw new Error("snapshotId is required");
-  if (!isRealUtcInstant(capturedAt)) throw new Error("capturedAt must be a real UTC RFC 3339 instant");
+  if (!isRealInstant(capturedAt)) throw new Error(`capturedAt must be a real ${dateTimeExample}`);
   return { schema_version: "1.0.0", snapshot_id: snapshotId, kind, captured_at: capturedAt };
 }
 

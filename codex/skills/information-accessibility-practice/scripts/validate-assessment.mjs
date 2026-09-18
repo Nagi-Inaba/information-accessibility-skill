@@ -9,7 +9,7 @@ import {
   reportGroups
 } from "./lib/profile-registry.mjs";
 import { validateJsonSchema } from "./lib/json-schema.mjs";
-import { isCalendarDate, isRfc3339DateTime } from "./lib/date-time.mjs";
+import { calendarDateExample, dateTimeExample, isCalendarDate, isRfc3339DateTime } from "./lib/date-time.mjs";
 
 const tierOrder = [
   "reference_only",
@@ -227,7 +227,7 @@ export function validateAssessment(record, registry, schema, criteriaCatalog, au
           if (!hasText(evidence?.[key])) errors.push(`${prefix}.evidence[${evidenceIndex}].${key} is required`);
         }
         if (hasText(evidence?.captured_at) && !isRfc3339DateTime(evidence.captured_at)) {
-          errors.push(`${prefix}.evidence[${evidenceIndex}].captured_at must be a parseable ISO 8601 date-time`);
+          errors.push(`${prefix}.evidence[${evidenceIndex}].captured_at must be a real ${dateTimeExample}`);
         }
       });
     }
@@ -410,9 +410,9 @@ export function validateAssessment(record, registry, schema, criteriaCatalog, au
   if ([assessment.target?.name, assessment.target?.version_or_commit, assessment.evaluator].some((value) => value === "REPLACE_ME")) {
     errors.push("Template placeholders must be replaced before validation.");
   }
-  if (!isCalendarDate(assessment.evaluated_at)) errors.push("evaluated_at must be a real calendar date in YYYY-MM-DD form");
+  if (!isCalendarDate(assessment.evaluated_at)) errors.push(`evaluated_at must be a real calendar date in ${calendarDateExample}`);
     if (assessment.next_review_at !== null && !isCalendarDate(assessment.next_review_at)) {
-      errors.push("next_review_at must be a real calendar date in YYYY-MM-DD form or null");
+      errors.push(`next_review_at must be a real calendar date in ${calendarDateExample} or null`);
     }
 
   const expectedRequirementIds = expectedRequirementIdsForClaim;

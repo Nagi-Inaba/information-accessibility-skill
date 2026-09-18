@@ -672,6 +672,61 @@ function copyDirectory(source, destination) {
   }
 }
 
+test("RFC 3339 offsets survive CLI registration and merge while reverse-time evidence is rejected", (t) => withTemp(t, ({ temp, artifactRoot }) => {
+  const initialFile = path.join(temp, "run-initial.json");
+  writeJson(initialFile, initialRun(artifactRoot));
+  const screen = screeningEnvelope({ artifactId: "ART-SCREEN-001", requirementId: "SCREEN-FIRST", capturedAt: "2026-07-17T21:00:01.000+09:00" });
+  const screenFile = path.join(artifactRoot, "screen.json");
+  writeJson(screenFile, screen);
+  const queue = queueEnvelope({ inputs: [{ artifact_id: screen.artifact_id, run_id: runId, sha256: sha256File(screenFile) }] });
+  queue.created_at = "2026-07-17T12:00:02Z";
+  const queueFile = path.join(artifactRoot, "queue.json");
+  writeJson(queueFile, queue);
+  const human = artifactEnvelope({
+    artifactId: "ART-HUMAN-001", artifactType: "declared-human-review", roleId: "declared_external_human", producerKind: "external_human",
+    createdAt: "2026-07-17T05:00:03-07:00",
+    inputs: [{ artifact_id: queue.artifact_id, run_id: runId, sha256: sha256File(queueFile) }], payload: declaredHumanPayload()
+  });
+  human.payload.reviews[0].target_specific_evidence[0].captured_at = "2026-07-17T21:00:02.9+09:00";
+  const humanFile = path.join(artifactRoot, "human.json");
+  writeJson(humanFile, human);
+  const files = [screenFile, queueFile, humanFile];
+  const hashes = files.map(sha256File);
+  let previous = initialFile;
+  const runs = [];
+  for (const [index, file] of files.entries()) {
+    const output = path.join(temp, `run-${index}.json`);
+    const result = runNode(registerArtifact, ["--run", previous, "--artifact", file, "--output", output]);
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    runs.push(output);
+    previous = output;
+  }
+  const baseline = path.join(temp, "assessment.json");
+  writeJson(baseline, assessmentFixture());
+  const mergedFile = path.join(temp, "merged.json");
+  const merged = runNode(mergeArtifactsCli, ["--run", previous, "--assessment", baseline, ...files.flatMap((file) => ["--artifact", file]), "--claim-tier", "evaluated_subset", "--output", mergedFile]);
+  assert.equal(merged.status, 0, merged.stderr || merged.stdout);
+  assert.equal(readJson(mergedFile).assessment.claim.requested_tier, "evaluated_subset");
+  assert.deepEqual(files.map(sha256File), hashes);
+  assert.equal(readJson(previous).history[0].at, screen.created_at);
+
+  const reverse = structuredClone(queue);
+  reverse.created_at = "2026-07-18T01:00:00+14:00"; // 11:00Z on July 17: earlier than its input.
+  const reverseFile = path.join(artifactRoot, "reverse.json");
+  writeJson(reverseFile, reverse);
+  const rejectedOutput = path.join(temp, "rejected.json");
+  assertRejected(runNode(registerArtifact, ["--run", runs[0], "--artifact", reverseFile, "--output", rejectedOutput]), /precedes|after its consumer/i);
+  assert.equal(fs.existsSync(rejectedOutput), false);
+  const wrongHistory = readJson(runs[1]);
+  wrongHistory.history[1].at = reverse.created_at;
+  assert.ok(validateAuditRun(wrongHistory, { runFile: runs[1], skillRoot }).errors.some((error) => /earlier|precedes/.test(error)));
+  const impossible = structuredClone(screen);
+  impossible.payload.observations[0].captured_at = "2026-02-30T00:00:00Z";
+  const impossibleFile = path.join(artifactRoot, "impossible.json");
+  writeJson(impossibleFile, impossible);
+  assertRejected(runNode(registerArtifact, ["--run", initialFile, "--artifact", impossibleFile, "--output", rejectedOutput]), /RFC 3339.*2026-09-18T09:00:00\+09:00/);
+}));
+
 test("status distinguishes authorized-change readiness and legacy read-only records", (t) => withTemp(t, ({ temp, artifactRoot }) => {
   const fixture = makeRetestRequiredRun(artifactRoot);
   const file = path.join(temp, "retest.json");

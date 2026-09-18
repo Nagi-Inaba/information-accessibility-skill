@@ -13,6 +13,7 @@ import {
   writeNewJson
 } from "./audit-run.mjs";
 import { validateAuthorizedTarget } from "./fix-authorization.mjs";
+import { compareInstants, dateTimeExample, isRfc3339DateTime } from "./date-time.mjs";
 
 export const FIX_LEASE_VERSION = "1.0.0";
 export const FIX_LEASE_TTL_MS = 120 * 60 * 1000;
@@ -48,6 +49,7 @@ function assertSha256(value, label) {
 
 function nowValue(now) {
   const value = typeof now === "function" ? now() : now ?? new Date();
+  if (typeof value === "string" && !isRfc3339DateTime(value)) throw new Error(`now must be a real ${dateTimeExample}.`);
   const date = value instanceof Date ? new Date(value.getTime()) : new Date(value);
   if (Number.isNaN(date.getTime())) throw new Error("now must resolve to a valid timestamp.");
   return date;
@@ -58,10 +60,8 @@ function timestamp(value) {
 }
 
 function parseTimestamp(value, label) {
-  if (typeof value !== "string") throw new Error(`${label} must be a timestamp string.`);
-  const parsed = Date.parse(value);
-  if (!Number.isFinite(parsed)) throw new Error(`${label} must be a valid timestamp.`);
-  return parsed;
+  if (!isRfc3339DateTime(value)) throw new Error(`${label} must be a real ${dateTimeExample}.`);
+  return value;
 }
 
 function randomHex(bytes) {
@@ -211,6 +211,7 @@ function validateLeaseRecord(lease) {
   ]) assertSha256(value, label);
   parseTimestamp(lease.acquired_at, "lease.acquired_at");
   parseTimestamp(lease.expires_at, "lease.expires_at");
+  if (compareInstants(lease.expires_at, lease.acquired_at) <= 0) throw new Error("lease.expires_at must be after lease.acquired_at.");
 }
 
 function readLease(leasePath) {
@@ -340,7 +341,7 @@ export function acquireFixLease({
       if (previous.lease.run_id !== expectedRunId || previous.lease.authorization_sha256 !== expectedAuthorizationSha256 || previous.lease.source_root_sha256 !== rootSha256) {
         throw new Error("Expired lease identity does not match the expected prior lease.");
       }
-      if (acquiredAt.getTime() < parseTimestamp(previous.lease.expires_at, "lease.expires_at")) {
+      if (compareInstants(acquiredAt.toISOString(), previous.lease.expires_at) < 0) {
         throw new Error("Existing lease is not expired; recovery conflicts with the active lease.");
       }
       verifyBaseline(previous.lease, authorization, canonicalRoot);

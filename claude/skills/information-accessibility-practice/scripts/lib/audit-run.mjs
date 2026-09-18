@@ -9,6 +9,7 @@ import { lookupRequirement } from "../show-requirement.mjs";
 import { validateJsonSchema } from "./json-schema.mjs";
 import { createInspectionRequest, inspectionRequestErrors } from "./inspection-request.mjs";
 import { buildRunFindings } from "./run-findings.mjs";
+import { compareInstants } from "./date-time.mjs";
 
 const defaultSkillRoot = path.dirname(path.dirname(path.dirname(fileURLToPath(import.meta.url))));
 const noFollow = process.platform === "win32" ? 0 : (fs.constants.O_NOFOLLOW ?? 0);
@@ -43,7 +44,7 @@ const currentAuditRunManifestContract = {
     {
       version: "7.0.0",
       schema_file: "audit-run.schema.json",
-      schema_sha256: "f1def19770734c8634b528eba7b139b23362c1ed7623927cabaeb211a20a4e6c",
+      schema_sha256: "28a9e55ca605a23265fa43b3efb6ac021b83a078f59a5cb8cf1580e9b4b24e6f",
       mode: "current"
     }
   ]
@@ -56,7 +57,7 @@ const currentScreeningManifestContract = {
     {
       version: "2.0.0",
       schema_file: "screening-observations.schema.json",
-      schema_sha256: "4711a800166bd214d00189062ce35f69ac3446e6673315a8751dd0dbe1a58215",
+      schema_sha256: "9af1013793af9e250e0a16521d8241fe82e1a20d6eff415d965e89fcfef6b7f2",
       mode: "current"
     }
   ]
@@ -67,10 +68,16 @@ const currentHumanReviewManifestContract = {
   schema_versions: [{
     version: "1.0.0",
     schema_file: "declared-human-review.schema.json",
-    schema_sha256: "d733cde8d974fb0e2adf64d6285e22ebb160268e5235e7a7af16a6950855f220",
+    schema_sha256: "f4732affdb197ae02d56bf1cdccda2978422b127a1b8c5f173ed452ba1198f7a",
     mode: "current"
   }]
 };
+// Additive timestamp support in the current payloads. Keep every other
+// manifest field, especially frozen versions and role bindings, pinned.
+const currentTimestampPayloadSchemaHashes = new Map([
+  ["fix-authorization", "13579db07d5c0f86f70fd41bb490ad61167051372072ad633ed0c9c1775a5e62"],
+  ["change-record", "0e7318a19b0a7e8b69ab2c30ab613866666cd4892f04721c419cb128a10fcb84"]
+]);
 
 function pathKey(value) {
   const normalized = path.normalize(path.resolve(value));
@@ -349,8 +356,15 @@ function validateOrchestrationRegistrySemantics(registry, canonicalRegistry) {
       if (!isDeepStrictEqual(installedArtifactType, currentScreeningManifestContract)) errors.push("Canonical screening-observations manifest changed.");
     } else if (canonicalArtifactType.id === "declared-human-review") {
       if (!isDeepStrictEqual(installedArtifactType, currentHumanReviewManifestContract)) errors.push("Canonical declared-human-review manifest changed.");
-    } else if (!isDeepStrictEqual(canonicalComparableManifest(installedArtifactType, canonicalArtifactType), canonicalArtifactType)) {
-      errors.push(`Canonical artifact type manifest changed: ${canonicalArtifactType.id}.`);
+    } else {
+      const currentHash = currentTimestampPayloadSchemaHashes.get(canonicalArtifactType.id);
+      const expected = currentHash ? {
+        ...canonicalArtifactType,
+        schema_versions: canonicalArtifactType.schema_versions.map((entry) => entry.mode === "current" ? { ...entry, schema_sha256: currentHash } : entry)
+      } : canonicalArtifactType;
+      if (!isDeepStrictEqual(canonicalComparableManifest(installedArtifactType, expected), expected)) {
+        errors.push(`Canonical artifact type manifest changed: ${canonicalArtifactType.id}.`);
+      }
     }
   }
 
@@ -858,7 +872,7 @@ function validateArtifactEnvelopeSemantics(run, resources, artifactsById, envelo
       }
       if (registered.sha256 !== input?.sha256) errors.push(`Artifact input SHA-256 hash mismatch: ${artifactId} -> ${String(input?.artifact_id)}.`);
       if (!allowedInputTypes.has(registered.artifact_type)) errors.push(`Producer role ${String(role?.id)} does not allow input type ${registered.artifact_type}.`);
-      if (registered.created_at > artifact?.created_at) errors.push(`Artifact input was created after its consumer: ${artifactId} -> ${String(input?.artifact_id)}.`);
+      if (compareInstants(registered.created_at, artifact?.created_at) > 0) errors.push(`Artifact input was created after its consumer: ${artifactId} -> ${String(input?.artifact_id)}.`);
     }
     validateChangeRecordAuthorizationBinding(artifact, artifactsById, envelopesById, errors);
   }
@@ -1151,7 +1165,7 @@ function validateHistory(run, resources, artifactsById, errors) {
     if (entry.from !== current) errors.push(`${location} continuity error: expected from ${current}, received ${String(entry.from)}.`);
     const transition = resources.orchestrationRegistry.transitions.find((item) => item.from === entry.from && item.to === entry.to);
     if (!transition) errors.push(`${location} contains an invalid transition ${String(entry.from)} -> ${String(entry.to)}.`);
-    if (previousAt && entry.at < previousAt) errors.push(`${location}.at is earlier than the preceding history entry.`);
+    if (previousAt && compareInstants(entry.at, previousAt) < 0) errors.push(`${location}.at is earlier than the preceding history entry.`);
     previousAt = entry.at ?? previousAt;
     const artifactIds = Array.isArray(entry.artifact_ids) ? entry.artifact_ids : [];
     const referenced = artifactIds.map((id) => artifactsById.get(id));
@@ -1170,7 +1184,7 @@ function validateHistory(run, resources, artifactsById, errors) {
     }
     for (const artifact of referenced.filter(Boolean)) {
       if (artifact.producer_role !== entry.actor_role) errors.push(`${location}.actor_role does not match producer ${artifact.producer_role}.`);
-      if (artifact.created_at > entry.at) errors.push(`${location}.at precedes registered artifact ${artifact.artifact_id}.`);
+      if (compareInstants(artifact.created_at, entry.at) > 0) errors.push(`${location}.at precedes registered artifact ${artifact.artifact_id}.`);
     }
     current = entry.to ?? current;
   }
@@ -1402,7 +1416,7 @@ export function registerArtifact(run, artifact, options = {}) {
   if (outgoing.length > 1) throw new Error(`Ambiguous transition for ${run.status} and ${installedArtifact.artifact_type}`);
   if (outgoing.length === 0 && !incomingCurrent) throw new Error(`Artifact type ${installedArtifact.artifact_type} is a future or invalid transition from ${run.status}`);
   const lastHistoryAt = run.history.at(-1)?.at;
-  if (lastHistoryAt && installedArtifact.created_at < lastHistoryAt) throw new Error("Artifact created_at precedes the current run state.");
+  if (lastHistoryAt && compareInstants(installedArtifact.created_at, lastHistoryAt) < 0) throw new Error("Artifact created_at precedes the current run state.");
   const entry = {
     artifact_id: installedArtifact.artifact_id,
     artifact_type: installedArtifact.artifact_type,

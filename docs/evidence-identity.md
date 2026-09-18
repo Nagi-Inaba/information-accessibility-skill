@@ -38,7 +38,7 @@ snapshots compare repository identity, full SHA-1 or SHA-256 object ID and
 subpath. The caller must obtain these values from the actual target. Git dirty
 state, dynamic browser state and the meaning of a URL response are not inferred.
 
-Evidence references retain a relative file path, SHA-256, real UTC capture time,
+Evidence references retain a relative file path, SHA-256, real RFC 3339 capture time (preserving an explicit offset or `Z`),
 environment reference and target snapshot ID. Validation requires
 `publication: "private_by_default"`. A hash comparison detects changed bytes;
 it does not authenticate the person who produced them or establish that the

@@ -1,4 +1,9 @@
-import { isCalendarDate, isRfc3339DateTime } from "./date-time.mjs";
+import { calendarDateExample, dateTimeExample, isCalendarDate, isRfc3339DateTime } from "./date-time.mjs";
+
+// Frozen legacy contracts only declared these exact patterns. Enforce their
+// calendar semantics without rewriting the original schema bytes or hashes.
+const legacyDatePattern = "^[0-9]{4}-[0-9]{2}-[0-9]{2}$";
+const legacyTimestampPattern = "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$";
 
 const supportedKeywords = new Set([
   "$schema",
@@ -25,9 +30,7 @@ const supportedKeywords = new Set([
   "if",
   "then",
   "else",
-  // Existing assessment schemas use format as an annotation. Keeping it
-  // non-asserting preserves their validation behavior; security contracts use
-  // enforced patterns instead.
+  // Date and date-time formats are assertions; other formats are annotations.
   "format"
 ]);
 
@@ -257,8 +260,12 @@ function validateNode(value, schema, location, errors, rootSchema, referenceStac
   if (typeof value === "string") {
     if (schema.minLength && value.length < schema.minLength) errors.push(`${location} must not be empty`);
     if (schema.pattern && !new RegExp(schema.pattern, "u").test(value)) errors.push(`${location} must match pattern ${schema.pattern}`);
-    if (schema.format === "date" && !isCalendarDate(value)) errors.push(`${location} must be a real calendar date in YYYY-MM-DD form`);
-    if (schema.format === "date-time" && !isRfc3339DateTime(value)) errors.push(`${location} must be a real RFC 3339 date-time`);
+    if ((schema.format === "date" || schema.pattern === legacyDatePattern) && !isCalendarDate(value)) {
+      errors.push(`${location} must be a real calendar date in ${calendarDateExample}`);
+    }
+    if ((schema.format === "date-time" || schema.pattern === legacyTimestampPattern) && !isRfc3339DateTime(value)) {
+      errors.push(`${location} must be a real ${dateTimeExample}`);
+    }
   }
   if (typeof value === "number" && Number.isFinite(value)) {
     if (Object.hasOwn(schema, "minimum") && value < schema.minimum) errors.push(`${location} must be at least ${schema.minimum}`);

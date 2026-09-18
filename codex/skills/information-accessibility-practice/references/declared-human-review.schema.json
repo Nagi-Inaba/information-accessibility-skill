@@ -9,7 +9,7 @@
     "schema_version": { "const": "1.0.0" },
     "declaration": { "type": "string", "minLength": 1 },
     "reviewer_name": { "type": "string", "minLength": 1 },
-    "review_date": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" },
+    "review_date": { "type": "string", "format": "date" },
     "identity_authenticated": { "const": false },
     "reviews": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/review" } }
   },
@@ -60,7 +60,7 @@
         "type": { "enum": ["manual_observation", "browser_inspection", "keyboard_test", "assistive_technology_test", "document_structure_inspection", "screenshot", "log", "report", "other"] },
         "location": { "type": "string", "minLength": 1 },
         "observation": { "type": "string", "minLength": 1 },
-        "captured_at": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$" }
+        "captured_at": { "type": "string", "format": "date-time" }
       }
     }
   }

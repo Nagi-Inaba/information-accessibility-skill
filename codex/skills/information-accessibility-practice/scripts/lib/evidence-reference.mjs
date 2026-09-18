@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
-import { digestBytes, isNonemptyText, isRealUtcInstant, isSafeRelativePath } from "./evidence-identity-validation.mjs";
+import { digestBytes, isNonemptyText, isRealInstant, isSafeRelativePath } from "./evidence-identity-validation.mjs";
+import { dateTimeExample } from "./date-time.mjs";
 
 const evidenceTypes = new Set(["dom_snapshot", "accessibility_tree", "screenshot", "interaction_log", "network_log", "other"]);
 
@@ -9,7 +10,7 @@ export function validateEvidenceReference(reference) {
   if (!evidenceTypes.has(reference.evidence_type)) errors.push("evidence_type must be a registered evidence type");
   if (!isSafeRelativePath(reference.path)) errors.push("path must be a normalized relative path without traversal");
   if (typeof reference.sha256 !== "string" || !/^[a-f0-9]{64}$/u.test(reference.sha256)) errors.push("sha256 must be a lowercase SHA-256 digest");
-  if (!isRealUtcInstant(reference.captured_at)) errors.push("captured_at must be a real UTC RFC 3339 instant ending in Z");
+  if (!isRealInstant(reference.captured_at)) errors.push(`captured_at must be a real ${dateTimeExample}`);
   if (!isNonemptyText(reference.environment_ref)) errors.push("environment_ref is required");
   if (!isNonemptyText(reference.target_snapshot_id)) errors.push("target_snapshot_id is required");
   if (reference.publication !== "private_by_default") errors.push("publication must be private_by_default");
