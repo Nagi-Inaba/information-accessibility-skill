@@ -11,6 +11,7 @@ const localeAwareCommands = new Set([
   "requirements",
   "requirement",
   "doctor",
+  "preflight-web",
   "screen-reader-checklist",
   "report"
 ]);

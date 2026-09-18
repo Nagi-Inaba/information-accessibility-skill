@@ -172,12 +172,24 @@ const definitions = [
     notes: ["For discovery by number or keyword, use `requirements show` or `requirements search`."]
   },
   {
+    name: "preflight-web",
+    script: "preflight-web.mjs",
+    summary: "Measure Web inspection capabilities on an isolated fixture without inspecting a target.",
+    usage: ["accessibility-audit preflight-web [--browser-channel chrome] [--require <comma-separated-capabilities>] [--format text|json]"],
+    options: [
+      option("--browser-channel", "<chrome>", "Use installed system Chrome; otherwise use the Playwright Chromium runtime."),
+      option("--require", "<capabilities>", "Require a comma-separated subset of the six registered capabilities."),
+      option("--format", "<text|json>", "Output format; default text.")
+    ],
+    notes: ["Missing required capabilities exit with code 4. Screen-reader runtime remains externally unconfirmed. Success is not completed target inspection."]
+  },
+  {
     name: "doctor",
     script: "doctor.mjs",
     summary: "Diagnose Node, package, registry, distribution, and optional browser capabilities.",
     usage: ["accessibility-audit doctor [--format text|json]"],
     options: [option("--format", "<text|json>", "Output format; default text.")],
-    notes: ["The command is read-only. Missing optional browser capability produces WARN rather than a false package failure."]
+    notes: ["The command is read-only. Missing optional browser capability produces WARN rather than a false package failure. Run preflight-web to test the actual browser runtime."]
   },
   {
     name: "screen-reader-checklist",

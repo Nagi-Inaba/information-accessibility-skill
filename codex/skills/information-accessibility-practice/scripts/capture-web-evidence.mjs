@@ -7,6 +7,7 @@ import { pathToFileURL } from "node:url";
 
 import { assertNewOutputPath, writeNewJson } from "./lib/audit-run.mjs";
 import { canonicalJson } from "./lib/canonical-json.mjs";
+import { assertWebCapabilities, browserLaunchOptions, loadWebRuntime, preflightWeb, unavailableWebCapabilities, WebCapabilityError } from "./lib/web-capabilities.mjs";
 
 const DEFAULT_VIEWPORT = { width: 1280, height: 800 };
 const SAFE_LOCAL_PROTOCOLS = new Set(["about:", "blob:", "data:"]);
@@ -204,7 +205,7 @@ function parseArgs(argv) {
       options.allowOrigins.push(new URL(value).origin);
       continue;
     }
-    if (["--url", "--output", "--focus-steps", "--width", "--height"].includes(arg)) {
+    if (["--url", "--output", "--focus-steps", "--width", "--height", "--browser-channel"].includes(arg)) {
       const value = argv[++index];
       if (!value || value.startsWith("--")) throw new Error(`Missing value for ${arg}`);
       if (arg === "--url") options.url = value;
@@ -212,6 +213,7 @@ function parseArgs(argv) {
       if (arg === "--focus-steps") options.focusSteps = Number(value);
       if (arg === "--width") options.viewport.width = Number(value);
       if (arg === "--height") options.viewport.height = Number(value);
+      if (arg === "--browser-channel") options.browserChannel = value;
       continue;
     }
     throw new Error(`Unknown argument: ${arg}`);
@@ -230,12 +232,9 @@ function parseArgs(argv) {
 
 async function loadPlaywright() {
   try {
-    return await import("playwright");
-  } catch (cause) {
-    throw new WebInspectionError(
-      "Playwright is not installed. Install it in the host environment (for example: npm install --no-save playwright && npx playwright install chromium) and retry.",
-      { exitCode: 4, code: "PLAYWRIGHT_MISSING", cause }
-    );
+    return await loadWebRuntime();
+  } catch {
+    throw new WebCapabilityError(unavailableWebCapabilities("playwright_not_available"));
   }
 }
 
@@ -337,16 +336,14 @@ async function installActiveChannelBlocks(context, blockedChannelState) {
 
 export async function withWebInspectionSession(options, inspect) {
   const requested = parseTargetUrl(options.url, options);
+  const launchOptions = browserLaunchOptions(options);
+  const preflight = await preflightWeb({ browserChannel: options.browserChannel });
+  assertWebCapabilities(preflight);
+  const { chromium } = await loadPlaywright();
   const allowedOrigins = new Set([requested.origin, ...(options.allowOrigins ?? [])]);
   const blockedRequestState = { entries: [], total: 0 };
   const blockedChannelState = { entries: [], total: 0 };
   const endpoints = await resolveAllowedEndpoints(requested, allowedOrigins, options);
-  const { chromium } = await loadPlaywright();
-  const launchOptions = { headless: true };
-  if (options.browserChannel !== undefined) {
-    if (options.browserChannel !== "chrome") throw new WebInspectionError("Only the explicit system Chrome channel is supported.", { exitCode: 2, code: "INVALID_BROWSER_CHANNEL" });
-    launchOptions.channel = "chrome";
-  }
   if (options.pinResolvedHosts) {
     launchOptions.args = [
       `--host-resolver-rules=${buildHostResolverRules(endpoints)}`,
@@ -354,7 +351,9 @@ export async function withWebInspectionSession(options, inspect) {
       "--no-proxy-server"
     ];
   }
-  const browser = await chromium.launch(launchOptions);
+  let browser;
+  try { browser = await chromium.launch(launchOptions); }
+  catch { throw new WebCapabilityError(unavailableWebCapabilities("browser_launch_unavailable")); }
   let context;
   try {
     context = await browser.newContext(contextOptions(options));
@@ -417,6 +416,7 @@ export async function withWebInspectionSession(options, inspect) {
       page,
       context,
       browser,
+      preflight,
       requested,
       finalUrl,
       response,
@@ -493,6 +493,7 @@ export async function collectWebEvidence(session, options = {}) {
   return {
     schema_version: "1.0.0",
     kind: "web-evidence-bundle",
+    runtime_preflight: session.preflight,
     captured_at: new Date().toISOString(),
     target: {
       requested_url: requested.href,

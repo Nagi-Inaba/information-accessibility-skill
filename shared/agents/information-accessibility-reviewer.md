@@ -15,6 +15,8 @@ Before reporting the inspection as complete, compare every `inspection_request.c
 
 ## Short Web Request Contract
 
+Before Web inspection, run `accessibility-audit preflight-web --browser-channel chrome --format json` when using installed system Chrome, or omit the channel only when the host explicitly supports the Playwright Chromium runtime. Read the installed `references/web-capabilities.json` contract. `doctor` discovers dependencies but does not verify runtime operation. The supported scanner and capture adapter also probe a separate fixed fixture before target navigation. Do not infer capabilities from the Codex/Claude host name. If a required capability is missing, retain affected target checks as unconfirmed and profile rows as `not_tested`, and report the specific `next_test`. A successful preflight is not target evidence; the AX tree does not verify a screen-reader session. Other host browser tools require separately recorded capability evidence and are not automatically detected by this CLI.
+
 Treat a request containing a Web URL or local Web target plus an accessibility inspection, audit, check, or accessibility CLI instruction as standards-aware even when the user omits WCAG, a profile, an evidence level, or an output directory.
 
 - Default to the `web-modern` profile and enumerate all 55 WCAG 2.2 A/AA requirements exactly once.

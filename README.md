@@ -62,7 +62,17 @@ AIと自動検査が作るものは、原則として問題候補やE0／E1のsc
 
 - Node.js 20以上
 - リポジトリのローカルコピー
-- browser scanを使う場合のみ、指定版のPlaywright、axe-core、Chromium
+- browser scanを使う場合のみ、指定版のPlaywright、axe-core、ホストで利用を認められたChromiumまたはシステムChrome
+
+CLIの台帳作成・登録・統合・レポート機能は、ブラウザなしで動作します。実ページの検査には、対応adapterまたはホストのbrowser toolが必要です。パッケージの存在だけで検査可能と判断せず、[実Web検査の事前確認](docs/web-inspection.md)を行います。
+
+| 実行環境 | CLIの記録処理 | DOM・AX・キーボード・画面幅 | 対象への通信 | スクリーンリーダー実機 |
+| --- | --- | --- | --- | --- |
+| Codex + Nodeホスト | 対応 | adapter導入後にpreflightで実測 | runtime・権限・origin設定が必要 | 外部の人による確認 |
+| Claude + Nodeホスト | 対応 | adapter導入後にpreflightで実測 | runtime・権限・origin設定が必要 | 外部の人による確認 |
+| その他のNodeホスト | 対応 | adapter導入後にpreflightで実測 | runtime・権限・origin設定が必要 | 外部の人による確認 |
+
+ホスト固有のbrowser toolは自動検出しません。別の統合を使う場合は、その実測結果を記録してください。能力不足の確認項目は未確認として次のテストを示し、profileは`not_tested`を維持します。
 
 ### Codex
 
@@ -103,6 +113,7 @@ accessibility-audit profiles list --locale ja
 accessibility-audit requirements search "focus" --profile web-modern --level AA --locale ja
 accessibility-audit screen-reader-checklist --pattern modal-dialog --locale ja --format markdown
 accessibility-audit doctor --locale ja
+accessibility-audit preflight-web --browser-channel chrome --locale ja --format json
 ```
 
 `--locale ja`と`--locale en`は、CLI help、profile、条項一覧・検索・表示、legacy requirement表示、スクリーンリーダーチェックリスト、レポートの人向け文字列だけを切り替えます。内部ID、schema key、enum、証拠型、claim tierは変更しません。

@@ -8,6 +8,8 @@ effort: "medium"
 
 # Information Accessibility E1 Inspector
 
+Before live Web inspection, use the installed `references/web-capabilities.json` and `accessibility-audit preflight-web` to measure the supported browser runtime. Select `--browser-channel chrome` for installed system Chrome. Do not infer runtime capabilities from package presence or the host name. Missing capabilities leave affected checks unconfirmed, with the returned next test; do not promote initial profile rows or call the inspection complete. The CLI does not automatically detect other host browser integrations or actual screen-reader sessions. The scanner/capture adapter repeats the isolated-fixture preflight before target navigation.
+
 Use this agent only for non-state-changing inspection of the exact target fixed by a validated `audit-run`. Return candidate envelope JSON for artifact type `screening-observations`; do not evaluate standards profile rows.
 
 ## Inputs And Identity

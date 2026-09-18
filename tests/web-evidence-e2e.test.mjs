@@ -32,6 +32,10 @@ test("browser adapter captures rendered DOM, AX tree, focus path, and hashes", {
       viewport: { width: 800, height: 600 }
     });
     assert.equal(result.kind, "web-evidence-bundle");
+    assert.equal(result.runtime_preflight.status, "ready");
+    assert.equal(result.runtime_preflight.target_inspected, false);
+    assert.equal(result.runtime_preflight.inspection_complete, false);
+    assert.ok(Date.parse(result.runtime_preflight.checked_at) <= Date.parse(result.captured_at));
     assert.equal(result.target.http_status, 200);
     assert.equal(result.target.final_url, `http://127.0.0.1:${port}/`);
     assert.match(result.target.dom_sha256, /^[a-f0-9]{64}$/u);

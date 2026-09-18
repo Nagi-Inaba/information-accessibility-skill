@@ -3,6 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "description": "Thin, claim-safe CLI for the information accessibility audit runtime.",
+  "accessibilityAudit": {
+    "webCapabilityContract": "./references/web-capabilities.json",
+    "preflightCommand": "accessibility-audit preflight-web"
+  },
   "type": "module",
   "bin": {
     "accessibility-audit": "./scripts/accessibility-audit.mjs"

@@ -123,6 +123,8 @@ export function diagnose(root = skillRoot) {
         .sort((left, right) => left.localeCompare(right, "en"))
     },
     capabilities: {
+      verification_scope: "installed_dependencies_only",
+      runtime_preflight_command: "accessibility-audit preflight-web --browser-channel chrome --format json",
       browser: {
         playwright,
         axe_core: axeCore,
@@ -186,6 +188,7 @@ function renderText(result, locale) {
     `Playwright: ${mark(result.capabilities.browser.playwright.available)}${result.capabilities.browser.playwright.version ? ` (${result.capabilities.browser.playwright.version})` : ""}`,
     `axe-core: ${mark(result.capabilities.browser.axe_core.available)}${result.capabilities.browser.axe_core.version ? ` (${result.capabilities.browser.axe_core.version})` : ""}`,
     text.screenReader,
+    result.capabilities.runtime_preflight_command,
     text.mutation,
     ...(result.errors.length ? ["", text.errors, ...result.errors.map((item) => `- ${item}`)] : []),
     ...(result.warnings.length ? ["", text.warnings, ...result.warnings.map((item) => `- ${item}`)] : [])

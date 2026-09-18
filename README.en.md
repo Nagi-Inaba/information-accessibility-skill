@@ -62,7 +62,17 @@ See the [profile selection and migration guide](docs/profile-selection-and-migra
 
 - Node.js 20 or later
 - A local copy of this repository
-- The pinned Playwright, axe-core, and Chromium versions only when using the browser scan
+- The pinned Playwright and axe-core versions, plus host-approved Chromium or installed system Chrome, only when using the browser scan
+
+The CLI can create ledgers, register artifacts, merge, and report without a browser. Live page inspection requires the supported adapter or a host browser tool. Installed packages alone do not establish that inspection works; run the [Web capability preflight](docs/web-inspection.md).
+
+| Host | CLI record operations | DOM, AX, keyboard and viewport | Target network access | Actual screen reader |
+| --- | --- | --- | --- | --- |
+| Codex with a Node host | Supported | Measure with preflight after installing the adapter | Requires runtime, permission and origin configuration | External human session |
+| Claude with a Node host | Supported | Measure with preflight after installing the adapter | Requires runtime, permission and origin configuration | External human session |
+| Other Node host | Supported | Measure with preflight after installing the adapter | Requires runtime, permission and origin configuration | External human session |
+
+Host-native browser tools are not automatically detected. Record measured capabilities separately when using another integration. Missing capabilities leave affected checks unconfirmed with a next test, and profile rows remain `not_tested`.
 
 ### Codex
 
@@ -103,6 +113,7 @@ accessibility-audit profiles list --locale en
 accessibility-audit requirements search "focus" --profile web-modern --level AA --locale en
 accessibility-audit screen-reader-checklist --pattern modal-dialog --locale en --format markdown
 accessibility-audit doctor --locale en
+accessibility-audit preflight-web --browser-channel chrome --locale en --format json
 ```
 
 `--locale ja` and `--locale en` change only human-readable CLI help, profile metadata, requirement list/search/show output, the legacy requirement view, the screen-reader checklist, and reports. Internal IDs, schema keys, enum values, evidence types, and claim tiers remain stable.
