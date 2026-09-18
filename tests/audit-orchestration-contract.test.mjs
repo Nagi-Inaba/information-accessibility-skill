@@ -661,7 +661,7 @@ test("the orchestration registry fixes the complete role, artifact, and transiti
     {
       id: "declared-human-review",
       latest_schema_version: "1.0.0",
-      schema_versions: [{ version: "1.0.0", schema_file: "declared-human-review.schema.json", schema_sha256: "8c63d384fdd60d0fde6d3ac67fdcd946b6ce0a667b393c033eaf04f1dafdd790", mode: "current" }]
+      schema_versions: [{ version: "1.0.0", schema_file: "declared-human-review.schema.json", schema_sha256: "d733cde8d974fb0e2adf64d6285e22ebb160268e5235e7a7af16a6950855f220", mode: "current" }]
     },
     {
       id: "remediation-plan",

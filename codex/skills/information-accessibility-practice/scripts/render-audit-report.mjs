@@ -12,6 +12,7 @@ import {
   writeNewText
 } from "./lib/audit-run.mjs";
 import { validateAssessment } from "./validate-assessment.mjs";
+import { buildRunFindings, findingPlanMetadata } from "./lib/run-findings.mjs";
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.dirname(scriptDir);
@@ -87,8 +88,8 @@ function findingTable(findings) {
       finding.location,
       finding.affected_users.join(", "),
       finding.observation,
-      finding.remediation,
-      finding.verification
+      finding.remediation ?? "改善計画は未策定。指摘を基に担当者が計画してください。",
+      finding.verification ?? "改善計画の策定後に再確認方法を記録してください。"
     ].map(cell).join(" | ").replace(/^/, "| ").replace(/$/, " |"))
   ].join("\n");
 }
@@ -669,6 +670,7 @@ function publicLimitations(limitations) {
 function publicClaimTier(requestedTier) {
   return ({
     reference_only: "Reference only",
+    screened: "Screened",
     evaluated_subset: "Evaluated subset",
     organization_ready: "Organization-ready evidence"
   })[requestedTier] ?? "Not recorded";
@@ -810,22 +812,10 @@ export function validateRunBackedAssessment({ run, assessment, envelopesById, re
     }
   }
 
-  const verifiedItems = evidence.remediationItems
-    .filter((item) => item.basis === "verified_failure")
-    .sort((left, right) => left.remediation_id.localeCompare(right.remediation_id, "en"));
-  const expectedFindings = verifiedItems.map((item) => ({
-    id: item.remediation_id,
-    priority: item.priority,
-    requirement_ids: [item.requirement_id],
-    location: item.location,
-    affected_users: structuredClone(item.affected_users),
-    observation: item.issue,
-    remediation: item.proposed_change,
-    verification: item.verification
-  }));
+  const expectedFindings = buildRunFindings(evidence.humanReviews, evidence.remediationItems);
   const actualFindings = [...(record.findings ?? [])].sort((left, right) => left.id.localeCompare(right.id, "en"));
   if (!isDeepStrictEqual(actualFindings, expectedFindings)) {
-    throw new Error("Assessment findings do not exactly match the current run verified remediation evidence.");
+    throw new Error("Assessment findings do not exactly match the current run human finding / verified remediation evidence.");
   }
   const candidateIds = new Set(evidence.remediationItems
     .filter((item) => item.basis === "unverified_screening_candidate")
@@ -857,9 +847,14 @@ export function validateRunBackedAssessment({ run, assessment, envelopesById, re
   if (!isDeepStrictEqual(record.limitations, expectedLimitations)) {
     throw new Error("Assessment limitations do not exactly match the current run evidence.");
   }
-  const expectedClaim = resources?.standardsRegistry?.claim_templates?.reference_only?.[0];
-  if (record.claim?.requested_tier !== "reference_only" || record.claim?.proposed_wording !== expectedClaim) {
-    throw new Error("Run-backed assessment claim must remain the current reference-only claim.");
+  const tier = record.claim?.requested_tier;
+  const expectedClaim = resources?.standardsRegistry?.claim_templates?.[tier]?.[0];
+  if (!["reference_only", "screened", "evaluated_subset"].includes(tier) || record.claim?.proposed_wording !== expectedClaim) {
+    throw new Error("Run-backed assessment claim must use a supported tier and its fixed registry wording.");
+  }
+  const claimValidation = validateAssessment(assessment, resources.standardsRegistry, resources.assessmentSchema, resources.criteriaCatalog, resources.auditMethods);
+  if (!claimValidation.valid) {
+    throw new Error(`Run-backed assessment claim/evidence validation failed: ${claimValidation.errors.join("; ")}`);
   }
   if (record.next_review_at !== null) throw new Error("Run-backed assessment next review date is not derived from the registered artifacts.");
   return evidence;
@@ -907,13 +902,13 @@ export function buildPublicReportModel({ run, assessment, envelopesById, resourc
   })));
   const verifiedFailures = evidence.humanReviews
     .filter((review) => review.profile_outcome === "fail")
-    .flatMap((review) => evidence.remediationItems
-      .filter((item) => item.basis === "verified_failure" && item.requirement_id === review.requirement_id)
-      .map((remediation) => ({
+    .flatMap((review) => [...findingById.values()]
+      .filter((finding) => finding.requirement_ids.includes(review.requirement_id))
+      .map((finding) => ({
         requirement_id: review.requirement_id,
         rationale: review.rationale,
-        finding: publicFinding(findingById.get(remediation.remediation_id)),
-        remediation: publicRemediationReference(remediationById.get(remediation.remediation_id))
+        finding: publicFinding(finding),
+        remediation: publicRemediationReference(remediationById.get(finding.id))
       })))
     .sort((left, right) => String(left.requirement_id).localeCompare(String(right.requirement_id), "en")
       || String(left.remediation?.proposed_change ?? "").localeCompare(String(right.remediation?.proposed_change ?? ""), "en"));
@@ -932,7 +927,9 @@ export function buildPublicReportModel({ run, assessment, envelopesById, resourc
     })
     .sort((left, right) => String(left.requirement_id).localeCompare(String(right.requirement_id), "en")
       || String(left.remediation?.proposed_change ?? "").localeCompare(String(right.remediation?.proposed_change ?? ""), "en"));
+  const declaredFindingRequirements = new Set(evidence.humanReviews.filter((review) => review.finding).map((review) => review.requirement_id));
   const remediation = [...evidence.remediationItems]
+    .filter((item) => item.basis !== "verified_failure" || !declaredFindingRequirements.has(item.requirement_id))
     .sort((left, right) => left.remediation_id.localeCompare(right.remediation_id, "en"))
     .map((item) => ({
       requirement_id: item.requirement_id,
@@ -946,6 +943,21 @@ export function buildPublicReportModel({ run, assessment, envelopesById, resourc
       verification: item.verification,
       residual_limitation: item.residual_limitation
     }));
+  for (const finding of findingById.values()) {
+    if (!finding.requirement_ids.some((id) => declaredFindingRequirements.has(id))) continue;
+    remediation.push({
+      requirement_id: finding.requirement_ids[0],
+      evidence_status: "Verified failure",
+      priority: finding.priority,
+      location: publicLocation(finding.location),
+      affected_users: structuredClone(finding.affected_users),
+      issue: finding.observation,
+      remediation_status: finding.remediation_status,
+      proposed_change: finding.remediation,
+      verification: finding.verification,
+      ...findingPlanMetadata(finding, evidence.remediationItems)
+    });
+  }
   const model = {
     target: {
       name: publicText(run.target.name),
@@ -1017,7 +1029,7 @@ export function renderRunBackedReport(model) {
     "",
     reportNotice,
     "",
-    "> 文書区分：検査・改善ハンドオフ（規格参照のみ）",
+    `> 文書区分：検査・改善ハンドオフ（${({ "Reference only": "規格参照のみ", Screened: "スクリーニング", "Evaluated subset": "一部を人手評価" })[model.claim?.tier] ?? "主張範囲未記録"}）`,
     "",
     "## 1. 総合判定",
     "",

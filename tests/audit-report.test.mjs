@@ -15,6 +15,8 @@ import {
 } from "../codex/skills/information-accessibility-practice/scripts/lib/audit-run.mjs";
 import { lookupRequirement } from "../codex/skills/information-accessibility-practice/scripts/show-requirement.mjs";
 import { validateAssessment } from "../codex/skills/information-accessibility-practice/scripts/validate-assessment.mjs";
+import { auditStatus, statusText } from "../codex/skills/information-accessibility-practice/scripts/show-audit-status.mjs";
+import { validateJsonSchema } from "../codex/skills/information-accessibility-practice/scripts/lib/json-schema.mjs";
 import {
   buildPublicReportModel,
   overallReportJudgement,
@@ -110,7 +112,7 @@ test("report judgement vocabulary and overall priority are fixed", () => {
   for (const [counts, expected] of cases) assert.equal(overallReportJudgement(counts), expected);
 });
 
-function reportRunFixture(temp) {
+function reportRunFixture(temp, { declaredFinding = false, withoutPlan = false } = {}) {
   const artifactRoot = path.join(temp, "artifacts");
   fs.mkdirSync(artifactRoot);
   const resources = loadAuditResources(skill);
@@ -203,6 +205,10 @@ function reportRunFixture(temp) {
     identity_authenticated: false,
     reviews: [review("WCAG-2.2-SC-1.1.1", "fail"), review("WCAG-2.2-SC-1.3.1", "pass")]
   }, created[2], "external_human");
+  if (declaredFinding) human.payload.reviews[0].finding = {
+    id: "FIND-HUMAN-REPORT", priority: "P1", location: "Checkout product image",
+    affected_users: ["Screen reader users"], observation: "The image purpose is missing from the text alternative."
+  };
   const humanFile = path.join(artifactRoot, "human.json");
   writeJson(humanFile, human);
   const remediation = envelope("ART-REMEDIATION-REPORT", "remediation-plan", "remediation_planner", [{
@@ -245,7 +251,8 @@ function reportRunFixture(temp) {
   const remediationFile = path.join(artifactRoot, "remediation.json");
   writeJson(remediationFile, remediation);
   const artifactFiles = new Map([[screen.artifact_id, screenFile], [queue.artifact_id, queueFile], [human.artifact_id, humanFile], [remediation.artifact_id, remediationFile]]);
-  const artifacts = [screen, queue, human, remediation];
+  const artifacts = withoutPlan ? [screen, queue, human] : [screen, queue, human, remediation];
+  if (withoutPlan) artifactFiles.delete(remediation.artifact_id);
   const run = {
     schema_version: "7.0.0",
     inspection_request: createInspectionRequest("quick", "Identify the next investigation"),
@@ -283,6 +290,10 @@ function reportRunFixture(temp) {
     ],
     limitations: ["The environment was not declared."]
   };
+  if (withoutPlan) {
+    run.status = "human_review_recorded";
+    run.history.pop();
+  }
   const runFile = path.join(temp, "run.json");
   writeJson(runFile, run);
   const runValidation = validateAuditRun(run, { skillRoot: skill, runFile });
@@ -303,8 +314,221 @@ function reportRunFixture(temp) {
   const assessment = mergeArtifacts({ run, assessment: baseline, artifacts, registries: resources });
   const assessmentFile = path.join(temp, "assessment.json");
   writeJson(assessmentFile, assessment);
-  return { run, runFile, assessment, assessmentFile, artifactFiles };
+  return { run, runFile, assessment, assessmentFile, artifactFiles, baseline, artifacts, resources };
 }
+
+test("human findings survive without a remediation plan and can acquire a plan later", (t) => {
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), "audit-finding-only-"));
+  t.after(() => fs.rmSync(temp, { recursive: true, force: true }));
+  const fixture = reportRunFixture(temp, { declaredFinding: true, withoutPlan: true });
+  const finding = fixture.assessment.assessment.findings[0];
+  assert.equal(finding.id, "FIND-HUMAN-REPORT");
+  assert.equal(finding.priority, "P1");
+  assert.equal(finding.remediation_status, "unplanned");
+  assert.equal(finding.remediation, null);
+  assert.equal(validate(fixture.assessment).valid, true);
+  for (const format of ["markdown", "html"]) {
+    const result = spawnSync(process.execPath, [path.join(skill, "scripts/render-report.mjs"),
+      "--run", fixture.runFile, "--assessment", fixture.assessmentFile,
+      "--visibility", "public", "--reviewer-disclosure", "redact", "--redaction-manifest", path.join(temp, `redaction-${format}.json`),
+      "--format", format, "--output", path.join(temp, `report.${format}`)], { encoding: "utf8" });
+    assert.equal(result.status, 0, result.stderr);
+    const report = fs.readFileSync(path.join(temp, `report.${format}`), "utf8");
+    assert.match(report, /改善計画は未策定/u);
+    assert.match(report, /The image purpose is missing/u);
+    assert.doesNotMatch(report, /FIND-HUMAN-REPORT|ART-HUMAN-REPORT|External Reviewer/u);
+  }
+  const cli = path.join(skill, "scripts/accessibility-audit.mjs");
+  const runAfterPlan = path.join(temp, "run-with-plan.json");
+  const planFile = path.join(temp, "artifacts", "remediation.json");
+  const registration = spawnSync(process.execPath, [cli, "register", "--run", fixture.runFile,
+    "--artifact", planFile, "--output", runAfterPlan], { encoding: "utf8" });
+  assert.equal(registration.status, 0, registration.stderr);
+  const baselineFile = path.join(temp, "baseline.json");
+  writeJson(baselineFile, fixture.baseline);
+  const plannedAssessmentFile = path.join(temp, "assessment-with-plan.json");
+  const merge = spawnSync(process.execPath, [cli, "merge", "--run", runAfterPlan, "--assessment", baselineFile,
+    ...[...fixture.artifactFiles.values(), planFile].flatMap((file) => ["--artifact", file]),
+    "--output", plannedAssessmentFile], { encoding: "utf8" });
+  assert.equal(merge.status, 0, merge.stderr);
+  const planned = readJson(plannedAssessmentFile);
+  assert.deepEqual(planned.assessment.findings.map(({ remediation_status, remediation, verification, ...item }) => item),
+    fixture.assessment.assessment.findings.map(({ remediation_status, remediation, verification, ...item }) => item));
+  assert.equal(planned.assessment.findings[0].remediation_status, "planned");
+  assert.match(planned.assessment.findings[0].remediation, /Provide a text alternative/u);
+  const plannedReport = path.join(temp, "planned.md");
+  const rendered = spawnSync(process.execPath, [cli, "report", "--run", runAfterPlan,
+    "--assessment", plannedAssessmentFile, "--output", plannedReport], { encoding: "utf8" });
+  assert.equal(rendered.status, 0, rendered.stderr);
+  assert.match(fs.readFileSync(plannedReport, "utf8"), /Frontend team/u);
+  const tampered = structuredClone(fixture.assessment);
+  tampered.assessment.findings[0].observation = "Unregistered substituted finding.";
+  writeJson(fixture.assessmentFile, tampered);
+  const rejected = spawnSync(process.execPath, [path.join(skill, "scripts/render-report.mjs"),
+    "--run", fixture.runFile, "--assessment", fixture.assessmentFile, "--output", path.join(temp, "forged.md")], { encoding: "utf8" });
+  assert.notEqual(rejected.status, 0);
+  assert.equal(fs.existsSync(path.join(temp, "forged.md")), false);
+});
+
+test("finding-only records require failure, impact, location and evidence in both workflows", (t) => {
+  const record = reviewedRecord();
+  Object.assign(record.assessment.findings[0], { remediation_status: "unplanned", remediation: null, verification: null });
+  assert.equal(validate(record).valid, true);
+  for (const mutate of [
+    (r) => { r.assessment.findings[0].affected_users = []; },
+    (r) => { r.assessment.findings[0].location = ""; },
+    (r) => { r.assessment.results.find((item) => item.outcome === "fail").evidence = []; },
+    (r) => { r.assessment.findings[0].remediation_status = "planned"; }
+  ]) {
+    const invalid = structuredClone(record);
+    mutate(invalid);
+    assert.equal(validate(invalid).valid, false);
+  }
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), "audit-finding-binding-"));
+  t.after(() => fs.rmSync(temp, { recursive: true, force: true }));
+  const fixture = reportRunFixture(temp, { declaredFinding: true, withoutPlan: true });
+  const file = fixture.artifactFiles.get("ART-HUMAN-REPORT");
+  const original = readJson(file);
+  for (const mutate of [
+    (r) => { r.finding.affected_users = []; }, (r) => { r.finding.location = ""; },
+    (r) => { r.target_specific_evidence = []; }, (r) => { r.profile_outcome = "pass"; }
+  ]) {
+    const artifact = structuredClone(original);
+    mutate(artifact.payload.reviews[0]);
+    writeJson(file, artifact);
+    fixture.run.artifacts.find((item) => item.artifact_id === artifact.artifact_id).sha256 = resourcesSha256(file);
+    assert.equal(validateAuditRun(fixture.run, { skillRoot: skill, runFile: fixture.runFile }).valid, false);
+  }
+});
+
+test("merge CLI selects only evidence-backed fixed claims and leaves prior records unchanged", (t) => {
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), "audit-run-claims-"));
+  t.after(() => fs.rmSync(temp, { recursive: true, force: true }));
+  const fixture = reportRunFixture(temp, { declaredFinding: true, withoutPlan: true });
+  const baselineFile = path.join(temp, "baseline.json");
+  writeJson(baselineFile, fixture.baseline);
+  const sourceFiles = [fixture.runFile, baselineFile, ...fixture.artifactFiles.values()];
+  const before = sourceFiles.map(resourcesSha256);
+  const cli = path.join(skill, "scripts/accessibility-audit.mjs");
+  for (const tier of ["reference_only", "screened", "evaluated_subset"]) {
+    const output = path.join(temp, `${tier}.json`);
+    const result = spawnSync(process.execPath, [cli, "merge", "--run", fixture.runFile,
+      "--assessment", baselineFile, ...[...fixture.artifactFiles.values()].flatMap((file) => ["--artifact", file]),
+      "--claim-tier", tier, "--output", output], { encoding: "utf8" });
+    assert.equal(result.status, 0, result.stderr);
+    const record = readJson(output);
+    assert.deepEqual(record.assessment.claim, { requested_tier: tier, proposed_wording: registry.claim_templates[tier][0] });
+    assert.equal(validate(record).guard.max_tier, "evaluated_subset");
+    const model = buildPublicReportModel({ run: fixture.run, assessment: record,
+      envelopesById: new Map(fixture.artifacts.map((artifact) => [artifact.artifact_id, artifact])), resources: fixture.resources });
+    assert.equal(model.claim.tier, { reference_only: "Reference only", screened: "Screened", evaluated_subset: "Evaluated subset" }[tier]);
+    assert.match(renderRunBackedReport(model), new RegExp({ reference_only: "規格参照のみ", screened: "スクリーニング", evaluated_subset: "一部を人手評価" }[tier], "u"));
+    const report = spawnSync(process.execPath, [cli, "report", "--run", fixture.runFile,
+      "--assessment", output, "--output", path.join(temp, `${tier}.md`)], { encoding: "utf8" });
+    assert.equal(report.status, 0, report.stderr);
+    assert.match(fs.readFileSync(path.join(temp, `${tier}.md`), "utf8"), /declared but not authenticated/u);
+  }
+  assert.deepEqual(sourceFiles.map(resourcesSha256), before);
+  const screenRun = structuredClone(fixture.run);
+  screenRun.status = "screened";
+  screenRun.artifacts = screenRun.artifacts.filter((item) => item.artifact_type === "screening-observations");
+  screenRun.history = screenRun.history.slice(0, 1);
+  const screenArgs = { run: screenRun, assessment: fixture.baseline, artifacts: [fixture.artifacts[0]], registries: fixture.resources };
+  assert.equal(mergeArtifacts({ ...screenArgs, claimTier: "screened" }).assessment.claim.requested_tier, "screened");
+  assert.throws(() => mergeArtifacts({ ...screenArgs, claimTier: "evaluated_subset" }), /tier|evidence|E2/i);
+  assert.throws(() => mergeArtifacts({ ...screenArgs, claimTier: "conformance_candidate" }), /claim-tier/u);
+  const emptyRun = { ...screenRun, status: "initialized", artifacts: [], history: [] };
+  assert.equal(validate(mergeArtifacts({ ...screenArgs, run: emptyRun, artifacts: [] })).guard.max_tier, "reference_only");
+  assert.throws(() => mergeArtifacts({ ...screenArgs, run: emptyRun, artifacts: [], claimTier: "screened" }), /tier|evidence/i);
+
+  const tampered = readJson(path.join(temp, "evaluated_subset.json"));
+  tampered.assessment.claim.proposed_wording = "Unregistered wording";
+  writeJson(path.join(temp, "tampered.json"), tampered);
+  const rejected = spawnSync(process.execPath, [cli, "report", "--run", fixture.runFile,
+    "--assessment", path.join(temp, "tampered.json"), "--output", path.join(temp, "invalid-claim.md")], { encoding: "utf8" });
+  assert.notEqual(rejected.status, 0);
+  assert.equal(fs.existsSync(path.join(temp, "invalid-claim.md")), false);
+});
+
+test("status verifies major states, coverage, allowed transitions, successors and read-only CLI output", (t) => {
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), "audit-status-"));
+  t.after(() => fs.rmSync(temp, { recursive: true, force: true }));
+  const fixture = reportRunFixture(temp, { declaredFinding: true });
+  const states = ["initialized", ...fixture.run.history.map((item) => item.to)];
+  const manifests = states.map((state, index) => {
+    const run = structuredClone(fixture.run);
+    run.status = state;
+    run.history = run.history.slice(0, index);
+    const registered = new Set(run.history.flatMap((item) => item.artifact_ids));
+    run.artifacts = run.artifacts.filter((item) => registered.has(item.artifact_id));
+    const file = path.join(temp, `state-${index}.json`);
+    writeJson(file, run);
+    return file;
+  });
+  const files = [...manifests, fixture.runFile, ...fixture.artifactFiles.values()];
+  const before = files.map(resourcesSha256);
+  for (const [index, file] of manifests.entries()) {
+    const result = auditStatus(file);
+    const schemaErrors = [];
+    validateJsonSchema(result, readJson(path.join(skill, "references/audit-status.schema.json")), "$", schemaErrors);
+    assert.deepEqual(schemaErrors, []);
+    assert.equal(result.schema_version, "1.0.0");
+    assert.equal(result.valid, true, result.errors.join("\n"));
+    assert.equal(result.run.state, states[index]);
+    assert.equal(result.artifacts.length, index);
+    assert.equal(result.coverage.human_reviewed, index >= 3 ? 2 : 0);
+    assert.equal(result.coverage.profile_requirements, 55);
+    assert.equal(result.claim.max_tier, index >= 3 ? "evaluated_subset" : index ? "screened" : "reference_only");
+    assert.equal(result.claim.profile_ceiling, "evaluated_subset");
+    assert.equal(result.operations.merge.available, index > 0);
+    assert.equal(result.operations.report.available, true);
+    assert.equal(result.operations.retest.available, false);
+    if (index < 4) assert.ok(result.warnings.some((warning) => warning.code === "superseded_run"));
+    const expected = fixture.resources.orchestrationRegistry.transitions.filter((item) => item.from === states[index]);
+    assert.deepEqual(result.next_transitions.map((item) => item.to), expected.map((item) => item.to));
+    for (const transition of result.next_transitions) {
+      if (transition.required_artifact_types.includes("fix-authorization")) assert.equal(transition.permitted, false);
+    }
+    assert.match(statusText(result, "ja"), /監査の状態/u);
+  }
+  const cli = path.join(skill, "scripts/accessibility-audit.mjs");
+  const json = spawnSync(process.execPath, [cli, "status", "--run", fixture.runFile, "--format", "json"], { encoding: "utf8" });
+  assert.equal(json.status, 0, json.stderr);
+  assert.equal(JSON.parse(json.stdout).run.state, "remediation_ready");
+  const text = spawnSync(process.execPath, [cli, "--locale", "ja", "status", "--run", fixture.runFile], { encoding: "utf8" });
+  assert.equal(text.status, 0, text.stderr);
+  assert.match(text.stdout, /人手確認: 2\/55/u);
+  assert.deepEqual(files.map(resourcesSha256), before);
+});
+
+test("status refuses corrupt evidence and detects ambiguous related manifests", (t) => {
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), "audit-status-invalid-"));
+  t.after(() => fs.rmSync(temp, { recursive: true, force: true }));
+  const fixture = reportRunFixture(temp, { declaredFinding: true, withoutPlan: true });
+  const divergent = structuredClone(fixture.run);
+  divergent.target.name = "Another target with a reused ID";
+  writeJson(path.join(temp, "divergent.json"), divergent);
+  assert.ok(auditStatus(fixture.runFile).warnings.some((warning) => warning.code === "divergent_run"));
+  const humanFile = fixture.artifactFiles.get("ART-HUMAN-REPORT");
+  fs.appendFileSync(humanFile, " ");
+  const invalid = auditStatus(fixture.runFile);
+  const schemaErrors = [];
+  validateJsonSchema(invalid, readJson(path.join(skill, "references/audit-status.schema.json")), "$", schemaErrors);
+  assert.deepEqual(schemaErrors, []);
+  assert.equal(invalid.valid, false);
+  assert.ok(invalid.errors.some((error) => /hash/i.test(error)));
+  assert.ok(Object.values(invalid.operations).every((operation) => !operation.available));
+  assert.equal(invalid.claim.max_tier, null);
+  assert.equal(invalid.coverage.human_reviewed, null);
+  assert.ok(invalid.recovery.length);
+  const cli = spawnSync(process.execPath, [path.join(skill, "scripts/accessibility-audit.mjs"), "status",
+    "--run", fixture.runFile, "--format", "json"], { encoding: "utf8" });
+  assert.equal(cli.status, 1);
+  assert.equal(JSON.parse(cli.stdout).valid, false);
+  const nullFile = path.join(temp, "null.json");
+  writeJson(nullFile, null);
+  assert.equal(auditStatus(nullFile).valid, false);
+});
 
 test("public follow-up projection keeps counts and source records coherent and withholds private prose", (t) => {
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), "audit-follow-up-"));

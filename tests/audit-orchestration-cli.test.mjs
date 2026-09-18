@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 
 import { generateAssessment } from "../codex/skills/information-accessibility-practice/scripts/generate-assessment.mjs";
 import { lookupRequirement } from "../codex/skills/information-accessibility-practice/scripts/show-requirement.mjs";
+import { auditStatus } from "../codex/skills/information-accessibility-practice/scripts/show-audit-status.mjs";
 import {
   loadAuditResources,
   mergeArtifacts as mergeArtifactRecords,
@@ -670,6 +671,33 @@ function copyDirectory(source, destination) {
     else fs.copyFileSync(sourceEntry, destinationEntry);
   }
 }
+
+test("status distinguishes authorized-change readiness and legacy read-only records", (t) => withTemp(t, ({ temp, artifactRoot }) => {
+  const fixture = makeRetestRequiredRun(artifactRoot);
+  const file = path.join(temp, "retest.json");
+  writeJson(file, fixture.run);
+  const ready = auditStatus(file);
+  assert.equal(ready.valid, true, ready.errors.join("\n"));
+  assert.equal(ready.operations.retest.available, true);
+  assert.deepEqual(ready.next_transitions, []);
+  const authorized = structuredClone(fixture.run);
+  authorized.status = "fix_authorized";
+  authorized.history.pop();
+  authorized.artifacts = authorized.artifacts.filter((item) => item.artifact_type !== "change-record");
+  const authorizedFile = path.join(temp, "authorized.json");
+  writeJson(authorizedFile, authorized);
+  const state = auditStatus(authorizedFile);
+  assert.equal(state.operations.retest.available, false);
+  assert.equal(state.next_transitions[0].to, "retest_required");
+  assert.equal(state.next_transitions[0].permitted, true);
+  const legacyFile = path.join(temp, "legacy.json");
+  writeJson(legacyFile, legacyV6InitialRun(artifactRoot));
+  const legacy = auditStatus(legacyFile);
+  assert.equal(legacy.valid, true, legacy.errors.join("\n"));
+  assert.ok(legacy.warnings.some((warning) => warning.code === "legacy_read_only"));
+  assert.equal(legacy.operations.merge.available, false);
+  assert.ok(legacy.next_transitions.every((transition) => !transition.permitted));
+}));
 
 test("run initialization creates a schema-valid immutable manifest with installed resource hashes", (t) => withTemp(t, ({ temp, artifactRoot }) => {
   const output = path.join(temp, "audit-run.v1.json");

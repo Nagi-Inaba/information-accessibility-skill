@@ -244,8 +244,13 @@ export function validateAssessment(record, registry, schema, criteriaCatalog, au
   const findingRequirementIds = new Set();
   findings.forEach((finding, index) => {
     const prefix = `findings[${index}]`;
-    for (const key of ["id", "location", "observation", "remediation", "verification"]) {
+    for (const key of ["id", "location", "observation"]) {
       if (!hasText(finding?.[key])) errors.push(`${prefix}.${key} is required`);
+    }
+    for (const key of ["remediation", "verification"]) {
+      if (finding?.remediation_status === "unplanned") {
+        if (finding[key] !== null) errors.push(`${prefix}.${key} must be null when remediation is unplanned`);
+      } else if (!hasText(finding?.[key])) errors.push(`${prefix}.${key} is required unless remediation_status is unplanned`);
     }
     if (hasText(finding?.id)) {
       if (findingIds.has(finding.id)) errors.push(`${prefix}.id is duplicated: ${finding.id}`);

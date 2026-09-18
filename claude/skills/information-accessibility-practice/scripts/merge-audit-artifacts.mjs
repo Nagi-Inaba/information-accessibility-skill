@@ -15,7 +15,7 @@ import {
 
 function parseArgs(argv) {
   const options = { artifacts: [] };
-  const flags = new Map([["--run", "run"], ["--assessment", "assessment"], ["--artifact", "artifacts"], ["--output", "output"]]);
+  const flags = new Map([["--run", "run"], ["--assessment", "assessment"], ["--artifact", "artifacts"], ["--output", "output"], ["--claim-tier", "claimTier"]]);
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (!flags.has(arg)) throw new Error(`Unknown argument: ${arg}`);
@@ -30,7 +30,7 @@ function parseArgs(argv) {
     index += 1;
   }
   for (const [flag, key] of flags) {
-    if (key !== "artifacts" && !options[key]) throw new Error(`${flag} is required`);
+    if (!["artifacts", "claimTier"].includes(key) && !options[key]) throw new Error(`${flag} is required`);
   }
   if (!options.artifacts.length) throw new Error("--artifact is required");
   return options;
@@ -80,7 +80,7 @@ export function main(argv = process.argv.slice(2)) {
   const resources = loadAuditResources();
   resources.artifact_snapshots_by_id = artifactSnapshotsById;
   const assessment = parseSnapshot(assessmentSnapshot, "assessment input");
-  const merged = mergeArtifacts({ run, assessment, artifacts, registries: resources });
+  const merged = mergeArtifacts({ run, assessment, artifacts, registries: resources, claimTier: options.claimTier });
   assertStableFile(runSnapshot, "audit run input");
   assertStableFile(assessmentSnapshot, "assessment input");
   for (const snapshot of artifactSnapshots) assertStableFile(snapshot, "merge artifact");

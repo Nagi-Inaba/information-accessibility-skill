@@ -6,6 +6,7 @@ import {
 } from "./runtime-locale.mjs";
 
 const localeAwareCommands = new Set([
+  "status",
   "profiles",
   "requirements",
   "requirement",

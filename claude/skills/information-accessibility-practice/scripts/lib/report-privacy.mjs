@@ -1,4 +1,5 @@
 import { isIP } from "node:net";
+import { findingPlanMetadata } from "./run-findings.mjs";
 
 const redacted = "[redacted]";
 const machineFields = new Set([
@@ -213,7 +214,8 @@ export function buildInternalRunBackedModel({ run, assessment, publicModel, enve
     remediation: remediations.find((item) => item.basis === "unverified_screening_candidate"
       && item.requirement_id === observation.requirement_id) ?? null
   }));
-  model.remediation = remediations.map((item) => ({
+  const declaredFindingRequirements = new Set(humanReviews.filter((review) => review.finding).map((review) => review.requirement_id));
+  model.remediation = remediations.filter((item) => item.basis !== "verified_failure" || !declaredFindingRequirements.has(item.requirement_id)).map((item) => ({
     requirement_id: item.requirement_id,
     evidence_status: item.basis === "verified_failure" ? "Verified failure" : "Unverified screening candidate",
     priority: item.priority,
@@ -225,6 +227,15 @@ export function buildInternalRunBackedModel({ run, assessment, publicModel, enve
     verification: item.verification,
     residual_limitation: item.residual_limitation
   }));
+  for (const finding of assessment.assessment.findings ?? []) {
+    if (!finding.requirement_ids.some((id) => declaredFindingRequirements.has(id))) continue;
+    model.remediation.push({
+      requirement_id: finding.requirement_ids[0], evidence_status: "Verified failure",
+      priority: finding.priority, location: finding.location, affected_users: structuredClone(finding.affected_users),
+      issue: finding.observation, remediation_status: finding.remediation_status,
+      proposed_change: finding.remediation, verification: finding.verification, ...findingPlanMetadata(finding, remediations)
+    });
+  }
   return model;
 }
 

@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:information-accessibility:audit-status:1.0.0",
+  "title": "Read-only audit status output",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "valid", "run", "artifacts", "coverage", "claim", "next_transitions", "operations", "latest", "warnings", "errors", "recovery"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "valid": {"type": "boolean"},
+    "run": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "schema_version", "state", "profile", "revision", "permissions"],
+      "properties": {
+        "id": {"type": ["string", "null"]}, "schema_version": {"type": ["string", "null"]},
+        "state": {"type": ["string", "null"]}, "profile": {"type": ["string", "null"]},
+        "revision": {"type": ["integer", "null"], "minimum": 0}, "permissions": {"type": ["object", "null"]}
+      }
+    },
+    "artifacts": {
+      "type": "array", "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["id", "type", "producer", "sha256", "validation"],
+        "properties": {
+          "id": {"type": ["string", "null"]}, "type": {"type": ["string", "null"]},
+          "producer": {"type": ["string", "null"]}, "sha256": {"type": ["string", "null"]},
+          "validation": {"enum": ["valid", "run_invalid"]}
+        }
+      }
+    },
+    "coverage": {
+      "type": "object", "additionalProperties": false,
+      "required": ["profile_requirements", "human_reviewed", "evaluation"],
+      "properties": {
+        "profile_requirements": {"type": ["integer", "null"], "minimum": 0},
+        "human_reviewed": {"type": ["integer", "null"], "minimum": 0},
+        "evaluation": {"type": ["object", "null"]}
+      }
+    },
+    "claim": {
+      "type": "object", "additionalProperties": false, "required": ["max_tier", "profile_ceiling"],
+      "properties": {"max_tier": {"type": ["string", "null"]}, "profile_ceiling": {"type": ["string", "null"]}}
+    },
+    "next_transitions": {
+      "type": "array", "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["from", "to", "required_artifact_types", "producer_roles", "permitted", "reason"],
+        "properties": {
+          "from": {"type": "string"}, "to": {"type": "string"},
+          "required_artifact_types": {"type": "array", "items": {"type": "string"}},
+          "producer_roles": {"type": "array", "items": {"type": "string"}},
+          "permitted": {"type": "boolean"}, "reason": {"type": "string"}
+        }
+      }
+    },
+    "operations": {
+      "type": "object", "additionalProperties": false, "required": ["merge", "report", "retest"],
+      "properties": {"merge": {"$ref": "#/$defs/operation"}, "report": {"$ref": "#/$defs/operation"}, "retest": {"$ref": "#/$defs/operation"}}
+    },
+    "latest": {
+      "type": "object", "additionalProperties": false, "required": ["search_scope", "successors", "warnings"],
+      "properties": {
+        "search_scope": {"enum": ["sibling_json_files_only", "not_scanned_invalid_run"]},
+        "successors": {"type": "array", "items": {
+          "type": "object", "additionalProperties": false, "required": ["file", "run_id", "state", "kind"],
+          "properties": {"file": {"type": "string"}, "run_id": {"type": "string"}, "state": {"type": "string"}, "kind": {"enum": ["registration", "retest"]}}
+        }},
+        "warnings": {"type": "array", "items": {"$ref": "#/$defs/warning"}}
+      }
+    },
+    "warnings": {"type": "array", "items": {"$ref": "#/$defs/warning"}},
+    "errors": {"type": "array", "items": {"type": "string"}},
+    "recovery": {"type": "array", "items": {"type": "string"}}
+  },
+  "$defs": {
+    "operation": {"type": "object", "additionalProperties": false, "required": ["available", "reason"], "properties": {"available": {"type": "boolean"}, "reason": {"type": "string"}}},
+    "warning": {
+      "type": "object", "additionalProperties": false, "required": ["code"],
+      "properties": {
+        "code": {"enum": ["invalid_related_run", "divergent_run", "superseded_run", "legacy_read_only", "merge_blocked"]},
+        "file": {"type": "string"}, "files": {"type": "array", "items": {"type": "string"}}, "detail": {"type": "string"}
+      }
+    }
+  }
+}

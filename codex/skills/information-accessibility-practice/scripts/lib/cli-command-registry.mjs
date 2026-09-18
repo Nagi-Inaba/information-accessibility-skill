@@ -7,6 +7,17 @@ function option(flag, value, description) {
 
 const definitions = [
   {
+    name: "status",
+    script: "show-audit-status.mjs",
+    summary: "Read run state, evidence coverage, validation, successor warnings and next operations.",
+    usage: ["accessibility-audit status --run <run.json> [--format text|json] [--locale ja|en]"],
+    options: [option("--run", "<run.json>", "Run manifest to inspect without modification."),
+      option("--format", "<text|json>", "Text or versioned JSON output. Default: text."),
+      option("--locale", "<ja|en>", "Human-readable locale. JSON field names stay stable.")],
+    notes: ["Read-only: no transition, target interaction or artifact write is performed.",
+      "Successor discovery is limited to sibling JSON files. Report availability means a matching assessment can be rendered, not that inspection is complete."]
+  },
+  {
     name: "init",
     script: "create-audit-run.mjs",
     summary: "Create a new immutable audit run.",
@@ -160,11 +171,12 @@ const definitions = [
     name: "merge",
     script: "merge-audit-artifacts.mjs",
     summary: "Merge registered artifacts into a new assessment.",
-    usage: ["accessibility-audit merge --run <run.json> --assessment <assessment.json> --artifact <artifact.json> --output <new-assessment.json>"],
+    usage: ["accessibility-audit merge --run <run.json> --assessment <assessment.json> --artifact <artifact.json> [--claim-tier <reference_only|screened|evaluated_subset>] --output <new-assessment.json>"],
     options: [
       option("--run", "<run.json>", "Validated current run."),
       option("--assessment", "<assessment.json>", "Baseline assessment."),
       option("--artifact", "<artifact.json>", "Registered artifact; repeatable."),
+      option("--claim-tier", "<reference_only|screened|evaluated_subset>", "Explicit claim request checked against registered evidence. Default: reference_only. Wording comes from the registry."),
       option("--output", "<new-assessment.json>", "New merged assessment.")
     ]
   },

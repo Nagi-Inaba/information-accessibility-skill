@@ -177,6 +177,8 @@ https://example.com/
 
 ## 詳細ドキュメント
 
+- [人手レビューの記録・主張範囲・監査の状態確認](docs/human-review-and-status.md)
+- [Issueの優先順位と実装範囲](docs/issue-priorities.md)
 - [はじめに：最初の1回と利用経路](docs/getting-started.md)
 - [実行可能な3経路のexamples](examples/README.md)
 - [レポート形式、HTMLアクセシビリティ、検証境界](docs/report-formats.md)

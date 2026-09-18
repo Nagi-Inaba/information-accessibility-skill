@@ -8,6 +8,7 @@ import { validateAssessment } from "../validate-assessment.mjs";
 import { lookupRequirement } from "../show-requirement.mjs";
 import { validateJsonSchema } from "./json-schema.mjs";
 import { createInspectionRequest, inspectionRequestErrors } from "./inspection-request.mjs";
+import { buildRunFindings } from "./run-findings.mjs";
 
 const defaultSkillRoot = path.dirname(path.dirname(path.dirname(fileURLToPath(import.meta.url))));
 const noFollow = process.platform === "win32" ? 0 : (fs.constants.O_NOFOLLOW ?? 0);
@@ -59,6 +60,16 @@ const currentScreeningManifestContract = {
       mode: "current"
     }
   ]
+};
+const currentHumanReviewManifestContract = {
+  id: "declared-human-review",
+  latest_schema_version: "1.0.0",
+  schema_versions: [{
+    version: "1.0.0",
+    schema_file: "declared-human-review.schema.json",
+    schema_sha256: "d733cde8d974fb0e2adf64d6285e22ebb160268e5235e7a7af16a6950855f220",
+    mode: "current"
+  }]
 };
 
 function pathKey(value) {
@@ -336,6 +347,8 @@ function validateOrchestrationRegistrySemantics(registry, canonicalRegistry) {
       if (!isDeepStrictEqual(installedArtifactType, currentAuditRunManifestContract)) errors.push("Canonical audit-run manifest changed.");
     } else if (canonicalArtifactType.id === "screening-observations") {
       if (!isDeepStrictEqual(installedArtifactType, currentScreeningManifestContract)) errors.push("Canonical screening-observations manifest changed.");
+    } else if (canonicalArtifactType.id === "declared-human-review") {
+      if (!isDeepStrictEqual(installedArtifactType, currentHumanReviewManifestContract)) errors.push("Canonical declared-human-review manifest changed.");
     } else if (!isDeepStrictEqual(canonicalComparableManifest(installedArtifactType, canonicalArtifactType), canonicalArtifactType)) {
       errors.push(`Canonical artifact type manifest changed: ${canonicalArtifactType.id}.`);
     }
@@ -996,6 +1009,9 @@ function validateDeclaredHumanBindings(envelopesById, profileId, resources, erro
     const reviewed = new Set();
     for (const review of Array.isArray(artifact.payload?.reviews) ? artifact.payload.reviews : []) {
       const requirementId = review?.requirement_id;
+      if (review.finding && review.profile_outcome !== "fail") {
+        errors.push(`Declared human review ${artifactId} finding requires profile_outcome fail for ${requirementId}.`);
+      }
       if (reviewed.has(requirementId)) errors.push(`Declared human review ${artifactId} repeats queued requirement ${String(requirementId)}.`);
       reviewed.add(requirementId);
       const queueItem = queuedItems.get(requirementId);
@@ -1488,7 +1504,7 @@ function assertAssessmentMergeBaseline(assessment, resources) {
   }
 }
 
-export function mergeArtifacts({ run, assessment, artifacts, registries }) {
+export function mergeArtifacts({ run, assessment, artifacts, registries, claimTier = "reference_only" }) {
   const resources = registries ?? loadAuditResources();
   assertCurrentOperationalRun(run, resources, "Artifact merge");
   const permissionError = remediationPermissionError(run, artifacts);
@@ -1619,31 +1635,19 @@ export function mergeArtifacts({ run, assessment, artifacts, registries }) {
     merged.assessment.evidence_level = "E1";
   }
   const sortedRemediationItems = remediationItems(suppliedEnvelopesById);
-  const verifiedFailureRequirements = new Set(sortedRemediationItems
-    .filter(({ item }) => item.basis === "verified_failure")
-    .map(({ item }) => item.requirement_id));
-  for (const [requirementId, review] of humanReviews) {
-    if (review.profile_outcome === "fail" && !verifiedFailureRequirements.has(requirementId)) {
-      throw new Error(`Human fail requires a matching verified_failure remediation item: ${requirementId}.`);
-    }
-  }
-  merged.assessment.findings = sortedRemediationItems
-    .filter(({ item }) => item.basis === "verified_failure")
-    .map(({ item }) => ({
-      id: item.remediation_id,
-      priority: item.priority,
-      requirement_ids: [item.requirement_id],
-      location: item.location,
-      affected_users: structuredClone(item.affected_users),
-      observation: item.issue,
-      remediation: item.proposed_change,
-      verification: item.verification
-    }));
+  merged.assessment.findings = buildRunFindings([...humanReviews.values()], sortedRemediationItems.map(({ item }) => item));
   for (const { item } of sortedRemediationItems) {
     if (!merged.assessment.limitations.includes(item.residual_limitation)) {
       merged.assessment.limitations.push(item.residual_limitation);
     }
   }
+  if (!["reference_only", "screened", "evaluated_subset"].includes(claimTier)) {
+    throw new Error("--claim-tier must be reference_only, screened, or evaluated_subset; the evidence guard may impose a lower ceiling.");
+  }
+  merged.assessment.claim = {
+    requested_tier: claimTier,
+    proposed_wording: resources.standardsRegistry.claim_templates[claimTier][0]
+  };
   validateAssessmentOrThrow(merged, resources, "Merged assessment failed existing assessment validation");
   return merged;
 }

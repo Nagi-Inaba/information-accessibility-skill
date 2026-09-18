@@ -13,7 +13,7 @@ export function readerText(locale) {
     judgement: "判定と出所", location: "箇所", affected: "影響を受ける利用者", change: "改善案", verification: "再確認方法",
     owner: "担当", residual: "改善後も残る制約", evidence: "確認内容と次の確認", none: "記録なし",
     candidate: "AI・自動検査による問題候補（未確認）", genericPending: "個別の確認理由が未記録の項目", commonPending: "共通の確認事項",
-    remaining: "未実施の残り達成基準"
+    remaining: "未実施の残り達成基準", unplanned: "改善計画は未策定。指摘を基に担当者が計画してください。"
   } : {
     target: "Target", scope: "Inspection scope", overall: "Overall judgement", coverage: "Review progress",
     human: "Requirements checked by a human", screening: "Requirements with AI/automated results", notRun: "Requirements without inspection records",
@@ -24,7 +24,7 @@ export function readerText(locale) {
     judgement: "Judgement and source", location: "Location", affected: "Affected users", change: "Proposed change", verification: "Verification",
     owner: "Owner", residual: "Residual limitation", evidence: "Review details and next checks", none: "Not recorded",
     candidate: "AI/automated screening candidate (unverified)", genericPending: "Requirements without a recorded pending reason", commonPending: "Shared follow-up",
-    remaining: "Remaining not-run requirements"
+    remaining: "Remaining not-run requirements", unplanned: "Remediation is not yet planned. An owner must plan the change from this finding."
   };
 }
 
@@ -95,7 +95,7 @@ export function actionItems(action, presentation) {
     [text.location, location || text.none],
     ...(hasFinding ? [
     [text.affected, (Array.isArray(finding.affected_users) ? finding.affected_users.join(", ") : finding.affected_users) || text.none],
-    [text.change, finding.proposed_change ?? finding.remediation ?? text.none],
+    [text.change, finding.remediation_status === "unplanned" ? text.unplanned : finding.proposed_change ?? finding.remediation ?? text.none],
     [text.verification, finding.verification ?? text.none],
     ] : []),
     ...(finding.owner ? [[text.owner, finding.owner]] : []),

@@ -183,9 +183,15 @@
               "location": {"type": "string", "minLength": 1},
               "affected_users": {"type": "array", "items": {"type": "string", "minLength": 1}},
               "observation": {"type": "string", "minLength": 1},
-              "remediation": {"type": "string", "minLength": 1},
-              "verification": {"type": "string", "minLength": 1}
-            }
+              "remediation_status": {"enum": ["unplanned", "planned"]},
+              "remediation": {"type": ["string", "null"], "minLength": 1},
+              "verification": {"type": ["string", "null"], "minLength": 1}
+            },
+            "allOf": [{
+              "if": {"required": ["remediation_status"], "properties": {"remediation_status": {"const": "unplanned"}}},
+              "then": {"properties": {"remediation": {"const": null}, "verification": {"const": null}}},
+              "else": {"properties": {"remediation": {"type": "string", "minLength": 1}, "verification": {"type": "string", "minLength": 1}}}
+            }]
           }
         },
         "participation_coverage": {
