@@ -18,6 +18,9 @@ const SINGLE_VALUE_OPTIONS = new Map([
   ["--profile", "profile"],
   ["--output", "output"],
   ["--context-output", "contextOutput"],
+  ["--axe-output", "axeOutput"],
+  ["--evidence-output", "evidenceOutput"],
+  ["--browser-channel", "browserChannel"],
   ["--focus-steps", "focusSteps"],
   ["--width", "width"],
   ["--height", "height"],
@@ -42,6 +45,8 @@ function usage() {
     "  accessibility-audit scan-web --url <http-or-https-url> --profile <active-profile> --output <new-scan.json> [--context-output <new-context.json>] [--allow-origin <origin>] [--allow-localhost] [--focus-steps <0-50>] [--width <240-7680>] [--height <240-7680>] [--reflow-width <240-1280>]",
     "",
     "Defaults:",
+    "  --axe-output <private-file> and --evidence-output <private-bundle> preserve importable results together.",
+    "  --browser-channel chrome selects system Chrome explicitly.",
     "  --focus-steps 8",
     "  --width 1280",
     "  --height 800",
@@ -98,6 +103,7 @@ export function parseScanWebArgs(argv) {
   integerInRange(options.height, "--height", 240, 7680);
   integerInRange(options.reflowWidth, "--reflow-width", 240, 1280);
   options.viewport = { width: options.width, height: options.height };
+  if (options.browserChannel !== undefined && options.browserChannel !== "chrome") throw new ScanWebUsageError("--browser-channel accepts only chrome.");
   return options;
 }
 
@@ -147,8 +153,17 @@ export async function main(argv = process.argv.slice(2)) {
       throw new ScanWebUsageError("Scan output and context output must be different paths.");
     }
 
-    const { scan, context } = await runAutomatedWebScan(options);
+    if (Boolean(options.axeOutput) !== Boolean(options.evidenceOutput)) throw new ScanWebUsageError("--axe-output and --evidence-output must be supplied together.");
+    const axeOutput = options.axeOutput ? outputPath(options.axeOutput, "Private axe export") : null;
+    const evidenceOutput = options.evidenceOutput ? outputPath(options.evidenceOutput, "Private evidence bundle") : null;
+    const outputs = [output, contextOutput, axeOutput, evidenceOutput].filter(Boolean);
+    if (new Set(outputs.map(pathKey)).size !== outputs.length) throw new ScanWebUsageError("Every scanner output must have a distinct new path.");
+    const { scan, context, evidence, axeExport } = await runAutomatedWebScan(options);
     publishJson(output, scan, "Scan output");
+    if (axeOutput) {
+      publishJson(evidenceOutput, evidence, "Private evidence bundle");
+      publishJson(axeOutput, axeExport, "Private axe export");
+    }
     if (contextOutput) {
       try {
         publishJson(contextOutput, context, "Compact context");

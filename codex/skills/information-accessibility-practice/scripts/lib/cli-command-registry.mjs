@@ -7,6 +7,14 @@ function option(flag, value, description) {
 
 const definitions = [
   {
+    name: "import", script: "import-scanner-results.mjs",
+    summary: "Import native axe-core results as private, run-bound screening candidates.",
+    usage: ["accessibility-audit import axe --run <bound-run.json> --input <artifacts/axe.json> --output <artifacts/new-screening.json> [--target-ref <declared-URL>] [--configuration <artifacts/config.json>] [--record-output <artifacts/new-import.json>] [--artifact-id <ART-id>]"],
+    notes: ["Preserves every result category, unknown rules and raw evidence. No profile pass/fail is inferred.",
+      "Requires a bound saved web_state. Native JSON has caller-declared capture association; scan-web exports additionally bind the saved bundle hash.",
+      "Creates candidates only. Register the artifact, then provide the required human-review queue before merge."]
+  },
+  {
     name: "bind-targets", script: "bind-run-targets.mjs",
     summary: "Remeasure and bind a target inventory once, before any artifact registration.",
     usage: ["accessibility-audit bind-targets --run <unbound-run.json> --targets <artifacts/targets.json> [--allow-origin <origin>] [--allow-localhost true] --output <new-bound-run.json>"],
@@ -113,6 +121,9 @@ const definitions = [
       option("--profile", "<id>", "Active Web profile."),
       option("--output", "<file>", "Full internal scan artifact."),
       option("--context-output", "<file>", "Optional compact AI context."),
+      option("--axe-output", "<file>", "Private native axe results with capture and per-frame execution metadata; requires --evidence-output."),
+      option("--evidence-output", "<file>", "Private saved web bundle for capture-targets; requires --axe-output."),
+      option("--browser-channel", "<chrome>", "Use installed system Chrome explicitly instead of the default browser runtime."),
       option("--allow-origin", "<origin>", "Additional explicit origin; repeatable."),
       option("--allow-localhost", "", "Permit loopback only for controlled fixtures."),
       option("--focus-steps", "<0-50>", "Keyboard focus steps; default 8."),

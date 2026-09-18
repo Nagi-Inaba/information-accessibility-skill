@@ -11,6 +11,7 @@ import {
   withWebInspectionSession
 } from "../capture-web-evidence.mjs";
 import { validateJsonSchema } from "./json-schema.mjs";
+import { canonicalJson as artifactJson } from "./canonical-json.mjs";
 
 const LIMITS = { text: 2_000, contextItems: 100, contextNodes: 20, frameEntries: 50, contextBytes: 512 * 1024 };
 const VERSIONS = { axe: "4.13.0", playwright: "1.62.1" };
@@ -451,11 +452,18 @@ export async function runAutomatedWebScan(options) {
       const aggregate = { machine_violations: [], review_candidates: [], unmapped_findings: [], machine_passes: [], inapplicable: [] };
       const entries = [];
       const rawResults = [];
+      const frameStates = [];
       const frames = session.page.frames();
       for (const frame of frames) {
         const descriptor = { url: frame.url(), path: framePath(frame, frames) };
         try {
+          const startedAt = new Date().toISOString();
+          const beforeDom = await frame.content();
           const result = await runAxeInFrame(frame, axe.source);
+          const afterDom = await frame.content();
+          frameStates.push({ frame_path: descriptor.path, started_at: startedAt, completed_at: new Date().toISOString(),
+            before_url: descriptor.url, after_url: frame.url(), before_dom_sha256: sha256(beforeDom), after_dom_sha256: sha256(afterDom),
+            state_changed: descriptor.url !== frame.url() || beforeDom !== afterDom });
           rawResults.push({ frame: descriptor, result });
           mergeNormalized(aggregate, normalizeAxeResults({
             axeResults: result,
@@ -566,7 +574,16 @@ export async function runAutomatedWebScan(options) {
       validate(scan, path.join(skillRoot, "references", "automated-web-scan.schema.json"), "Automated scan");
       const context = buildAutomatedScanContext(scan, scanSha256(scan));
       validate(context, path.join(skillRoot, "references", "automated-web-scan-context.schema.json"), "Automated scan context");
-      return { scan, context };
+      const axeExport = {
+        schema_version: "1.0.0", kind: "axe-scan-export", publication: "private_by_default",
+        capture: { bundle_sha256: sha256(artifactJson(evidence)), dom_sha256: evidence.target.dom_sha256,
+          ax_tree_sha256: evidence.target.ax_tree_sha256, final_url: evidence.target.final_url },
+        configuration: { configure: null, configure_status: "fresh_default_engine", context: "document per enumerated frame",
+          run_options: { resultTypes: ["violations", "incomplete", "passes", "inapplicable"] } },
+        frame_coverage: frameCoverage, frame_states: frameStates,
+        frames: rawResults, raw_result_sha256: sha256(artifactJson(rawResults))
+      };
+      return { scan, context, evidence, axeExport };
     });
   } catch (caught) {
     if (caught instanceof AutomatedWebScanError || caught instanceof WebInspectionError) throw caught;

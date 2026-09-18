@@ -1,0 +1,13 @@
+{
+  "schema_version": "1.0.0",
+  "mapping_status": "requires_human_verification",
+  "source": "https://github.com/dequelabs/axe-core/blob/v4.13.0/doc/API.md",
+  "rules": [
+    { "tool": "axe-core", "rule_id": "image-alt", "screening_check_id": "SCREEN-WEB-ALT-MISSING" },
+    { "tool": "axe-core", "rule_id": "label", "screening_check_id": "SCREEN-WEB-FORM-LABEL" },
+    { "tool": "axe-core", "rule_id": "frame-title", "screening_check_id": "SCREEN-WEB-IFRAME-NAME" },
+    { "tool": "axe-core", "rule_id": "html-has-lang", "screening_check_id": "SCREEN-WEB-PAGE-LANGUAGE" },
+    { "tool": "axe-core", "rule_id": "html-lang-valid", "screening_check_id": "SCREEN-WEB-PAGE-LANGUAGE" },
+    { "tool": "axe-core", "rule_id": "bypass", "screening_check_id": "SCREEN-WEB-BYPASS-BLOCKS" }
+  ]
+}

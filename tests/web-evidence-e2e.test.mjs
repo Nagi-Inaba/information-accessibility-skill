@@ -24,6 +24,7 @@ test("browser adapter captures rendered DOM, AX tree, focus path, and hashes", {
   try {
     const { port } = server.address();
     const result = await captureWebEvidence({
+      browserChannel: process.env.A11Y_BROWSER_CHANNEL,
       url: `http://127.0.0.1:${port}/`,
       allowLocalhost: true,
       allowOrigins: [],

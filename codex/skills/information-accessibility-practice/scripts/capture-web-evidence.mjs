@@ -6,6 +6,7 @@ import process from "node:process";
 import { pathToFileURL } from "node:url";
 
 import { assertNewOutputPath, writeNewJson } from "./lib/audit-run.mjs";
+import { canonicalJson } from "./lib/canonical-json.mjs";
 
 const DEFAULT_VIEWPORT = { width: 1280, height: 800 };
 const SAFE_LOCAL_PROTOCOLS = new Set(["about:", "blob:", "data:"]);
@@ -342,6 +343,10 @@ export async function withWebInspectionSession(options, inspect) {
   const endpoints = await resolveAllowedEndpoints(requested, allowedOrigins, options);
   const { chromium } = await loadPlaywright();
   const launchOptions = { headless: true };
+  if (options.browserChannel !== undefined) {
+    if (options.browserChannel !== "chrome") throw new WebInspectionError("Only the explicit system Chrome channel is supported.", { exitCode: 2, code: "INVALID_BROWSER_CHANNEL" });
+    launchOptions.channel = "chrome";
+  }
   if (options.pinResolvedHosts) {
     launchOptions.args = [
       `--host-resolver-rules=${buildHostResolverRules(endpoints)}`,
@@ -447,6 +452,9 @@ export async function collectWebEvidence(session, options = {}) {
   const cdp = await context.newCDPSession(page);
   await cdp.send("Accessibility.enable");
   const accessibility = await cdp.send("Accessibility.getFullAXTree");
+  // writeNewJson sorts object keys. Hash the exact compact tree that can be
+  // reconstructed from that persisted JSON, not CDP's incidental key order.
+  const accessibilityNodes = JSON.parse(canonicalJson(accessibility.nodes));
   const focusPath = [];
   const baselineNavigation = navigationIdentity(finalUrl.href);
   for (let step = 0; step < (options.focusSteps ?? 0); step += 1) {
@@ -491,13 +499,13 @@ export async function collectWebEvidence(session, options = {}) {
       final_url: finalUrl.href,
       http_status: response?.status() ?? null,
       dom_sha256: sha256(dom),
-      ax_tree_sha256: sha256(JSON.stringify(accessibility.nodes))
+      ax_tree_sha256: sha256(JSON.stringify(accessibilityNodes))
     },
     environment,
     capabilities: ["rendered_dom", "accessibility_tree", "keyboard_focus_path", "request_policy_log"],
     evidence: {
       dom,
-      accessibility_tree: accessibility.nodes,
+      accessibility_tree: accessibilityNodes,
       active_element: activeElement,
       focus_path: focusPath
     },

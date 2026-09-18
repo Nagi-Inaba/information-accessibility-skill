@@ -48,6 +48,8 @@ For registered screening evidence, use payload 3.0.0 and read [`references/saved
 
 Before registering observations, use `capture-targets` and `bind-targets` to fix measured file, Git, HTTP or saved browser-state identities in the initialized run. Envelopes must carry the inventory's exact `target_snapshot_ids`; registration rejects drift. See [`references/measured-targets.md`](references/measured-targets.md) for explicit HTTP permissions, saved-state limitations, authorized-change handling and private before/after comparison. Capture alone does not bind a run.
 
+For existing axe-core JSON or native frame results exported by `scan-web`, use `import axe` as described in [`references/scanner-import.md`](references/scanner-import.md). Preserve every result category, raw private evidence, unknown rules and collection limits. Imported candidates require normal registration and a linked human-review queue; machine passes never become profile outcomes.
+
 When registered artifacts have been merged into an assessment, use the run-backed report route described there. It validates the run, assessment, and registered artifact bytes, then publishes the Observed / 観測, Improvement / 改善, and Human review / 人が確認 categories without the internal run and role metadata. Keep standalone `--input` reporting for assessments that are not backed by an audit run.
 
 ## Core Model

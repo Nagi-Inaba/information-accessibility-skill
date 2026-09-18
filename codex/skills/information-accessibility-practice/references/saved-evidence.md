@@ -88,4 +88,6 @@ or resource-hash rewrite is performed by these commands.
 Current registration also checks the measured file/Git/HTTP or saved browser
 state for drift. Historical validation and report generation remain offline.
 A saved browser bundle proves its captured state, not the current live page;
-capture a new state for retesting. Scan-tool import is a separate integration.
+capture a new state for retesting. For native axe results and package scanner
+exports, follow [scanner-import.md](scanner-import.md); imported records preserve
+tool configuration and raw hashes without promoting machine results.
