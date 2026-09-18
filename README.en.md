@@ -78,6 +78,8 @@ Run-backed network access requires a [concrete policy and private request logs](
 
 Supervised input requires [concrete operations, a supervisor, expiry and live approval](codex/skills/information-accessibility-practice/references/interaction-policy.md). Supervisor details and operation trails stay private. The current adapter supports native Tab/Shift+Tab with page scripts and further network access disabled; CLI capture without live supervision remains read-only.
 
+The [human review signature CLI](codex/skills/information-accessibility-practice/references/reviewer-assurance.md) distinguishes declarations, self-signed records, and signatures recognized by a recipient-selected trust policy. Assessment-row and public-report integration is still in progress. The existing `human_verified` value does not authenticate a reviewer.
+
 ### Codex
 
 On Windows, use the manifest-aware installer.

@@ -78,6 +78,8 @@ run-backedの実通信には、[具体的な通信方針と非公開ログ](code
 
 監督付きの入力操作には、[操作範囲・承認者・期限と実行時の承認](codex/skills/information-accessibility-practice/references/interaction-policy.md)が必要です。承認者情報と操作履歴は内部に保存し、公開レポートには出しません。現在はスクリプトと追加通信を停止したページでのTab／Shift+Tabに対応し、実行時の承認がないCLI処理はread-onlyになります。
 
+[人手レビューの署名検証CLI](codex/skills/information-accessibility-practice/references/reviewer-assurance.md)では、自己申告・自己署名・受領者の信頼方針で認められた署名を区別できます。assessment結果行と公開レポートへの反映は実装中です。既存の`human_verified`は本人認証を意味しません。
+
 ### Codex
 
 Windowsではmanifest対応installerを利用できます。
