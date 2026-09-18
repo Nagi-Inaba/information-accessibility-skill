@@ -40,6 +40,8 @@ AIと自動検査が作るものは、原則として問題候補やE0／E1のsc
 
 ## 対応対象と現在の制限
 
+出典付きの[Webスクリーニング11パターン](codex/skills/information-accessibility-practice/references/common-web-failure-patterns.json)と、[証拠・対象の識別情報を扱うライブラリ](docs/evidence-identity.md)も利用できます。
+
 | 対象 | 自然言語レビュー | 構造化screening／規格台帳 | 現在の制限 |
 | --- | --- | --- | --- |
 | Webサイト／Webアプリ | 対応 | WCAG・JISの各プロファイル、読取り専用`scan-web` | 実機スクリーンリーダー確認は外部の人またはホスト機能が必要 |

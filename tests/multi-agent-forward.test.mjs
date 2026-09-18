@@ -130,6 +130,7 @@ test("installed CLIs carry a local public-like fixture through the read-only age
   const screeningPayload = readJson(path.join(payloadFixture, "screening-observations.json"));
   const queueTemplate = readJson(path.join(payloadFixture, "human-review-queue.json"));
   const remediationPayload = readJson(path.join(payloadFixture, "remediation-plan.json"));
+  assert.equal(screeningPayload.observations.some((item) => item.signal_class === "no_automated_signal"), true);
   assert.ok(remediationPayload.items.every((item) => item.basis === "unverified_screening_candidate"));
 
   const screening = envelope({
@@ -149,6 +150,11 @@ test("installed CLIs carry a local public-like fixture through the read-only age
     assert.ok(requirement.procedure_binding, `missing procedure binding for ${requirementId}`);
     return { requirement_id: requirementId, ...requirement.procedure_binding };
   });
+  assert.deepEqual(
+    new Set(queueItems.map((item) => item.requirement_id)),
+    new Set(screeningPayload.observations.map((item) => item.profile_requirement_id)),
+    "candidate, inconclusive, and no-signal observations must all be routed to human review"
+  );
   const queue = envelope({
     artifactId: "ART-QUEUE-PUBLIC-FIXTURE",
     artifactType: "human-review-queue",
@@ -219,6 +225,14 @@ test("installed CLIs carry a local public-like fixture through the read-only age
   writeJson(assessmentFile, assessment);
 
   const mergedFile = path.join(temp, "assessment-merged.json");
+  const unqueuedOutput = path.join(temp, "assessment-without-human-queue.json");
+  const unqueued = runNode(cli.merge, [
+    "--run", runFiles[1], "--assessment", assessmentFile,
+    "--artifact", screeningFile, "--output", unqueuedOutput
+  ]);
+  assert.notEqual(unqueued.status, 0);
+  assert.match(`${unqueued.stdout}\n${unqueued.stderr}`, /input-linked human-review-queue/u);
+  assert.equal(fs.existsSync(unqueuedOutput), false);
   const mergedResult = runNode(cli.merge, [
     "--run", runFiles[3],
     "--assessment", assessmentFile,

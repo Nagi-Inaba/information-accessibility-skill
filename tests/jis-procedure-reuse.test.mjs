@@ -23,7 +23,11 @@ const distributions = [
 const equivalentRequirements = [
   ["JIS-X-8341-3-2016-SC-1.1.1", "WCAG-2.2-SC-1.1.1"],
   ["JIS-X-8341-3-2016-SC-1.3.1", "WCAG-2.2-SC-1.3.1"],
+  ["JIS-X-8341-3-2016-SC-1.4.4", "WCAG-2.2-SC-1.4.4"],
   ["JIS-X-8341-3-2016-SC-2.1.1", "WCAG-2.2-SC-2.1.1"],
+  ["JIS-X-8341-3-2016-SC-2.4.1", "WCAG-2.2-SC-2.4.1"],
+  ["JIS-X-8341-3-2016-SC-3.1.1", "WCAG-2.2-SC-3.1.1"],
+  ["JIS-X-8341-3-2016-SC-3.3.2", "WCAG-2.2-SC-3.3.2"],
   ["JIS-X-8341-3-2016-SC-4.1.2", "WCAG-2.2-SC-4.1.2"]
 ];
 
@@ -62,7 +66,7 @@ test("equivalent JIS requirements reuse detailed WCAG procedures without losing 
   }
 });
 
-test("the full JIS profile exposes detailed procedures for exactly the four mapped requirements", () => {
+test("the full JIS profile exposes detailed procedures for exactly the eight mapped requirements", () => {
   const expectedRequirementIds = equivalentRequirements
     .map(([jisRequirementId]) => jisRequirementId)
     .sort();

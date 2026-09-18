@@ -78,6 +78,154 @@
       "ai_boundary": "AIは関係の候補を洗い出し、確認質問を下書きできますが、profile outcome、human_verified mapping、E2以上のclaimを記録してはいけません。外部の人手reviewerが対象固有の証拠とともに条項結果を記録します。"
     },
     {
+      "id": "wcag22-sc-3-1-1-language-of-page",
+      "applicability_steps": [
+        "固定した対象範囲の各ページまたは文書と、その全内容における既定の自然言語を特定します。",
+        "markup、HTTP metadata、またはcontent technologyがサポートする同等の仕組みにあるページレベルの言語宣言を確認します。",
+        "文章または句の内部にある言語変更は、別のSC 3.1.2レビューとして扱います。これらはSC 3.1.1の結果を決定しません。"
+      ],
+      "procedure_steps": [
+        "単一の句、navigation label、locale設定ではなく、ページの全内容からページの既定の自然言語を判定します。",
+        "programmatically determinableなページレベルの言語を確認し、有効なlanguage valueでその既定の自然言語を示していることを確認します。",
+        "ページが埋め込まれている、生成されている、または非HTML technologyを通じて配信されている場合、そのtechnologyがサポートする同等のページレベル言語mechanismを確認します。",
+        "観測した既定言語、宣言されたvalueとそのlocation、任意の不一致を記録します。正しい、または欠落しているlanguage-of-parts markupをSC 3.1.1の結果に変換してはいけません。"
+      ],
+      "expected_results": [
+        "対象範囲の各ページの既定の自然言語をプログラムで判定できます。",
+        "ページレベルの宣言がページ全内容の既定言語と一致し、content technologyに有効なvalueを使用しています。",
+        "部分内の言語変更はこの手順の対象外であることを明示したまま、その条項が範囲内ならSC 3.1.2へ引き継ぎます。"
+      ],
+      "cant_tell_when": [
+        "review環境がページ全内容またはプログラムによるページレベル言語のいずれも公開しない場合。",
+        "生成または埋め込み文書を、既定言語と同等の言語metadataの両方を確認できるstateで開けない場合。"
+      ],
+      "counterexamples": {
+        "pass": [
+          "英語ページがroot elementにlang=\"en\"を宣言し、ページ全体の既定言語と一致しています。",
+          "主に日本語のページに英語の製品名がいくつか含まれていますが、ページの既定言語として日本語を正しく宣言しています。"
+        ],
+        "fail": [
+          "既定の自然言語が日本語のページに、プログラムで判定可能なページレベル言語がありません。",
+          "全内容が主にフランス語のページが、ページレベル言語として英語を宣言しています。"
+        ],
+        "cant_tell": [
+          "一部のscreenshotしか利用できないため、ページ全体の既定言語もページレベルのmetadataも判定できません。"
+        ]
+      },
+      "ai_boundary": "AIは言語境界の候補を洗い出し、確認質問を下書きできますが、profile outcome、human_verified mapping、E2以上のclaimを記録してはいけません。外部の人手reviewerが対象固有の証拠とともに条項結果を記録します。"
+    },
+    {
+      "id": "wcag22-sc-2-4-1-bypass-blocks",
+      "applicability_steps": [
+        "固定した対象範囲のページ集合で繰り返されるcontent blockを特定します。共通navigation、header、search region、繰り返されるlink groupなどです。",
+        "対象ページ集合内で実質的に異なる各templateまたは繰り返しblock patternから代表ページを選びます。",
+        "繰り返される各blockを迂回するため利用できるすべてのmechanismを洗い出します。skip link、構造的heading、landmarkまたはregion、その他technologyがサポートするmechanismを含めます。"
+      ],
+      "procedure_steps": [
+        "各繰り返しblockについて、利用者がそのblockを迂回してblock後のcontentに到達できる、少なくとも1つの利用可能なmechanismを特定します。",
+        "操作可能なskip controlを、それがサポートする入力方法で操作し、必要に応じてbrowserまたは支援技術のnavigation viewからheadingやregionなど構造的mechanismを確認します。",
+        "該当する各templateの代表ページでレビューを繰り返し、blockが繰り返される場所でmechanismが利用可能なままであることを確認します。",
+        "繰り返しblock、使用したmechanism、そのdestinationまたはnavigation effect、ページ集合の境界を記録します。別の十分なmechanismが存在する場合はskip linkを必須にしません。"
+      ],
+      "expected_results": [
+        "対象範囲のページ集合で繰り返される各content blockを迂回するmechanismが利用できます。",
+        "利用可能なmechanismにより、利用者はblock全体をもう一度通過せずに、繰り返しblockの後のcontentを公開または到達できます。",
+        "証拠には、どのページ集合と繰り返しblockをテストし、どのbypass mechanismが条項を満たしたかが示されています。"
+      ],
+      "cant_tell_when": [
+        "reviewerが、mechanismが提供されるnavigation modeを使って利用可能なbypass mechanismを確認または操作できない場合。",
+        "対象ページ集合またはruntime personalizationを、ページ間でどのcontent blockが繰り返されるか判定できる程度に固定できない場合。"
+      ],
+      "counterexamples": {
+        "pass": [
+          "「Skip to main content」controlが最初のfocus targetとして存在し、focusをmain article headingへ直接移動します。",
+          "ページが一貫したheadingとlandmark structureを使用しているため、支援技術の利用者は繰り返されるnavigationを越えて後続contentへ移動できます。"
+        ],
+        "fail": [
+          "対象ページ集合でnavigation blockが繰り返されますが、skip control、heading、region、その他のbypass mechanismを利用できません。",
+          "skip linkはありますが、起動しても利用者が同じ繰り返しnavigation block内に残り、他のbypass mechanismもありません。"
+        ],
+        "cant_tell": [
+          "dynamic applicationがprivate script-only shellでnavigationを公開し、繰り返しblockを特定できる決定的なbrowseable stateを観測できません。"
+        ]
+      },
+      "ai_boundary": "AIは繰り返しblockと迂回controlの候補を洗い出せますが、profile outcome、human_verified mapping、E2以上のclaimを記録してはいけません。外部の人手reviewerが対象固有の証拠とともに条項結果を記録します。"
+    },
+    {
+      "id": "wcag22-sc-3-3-2-labels-or-instructions",
+      "applicability_steps": [
+        "固定した対象範囲で、contentが利用者の入力を要求するcontrolを列挙します。text entry、selection、upload、task固有のdata entryを含めます。",
+        "該当controlごとに、要求されるinputと、必要なformat、value、unit、completion constraintを理解するために必要なlabelまたはinstructionを特定します。",
+        "利用者の入力を必要としないcontrolは除外し、関連するprogrammatic associationまたはerror handlingの質問は該当する条項の下で別に記録します。"
+      ],
+      "procedure_steps": [
+        "該当する各input requestを確認し、visibleまたはその他の方法で利用者が利用できるlabelまたはinstructionが要求されたinputを識別していることを確認します。",
+        "instructionが、valueを入力または選択する前に利用者が知る必要のある制約を伝えていることを確認します。必要なformat、range、unit、受け付けるfile type、必須fieldなどです。",
+        "通常のentry stateと、元のinstructionが消える可能性のあるstateでcontrolを確認します。入力中に消えて同等のinstructionが残らない場合、placeholderだけのtextでは不十分です。",
+        "programmatic labelの関係、error identification、error suggestionは、SC 1.3.1、SC 4.1.2、SC 3.3.1、SC 3.3.3の別証拠として記録し、ここで追加の合格条件にはしません。"
+      ],
+      "expected_results": [
+        "contentが利用者の入力を要求する場合、labelまたはinstructionが提供されています。",
+        "提供された情報がinputの目的と、fieldまたはcontrolを完了するために利用者が知る必要のある制約を伝えています。",
+        "条項結果が、別のprogrammatic associationまたはerror correction条項を満たすことに依存していません。"
+      ],
+      "cant_tell_when": [
+        "input requestと利用者に見えるlabelまたはinstructionを、許可されたreview環境で同時に観測できない場合。",
+        "必要なentry stateへ到達できず、inputが要求されたときにどのinstructionが利用可能か判定できない場合。"
+      ],
+      "counterexamples": {
+        "pass": [
+          "date fieldにlabelが付いており、entry前に必要なYYYY-MM-DD formatを示します。",
+          "必須upload fieldが目的を識別し、受け付けるfile typeとsize limitを示します。"
+        ],
+        "fail": [
+          "phone-number fieldが入力を要求しますが、labelもserviceが必要とするformatも提供していません。",
+          "inputがplaceholder textを唯一のinstructionとして使用し、同等のhelp textを残さず入力前にplaceholderが消えます。"
+        ],
+        "cant_tell": [
+          "formがcanvasでrenderされ、reviewerが信頼できる対象stateでcontrolとlabelの関係またはinstruction textを確認できません。"
+        ]
+      },
+      "ai_boundary": "AIはcontrolの候補を洗い出し、質問一覧を下書きできますが、profile outcome、human_verified mapping、E2以上のclaimを記録してはいけません。外部の人手reviewerが対象固有の証拠とともに条項結果を記録します。"
+    },
+    {
+      "id": "wcag22-sc-1-4-4-resize-text",
+      "applicability_steps": [
+        "固定した対象範囲のtextを特定します。この条項で必須となる200% resize testからcaptionとtext画像を除外します。",
+        "assistive technologyを必要とせず200%に到達する、利用者が制御するtext-resizeまたはbrowser mechanismを決定します。",
+        "初期viewport、zoomまたはtext-size設定、content state、およびinteraction後にのみtextが変わるwidgetを記録します。"
+      ],
+      "procedure_steps": [
+        "assistive technologyに頼らず、選択した利用者制御mechanismで該当textを200%に拡大します。",
+        "その設定ですべての対象範囲のtextとtextを含むcontrolを確認し、代表的なtaskを実行してcontentまたはfunctionalityが失われるか判定します。",
+        "clipping、overlap、消失、truncation、操作不能controlは、contentまたはfunctionalityの喪失を引き起こす場合にだけ記録します。固定pixel unitやhorizontal scrollingは、この条項の自動的な不合格ではありません。",
+        "captionとtext画像を必須結果から分け、該当する場合はreflowまたはtwo-dimensional scrollingの問題をSC 1.4.10の下で別に記録します。"
+      ],
+      "expected_results": [
+        "text contentを、content、functionality、またはtask contextを失わずに必要なthresholdまで拡大できます。",
+        "scaleに関係するoverflow、overlap、clippingだけを理由として、必須情報やcontrolが利用できなくなることはありません。",
+        "captionとtext画像は必須結果から除外され、関連するreflowの所見がこの条項の代わりに使われていません。"
+      ],
+      "cant_tell_when": [
+        "page stateを保ったまま確認できる状態で、environmentがbrowser zoomまたはtext scaling controlをブロックする場合。",
+        "固定されたrendering surface（例：変更できないcanvas output）により、scale変更後のtext layoutを直接確認できない場合。"
+      ],
+      "counterexamples": {
+        "pass": [
+          "text sizeを200%にすると、paragraphとcontrol labelがclippingなしにreflowし、必須textが失われません。",
+          "browser zoomを200%にすると一部のhorizontal scrollingが必要ですが、該当するすべてのtextとcontrolは利用可能で機能します。reflowは別に評価します。"
+        ],
+        "fail": [
+          "拡大されたcontentがcontrolと重なり、利用者が必須form elementを起動できません。",
+          "同等のtext sizeを200%にすると、長いlabelがcontainer境界の後ろでtruncationし、隠れたtextに必要なaction instructionが含まれています。"
+        ],
+        "cant_tell": [
+          "pageがscaleを固定するaccessibilityのない第三者rendererを使っており、対象範囲でreflow behaviorを確認できません。"
+        ]
+      },
+      "ai_boundary": "AIはscaleに敏感なlayout領域を洗い出し、checklistを下書きできますが、profile outcome、human_verified mapping、E2以上のclaimを記録してはいけません。外部の人手reviewerが対象固有の証拠とともに条項結果を記録します。"
+    },
+    {
       "id": "wcag22-sc-2-1-1-keyboard",
       "applicability_steps": [
         "review範囲を固定し、control、composite widget、drag／drawing interaction、state依存操作を含む、範囲内のすべての利用者操作可能な機能を洗い出します。",

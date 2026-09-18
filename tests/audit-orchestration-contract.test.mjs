@@ -138,6 +138,39 @@ function validHumanQueuePayload() {
   };
 }
 
+test("optional signal provenance preserves legacy reports and never turns no-signal observations into passes", async () => {
+  const payload = validScreeningPayload();
+  assert.deepEqual(await schemaErrors(payload, "screening-observations.schema.json"), []);
+  const observation = payload.observations[0];
+  Object.assign(observation, {
+    signal_class: "candidate_issue", human_review_required: true,
+    evidence_provenance: { collection_method: "automated_tool", tool_name: "fixture-scanner", tool_version: "1.0.0", rule_id: "image-alt", target_dom: "#main", viewport: null }
+  });
+  assert.deepEqual(await schemaErrors(payload, "screening-observations.schema.json"), []);
+  for (const field of ["tool_name", "tool_version", "rule_id"]) {
+    const invalid = structuredClone(payload);
+    invalid.observations[0].evidence_provenance[field] = null;
+    assert.notDeepEqual(await schemaErrors(invalid, "screening-observations.schema.json"), [], field);
+  }
+  for (const field of ["human_review_required", "evidence_provenance"]) {
+    const invalid = structuredClone(payload);
+    delete invalid.observations[0][field];
+    assert.notDeepEqual(await schemaErrors(invalid, "screening-observations.schema.json"), [], field);
+  }
+  observation.applicability = "applicable";
+  observation.report_outcome = "fail";
+  assert.deepEqual(await schemaErrors(payload, "screening-observations.schema.json"), [], "evidenced report-only judgements remain supported");
+  for (const signal of ["no_automated_signal", "inconclusive"]) {
+    observation.signal_class = signal;
+    for (const outcome of ["pass", "fail"]) {
+      observation.report_outcome = outcome;
+      assert.notDeepEqual(await schemaErrors(payload, "screening-observations.schema.json"), []);
+    }
+    observation.report_outcome = "cant_tell";
+    assert.deepEqual(await schemaErrors(payload, "screening-observations.schema.json"), []);
+  }
+});
+
 function validDeclaredHumanReviewPayload(availability = "available") {
   const available = availability === "available";
   return {
@@ -614,7 +647,7 @@ test("the orchestration registry fixes the complete role, artifact, and transiti
       latest_schema_version: "2.0.0",
       schema_versions: [
         { version: "1.0.0", schema_file: "screening-observations-1.0.0.schema.json", mode: "read_only" },
-        { version: "2.0.0", schema_file: "screening-observations.schema.json", schema_sha256: "fb63161fec01d3e120fb1160abac0dc0bfe4b251db5065b7e820fc2c9c7c2add", mode: "current" }
+        { version: "2.0.0", schema_file: "screening-observations.schema.json", schema_sha256: "4711a800166bd214d00189062ce35f69ac3446e6673315a8751dd0dbe1a58215", mode: "current" }
       ]
     },
     {

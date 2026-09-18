@@ -55,7 +55,7 @@ const currentScreeningManifestContract = {
     {
       version: "2.0.0",
       schema_file: "screening-observations.schema.json",
-      schema_sha256: "fb63161fec01d3e120fb1160abac0dc0bfe4b251db5065b7e820fc2c9c7c2add",
+      schema_sha256: "4711a800166bd214d00189062ce35f69ac3446e6673315a8751dd0dbe1a58215",
       mode: "current"
     }
   ]
@@ -948,6 +948,31 @@ function validateHumanQueueBindings(envelopesById, profileId, resources, errors)
   }
 }
 
+function validateScreeningQueueCoverage(envelopesById, errors) {
+  for (const [screeningId, record] of envelopesById) {
+    const screening = record?.envelope ?? record;
+    if (screening?.artifact_type !== "screening-observations") continue;
+    const mappedRequirementIds = new Set((screening.payload?.observations ?? [])
+      .filter((observation) => observation?.signal_class)
+      .map((observation) => observation?.profile_requirement_id)
+      .filter((requirementId) => typeof requirementId === "string"));
+    if (mappedRequirementIds.size === 0) continue;
+
+    const queuedRequirementIds = new Set();
+    for (const queueRecord of envelopesById.values()) {
+      const queue = queueRecord?.envelope ?? queueRecord;
+      if (queue?.artifact_type !== "human-review-queue") continue;
+      if (!(queue.inputs ?? []).some((input) => input?.artifact_id === screeningId)) continue;
+      for (const item of queue.payload?.items ?? []) queuedRequirementIds.add(item?.requirement_id);
+    }
+    for (const requirementId of mappedRequirementIds) {
+      if (!queuedRequirementIds.has(requirementId)) {
+        errors.push(`Screening observation ${screeningId} mapped to ${requirementId} must be routed through an input-linked human-review-queue; an automated signal or no-signal observation is never a profile result.`);
+      }
+    }
+  }
+}
+
 function validateDeclaredHumanBindings(envelopesById, profileId, resources, errors) {
   for (const [artifactId, record] of envelopesById) {
     const artifact = record?.envelope ?? record;
@@ -1521,6 +1546,7 @@ export function mergeArtifacts({ run, assessment, artifacts, registries }) {
   }
   const bindingErrors = [];
   validateArtifactEnvelopeSemantics(run, resources, registered, suppliedEnvelopesById, bindingErrors);
+  validateScreeningQueueCoverage(suppliedEnvelopesById, bindingErrors);
   validateHumanQueueBindings(suppliedEnvelopesById, run.profile.id, resources, bindingErrors);
   validateDeclaredHumanBindings(suppliedEnvelopesById, run.profile.id, resources, bindingErrors);
   validateRemediationBindings(suppliedEnvelopesById, bindingErrors);

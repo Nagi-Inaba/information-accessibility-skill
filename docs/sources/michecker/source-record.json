@@ -1,0 +1,34 @@
+{
+  "schema_version": "1.0.0",
+  "retrieved_at": "2026-07-22",
+  "official_page": "https://www.soumu.go.jp/info-accessibility-portal/webaccessibility/michecker/",
+  "official_pdf": "https://www.soumu.go.jp/info-accessibility-portal/assets/documents/webaccessibility/michecker/faq.pdf",
+  "local_pdf": "docs/sources/michecker/faq-2024-04.pdf",
+  "local_extracted_text": "docs/sources/michecker/faq-2024-04.extracted.md",
+  "pdf_bytes": 470451,
+  "pdf_pages": 17,
+  "pdf_sha256": "223e1ccce0a75cff7766c922bdac7b581df716e1fa4788a54370a588e7838785",
+  "pdf_signature": "%PDF-",
+  "extraction": {
+    "method": "pypdf text extraction",
+    "purpose": "Research traceability only; extracted text is not normative content."
+  },
+  "related_public_sources": [
+    {
+      "title": "ACTF miChecker evaluation guide source",
+      "url": "https://github.com/eclipse-actf/org.eclipse.actf/blob/master/org.eclipse.actf.examples.michecker.doc.nl1/manual_src/miChecker_eval_guide.docx"
+    },
+    {
+      "title": "ACTF miChecker user guide source",
+      "url": "https://github.com/eclipse-actf/org.eclipse.actf/blob/master/org.eclipse.actf.examples.michecker.doc.nl1/manual_src/miChecker_guide.docx"
+    },
+    {
+      "title": "ACTF miChecker criterion-use guide source",
+      "url": "https://github.com/eclipse-actf/org.eclipse.actf/blob/master/org.eclipse.actf.examples.michecker.doc.nl1/manual_src/miChecker_practical_use.docx"
+    },
+    {
+      "title": "ACTF evaluation worksheet source",
+      "url": "https://github.com/eclipse-actf/org.eclipse.actf/blob/master/org.eclipse.actf.examples.michecker.doc.nl1/manual_src/worksheet.xlsx"
+    }
+  ]
+}

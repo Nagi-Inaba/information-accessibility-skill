@@ -40,6 +40,8 @@ See the [architecture and glossary](docs/architecture-and-glossary.md) for the c
 
 ## Supported targets and current limits
 
+The package also includes eleven source-backed [common Web screening patterns](codex/skills/information-accessibility-practice/references/common-web-failure-patterns.json) and a tested [evidence and target identity library](docs/evidence-identity.md).
+
 | Target | Natural-language review | Structured screening or standards ledger | Current limit |
 | --- | --- | --- | --- |
 | Website or Web application | Supported | `web-modern`, `jp-public-web`, read-only `scan-web` | A real screen-reader session remains an external human or host capability |
