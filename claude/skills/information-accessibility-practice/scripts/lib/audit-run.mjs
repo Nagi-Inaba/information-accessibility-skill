@@ -11,6 +11,7 @@ import { createInspectionRequest, inspectionRequestErrors } from "./inspection-r
 import { buildRunFindings } from "./run-findings.mjs";
 import { compareInstants } from "./date-time.mjs";
 import { canonicalJson } from "./canonical-json.mjs";
+import { networkPolicyErrors } from "./network-policy.mjs";
 import { collectScreeningEvidence } from "./run-evidence.mjs";
 import { targetInventoryErrors, targetBindingErrors, checkLocalRunTargets, consumeRunTargetCheck, checkRunTargets } from "./run-targets.mjs";
 export { canonicalJson } from "./canonical-json.mjs";
@@ -25,7 +26,8 @@ const auditRunRegistryCompatibility = new Map([
   ["5.0.0", "4.0.0"],
   ["6.0.0", "5.0.0"],
   ["7.0.0", "6.0.0"],
-  ["8.0.0", "7.0.0"]
+  ["8.0.0", "7.0.0"],
+  ["9.0.0", "8.0.0"]
 ]);
 const auditRunEnvelopeCompatibility = new Map([
   ["1.0.0", "1.0.0"],
@@ -35,11 +37,12 @@ const auditRunEnvelopeCompatibility = new Map([
   ["5.0.0", "2.0.0"],
   ["6.0.0", "2.0.0"],
   ["7.0.0", "2.0.0"],
-  ["8.0.0", "3.0.0"]
+  ["8.0.0", "3.0.0"],
+  ["9.0.0", "3.0.0"]
 ]);
 const currentAuditRunManifestContract = {
   id: "audit-run",
-  latest_schema_version: "8.0.0",
+  latest_schema_version: "9.0.0",
   schema_versions: [
     { version: "1.0.0", schema_file: "audit-run-1.0.0.schema.json", mode: "read_only" },
     { version: "2.0.0", schema_file: "audit-run-2.0.0.schema.json", mode: "read_only" },
@@ -48,10 +51,11 @@ const currentAuditRunManifestContract = {
     { version: "5.0.0", schema_file: "audit-run-5.0.0.schema.json", mode: "read_only" },
     { version: "6.0.0", schema_file: "audit-run-6.0.0.schema.json", mode: "read_only" },
     { version: "7.0.0", schema_file: "audit-run-7.0.0.schema.json", mode: "read_only" },
+    { version: "8.0.0", schema_file: "audit-run-8.0.0.schema.json", mode: "read_only" },
     {
-      version: "8.0.0",
+      version: "9.0.0",
       schema_file: "audit-run.schema.json",
-      schema_sha256: "de4aa7f432d7002d6ff6a10fc49b1bd039ca29014c7483f66c24872dc9990831",
+      schema_sha256: "94dcd37a190aaa7ef570312bb02adc9ccb50f52a98b4389269d69c6edf202a5b",
       mode: "current"
     }
   ]
@@ -502,6 +506,8 @@ export function loadAuditResources(skillRoot = defaultSkillRoot) {
     orchestrationSchemaV5: "references/orchestration-registry-5.0.0.schema.json",
     orchestrationRegistryV6: "references/orchestration-registry-6.0.0.json",
     orchestrationSchemaV6: "references/orchestration-registry-6.0.0.schema.json",
+    orchestrationRegistryV7: "references/orchestration-registry-7.0.0.json",
+    orchestrationSchemaV7: "references/orchestration-registry-7.0.0.schema.json",
     envelopeSchema: "references/audit-artifact-envelope.schema.json",
     envelopeSchemaV1: "references/audit-artifact-envelope-1.0.0.schema.json",
     envelopeSchemaV2: "references/audit-artifact-envelope-2.0.0.schema.json",
@@ -518,7 +524,8 @@ export function loadAuditResources(skillRoot = defaultSkillRoot) {
     ["frozen 3.0.0", loaded.orchestrationRegistryV3, loaded.orchestrationSchemaV3],
     ["frozen 4.0.0", loaded.orchestrationRegistryV4, loaded.orchestrationSchemaV4],
     ["frozen 5.0.0", loaded.orchestrationRegistryV5, loaded.orchestrationSchemaV5],
-    ["frozen 6.0.0", loaded.orchestrationRegistryV6, loaded.orchestrationSchemaV6]
+    ["frozen 6.0.0", loaded.orchestrationRegistryV6, loaded.orchestrationSchemaV6],
+    ["frozen 7.0.0", loaded.orchestrationRegistryV7, loaded.orchestrationSchemaV7]
   ]) {
     const registryErrors = [];
     validateJsonSchema(registry.value, schema.value, "$", registryErrors);
@@ -592,6 +599,7 @@ export function loadAuditResources(skillRoot = defaultSkillRoot) {
     loaded.orchestrationRegistryV4,
     loaded.orchestrationRegistryV5,
     loaded.orchestrationRegistryV6,
+    loaded.orchestrationRegistryV7,
     loaded.orchestrationRegistry
   ];
   const orchestrationRegistries = new Map(registryFiles.map((registry) => [
@@ -773,8 +781,11 @@ function canonicalPermissions(permissions) {
   if (network === "allowlisted") forbiddenActions.push("network_outside_allowlist");
   else forbiddenActions.push("network_access");
   if (sourceWrite === "denied") forbiddenActions.push("write_target");
+  const concreteNetwork = Object.hasOwn(permissions, "network_policy");
+  if (concreteNetwork && (network === "denied" ? permissions.network_policy !== null : networkPolicyErrors(permissions.network_policy).length > 0)) return null;
   return {
     network,
+    ...(concreteNetwork ? { network_policy: structuredClone(permissions.network_policy) } : {}),
     interaction,
     source_write: sourceWrite,
     command_execution: commandExecution,
@@ -1342,7 +1353,12 @@ export function createAuditRun(options) {
   const interaction = normalizePermission(options.interaction, { safe_read_only: "read_only", read_only: "read_only", human_supervised: "human_supervised" }, "interaction");
   const sourceWrite = normalizePermission(options.sourceWrite, { none: "denied", denied: "denied", authorized_only: "authorized_only" }, "source-write");
   if (options.supersedesRunId && !options.supersedesRun) throw new Error("A naked supersedesRunId is not accepted; provide a validated supersedes run file.");
-  const permissions = canonicalPermissions({ network, interaction, source_write: sourceWrite });
+  const networkPolicy = options.networkPolicy ?? null;
+  if (network === "allowlisted") {
+    const errors = networkPolicyErrors(networkPolicy);
+    if (errors.length) throw new Error(`--network allowlisted requires an explicit valid --network-policy file:\n- ${errors.join("\n- ")}`);
+  } else if (networkPolicy !== null) throw new Error("Denied network mode requires a null network policy.");
+  const permissions = canonicalPermissions({ network, network_policy: networkPolicy, interaction, source_write: sourceWrite });
   const run = {
     schema_version: resources.auditRunSchema.properties.schema_version.const,
     run_id: options.runId,
@@ -1368,8 +1384,8 @@ export function createAuditRun(options) {
     if (!options.supersedesRunFile) throw new Error("supersedesRunFile is required for fresh retest initialization.");
     const predecessorValidation = validateAuditRun(options.supersedesRun, { skillRoot, runFile: options.supersedesRunFile });
     if (!predecessorValidation.valid) throw new Error(`Invalid superseded audit run:\n- ${predecessorValidation.errors.join("\n- ")}`);
-    if (!["5.0.0", "6.0.0", "7.0.0", "8.0.0"].includes(options.supersedesRun.schema_version)) {
-      throw new Error("Fresh retest predecessor must use supported audit-run schema_version 5.0.0, 6.0.0, 7.0.0 or 8.0.0.");
+    if (!["5.0.0", "6.0.0", "7.0.0", "8.0.0", "9.0.0"].includes(options.supersedesRun.schema_version)) {
+      throw new Error("Fresh retest predecessor must use supported audit-run schema_version 5.0.0 through 9.0.0.");
     }
     if (options.supersedesRun.status !== "retest_required") throw new Error("Fresh retest predecessor status must be retest_required.");
     if (run.run_id === options.supersedesRun.run_id) throw new Error("Fresh retest run ID must differ from the predecessor run ID.");
@@ -1426,7 +1442,7 @@ export async function registerArtifactChecked(run, artifact, options = {}) {
     ...targetBindingErrors(run, [installed])];
   if (errors.length) throw new Error(`Invalid artifact:\n- ${errors.join("\n- ")}`);
   const targetCheck = run.target_inventory && installed.artifact_type !== "change-record"
-    ? await checkRunTargets(run, run.target_inventory, { baseDir: path.dirname(path.resolve(options.runFile)), networkPolicy: options.networkPolicy }) : undefined;
+    ? await checkRunTargets(run, run.target_inventory, { baseDir: path.dirname(path.resolve(options.runFile)), networkPolicy: options.networkPolicy, onNetworkEvidence: options.onNetworkEvidence }) : undefined;
   assertStableFile(snapshot, "artifact file");
   return registerArtifact(run, installed, { ...options, targetCheck });
 }

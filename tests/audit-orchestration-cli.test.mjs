@@ -1,3 +1,4 @@
+import { createNetworkPolicy } from "../codex/skills/information-accessibility-practice/scripts/lib/network-policy.mjs";
 import assert from "node:assert/strict";
 import { fixtureReference, saveFixtureEvidence, fixtureEvidenceSnapshots } from "./helpers/saved-evidence.mjs";
 import { fixtureInventory } from "./helpers/measured-targets.mjs";
@@ -72,7 +73,7 @@ function resourceVersions(registryFile = "orchestration-registry.json") {
 function initialRun(artifactRoot) {
   const resolvedRoot = path.isAbsolute(artifactRoot) ? artifactRoot : activeArtifactRoot;
   const run = {
-    schema_version: "8.0.0",
+    schema_version: "9.0.0",
     inspection_request: createInspectionRequest("quick", "Identify the next investigation"),
     run_id: runId,
     supersedes_run_id: null,
@@ -82,7 +83,7 @@ function initialRun(artifactRoot) {
     scope: { included: ["http://127.0.0.1:4173/"], excluded: [], complete_processes: [], third_party_content: [], full_pages_reviewed: false },
     environment: { os: ["not_declared"], browsers: [], assistive_technologies: [], input_modes: [] },
     permissions: {
-      network: "allowlisted",
+      network: "allowlisted", network_policy: createNetworkPolicy({ targetOrigins: ["http://127.0.0.1:4173", "https://example.com"], allowLocalhost: true }),
       interaction: "read_only",
       source_write: "denied",
       command_execution: "denied",
@@ -102,7 +103,7 @@ function initialRun(artifactRoot) {
 function authorizedInitialRun(artifactRoot) {
   const run = initialRun(artifactRoot);
   run.permissions = {
-    network: "allowlisted",
+    network: "allowlisted", network_policy: createNetworkPolicy({ targetOrigins: ["http://127.0.0.1:4173", "https://example.com"], allowLocalhost: true }),
     interaction: "read_only",
     source_write: "authorized_only",
     command_execution: "authorized_verification_only",
@@ -119,6 +120,7 @@ function authorizedInitialRun(artifactRoot) {
 
 function legacyV2InitialRun(artifactRoot) {
   const run = initialRun(artifactRoot);
+  delete run.permissions.network_policy;
   run.schema_version = "2.0.0";
   delete run.target_inventory;
   delete run.inspection_request;
@@ -132,6 +134,7 @@ function legacyV2InitialRun(artifactRoot) {
 function legacyV3InitialRun(artifactRoot) {
   const run = initialRun(artifactRoot);
   run.schema_version = "3.0.0";
+  delete run.permissions.network_policy;
   delete run.target_inventory;
   delete run.inspection_request;
   run.resource_versions = resourceVersions("orchestration-registry-2.0.0.json");
@@ -142,6 +145,7 @@ function legacyV3InitialRun(artifactRoot) {
 function legacyV4InitialRun(artifactRoot) {
   const run = initialRun(artifactRoot);
   run.schema_version = "4.0.0";
+  delete run.permissions.network_policy;
   delete run.target_inventory;
   delete run.inspection_request;
   run.resource_versions = resourceVersions("orchestration-registry-3.0.0.json");
@@ -151,6 +155,7 @@ function legacyV4InitialRun(artifactRoot) {
 function legacyV5InitialRun(artifactRoot) {
   const run = initialRun(artifactRoot);
   run.schema_version = "5.0.0";
+  delete run.permissions.network_policy;
   delete run.target_inventory;
   delete run.inspection_request;
   run.resource_versions = resourceVersions("orchestration-registry-4.0.0.json");
@@ -160,6 +165,7 @@ function legacyV5InitialRun(artifactRoot) {
 function legacyV6InitialRun(artifactRoot) {
   const run = initialRun(artifactRoot);
   run.schema_version = "6.0.0";
+  delete run.permissions.network_policy;
   delete run.target_inventory;
   delete run.inspection_request;
   run.resource_versions = resourceVersions("orchestration-registry-5.0.0.json");
@@ -602,6 +608,7 @@ function assessmentFixture() {
 
 function applyLegacyRunContract(run) {
   run.schema_version = "1.0.0";
+  delete run.permissions.network_policy;
   delete run.target_inventory;
   delete run.inspection_request;
   run.resource_versions = resourceVersions("orchestration-registry-1.0.0.json");
@@ -790,14 +797,14 @@ test("run initialization creates a schema-valid immutable manifest with installe
     "--target-version", "fixture-v1",
     "--target-ref", "http://127.0.0.1:4173/",
     "--artifact-root", artifactRoot,
-    "--network", "local_read_only",
+    "--network", "local_read_only", "--network-policy", path.join(root, "tests/fixtures/network-policy.json"),
     "--interaction", "safe_read_only",
     "--source-write", "none",
     "--output", output
   ]);
   assert.equal(result.status, 0, result.stderr || result.stdout);
   const run = readJson(output);
-  assert.equal(run.schema_version, "8.0.0");
+  assert.equal(run.schema_version, "9.0.0");
   assert.equal(run.target_inventory, null);
   assert.equal(run.status, "initialized");
   assert.equal(run.artifact_root, "artifacts");
@@ -808,7 +815,7 @@ test("run initialization creates a schema-valid immutable manifest with installe
   const overwrite = runNode(createRun, [
     "--run-id", runId, "--profile", "web-modern", "--target-name", "Local fixture",
     "--target-version", "fixture-v1", "--target-ref", "http://127.0.0.1:4173/",
-    "--artifact-root", artifactRoot, "--network", "local_read_only",
+    "--artifact-root", artifactRoot, "--network", "local_read_only", "--network-policy", path.join(root, "tests/fixtures/network-policy.json"),
     "--interaction", "safe_read_only", "--source-write", "none", "--output", output
   ]);
   assert.notEqual(overwrite.status, 0);
@@ -832,7 +839,7 @@ test("current run initialization couples authorized source writes to authorized 
   ]);
   assert.equal(result.status, 0, result.stderr || result.stdout);
   assert.deepEqual(readJson(output).permissions, {
-    network: "denied",
+    network: "denied", network_policy: null,
     interaction: "read_only",
     source_write: "authorized_only",
     command_execution: "authorized_verification_only",
@@ -856,7 +863,7 @@ test("fresh retest initialization validates its predecessor and copies no prior 
     "--target-version", "fixture-v2",
     "--target-ref", "http://127.0.0.1:4173/",
     "--artifact-root", newArtifactRoot,
-    "--network", "local_read_only",
+    "--network", "local_read_only", "--network-policy", path.join(root, "tests/fixtures/network-policy.json"),
     "--interaction", "safe_read_only",
     "--source-write", "none",
     "--supersedes-run", predecessorFile,
@@ -898,7 +905,7 @@ test("fresh retest initialization rejects invalid predecessor and scope/root reu
     "--target-name", "Local fixture",
     "--target-version", "fixture-v2",
     "--target-ref", "http://127.0.0.1:4173/",
-    "--network", "local_read_only",
+    "--network", "local_read_only", "--network-policy", path.join(root, "tests/fixtures/network-policy.json"),
     "--interaction", "safe_read_only",
     "--source-write", "none",
     "--supersedes-run", predecessorFile
@@ -968,8 +975,8 @@ test("audit-run dispatch maps runs 1/2 to registry 1 through run 7 to registry 6
   const legacyV3SchemaFile = path.join(references, "audit-run-3.0.0.schema.json");
   const legacyV4SchemaFile = path.join(references, "audit-run-4.0.0.schema.json");
   const legacyV5SchemaFile = path.join(references, "audit-run-5.0.0.schema.json");
-  assert.equal(currentSchema.$id, "urn:information-accessibility:audit-run:8.0.0");
-  assert.equal(currentSchema.properties.schema_version.const, "8.0.0");
+  assert.equal(currentSchema.$id, "urn:information-accessibility:audit-run:9.0.0");
+  assert.equal(currentSchema.properties.schema_version.const, "9.0.0");
   assert.equal(readJson(legacyV1SchemaFile).properties.schema_version.const, "1.0.0");
   assert.equal(readJson(legacyV2SchemaFile).properties.schema_version.const, "2.0.0");
   assert.equal(readJson(legacyV3SchemaFile).properties.schema_version.const, "3.0.0");
@@ -981,7 +988,7 @@ test("audit-run dispatch maps runs 1/2 to registry 1 through run 7 to registry 6
   const registryV2 = readJson(path.join(references, "orchestration-registry-2.0.0.json"));
   const registryV3 = readJson(path.join(references, "orchestration-registry-3.0.0.json"));
   const registryV4 = readJson(path.join(references, "orchestration-registry-4.0.0.json"));
-  assert.equal(currentRegistry.schema_version, "7.0.0");
+  assert.equal(currentRegistry.schema_version, "8.0.0");
   assert.equal(registryV1.schema_version, "1.0.0");
   assert.equal(registryV2.schema_version, "2.0.0");
   assert.equal(registryV3.schema_version, "3.0.0");
@@ -1171,6 +1178,7 @@ test("latest-only operational gate rejects legacy runs in pure merge while prese
   writeJson(artifactFile, artifact);
   const legacyRun = screenedRun(artifactRoot, artifactFile, artifact);
   legacyRun.schema_version = "1.0.0";
+  delete legacyRun.permissions.network_policy;
   delete legacyRun.target_inventory;
   delete legacyRun.inspection_request;
   legacyRun.resource_versions = resourceVersions("orchestration-registry-1.0.0.json");
@@ -1194,6 +1202,7 @@ test("latest-only operational gate rejects legacy runs in the merge CLI without 
   writeJson(artifactFile, artifact);
   const legacyRun = screenedRun(artifactRoot, artifactFile, artifact);
   legacyRun.schema_version = "1.0.0";
+  delete legacyRun.permissions.network_policy;
   delete legacyRun.target_inventory;
   delete legacyRun.inspection_request;
   legacyRun.resource_versions = resourceVersions("orchestration-registry-1.0.0.json");
@@ -1476,6 +1485,7 @@ test("each registry derives its own exact per-artifact payload compatibility pol
     }]
   ]);
   expected.set("7.0.0", structuredClone(expected.get("6.0.0")));
+  expected.set("8.0.0", structuredClone(expected.get("7.0.0")));
   assert.deepEqual([...resources.orchestrationRegistries.keys()], [...expected.keys()]);
   for (const [registryVersion, payloadVersions] of expected) {
     assert.deepEqual(
@@ -1746,6 +1756,7 @@ test("run 3 with frozen registry 2 stays readable but register and merge remain 
   writeJson(artifactFile, artifact);
   const run = screenedRun(artifactRoot, artifactFile, artifact);
   run.schema_version = "3.0.0";
+  delete run.permissions.network_policy;
   delete run.inspection_request;
   delete run.target_inventory;
   run.resource_versions = resourceVersions("orchestration-registry-2.0.0.json");
@@ -1874,7 +1885,7 @@ test("initialization rejects invalid run IDs and output paths redirected through
     "--inspection-mode", "quick", "--inspection-purpose", "Identify the next investigation",
     "--run-id", "AUDIT-TEST-001", "--profile", "web-modern", "--target-name", "Local fixture",
     "--target-version", "fixture-v1", "--target-ref", "http://127.0.0.1:4173/",
-    "--artifact-root", artifactRoot, "--network", "local_read_only",
+    "--artifact-root", artifactRoot, "--network", "local_read_only", "--network-policy", path.join(root, "tests/fixtures/network-policy.json"),
     "--interaction", "safe_read_only", "--source-write", "none", "--output", invalidOutput
   ]);
   assertRejected(invalid, /run[_ -]?id|RUN-/i);
@@ -1895,7 +1906,7 @@ test("initialization rejects invalid run IDs and output paths redirected through
   const redirected = runNode(createRun, [
     "--run-id", runId, "--profile", "web-modern", "--target-name", "Local fixture",
     "--target-version", "fixture-v1", "--target-ref", "http://127.0.0.1:4173/",
-    "--artifact-root", artifactRoot, "--network", "local_read_only",
+    "--artifact-root", artifactRoot, "--network", "local_read_only", "--network-policy", path.join(root, "tests/fixtures/network-policy.json"),
     "--interaction", "safe_read_only", "--source-write", "none",
     "--output", path.join(redirectedOutput, "run.json")
   ]);
@@ -2736,6 +2747,7 @@ test("run validation and pure merge enforce the same remediation evidence semant
 test("legacy run 2 keeps remediation payload 1 readable without retroactive evidence semantics", (t) => withTemp(t, ({ temp, artifactRoot }) => {
   const fixture = makeScreeningRemediationRun(artifactRoot);
   fixture.run.schema_version = "2.0.0";
+  delete fixture.run.permissions.network_policy;
   delete fixture.run.target_inventory;
   delete fixture.run.inspection_request;
   fixture.run.resource_versions = resourceVersions("orchestration-registry-1.0.0.json");

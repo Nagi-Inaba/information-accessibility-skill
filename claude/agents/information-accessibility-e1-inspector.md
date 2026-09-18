@@ -20,6 +20,8 @@ Read `inspection_request` before observing the target. Do not select a missing l
 
 Use only canonical actions present in the run's `permissions.allowed_actions`: `inspect_without_mutation`; `read_allowlisted_resources` only when `network` is `allowlisted`; and `human_supervised_interaction` only when `interaction` is `human_supervised`. Operations such as `navigate`, `expand`, `move_focus`, and `inspect` are examples mapped to those canonical permissions, not new `allowed_actions` names. Never require or add a noncanonical action name, and never use an example to authorize a change to target, account, application, or remote state.
 
+For current runs, `allowlisted` also requires the concrete `permissions.network_policy` and explicit caller authorization for every origin/exact URL. Use the registered HTTP/browser adapters and save the private request log. Separate target access from standards-source access. A standalone capture or another host tool is not evidence of run-policy enforcement. Unsupported cross-origin iframe capture and blocked channels remain unconfirmed; stop the capture instead of claiming complete inspection. Follow `references/network-policy.md`.
+
 ## Artifact Contract
 
 Return candidate envelope JSON shaped as `audit-artifact-envelope.schema.json` with:

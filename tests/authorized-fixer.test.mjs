@@ -1,4 +1,5 @@
-﻿import assert from "node:assert/strict";
+import { createNetworkPolicy } from "../codex/skills/information-accessibility-practice/scripts/lib/network-policy.mjs";
+import assert from "node:assert/strict";
 import { createInspectionRequest } from "../codex/skills/information-accessibility-practice/scripts/lib/inspection-request.mjs";
 import crypto from "node:crypto";
 import { bindFixtureEvidence } from "./helpers/saved-evidence.mjs";
@@ -143,7 +144,7 @@ function assertRejected(result, pattern) {
 
 function initialRun(artifactRoot) {
   const run = {
-    schema_version: "8.0.0",
+    schema_version: "9.0.0",
     inspection_request: createInspectionRequest("quick", "Identify the next investigation"),
     run_id: RUN_ID,
     supersedes_run_id: null,
@@ -168,7 +169,7 @@ function initialRun(artifactRoot) {
       input_modes: []
     },
     permissions: {
-      network: "allowlisted",
+      network: "allowlisted", network_policy: createNetworkPolicy({ targetOrigins: ["http://127.0.0.1:4173", "https://example.com"], allowLocalhost: true }),
       interaction: "read_only",
       source_write: "authorized_only",
       command_execution: "authorized_verification_only",
@@ -562,7 +563,7 @@ test("validate-fix-authorization CLI rejects missing operation permissions and m
   const remediationSha256 = sha256File(fixture.remediationFile);
 
   const deniedCanonicalPermissions = {
-    network: "allowlisted",
+    network: "allowlisted", network_policy: createNetworkPolicy({ targetOrigins: ["http://127.0.0.1:4173", "https://example.com"], allowLocalhost: true }),
     interaction: "read_only",
     source_write: "denied",
     command_execution: "denied",

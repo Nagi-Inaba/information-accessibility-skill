@@ -6,6 +6,7 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
+import { createNetworkPolicy } from "../codex/skills/information-accessibility-practice/scripts/lib/network-policy.mjs";
 import { fixtureInventory } from "./helpers/measured-targets.mjs";
 import { createAuditRun, bindTargetInventory, registerArtifact, registerArtifactChecked, validateAuditRun, loadAuditResources, writeNewJson } from "../codex/skills/information-accessibility-practice/scripts/lib/audit-run.mjs";
 import { observeRunTargets, checkRunTargets, targetSnapshotIds } from "../codex/skills/information-accessibility-practice/scripts/lib/run-targets.mjs";
@@ -26,6 +27,7 @@ function fixture(t, refs = ["page.html"], network = "none") {
   const runFile = path.join(root, "run.json");
   const run = createAuditRun({ runFile, artifactRoot, runId: "RUN-20260918T000000Z-REGTGT01", profile: "web-modern",
     targetName: "Measured target", targetVersion: "release-1", targetRefs: refs, network, interaction: "safe_read_only", sourceWrite: "none",
+    networkPolicy: network === "allowlisted" ? createNetworkPolicy({ targetOrigins: refs, allowLocalhost: true }) : null,
     inspectionMode: "quick", inspectionPurpose: "Verify target drift" });
   writeNewJson(runFile, run);
   return { root, artifactRoot, runFile, run };
@@ -145,6 +147,7 @@ test("run7 retains its frozen read contract and cannot register or bind current 
   const resources = loadAuditResources();
   const legacy = structuredClone(f.run);
   legacy.schema_version = "7.0.0";
+  delete legacy.permissions.network_policy;
   delete legacy.target_inventory;
   legacy.resource_versions.orchestration_registry_version = "6.0.0";
   legacy.resource_versions.orchestration_registry_sha256 = resources.orchestrationRegistries.get("6.0.0").sha256;

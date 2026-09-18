@@ -7,6 +7,13 @@ function option(flag, value, description) {
 
 const definitions = [
   {
+    name: "network-policy", script: "propose-network-policy.mjs",
+    summary: "Propose concrete target and official-source network scopes without granting or using network access.",
+    usage: ["accessibility-audit network-policy [--target <URL>] [--exact-target <URL>] [--include-official-sources true] [--profile <id>] [--method GET|HEAD] [--allow-localhost true] [--output <new-policy.json>]"],
+    notes: ["Targets, exact targets and methods are repeatable. Review the proposal before passing its file to init --network-policy.",
+      "Official sources are exact registered URLs in a separate purpose scope. A policy file never grants caller authority."]
+  },
+  {
     name: "import", script: "import-scanner-results.mjs",
     summary: "Import native axe-core results as private, run-bound screening candidates.",
     usage: ["accessibility-audit import axe --run <bound-run.json> --input <artifacts/axe.json> --output <artifacts/new-screening.json> [--target-ref <declared-URL>] [--configuration <artifacts/config.json>] [--record-output <artifacts/new-import.json>] [--artifact-id <ART-id>]"],
@@ -17,7 +24,7 @@ const definitions = [
   {
     name: "bind-targets", script: "bind-run-targets.mjs",
     summary: "Remeasure and bind a target inventory once, before any artifact registration.",
-    usage: ["accessibility-audit bind-targets --run <unbound-run.json> --targets <artifacts/targets.json> [--allow-origin <origin>] [--allow-localhost true] --output <new-bound-run.json>"],
+    usage: ["accessibility-audit bind-targets --run <unbound-run.json> --targets <artifacts/targets.json> [--allow-origin <origin>] [--allow-url <exact-URL>] [--allow-localhost true] [--network-log-output <artifacts/network.json>] --output <new-bound-run.json>"],
     notes: ["The output stays beside the input run. Changing a bound inventory requires a fresh run. HTTP origins must be explicitly authorized again."]
   },
   {
@@ -30,9 +37,9 @@ const definitions = [
     name: "capture-targets",
     script: "capture-run-targets.mjs",
     summary: "Measure file, Git, HTTP or saved web-state identities into a private run companion.",
-    usage: ["accessibility-audit capture-targets --run <run.json> --specs <target-specs.json> [--allow-origin <origin>] [--allow-localhost true] --output <artifacts/new-targets.json>"],
+    usage: ["accessibility-audit capture-targets --run <run.json> --specs <target-specs.json> [--allow-origin <origin>] [--allow-url <exact-URL>] [--allow-localhost true] [--network-log-output <artifacts/network.json>] --output <artifacts/new-targets.json>"],
     notes: ["Target specifications must cover exactly the declared run references. Local relative paths resolve beside the run manifest.",
-      "HTTP requires run network permission and explicit allowed origins for every redirect. No credentials, cookies or JavaScript are used.",
+      "HTTP requires a concrete run policy, explicit caller origin/URL authorization and --network-log-output. Every redirect is checked. No credentials, cookies or JavaScript are used.",
       "This creates an unregistered private companion. Use bind-targets before registering observations. See references/measured-targets.md."]
   },
   {
@@ -77,6 +84,7 @@ const definitions = [
       option("--target-ref", "<url|file>", "Target URL or file. Repeat for additional target references."),
       option("--artifact-root", "<directory>", "Existing private directory for run artifacts."),
       option("--network", "<none|local_read_only>", "Network policy alias. `none` denies access; `local_read_only` maps to an allowlisted read policy."),
+      option("--network-policy", "<policy.json>", "Required for allowlisted/local_read_only: explicit origins or exact URLs, GET/HEAD and redirect/resource policy. Propose with network-policy."),
       option("--interaction", "<safe_read_only|human_supervised>", "Interaction policy alias."),
       option("--source-write", "<none|authorized_only>", "Source-write policy. Standard audits normally use `none`."),
       option("--config", "<file>", "Optional JSON file declaring scope and/or environment."),
@@ -125,6 +133,9 @@ const definitions = [
       option("--evidence-output", "<file>", "Private saved web bundle for capture-targets; requires --axe-output."),
       option("--browser-channel", "<chrome>", "Use installed system Chrome explicitly instead of the default browser runtime."),
       option("--allow-origin", "<origin>", "Additional explicit origin; repeatable."),
+      option("--allow-url", "<exact-URL>", "Explicit exact URL including query; repeatable."),
+      option("--run", "<run.json>", "Enforce a validated run policy as well as explicit caller grants. Requires --network-log-output."),
+      option("--network-log-output", "<artifacts/network.json>", "Private per-request run/policy log. Saved on captured failures too. Cross-origin iframe capture is unverified and blocked."),
       option("--allow-localhost", "", "Permit loopback only for controlled fixtures."),
       option("--focus-steps", "<0-50>", "Keyboard focus steps; default 8."),
       option("--width", "<240-7680>", "Primary viewport width; default 1280."),
@@ -218,11 +229,13 @@ const definitions = [
     name: "register",
     script: "register-audit-artifact.mjs",
     summary: "Register one validated artifact in a new audit-run version.",
-    usage: ["accessibility-audit register --run <run.json> --artifact <artifact.json> [--allow-origin <origin>] [--allow-localhost true] --output <new-run.json>"],
+    usage: ["accessibility-audit register --run <run.json> --artifact <artifact.json> [--allow-origin <origin>] [--allow-url <exact-URL>] [--allow-localhost true] [--network-log-output <artifacts/network.json>] --output <new-run.json>"],
     options: [
       option("--run", "<run.json>", "Current run version."),
       option("--artifact", "<artifact.json>", "Validated artifact within its artifact root."),
       option("--allow-origin", "<origin>", "Explicit HTTP remeasurement origin; repeatable."),
+      option("--allow-url", "<exact-URL>", "Explicit HTTP remeasurement URL; repeatable."),
+      option("--network-log-output", "<artifacts/network.json>", "Required for HTTP remeasurement; private run-bound request log."),
       option("--allow-localhost", "<true>", "Permit loopback only for controlled HTTP fixtures."),
       option("--output", "<new-run.json>", "New immutable run version.")
     ]

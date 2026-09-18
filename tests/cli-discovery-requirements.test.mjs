@@ -33,13 +33,13 @@ test("root help, version, and command help expose discoverable installed capabil
   assert.equal(version.status, 0, version.stderr || version.stdout);
   assert.match(version.stdout, /information-accessibility-practice-cli 0\.1\.0/u);
   assert.match(version.stdout, /standards registry 1\.0\.0/u);
-  assert.match(version.stdout, /audit-run schema 8\.0\.0/u);
+  assert.match(version.stdout, /audit-run schema 9\.0\.0/u);
 
   const initHelp = runCli(["init", "--help"]);
   assert.equal(initHelp.status, 0, initHelp.stderr || initHelp.stdout);
   for (const value of [
     "--run-id", "--profile", "--target-name", "--target-version", "--target-ref",
-    "--artifact-root", "--network", "none", "local_read_only",
+    "--artifact-root", "--network", "--network-policy", "none", "local_read_only",
     "--interaction", "safe_read_only", "human_supervised",
     "--source-write", "authorized_only", "--config", "--output"
   ]) assert.match(initHelp.stdout, new RegExp(value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&"), "u"));

@@ -1,6 +1,6 @@
 # Measured target identities
 
-Current run schema 8.0.0 fixes a measured target inventory before the first artifact is registered. Envelope 3.0.0 records the exact inventory snapshot IDs. Registration remeasures the targets and rejects drift before adding evidence. Run 7 and earlier retain their frozen read contracts; create a new run for current registration.
+Current run schema 9.0.0 fixes a measured target inventory before the first artifact is registered. Envelope 3.0.0 records the exact inventory snapshot IDs. Registration remeasures the targets and rejects drift before adding evidence. Run 8 and earlier retain their frozen read contracts; create a new run for current registration.
 
 `capture-targets` measures the references declared in an existing valid run and writes a new private JSON companion inside its artifact root. It does not change the run, the target, evidence levels or accessibility judgements. Existing outputs are never overwritten.
 
@@ -31,10 +31,10 @@ The specifications file contains a JSON array. Every declared target reference m
 
 The array above illustrates all four types; use only entries matching the actual run. Relative file, repository and bundle paths resolve from the run manifest directory. A Git specification may also provide `expected_commit` with a full object ID. A saved state must be an existing `web-evidence-bundle` with its original capture time, DOM, accessibility tree, matching hashes and viewport.
 
-For HTTP, pass an explicit origin allowlist in addition to the run's allowlisted network permission:
+For HTTP, first initialize with a concrete policy as described in [network-policy.md](network-policy.md), then pass an explicit caller origin or exact-URL allowlist and a private request-log output:
 
 ```sh
-accessibility-audit capture-targets --run run.json --specs target-specs.json --allow-origin https://example.org --output artifacts/targets-02.json
+accessibility-audit capture-targets --run run.json --specs target-specs.json --allow-origin https://example.org --network-log-output artifacts/capture-network.json --output artifacts/targets-02.json
 ```
 
 Repeat `--allow-origin` for permitted redirect origins. Loopback fixtures additionally require `--allow-localhost true`. Credentials in URLs, private/reserved network destinations, unapproved redirects, oversized responses and timeouts fail closed. The HTTP observer sends a credential-free GET with identity encoding. It neither executes page scripts nor recreates authenticated browser sessions.
@@ -42,8 +42,8 @@ Repeat `--allow-origin` for permitted redirect origins. Loopback fixtures additi
 HTTP inventories require the same explicit caller policy on `bind-targets` and on every `register` invocation. Permissions stored in a run never authorize network access by themselves:
 
 ```sh
-accessibility-audit bind-targets --run run.json --targets artifacts/targets-02.json --allow-origin https://example.org --output run.bound.json
-accessibility-audit register --run run.bound.json --artifact artifacts/screening.json --allow-origin https://example.org --output run.1.json
+accessibility-audit bind-targets --run run.json --targets artifacts/targets-02.json --allow-origin https://example.org --network-log-output artifacts/bind-network.json --output run.bound.json
+accessibility-audit register --run run.bound.json --artifact artifacts/screening.json --allow-origin https://example.org --network-log-output artifacts/register-network.json --output run.1.json
 ```
 
 If a target changes, preserve the old run and capture the new state in a new run. Do not edit the old inventory or substitute a new ID in existing evidence. Registered `change-record` artifacts are the deliberate exception to live remeasurement: a completed authorized change has already modified its target. They retain the old inventory IDs and exact authorization/input bindings, and move the run to `retest_required`. The fresh retest starts without an inventory and must capture and bind its new state before observations.

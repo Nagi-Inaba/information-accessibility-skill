@@ -1,6 +1,7 @@
 import path from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
+import { withNetworkEvidenceOutput } from "./lib/network-cli.mjs";
 
 import {
   assertStableFile,
@@ -13,14 +14,14 @@ import {
 } from "./lib/audit-run.mjs";
 
 function parseArgs(argv) {
-  const options = { origins: [] };
-  const flags = new Map([["--run", "run"], ["--artifact", "artifact"], ["--output", "output"], ["--allow-origin", "origins"], ["--allow-localhost", "localhost"]]);
+  const options = { origins: [], urls: [] };
+  const flags = new Map([["--run", "run"], ["--artifact", "artifact"], ["--output", "output"], ["--network-log-output", "networkOutput"], ["--allow-origin", "origins"], ["--allow-url", "urls"], ["--allow-localhost", "localhost"]]);
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (!flags.has(arg)) throw new Error(`Unknown argument: ${arg}`);
     const value = argv[index + 1];
     if (!value || value.startsWith("--")) throw new Error(`Missing value for ${arg}`);
-    if (arg === "--allow-origin") options.origins.push(value);
+    if (["--allow-origin", "--allow-url"].includes(arg)) options[flags.get(arg)].push(value);
     else {
       if (options[flags.get(arg)] !== undefined) throw new Error(`Duplicate argument: ${arg}`);
       options[flags.get(arg)] = value;
@@ -56,8 +57,10 @@ export async function main(argv = process.argv.slice(2)) {
   const resolvedArtifact = resolveInside(initialValidation.artifactRoot, artifactFile);
   const artifactSnapshot = readStableFile(resolvedArtifact, { label: "artifact input" });
   const artifact = parseSnapshot(artifactSnapshot, "artifact input");
-  const next = await registerArtifactChecked(run, artifact, { runFile, artifactFile: resolvedArtifact,
-    networkPolicy: options.origins.length ? { network: "allowlisted", allowedOrigins: options.origins, allowLocalhost: options.localhost === "true" } : undefined });
+  const next = await withNetworkEvidenceOutput({ run, artifactRoot: initialValidation.artifactRoot, output: options.networkOutput,
+    needsNetwork: artifact.artifact_type !== "change-record" && run.target_inventory?.snapshots.some((item) => item.kind === "http"),
+    inputs: [runSnapshot, artifactSnapshot], otherOutputs: [output] }, (onNetworkEvidence) => registerArtifactChecked(run, artifact, { runFile, artifactFile: resolvedArtifact, onNetworkEvidence,
+    networkPolicy: options.origins.length || options.urls.length ? { network: "allowlisted", allowedOrigins: options.origins, exactUrls: options.urls, allowLocalhost: options.localhost === "true" } : undefined }));
   assertStableFile(runSnapshot, "audit run input");
   assertStableFile(artifactSnapshot, "artifact input");
   const finalValidation = validateAuditRun(next, { runFile });

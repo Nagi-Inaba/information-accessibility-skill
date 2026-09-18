@@ -35,6 +35,13 @@ test("private, mapped, reserved, and loopback address ranges are identified", ()
     "fc00::1",
     "fd00::1",
     "2001:db8::1",
+    "192.88.99.1",
+    "fec0::1",
+    "64:ff9b::a00:1",
+    "100::1",
+    "2001:20::1",
+    "3fff::1",
+    "0:0:0:0:0:0:0:1",
     "2002:7f00:1::"
   ]) {
     assert.equal(isPrivateAddress(value), true, value);

@@ -6,6 +6,7 @@ import { pathToFileURL } from "node:url";
 
 import { assertNewOutputPath, writeNewJson } from "./lib/audit-run.mjs";
 import { normalizeOrigin, runAutomatedWebScan } from "./lib/automated-web-scan.mjs";
+import { prepareNetworkCapture } from "./lib/network-cli.mjs";
 
 const DEFAULTS = {
   focusSteps: 8,
@@ -15,6 +16,8 @@ const DEFAULTS = {
 };
 const SINGLE_VALUE_OPTIONS = new Map([
   ["--url", "url"],
+  ["--run", "run"],
+  ["--network-log-output", "networkLogOutput"],
   ["--profile", "profile"],
   ["--output", "output"],
   ["--context-output", "contextOutput"],
@@ -47,6 +50,7 @@ function usage() {
     "Defaults:",
     "  --axe-output <private-file> and --evidence-output <private-bundle> preserve importable results together.",
     "  --browser-channel chrome selects system Chrome explicitly.",
+    "  --run <run.json> --network-log-output <artifacts/network.json> enforces a concrete run policy plus explicit --allow-origin/--allow-url grants. Cross-origin iframe capture is blocked as unverified.",
     "  --focus-steps 8",
     "  --width 1280",
     "  --height 800",
@@ -67,7 +71,7 @@ function integerInRange(value, flag, minimum, maximum) {
 }
 
 export function parseScanWebArgs(argv) {
-  const options = { allowOrigins: [], allowLocalhost: false, ...DEFAULTS };
+  const options = { allowOrigins: [], allowUrls: [], allowLocalhost: false, ...DEFAULTS };
   const seen = new Set();
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
@@ -78,10 +82,11 @@ export function parseScanWebArgs(argv) {
       options.allowLocalhost = true;
       continue;
     }
-    if (arg === "--allow-origin") {
+    if (arg === "--allow-origin" || arg === "--allow-url") {
       const value = requireValue(argv, index, arg);
       index += 1;
-      options.allowOrigins.push(normalizeOrigin(value));
+      if (arg === "--allow-origin") options.allowOrigins.push(normalizeOrigin(value));
+      else options.allowUrls.push(value);
       continue;
     }
     const key = SINGLE_VALUE_OPTIONS.get(arg);
@@ -158,7 +163,12 @@ export async function main(argv = process.argv.slice(2)) {
     const evidenceOutput = options.evidenceOutput ? outputPath(options.evidenceOutput, "Private evidence bundle") : null;
     const outputs = [output, contextOutput, axeOutput, evidenceOutput].filter(Boolean);
     if (new Set(outputs.map(pathKey)).size !== outputs.length) throw new ScanWebUsageError("Every scanner output must have a distinct new path.");
-    const { scan, context, evidence, axeExport } = await runAutomatedWebScan(options);
+    const network = prepareNetworkCapture(options, outputs);
+    let results;
+    try { results = await runAutomatedWebScan(options); }
+    catch (error) { if (network && error.networkLog) network.save(error.networkLog); throw error; }
+    const { scan, context, evidence, axeExport, networkLog } = results;
+    if (network) network.save(networkLog);
     publishJson(output, scan, "Scan output");
     if (axeOutput) {
       publishJson(evidenceOutput, evidence, "Private evidence bundle");

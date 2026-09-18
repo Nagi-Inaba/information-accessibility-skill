@@ -1,6 +1,7 @@
 import { canonicalJson } from "./canonical-json.mjs";
 import { targetDigest, targetIdentityErrors, compareTargetIdentities } from "./target-identity.mjs";
 import { observeTarget, observeLocalTarget, assertTargetUnchanged } from "./target-observer.mjs";
+import { assertNetworkPolicy } from "./network-policy.mjs";
 
 const checks = new WeakMap();
 const MAX_TARGETS = 32;
@@ -51,6 +52,12 @@ function assertNetworkPermission(run, specs, options) {
       && (run.permissions?.network !== "allowlisted" || options.networkPolicy?.network !== "allowlisted")) {
     throw new Error("HTTP target checks require both run permission and an explicit caller network policy.");
   }
+  if (specs.some((spec) => spec.kind === "http")) {
+    if (run.schema_version !== "9.0.0") throw new Error("HTTP target checks require a current run with a concrete network policy.");
+    assertNetworkPolicy(run.permissions.network_policy);
+    options.runNetworkPolicy = structuredClone(run.permissions.network_policy);
+    options.runId = run.run_id;
+  }
 }
 
 export function targetInventoryErrors(inventory, run) {
@@ -89,7 +96,7 @@ export function targetInventoryErrors(inventory, run) {
   return errors;
 }
 
-export async function observeRunTargets(run, specifications, options = {}) {
+export async function observeRunTargetsWithEvidence(run, specifications, options = {}) {
   assertRunContext(run);
   if (!Array.isArray(specifications) || specifications.length < 1 || specifications.length > MAX_TARGETS) throw new Error(`Provide between 1 and ${MAX_TARGETS} target specifications.`);
   const runHash = digest(run);
@@ -99,18 +106,32 @@ export async function observeRunTargets(run, specifications, options = {}) {
   if (!same(sorted(specs.map((spec) => spec?.target_ref)), sorted(run.target.urls_or_files))) throw new Error("Target specifications must cover exactly the run target references.");
   assertNetworkPermission(run, specs, fixedOptions);
   const snapshots = [];
-  for (const spec of specs) snapshots.push((await observeTarget(spec, fixedOptions)).snapshot);
+  const networkEvidence = [];
+  for (const spec of specs) {
+    let observation;
+    try { observation = await observeTarget(spec, fixedOptions); }
+    catch (error) {
+      error.networkEvidence = { completed: networkEvidence, failed_target_ref: spec.target_ref, failed_log: error.networkLog ?? null };
+      throw error;
+    }
+    snapshots.push(observation.snapshot);
+    if (observation.network?.kind === "network-request-log") networkEvidence.push({ target_snapshot_id: observation.snapshot.snapshot_id, log: observation.network });
+  }
   // Recheck local targets after awaiting other captures, including Git HEAD/index.
   for (const snapshot of snapshots) if (snapshot.kind !== "http") {
     assertSameTarget(snapshot, observeLocalTarget(targetSpecification(snapshot), fixedOptions).snapshot);
   }
-  if (runHash !== digest(run)) throw new Error("Run context changed during target observation.");
+  if (runHash !== digest(run)) throw Object.assign(new Error("Run context changed during target observation."), { networkEvidence: { completed: networkEvidence, failed_target_ref: null, failed_log: null } });
   snapshots.sort((a, b) => a.snapshot_id.localeCompare(b.snapshot_id, "en"));
   const body = { schema_version: "1.0.0", ...context(run), publication: "private_by_default", snapshots };
   const inventory = { ...body, sha256: digest(body) };
   const errors = targetInventoryErrors(inventory, run);
   if (errors.length) throw new Error(`Invalid target inventory:\n- ${errors.join("\n- ")}`);
-  return freeze(inventory);
+  return freeze({ inventory, networkEvidence });
+}
+
+export async function observeRunTargets(run, specifications, options = {}) {
+  return (await observeRunTargetsWithEvidence(run, specifications, options)).inventory;
 }
 
 function assertSameTarget(expected, actual) {
@@ -131,12 +152,20 @@ export async function checkRunTargets(run, inventory, options = {}) {
   if (errors.length) throw new Error(`Invalid target inventory:\n- ${errors.join("\n- ")}`);
   const fixedRun = structuredClone(run);
   const fixedInventory = structuredClone(inventory);
-  const fixedOptions = structuredClone(options);
+  const { onNetworkEvidence, ...copyableOptions } = options;
+  const fixedOptions = structuredClone(copyableOptions);
   const specs = fixedInventory.snapshots.map(targetSpecification);
   assertNetworkPermission(fixedRun, specs, fixedOptions);
   const observations = [];
   for (const [index, snapshot] of fixedInventory.snapshots.entries()) {
-    const observed = await assertTargetUnchanged(snapshot, specs[index], fixedOptions);
+    let observed;
+    try { observed = await observeTarget(specs[index], fixedOptions); }
+    catch (error) {
+      if (error.networkLog) onNetworkEvidence?.({ target_snapshot_id: snapshot.snapshot_id, log: error.networkLog });
+      throw error;
+    }
+    if (observed.network?.kind === "network-request-log") onNetworkEvidence?.({ target_snapshot_id: snapshot.snapshot_id, log: observed.network });
+    assertSameTarget(snapshot, observed.snapshot);
     observations.push({ snapshot_id: observed.snapshot.snapshot_id, observed_at: observed.snapshot.observed_at });
   }
   if (!same(fixedRun, run) || !same(fixedInventory, inventory)) throw new Error("Run or target inventory changed during verification.");
@@ -184,7 +213,7 @@ export function targetSnapshotIds(run) {
 }
 
 export function targetBindingErrors(run, artifacts = []) {
-  if (run?.schema_version !== "8.0.0") return [];
+  if (!["8.0.0", "9.0.0"].includes(run?.schema_version)) return [];
   const errors = [];
   if (run.target_inventory !== null) {
     errors.push(...targetInventoryErrors(run.target_inventory, run));

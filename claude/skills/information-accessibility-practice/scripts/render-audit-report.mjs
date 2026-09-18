@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { networkScopeSummary, networkScopeText } from "./lib/network-policy.mjs";
 import { guardScreeningProjection, reviewDetailLines } from "./lib/review-details.mjs";
 import { isIP } from "node:net";
 import path from "node:path";
@@ -973,6 +974,7 @@ export function buildPublicReportModel({ run, assessment, envelopesById, resourc
     });
   }
   const model = {
+    networkScope: networkScopeSummary(run.permissions, { publicOutput: true }),
     target: {
       name: publicText(run.target.name),
       version_or_commit: publicText(run.target.version_or_commit, { branchLike: true }),
@@ -1062,6 +1064,7 @@ export function renderRunBackedReport(model) {
     `- 適用プロファイル: ${cell(model.profile.id)}`,
     `- 確認日: ${cell(model.evaluatedAt)}`,
     `- 規格台帳の版: ${cell(model.standardsRegistryVersion)}`,
+    ...(model.networkScope ? [`- ${cell(networkScopeText(model.networkScope, "ja"))}`] : []),
     "",
     "## 3. 達成基準別の判定",
     "",

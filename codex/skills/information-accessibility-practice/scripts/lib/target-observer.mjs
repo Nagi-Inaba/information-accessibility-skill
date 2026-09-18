@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { createNetworkSession } from "./network-transport.mjs";
 import fs from "node:fs";
 import http from "node:http";
 import https from "node:https";
@@ -103,6 +104,20 @@ async function retrieve(url, endpoint, options, signal) {
 
 async function httpObservation(spec, options) {
   exactSpec(spec, ["kind", "target_ref"]);
+  if (options.runNetworkPolicy || options.runId) {
+    const session = createNetworkSession({ runId: options.runId, policy: options.runNetworkPolicy, caller: options.networkPolicy });
+    const response = await session.fetch({ url: spec.target_ref, method: "GET", resource_type: "main_document" });
+    const header = (name) => typeof response.headers[name] === "string" ? response.headers[name] : null;
+    const sha256 = targetDigest(response.bytes);
+    const snapshot = createTargetIdentity({ kind: "http", targetRef: spec.target_ref,
+      identity: { requested_url: spec.target_ref, final_url: response.final_url, status: response.status,
+        etag: header("etag"), last_modified: header("last-modified"), content_type: header("content-type"), content_encoding: header("content-encoding"),
+        response_sha256: sha256, size: response.bytes.length, redirects: response.redirects, request_profile: "credential_free_get_identity_encoding_v1" },
+      evidenceBindings: [{ evidence_type: "other", sha256 }],
+      limitations: ["Captures one credential-free HTTP response under the saved run policy and explicit caller authorization.",
+        "Dynamic responses can drift between requests; rendered or authenticated states require an explicitly captured web state."] });
+    return { snapshot, files: [], bytes: response.bytes, network: session.log() };
+  }
   const policy = options.networkPolicy;
   const origins = permittedOrigins(policy);
   const requested = parseTargetUrl(spec.target_ref, { allowLocalhost: policy.allowLocalhost === true });

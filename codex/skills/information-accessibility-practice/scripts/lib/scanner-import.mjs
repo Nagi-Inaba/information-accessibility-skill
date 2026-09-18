@@ -79,7 +79,7 @@ function nativeResult(value, importedAt) {
 
 export function buildAxeImport({ input, run, targetRef, rawSha256, configuration = null, importedAt = new Date().toISOString(), resources }) {
   requireValue(isRfc3339DateTime(importedAt), "Invalid import timestamp.");
-  requireValue(run.schema_version === "8.0.0" && targetBindingErrors(run).length === 0, "Import requires a valid current measured run.");
+  requireValue(run.schema_version === "9.0.0" && targetBindingErrors(run).length === 0, "Import requires a valid current measured run.");
   const snapshot = run.target_inventory?.snapshots.find((item) => item.target_ref === targetRef);
   requireValue(snapshot?.kind === "web_state", "axe import requires the exact bound saved web_state target.");
   instant(snapshot.captured_at, "target capture time", importedAt);

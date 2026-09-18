@@ -74,6 +74,8 @@ The CLI can create ledgers, register artifacts, merge, and report without a brow
 
 Host-native browser tools are not automatically detected. Record measured capabilities separately when using another integration. Missing capabilities leave affected checks unconfirmed with a next test, and profile rows remain `not_tested`.
 
+Run-backed network access requires a [concrete policy and private request logs](codex/skills/information-accessibility-practice/references/network-policy.md). Target and standards-source destinations remain separate, and each request also needs caller authorization. Paths this adapter cannot enforce, including cross-origin iframes, stop the capture.
+
 ### Codex
 
 On Windows, use the manifest-aware installer.

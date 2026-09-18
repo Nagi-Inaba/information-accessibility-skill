@@ -74,6 +74,8 @@ CLIの台帳作成・登録・統合・レポート機能は、ブラウザな�
 
 ホスト固有のbrowser toolは自動検出しません。別の統合を使う場合は、その実測結果を記録してください。能力不足の確認項目は未確認として次のテストを示し、profileは`not_tested`を維持します。
 
+run-backedの実通信には、[具体的な通信方針と非公開ログ](codex/skills/information-accessibility-practice/references/network-policy.md)が必要です。対象と規格資料の許可先を分け、実行時にも呼出側の許可を照合します。別originのiframeなど、現在のadapterで強制を確認できない経路は停止します。
+
 ### Codex
 
 Windowsではmanifest対応installerを利用できます。

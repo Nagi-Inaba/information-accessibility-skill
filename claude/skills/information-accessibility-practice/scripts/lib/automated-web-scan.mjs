@@ -586,6 +586,7 @@ export async function runAutomatedWebScan(options) {
       return { scan, context, evidence, axeExport };
     });
   } catch (caught) {
+    if (caught?.networkLog) throw caught;
     if (caught instanceof AutomatedWebScanError || caught instanceof WebInspectionError) throw caught;
     throw error(caught instanceof Error ? caught.message : String(caught), 4, "SCAN_RUNTIME_FAILURE", caught instanceof Error ? caught : undefined);
   }

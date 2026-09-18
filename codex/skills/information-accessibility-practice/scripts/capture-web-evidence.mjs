@@ -1,12 +1,15 @@
 import crypto from "node:crypto";
 import { lookup } from "node:dns/promises";
-import { isIP } from "node:net";
+import { isIP, createServer } from "node:net";
 import path from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
 
 import { assertNewOutputPath, writeNewJson } from "./lib/audit-run.mjs";
 import { canonicalJson } from "./lib/canonical-json.mjs";
+import { createNetworkSession } from "./lib/network-transport.mjs";
+import { prepareNetworkCapture } from "./lib/network-cli.mjs";
+import { installBrowserNetworkGateway } from "./lib/browser-network-gateway.mjs";
 import { assertWebCapabilities, browserLaunchOptions, loadWebRuntime, preflightWeb, unavailableWebCapabilities, WebCapabilityError } from "./lib/web-capabilities.mjs";
 
 const DEFAULT_VIEWPORT = { width: 1280, height: 800 };
@@ -48,6 +51,7 @@ function isPrivateIpv4(address) {
     || (a === 192 && b === 0 && c === 0)
     || (a === 192 && b === 0 && c === 2)
     || (a === 192 && b === 168)
+    || (a === 192 && b === 88 && c === 99)
     || (a === 198 && (b === 18 || b === 19))
     || (a === 198 && b === 51 && c === 100)
     || (a === 203 && b === 0 && c === 113)
@@ -56,6 +60,7 @@ function isPrivateIpv4(address) {
 
 function mappedIpv4FromIpv6(address) {
   const lower = normalizeIpLiteral(address);
+  if (!lower.startsWith("::ffff:")) return null;
   const dottedMatch = /(?:^|:)(\d{1,3}(?:\.\d{1,3}){3})$/u.exec(lower);
   if (dottedMatch) return dottedMatch[1];
   if (!lower.startsWith("::ffff:")) return null;
@@ -67,16 +72,22 @@ function mappedIpv4FromIpv6(address) {
 }
 
 export function isPrivateAddress(value) {
-  const address = normalizeIpLiteral(value);
+  let address = normalizeIpLiteral(value);
   const family = isIP(address);
   if (family === 4) return isPrivateIpv4(address);
   if (family !== 6) return false;
+  address = new URL(`http://[${address}]/`).hostname.slice(1, -1);
 
   const mapped = mappedIpv4FromIpv6(address);
   if (mapped) return isPrivateIpv4(mapped);
 
   if (address === "::" || address === "::1") return true;
   const firstGroup = Number.parseInt(address.split(":")[0] || "0", 16);
+  // Fail closed outside globally routable unicast, including site-local,
+  // discard-only, NAT64 and other special-use prefixes.
+  if ((firstGroup & 0xe000) !== 0x2000) return true;
+  if (firstGroup === 0x2001 && Number.parseInt(address.split(":")[1] || "0", 16) < 0x200) return true;
+  if (firstGroup === 0x3fff && Number.parseInt(address.split(":")[1] || "0", 16) < 0x1000) return true;
   if ((firstGroup & 0xffc0) === 0xfe80) return true;
   if ((firstGroup & 0xfe00) === 0xfc00) return true;
   if ((firstGroup & 0xff00) === 0xff00) return true;
@@ -188,7 +199,7 @@ async function resolveAllowedEndpoints(requested, allowedOrigins, options) {
 
 function parseArgs(argv) {
   const options = {
-    allowOrigins: [],
+    allowOrigins: [], allowUrls: [],
     focusSteps: 8,
     viewport: { ...DEFAULT_VIEWPORT },
     allowLocalhost: false
@@ -199,15 +210,18 @@ function parseArgs(argv) {
       options.allowLocalhost = true;
       continue;
     }
-    if (arg === "--allow-origin") {
+    if (arg === "--allow-origin" || arg === "--allow-url") {
       const value = argv[++index];
       if (!value || value.startsWith("--")) throw new Error("Missing value for --allow-origin");
-      options.allowOrigins.push(new URL(value).origin);
+      if (arg === "--allow-origin") options.allowOrigins.push(value);
+      else options.allowUrls.push(value);
       continue;
     }
-    if (["--url", "--output", "--focus-steps", "--width", "--height", "--browser-channel"].includes(arg)) {
+    if (["--url", "--output", "--focus-steps", "--width", "--height", "--browser-channel", "--run", "--network-log-output"].includes(arg)) {
       const value = argv[++index];
       if (!value || value.startsWith("--")) throw new Error(`Missing value for ${arg}`);
+      if (arg === "--run") { options.run = value; continue; }
+      if (arg === "--network-log-output") { options.networkLogOutput = value; continue; }
       if (arg === "--url") options.url = value;
       if (arg === "--output") options.output = value;
       if (arg === "--focus-steps") options.focusSteps = Number(value);
@@ -331,10 +345,19 @@ async function installActiveChannelBlocks(context, blockedChannelState) {
     replaceConstructor("WebTransport", "webtransport");
     replaceConstructor("RTCPeerConnection", "webrtc");
     replaceConstructor("webkitRTCPeerConnection", "webrtc");
+    replaceConstructor("Worker", "worker");
+    replaceConstructor("SharedWorker", "shared_worker");
+    Object.defineProperty(globalThis, "open", { configurable: false, writable: false, value(value) {
+      report("popup", value);
+      return null;
+    } });
   });
 }
 
 export async function withWebInspectionSession(options, inspect) {
+  const networkSession = options.networkRun ? createNetworkSession({ runId: options.networkRun.run_id,
+    policy: options.networkRun.permissions.network_policy, caller: options.networkCaller, adapter: "browser-http-pinned-v1" }) : null;
+  if (networkSession) options = { ...options, blockActiveNetworkChannels: true, blockServiceWorkers: true, acceptDownloads: false };
   const requested = parseTargetUrl(options.url, options);
   const launchOptions = browserLaunchOptions(options);
   const preflight = await preflightWeb({ browserChannel: options.browserChannel });
@@ -343,8 +366,18 @@ export async function withWebInspectionSession(options, inspect) {
   const allowedOrigins = new Set([requested.origin, ...(options.allowOrigins ?? [])]);
   const blockedRequestState = { entries: [], total: 0 };
   const blockedChannelState = { entries: [], total: 0 };
-  const endpoints = await resolveAllowedEndpoints(requested, allowedOrigins, options);
-  if (options.pinResolvedHosts) {
+  const endpoints = networkSession ? [] : await resolveAllowedEndpoints(requested, allowedOrigins, options);
+  let denyProxy;
+  if (networkSession) {
+    denyProxy = createServer((socket) => {
+      recordBlockedChannel(blockedChannelState, { kind: "native_browser_connection", url: "withheld", reason: "outside_http_gateway" });
+      socket.destroy();
+    });
+    await new Promise((resolve, reject) => { denyProxy.once("error", reject); denyProxy.listen(0, "127.0.0.1", resolve); });
+    launchOptions.args = ["--host-resolver-rules=MAP * ~NOTFOUND", "--host-resolver-retry-attempts=0",
+      `--proxy-server=http://127.0.0.1:${denyProxy.address().port}`, "--proxy-bypass-list=<-loopback>"];
+  }
+  else if (options.pinResolvedHosts) {
     launchOptions.args = [
       `--host-resolver-rules=${buildHostResolverRules(endpoints)}`,
       "--host-resolver-retry-attempts=0",
@@ -353,12 +386,15 @@ export async function withWebInspectionSession(options, inspect) {
   }
   let browser;
   try { browser = await chromium.launch(launchOptions); }
-  catch { throw new WebCapabilityError(unavailableWebCapabilities("browser_launch_unavailable")); }
+  catch { if (denyProxy) await new Promise((resolve) => denyProxy.close(resolve)); throw new WebCapabilityError(unavailableWebCapabilities("browser_launch_unavailable")); }
   let context;
+  let gateway;
+  let result;
+  let caught;
   try {
     context = await browser.newContext(contextOptions(options));
     if (options.blockActiveNetworkChannels) await installActiveChannelBlocks(context, blockedChannelState);
-    await context.route("**/*", async (route) => {
+    if (!networkSession) await context.route("**/*", async (route) => {
       const request = route.request();
       let requestUrl;
       try {
@@ -399,24 +435,32 @@ export async function withWebInspectionSession(options, inspect) {
     });
 
     const page = await context.newPage();
+    if (networkSession) context.on("page", (popup) => {
+      recordBlockedChannel(blockedChannelState, { kind: "popup", url: "withheld", reason: "unsupported_browser_target" });
+      popup.close().catch(() => {});
+    });
+    if (networkSession) gateway = await installBrowserNetworkGateway(context, page, networkSession, requested);
     const response = await page.goto(requested.href, {
       waitUntil: "domcontentloaded",
       timeout: options.navigationTimeoutMs ?? 30_000
     });
     if (options.settleBeforeInspection) await settlePage(page);
     const finalUrl = new URL(page.url());
-    if (!allowedOrigins.has(finalUrl.origin)) {
+    if (!networkSession && !allowedOrigins.has(finalUrl.origin)) {
       throw new WebInspectionError(`Navigation escaped the allowed origins: ${finalUrl.origin}`, {
         exitCode: 3,
         code: "NAVIGATION_ORIGIN_ESCAPE"
       });
     }
-    await resolveInspectionEndpoint(finalUrl, options);
-    return await inspect({
+    if (!networkSession) await resolveInspectionEndpoint(finalUrl, options);
+    await gateway?.drain();
+    if (gateway?.failure) throw gateway.failure;
+    result = await inspect({
       page,
       context,
       browser,
       preflight,
+      networkSession,
       requested,
       finalUrl,
       response,
@@ -427,10 +471,23 @@ export async function withWebInspectionSession(options, inspect) {
       blockedChannelCount: blockedChannelState.total,
       pinnedEndpoints: options.pinResolvedHosts ? endpoints : []
     });
+    await gateway?.drain();
+  } catch (error) { caught = error; networkSession?.stop();
   } finally {
     if (context) await context.close().catch(() => {});
-    await browser.close();
+    await gateway?.drain();
+    try { await browser.close(); } finally { if (denyProxy) await new Promise((resolve) => denyProxy.close(resolve)); }
   }
+  if (networkSession) {
+    caught ??= gateway?.failure;
+    if (blockedChannelState.total) caught ??= new WebInspectionError("Active network channel denied.", { code: "ACTIVE_CHANNEL_DENIED" });
+    const log = { ...networkSession.log(), blocked_channels: blockedChannelState.entries,
+      blocked_channel_count: blockedChannelState.total, blocked_channels_truncated: blockedChannelState.total > blockedChannelState.entries.length };
+    if (caught) caught.networkLog = log;
+    else result.networkLog = log;
+  }
+  if (caught) throw caught;
+  return result;
 }
 
 export async function collectWebEvidence(session, options = {}) {
@@ -476,6 +533,8 @@ export async function collectWebEvidence(session, options = {}) {
   if (options.renderingProfile) environment.rendering = { ...options.renderingProfile };
   const network = {
     allowed_origins: [...allowedOrigins].sort(),
+    enforcement: session.networkSession ? "browser_http_adapter" : "standalone_scope_not_run_verified",
+    network_policy_sha256: session.networkSession?.policyHash ?? null,
     blocked_requests: blockedRequests
   };
   if (options.includeNetworkPolicyDetails) {
@@ -522,7 +581,11 @@ export async function main(argv = process.argv.slice(2)) {
   const options = parseArgs(argv);
   const output = path.resolve(options.output);
   assertNewOutputPath(output);
-  const evidence = await captureWebEvidence(options);
+  const network = prepareNetworkCapture(options, [output]);
+  let evidence;
+  try { evidence = await captureWebEvidence(options); }
+  catch (error) { if (network && error.networkLog) network.save(error.networkLog); throw error; }
+  if (network) network.save(evidence.networkLog);
   writeNewJson(output, evidence);
   process.stdout.write(`${JSON.stringify({
     status: "PASS",

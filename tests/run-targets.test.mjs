@@ -4,6 +4,7 @@ import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { createNetworkPolicy } from "../codex/skills/information-accessibility-practice/scripts/lib/network-policy.mjs";
 import { observeRunTargets, targetInventoryErrors, checkRunTargets, consumeRunTargetCheck, compareRunTargets } from "../codex/skills/information-accessibility-practice/scripts/lib/run-targets.mjs";
 import { canonicalJson } from "../codex/skills/information-accessibility-practice/scripts/lib/canonical-json.mjs";
 import { createTargetIdentity, targetDigest } from "../codex/skills/information-accessibility-practice/scripts/lib/target-identity.mjs";
@@ -13,6 +14,7 @@ function setup(t, refs) {
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   fs.writeFileSync(path.join(root, "page.html"), "<main>Before</main>");
   return { root, options: { baseDir: root }, run: {
+    schema_version: "9.0.0",
     run_id: "RUN-20260918T000000Z-TARGET01",
     target: { name: "Fixture", version_or_commit: "fixture-1", urls_or_files: refs ?? ["page.html"] },
     environment: { os: ["Fixture"], browsers: [], assistive_technologies: [], input_modes: [] },
@@ -124,6 +126,7 @@ test("HTTP inventory requires run permission and fresh explicit caller network p
   const options = { networkPolicy: { network: "allowlisted", allowedOrigins: [origin], allowLocalhost: true } };
   await assert.rejects(observeRunTargets(run, httpSpecs, options), /both run permission/);
   run.permissions.network = "allowlisted";
+  run.permissions.network_policy = createNetworkPolicy({ targetOrigins: [origin], allowLocalhost: true });
   await assert.rejects(observeRunTargets(run, httpSpecs), /explicit caller network policy/);
   assert.equal(requests, 0);
   const inventory = await observeRunTargets(run, httpSpecs, options);
@@ -144,6 +147,7 @@ test("mutating caller run permission while awaiting HTTP cannot produce an accep
   const origin = await localServer(t, (_req, response) => { onRequest(); response.end("Stable"); });
   const { run } = setup(t, [origin]);
   run.permissions.network = "allowlisted";
+  run.permissions.network_policy = createNetworkPolicy({ targetOrigins: [origin], allowLocalhost: true });
   const options = { networkPolicy: { network: "allowlisted", allowedOrigins: [origin], allowLocalhost: true } };
   const inventory = await observeRunTargets(run, [{ kind: "http", target_ref: origin }], options);
   onRequest = () => { run.permissions.network = "denied"; };

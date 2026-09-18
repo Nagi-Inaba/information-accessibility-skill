@@ -1,4 +1,5 @@
 import { guardScreeningProjection, reviewDetailLines } from "./review-details.mjs";
+import { networkScopeText } from "./network-policy.mjs";
 import { readerText, readerOverviewMarkdown, readerActionsMarkdown, readerPendingMarkdown, readerInspectionMarkdown } from "./report-reader.mjs";
 import {
   groupForRequirement,
@@ -325,7 +326,7 @@ export function buildRunBackedPresentation({ run, assessment: assessmentRecord, 
     scope: publicModel.scope,
     environment: publicModel.environment,
     evaluator: null,
-    limitations: publicModel.limitations,
+    limitations: [...(publicModel.limitations ?? []), ...(publicModel.networkScope ? [networkScopeText(publicModel.networkScope, normalizedLocale)] : [])],
     findings: (publicModel.remediation ?? []).map((finding) => {
       const candidates = screeningCandidates.filter((candidate) => candidate.requirement_id === finding.requirement_id);
       const human = humanById.get(finding.requirement_id);
