@@ -283,6 +283,7 @@ export function applyReportVisibility(presentation, { visibility = "internal", r
     primary_url: sanitizeUrl(row.primary_url, `rows[${index}].primary_url`, entries),
     rationale: sanitizeText(row.rationale, `rows[${index}].rationale`, entries),
     evidence: sanitizeNested(row.evidence, `rows[${index}].evidence`, entries, "evidence"),
+    queue_context: sanitizeNested(row.queue_context, `rows[${index}].queue_context`, entries, "queue_context"),
     review_details: sanitizeNested(row.review_details, `rows[${index}].review_details`, entries, "review_details")
   }));
   // Full reports render group rows; keep them on the same sanitized objects as summaries.

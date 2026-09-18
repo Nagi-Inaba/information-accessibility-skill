@@ -133,7 +133,7 @@ export function auditStatus(runFile, { skillRoot = defaultSkillRoot } = {}) {
         result.recovery.push("Complete the registered finding details or required artifact bindings, then merge from a fresh E0 baseline.");
       }
     }
-    const retest = ["5.0.0", "6.0.0", "7.0.0", "8.0.0", "9.0.0", "10.0.0"].includes(run.schema_version) && run.status === "retest_required";
+    const retest = ["5.0.0", "6.0.0", "7.0.0", "8.0.0", "9.0.0", "10.0.0", "11.0.0"].includes(run.schema_version) && run.status === "retest_required";
     result.operations.retest = { available: retest, reason: retest ? "new_run_id_and_target_version_required" : "requires_completed_authorized_change" };
   }
   assertStableFile(snapshot, "audit run");

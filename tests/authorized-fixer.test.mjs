@@ -1,3 +1,4 @@
+import { createHumanReviewQueue } from "../codex/skills/information-accessibility-practice/scripts/lib/human-review-queue.mjs";
 import { createNetworkPolicy } from "../codex/skills/information-accessibility-practice/scripts/lib/network-policy.mjs";
 import assert from "node:assert/strict";
 import { createInspectionRequest } from "../codex/skills/information-accessibility-practice/scripts/lib/inspection-request.mjs";
@@ -144,7 +145,7 @@ function assertRejected(result, pattern) {
 
 function initialRun(artifactRoot) {
   const run = {
-    schema_version: "10.0.0",
+    schema_version: "11.0.0",
     inspection_request: createInspectionRequest("quick", "Identify the next investigation"),
     run_id: RUN_ID,
     supersedes_run_id: null,
@@ -209,26 +210,8 @@ function screeningPayload() {
   };
 }
 
-function queuePayloadFor(requirementId = "WCAG-2.2-SC-1.1.1") {
-  const binding = lookupRequirement("web-modern", requirementId, skillRoot).procedure_binding;
-  return {
-    schema_version: "2.0.0",
-    items: [{
-      requirement_id: requirementId,
-      procedure_ref: binding.procedure_ref,
-      procedure_availability: binding.procedure_availability,
-      generic_method_ref: binding.generic_method_ref,
-      official_sources: binding.official_sources,
-      human_actions: binding.human_actions,
-      required_evidence_types: binding.required_evidence_types,
-      cant_tell_conditions: binding.cant_tell_conditions
-    }],
-    procedure_coverage: {
-      total_requirements: 1,
-      available_procedures: binding.procedure_availability === "available" ? 1 : 0,
-      unavailable_procedures: binding.procedure_availability === "unavailable" ? 1 : 0
-    }
-  };
+function queuePayloadFor(run, screening) {
+  return createHumanReviewQueue({ run, screenings: [screening], manualRequirements: ["WCAG-2.2-SC-1.1.1"], skillRoot });
 }
 
 function remediationPayload() {
@@ -334,7 +317,7 @@ function makeRemediationReadyFixture({ sourceRoot, artifactRoot, initialContent 
     producerKind: "ai_agent",
     createdAt: "2026-07-18T10:00:02Z",
     inputs: [{ artifact_id: "ART-SCREEN-001", run_id: RUN_ID, sha256: screeningSha256 }],
-    payload: queuePayloadFor()
+    payload: queuePayloadFor(initialRun(artifactRoot), screening)
   });
   writeJson(queueFile, queue);
   const queueSha256 = sha256File(queueFile);

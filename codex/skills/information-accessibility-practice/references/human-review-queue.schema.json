@@ -1,25 +1,46 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:information-accessibility:human-review-queue:2.0.0",
-  "title": "Declared Human Review Queue",
+  "$id": "urn:information-accessibility:human-review-queue:3.0.0",
+  "title": "Human Review Queue With Target and Registered Observation Bindings",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "items", "procedure_coverage"],
+  "required": [
+    "schema_version",
+    "items",
+    "procedure_coverage"
+  ],
   "properties": {
-    "schema_version": { "const": "2.0.0" },
+    "schema_version": {
+      "const": "3.0.0"
+    },
     "items": {
       "type": "array",
       "minItems": 1,
-      "items": { "$ref": "#/$defs/item" }
+      "items": {
+        "$ref": "#/$defs/item"
+      }
     },
     "procedure_coverage": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["total_requirements", "available_procedures", "unavailable_procedures"],
+      "required": [
+        "total_requirements",
+        "available_procedures",
+        "unavailable_procedures"
+      ],
       "properties": {
-        "total_requirements": { "type": "integer", "minimum": 0 },
-        "available_procedures": { "type": "integer", "minimum": 0 },
-        "unavailable_procedures": { "type": "integer", "minimum": 0 }
+        "total_requirements": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "available_procedures": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "unavailable_procedures": {
+          "type": "integer",
+          "minimum": 0
+        }
       }
     }
   },
@@ -27,20 +48,236 @@
     "item": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["requirement_id", "procedure_availability", "procedure_ref", "generic_method_ref", "official_sources", "human_actions", "required_evidence_types", "cant_tell_conditions"],
+      "required": [
+        "requirement_id",
+        "procedure_availability",
+        "procedure_ref",
+        "generic_method_ref",
+        "official_sources",
+        "human_actions",
+        "required_evidence_types",
+        "cant_tell_conditions",
+        "origins",
+        "reason",
+        "priority",
+        "priority_reason",
+        "affected_users",
+        "target_locations",
+        "related_screening_observations",
+        "status"
+      ],
       "properties": {
-        "requirement_id": { "type": "string", "minLength": 1 },
-        "procedure_availability": { "enum": ["available", "unavailable"] },
-        "procedure_ref": { "type": ["string", "null"], "pattern": "^criterion-procedures:[0-9]+\\.[0-9]+\\.[0-9]+#[a-z0-9-]+$" },
-        "generic_method_ref": { "type": ["string", "null"], "pattern": "^web-audit-methods:[0-9]+\\.[0-9]+\\.[0-9]+#[a-z0-9-]+$" },
-        "official_sources": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
-        "human_actions": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
-        "required_evidence_types": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
-        "cant_tell_conditions": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } }
+        "requirement_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "procedure_availability": {
+          "enum": [
+            "available",
+            "unavailable"
+          ]
+        },
+        "procedure_ref": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^criterion-procedures:[0-9]+\\.[0-9]+\\.[0-9]+#[a-z0-9-]+$"
+        },
+        "generic_method_ref": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^web-audit-methods:[0-9]+\\.[0-9]+\\.[0-9]+#[a-z0-9-]+$"
+        },
+        "official_sources": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "human_actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required_evidence_types": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "cant_tell_conditions": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "origins": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "screening",
+              "profile_all",
+              "manual"
+            ]
+          },
+          "minItems": 1
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "priority": {
+          "enum": [
+            "P0",
+            "P1",
+            "P2",
+            "P3",
+            "unprioritized"
+          ]
+        },
+        "priority_reason": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "affected_users": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
+          }
+        },
+        "target_locations": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "target_snapshot_id",
+              "target_ref",
+              "location",
+              "required_state"
+            ],
+            "properties": {
+              "target_snapshot_id": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "target_ref": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "location": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "required_state": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              }
+            }
+          },
+          "minItems": 1
+        },
+        "related_screening_observations": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "artifact_id",
+              "requirement_id"
+            ],
+            "properties": {
+              "artifact_id": {
+                "type": "string",
+                "pattern": "^ART-[A-Za-z0-9][A-Za-z0-9-]*$"
+              },
+              "requirement_id": {
+                "type": "string",
+                "pattern": "^SCREEN-[A-Z0-9]+(?:-[A-Z0-9]+)*$"
+              }
+            }
+          }
+        },
+        "status": {
+          "enum": [
+            "pending",
+            "blocked"
+          ]
+        }
       },
       "allOf": [
-        { "if": { "properties": { "procedure_availability": { "const": "available" } }, "required": ["procedure_availability"] }, "then": { "properties": { "procedure_ref": { "type": "string", "pattern": "^criterion-procedures:[0-9]+\\.[0-9]+\\.[0-9]+#[a-z0-9-]+$" }, "generic_method_ref": { "const": null } } } },
-        { "if": { "properties": { "procedure_availability": { "const": "unavailable" } }, "required": ["procedure_availability"] }, "then": { "properties": { "procedure_ref": { "const": null }, "generic_method_ref": { "type": "string", "pattern": "^web-audit-methods:[0-9]+\\.[0-9]+\\.[0-9]+#[a-z0-9-]+$" } } } }
+        {
+          "if": {
+            "properties": {
+              "procedure_availability": {
+                "const": "available"
+              }
+            },
+            "required": [
+              "procedure_availability"
+            ]
+          },
+          "then": {
+            "properties": {
+              "procedure_ref": {
+                "type": "string",
+                "pattern": "^criterion-procedures:[0-9]+\\.[0-9]+\\.[0-9]+#[a-z0-9-]+$"
+              },
+              "generic_method_ref": {
+                "const": null
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "procedure_availability": {
+                "const": "unavailable"
+              }
+            },
+            "required": [
+              "procedure_availability"
+            ]
+          },
+          "then": {
+            "properties": {
+              "procedure_ref": {
+                "const": null
+              },
+              "generic_method_ref": {
+                "type": "string",
+                "pattern": "^web-audit-methods:[0-9]+\\.[0-9]+\\.[0-9]+#[a-z0-9-]+$"
+              }
+            }
+          }
+        }
       ]
     }
   }

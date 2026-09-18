@@ -113,6 +113,10 @@ function envelope(overrides = {}) {
 
 test("frozen orchestration contracts retain their normalized hashes across line-ending conventions", () => {
   const frozenHashes = [
+    ["audit-run-10.0.0.schema.json", "1b9dcb511484fb1c92ee058937804ae1b9dc98147e2954978d8389a3c7abaf6c"],
+    ["human-review-queue-2.0.0.schema.json", "a067686abafc4f8a2661c9b19410d4f27b409f697f6c89b289960ba51b129533"],
+    ["orchestration-registry-9.0.0.json", "56f7da577f45b6bbf0fa37f569e8d0ea2fbd57614ae7843d1d526fe9e1b7d405"],
+    ["orchestration-registry-9.0.0.schema.json", "536a6360b0cca86758f2e4e4ba56e68898f0e576c8b463fe9cdbd2e696c648c5"],
     ["orchestration-registry-3.0.0.json", "f57534c1e430050b6f559d6ae5859171487647346c13624aa58fc18127ed2864"],
     ["orchestration-registry-3.0.0.schema.json", "19903e95a727cca2b4002fa9c9d35b1cf0ddc4d4ac4d658cd28c7820f45b4105"],
     ["audit-run-4.0.0.schema.json", "afc3f0449963d49d2834c13842cecbbc46060695fcf67ab53c133f626df86ecf"],
@@ -134,8 +138,8 @@ test("frozen orchestration contracts retain their normalized hashes across line-
   assert.equal(readJson(path.join(references, "audit-run-5.0.0.schema.json")).properties.schema_version.const, "5.0.0");
   assert.equal(readJson(path.join(references, "screening-observations-1.0.0.schema.json")).properties.schema_version.const, "1.0.0");
   assert.equal(readJson(path.join(references, "audit-artifact-envelope-1.0.0.schema.json")).properties.schema_version.const, "1.0.0");
-  assert.equal(readJson(path.join(references, "orchestration-registry.json")).schema_version, "9.0.0");
-  assert.equal(readJson(path.join(references, "audit-run.schema.json")).properties.schema_version.const, "10.0.0");
+  assert.equal(readJson(path.join(references, "orchestration-registry.json")).schema_version, "10.0.0");
+  assert.equal(readJson(path.join(references, "audit-run.schema.json")).properties.schema_version.const, "11.0.0");
   assert.equal(readJson(path.join(references, "audit-artifact-envelope.schema.json")).properties.schema_version.const, "3.0.0");
 });
 

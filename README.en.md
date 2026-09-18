@@ -241,3 +241,5 @@ Package `0.1.0` is a development version. Record the full commit SHA for reprodu
 Original code and documentation use the [MIT License](LICENSE). Third-party standards metadata remains subject to its source terms. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 The [machine-readable source register](codex/skills/information-accessibility-practice/references/third-party-sources.json) records sources, adopted versions, terms and modifications. Markdown/HTML reports retain attribution, and catalog refresh candidates include a companion record requiring renewed source/terms review. Unknown terms are never replaced with MIT; these records do not establish legal clearance for commercial use or redistribution.
+
+Use `review-queue` to create target-bound review candidates. See [human-review queue generation, registration and historical formats](codex/skills/information-accessibility-practice/references/human-review-queue.md).

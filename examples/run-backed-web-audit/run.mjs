@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+import { createHumanReviewQueue } from "../../codex/skills/information-accessibility-practice/scripts/lib/human-review-queue.mjs";
+
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -119,25 +121,16 @@ function screeningArtifact(runId, suffix) {
   });
 }
 
-function queueArtifact(runId, suffix, screening, screeningFile) {
-  const binding = lookupRequirement("web-modern", profileRequirement, skillRoot).procedure_binding;
+function queueArtifact(run, suffix, screening, screeningFile) {
   return envelope({
     artifactId: `ART-QUEUE-EXAMPLE${suffix}`,
     artifactType: "human-review-queue",
-    runId,
+    runId: run.run_id,
     roleId: "human_queue_planner",
     producerKind: "ai_agent",
     createdAt: `2026-08-23T12:00:1${suffix}Z`,
     inputs: [inputRef(screening, screeningFile)],
-    payload: {
-      schema_version: "2.0.0",
-      items: [{ requirement_id: profileRequirement, ...binding }],
-      procedure_coverage: {
-        total_requirements: 1,
-        available_procedures: binding.procedure_availability === "available" ? 1 : 0,
-        unavailable_procedures: binding.procedure_availability === "unavailable" ? 1 : 0
-      }
-    }
+    payload: createHumanReviewQueue({ run, screenings: [screening], skillRoot })
   });
 }
 
@@ -295,7 +288,7 @@ function buildScenario(base, { name, runId, suffix, humanReviewed, targetName, t
   writeJsonNew(screeningFile, screening);
   artifacts.push({ value: screening, file: screeningFile });
 
-  const queue = queueArtifact(runId, suffix, screening, screeningFile);
+  const queue = queueArtifact(measuredRun, suffix, screening, screeningFile);
   queue.target_snapshot_ids = snapshotIds;
   const queueFile = path.join(artifactRoot, "human-review-queue.json");
   writeJsonNew(queueFile, queue);

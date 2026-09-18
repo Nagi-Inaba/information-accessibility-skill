@@ -1,3 +1,4 @@
+import { createHumanReviewQueue } from "../codex/skills/information-accessibility-practice/scripts/lib/human-review-queue.mjs";
 import assert from "node:assert/strict";
 import crypto from "node:crypto";
 import { createRunEvidenceReference } from "../codex/skills/information-accessibility-practice/scripts/lib/run-evidence.mjs";
@@ -132,7 +133,7 @@ test("installed CLIs carry a local public-like fixture through the read-only age
   runFiles[0] = path.join(temp, "audit-run.bound.json");
   assertSucceeded(runNode(cli.bind, ["--run", unboundFile, "--targets", inventoryFile, "--output", runFiles[0]]));
   const run0 = readJson(runFiles[0]);
-  assert.equal(run0.schema_version, "10.0.0");
+  assert.equal(run0.schema_version, "11.0.0");
   assert.equal(run0.permissions.network, "allowlisted");
   assert.equal(run0.permissions.interaction, "read_only");
   assert.equal(run0.permissions.source_write, "denied");
@@ -190,6 +191,7 @@ test("installed CLIs carry a local public-like fixture through the read-only age
       }
     }
   });
+  queue.payload = createHumanReviewQueue({ run: run0, screenings: [screening], skillRoot });
   const queueFile = path.join(artifactRoot, "human-review-queue.json");
   queue.target_snapshot_ids = targetSnapshotIds(run0);
   writeJson(queueFile, queue);

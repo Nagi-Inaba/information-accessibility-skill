@@ -1,4 +1,5 @@
 import { guardScreeningProjection, reviewDetailLines } from "./review-details.mjs";
+import { queueReviewLines } from "./human-review-queue.mjs";
 import { renderSourceNoticesMarkdown } from "./source-provenance.mjs";
 import { networkScopeText } from "./network-policy.mjs";
 import { interactionScopeText } from "./interaction-policy.mjs";
@@ -273,6 +274,7 @@ export function buildRunBackedPresentation({ run, assessment: assessmentRecord, 
   const checks = [...(publicModel.reportChecks ?? []), ...(publicModel.notApplicableChecks ?? [])];
   const checkById = new Map(checks.map((item) => [item.requirement_id, item]));
   const humanById = new Map((publicModel.recordedHumanChecks ?? []).map((item) => [item.requirement_id, item]));
+  const queueById = new Map((publicModel.pendingHumanChecks ?? []).map((item) => [item.requirement_id, item]));
   const screeningCandidates = [...new Map((publicModel.screeningCandidates ?? []).map(guardScreeningProjection)
     .map((candidate) => [candidate.requirement_id, candidate])).values()];
   const screeningByProfileId = new Map();
@@ -298,6 +300,7 @@ export function buildRunBackedPresentation({ run, assessment: assessmentRecord, 
       outcome_label: messages.outcomes[check.outcome],
       source_kind: sourceKind,
       screening_requirement_id: screening?.requirement_id,
+      queue_context: clone(queueById.get(item.requirement_id)),
       source_label: human ? `${messages.sources[sourceKind]} (${reviewerAssuranceLabel(validation.guard.reviewer_assurance?.requirement_assurances?.[item.requirement_id], normalizedLocale)})` : messages.sources[sourceKind],
       evidence_level: evidenceLevel,
       rationale: check.rationale || messages.text.noEvidence,
@@ -407,7 +410,7 @@ function renderCriterionTable(rows, messages, locale) {
       row.source_label,
       row.evidence_level,
       row.primary_url,
-      reviewDetailLines(row, locale).join("\n")
+      [...queueReviewLines(row.queue_context, locale), ...reviewDetailLines(row, locale)].join("\n")
     ]),
     messages.text.noRecord
   );

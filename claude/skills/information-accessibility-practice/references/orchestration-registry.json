@@ -1,6 +1,6 @@
 {
   "$schema": "./orchestration-registry.schema.json",
-  "schema_version": "9.0.0",
+  "schema_version": "10.0.0",
   "roles": [
     {
       "id": "orchestrator",
@@ -102,7 +102,7 @@
   "artifact_types": [
     {
       "id": "audit-run",
-      "latest_schema_version": "10.0.0",
+      "latest_schema_version": "11.0.0",
       "schema_versions": [
         {
           "version": "1.0.0",
@@ -151,8 +151,13 @@
         },
         {
           "version": "10.0.0",
+          "schema_file": "audit-run-10.0.0.schema.json",
+          "mode": "read_only"
+        },
+        {
+          "version": "11.0.0",
           "schema_file": "audit-run.schema.json",
-          "schema_sha256": "1b9dcb511484fb1c92ee058937804ae1b9dc98147e2954978d8389a3c7abaf6c",
+          "schema_sha256": "62b7906ef2cf5a489bb0260cea57beffd2a306b70dfcc88bf067dd4594fe3cbe",
           "mode": "current"
         }
       ]
@@ -181,7 +186,7 @@
     },
     {
       "id": "human-review-queue",
-      "latest_schema_version": "2.0.0",
+      "latest_schema_version": "3.0.0",
       "schema_versions": [
         {
           "version": "1.0.0",
@@ -190,8 +195,13 @@
         },
         {
           "version": "2.0.0",
+          "schema_file": "human-review-queue-2.0.0.schema.json",
+          "mode": "read_only"
+        },
+        {
+          "version": "3.0.0",
           "schema_file": "human-review-queue.schema.json",
-          "schema_sha256": "a067686abafc4f8a2661c9b19410d4f27b409f697f6c89b289960ba51b129533",
+          "schema_sha256": "65144521b4ae8723e0188f6b71ad2d64b42077eacdf2a0f36675b19c071e2827",
           "mode": "current"
         }
       ]
@@ -261,6 +271,11 @@
     }
   ],
   "transitions": [
+    {
+      "from": "initialized",
+      "to": "human_queue_ready",
+      "required_artifact_types": ["human-review-queue"]
+    },
     {
       "from": "initialized",
       "to": "screened",

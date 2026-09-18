@@ -16,6 +16,8 @@ This release is a reusable accessibility-audit workflow. It can initialize every
 
 ## AI-to-Human Evidence Boundary
 
+For target-specific human follow-up, read [`references/human-review-queue.md`](references/human-review-queue.md). The orchestrator can create a private `review-queue` candidate from registered observations, all profile requirements or explicitly requested criteria. Preserve measured locations and observation references, review priority reasons before registration, and never equate a queue with completed human evaluation.
+
 When an AI agent performs a review with this package:
 
 - The AI agent is not the human reviewer. Records created by the AI agent must remain at evidence level `E0` or `E1`.

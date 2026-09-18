@@ -1,3 +1,4 @@
+import { createHumanReviewQueue } from "../codex/skills/information-accessibility-practice/scripts/lib/human-review-queue.mjs";
 import { createNetworkPolicy } from "../codex/skills/information-accessibility-practice/scripts/lib/network-policy.mjs";
 import assert from "node:assert/strict";
 import { fixtureReference, saveFixtureEvidence, fixtureEvidenceSnapshots } from "./helpers/saved-evidence.mjs";
@@ -73,7 +74,7 @@ function resourceVersions(registryFile = "orchestration-registry.json") {
 function initialRun(artifactRoot) {
   const resolvedRoot = path.isAbsolute(artifactRoot) ? artifactRoot : activeArtifactRoot;
   const run = {
-    schema_version: "10.0.0",
+    schema_version: "11.0.0",
     inspection_request: createInspectionRequest("quick", "Identify the next investigation"),
     run_id: runId,
     supersedes_run_id: null,
@@ -225,19 +226,7 @@ function queuePayload(requirementId = "WCAG-2.2-SC-1.1.1") {
 }
 
 function queuePayloadFor(requirementIds) {
-  const items = requirementIds.map((requirementId) => ({
-    requirement_id: requirementId,
-    ...lookupRequirement("web-modern", requirementId, skillRoot).procedure_binding
-  }));
-  return {
-    schema_version: "2.0.0",
-    items,
-    procedure_coverage: {
-      total_requirements: items.length,
-      available_procedures: items.filter((item) => item.procedure_availability === "available").length,
-      unavailable_procedures: items.filter((item) => item.procedure_availability === "unavailable").length
-    }
-  };
+  return createHumanReviewQueue({ run: initialRun("artifacts"), manualRequirements: requirementIds, skillRoot });
 }
 
 function artifactEnvelope({
@@ -810,7 +799,7 @@ test("run initialization creates a schema-valid immutable manifest with installe
   ]);
   assert.equal(result.status, 0, result.stderr || result.stdout);
   const run = readJson(output);
-  assert.equal(run.schema_version, "10.0.0");
+  assert.equal(run.schema_version, "11.0.0");
   assert.equal(run.target_inventory, null);
   assert.equal(run.status, "initialized");
   assert.equal(run.artifact_root, "artifacts");
@@ -981,8 +970,8 @@ test("audit-run dispatch maps runs 1/2 to registry 1 through run 7 to registry 6
   const legacyV3SchemaFile = path.join(references, "audit-run-3.0.0.schema.json");
   const legacyV4SchemaFile = path.join(references, "audit-run-4.0.0.schema.json");
   const legacyV5SchemaFile = path.join(references, "audit-run-5.0.0.schema.json");
-  assert.equal(currentSchema.$id, "urn:information-accessibility:audit-run:10.0.0");
-  assert.equal(currentSchema.properties.schema_version.const, "10.0.0");
+  assert.equal(currentSchema.$id, "urn:information-accessibility:audit-run:11.0.0");
+  assert.equal(currentSchema.properties.schema_version.const, "11.0.0");
   assert.equal(readJson(legacyV1SchemaFile).properties.schema_version.const, "1.0.0");
   assert.equal(readJson(legacyV2SchemaFile).properties.schema_version.const, "2.0.0");
   assert.equal(readJson(legacyV3SchemaFile).properties.schema_version.const, "3.0.0");
@@ -994,7 +983,7 @@ test("audit-run dispatch maps runs 1/2 to registry 1 through run 7 to registry 6
   const registryV2 = readJson(path.join(references, "orchestration-registry-2.0.0.json"));
   const registryV3 = readJson(path.join(references, "orchestration-registry-3.0.0.json"));
   const registryV4 = readJson(path.join(references, "orchestration-registry-4.0.0.json"));
-  assert.equal(currentRegistry.schema_version, "9.0.0");
+  assert.equal(currentRegistry.schema_version, "10.0.0");
   assert.equal(registryV1.schema_version, "1.0.0");
   assert.equal(registryV2.schema_version, "2.0.0");
   assert.equal(registryV3.schema_version, "3.0.0");
@@ -1134,6 +1123,7 @@ test("legacy declared-human runs remain readable without retroactive current bin
   delete queue.target_snapshot_ids;
   queue.inputs[0].sha256 = sha256File(fixture.screenFile);
   queue.payload.schema_version = "1.0.0";
+  for (const item of queue.payload.items) for (const field of ["origins", "reason", "priority", "priority_reason", "affected_users", "target_locations", "related_screening_observations", "status"]) delete item[field];
   delete queue.payload.items[0].generic_method_ref;
   delete queue.payload.items[0].official_sources;
   writeJson(fixture.queueFile, queue);
@@ -1370,7 +1360,7 @@ test("pure merge rejects a legacy queue payload in a current run", (t) => withTe
       artifacts: [readJson(fixture.screenFile), queue, readJson(fixture.humanFile)],
       registries: pureMergeResources(fixture.run, artifactRoot)
     }),
-    /human-review-queue.*schema_version.*2\.0\.0|current.*payload|orchestration registry/i
+    /human-review-queue.*schema_version.*3\.0\.0|current.*payload|orchestration registry/i
   );
 }));
 
@@ -1436,7 +1426,7 @@ test("frozen registry 1 payload compatibility stays fixed at 1.0.0 alongside new
   const frozenPolicy = resources.orchestrationRegistries.get("1.0.0").payloadVersions;
   assert.equal(frozenPolicy.get("human-review-queue"), "1.0.0");
   assert.equal(frozenPolicy.get("remediation-plan"), "1.0.0");
-  assert.equal(resources.currentPayloadVersions.get("human-review-queue"), "2.0.0");
+  assert.equal(resources.currentPayloadVersions.get("human-review-queue"), "3.0.0");
   assert.equal(resources.currentPayloadVersions.get("remediation-plan"), "2.0.0");
 });
 
@@ -1495,6 +1485,7 @@ test("each registry derives its own exact per-artifact payload compatibility pol
   expected.set("7.0.0", structuredClone(expected.get("6.0.0")));
   expected.set("8.0.0", structuredClone(expected.get("7.0.0")));
   expected.set("9.0.0", structuredClone(expected.get("8.0.0")));
+  expected.set("10.0.0", { ...expected.get("9.0.0"), "human-review-queue": "3.0.0" });
   assert.deepEqual([...resources.orchestrationRegistries.keys()], [...expected.keys()]);
   for (const [registryVersion, payloadVersions] of expected) {
     assert.deepEqual(
@@ -2188,9 +2179,9 @@ test("registration allows another current-stage screening artifact but rejects a
 
   const initialFile = path.join(temp, "initial-run.json");
   writeJson(initialFile, initialRun(artifactRoot));
-  const queueFile = path.join(artifactRoot, "future-queue.json");
-  writeJson(queueFile, queueEnvelope());
-  const future = runNode(registerArtifact, ["--run", initialFile, "--artifact", queueFile, "--output", path.join(temp, "future-run.json")]);
+  const humanFile = path.join(artifactRoot, "future-human.json");
+  writeJson(humanFile, artifactEnvelope({ artifactId: "ART-FUTURE-HUMAN", artifactType: "declared-human-review", roleId: "declared_external_human", producerKind: "external_human", payload: declaredHumanPayload() }));
+  const future = runNode(registerArtifact, ["--run", initialFile, "--artifact", humanFile, "--output", path.join(temp, "future-run.json")]);
   assertRejected(future, /transition|future|initialized/i);
 }));
 
@@ -2771,6 +2762,7 @@ test("legacy run 2 keeps remediation payload 1 readable without retroactive evid
   delete fixture.queue.target_snapshot_ids;
   fixture.queue.inputs[0].sha256 = sha256File(fixture.screenFile);
   fixture.queue.payload.schema_version = "1.0.0";
+  for (const item of fixture.queue.payload.items) for (const field of ["origins", "reason", "priority", "priority_reason", "affected_users", "target_locations", "related_screening_observations", "status"]) delete item[field];
   delete fixture.queue.payload.items[0].generic_method_ref;
   delete fixture.queue.payload.items[0].official_sources;
   rewriteFixtureArtifact(fixture, fixture.queue, fixture.queueFile);

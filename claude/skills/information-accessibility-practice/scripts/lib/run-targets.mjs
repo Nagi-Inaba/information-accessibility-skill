@@ -53,7 +53,7 @@ function assertNetworkPermission(run, specs, options) {
     throw new Error("HTTP target checks require both run permission and an explicit caller network policy.");
   }
   if (specs.some((spec) => spec.kind === "http")) {
-    if (run.schema_version !== "10.0.0") throw new Error("HTTP target checks require a current run with a concrete network policy.");
+    if (run.schema_version !== "11.0.0") throw new Error("HTTP target checks require a current run with a concrete network policy.");
     assertNetworkPolicy(run.permissions.network_policy);
     options.runNetworkPolicy = structuredClone(run.permissions.network_policy);
     options.runId = run.run_id;
@@ -213,7 +213,7 @@ export function targetSnapshotIds(run) {
 }
 
 export function targetBindingErrors(run, artifacts = []) {
-  if (!["8.0.0", "9.0.0", "10.0.0"].includes(run?.schema_version)) return [];
+  if (!["8.0.0", "9.0.0", "10.0.0", "11.0.0"].includes(run?.schema_version)) return [];
   const errors = [];
   if (run.target_inventory !== null) {
     errors.push(...targetInventoryErrors(run.target_inventory, run));

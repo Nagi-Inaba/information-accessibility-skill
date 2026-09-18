@@ -1,4 +1,5 @@
 import { reviewDetailLines } from "./review-details.mjs";
+import { queueReviewLines } from "./human-review-queue.mjs";
 import { inspectionText } from "./inspection-request.mjs";
 import { inspectionCompletion, inspectionRecordLines } from "./report-completion.mjs";
 
@@ -101,7 +102,9 @@ export function actionItems(action, presentation) {
     ...(finding.owner ? [[text.owner, finding.owner]] : []),
     ...(finding.residual_limitation ? [[text.residual, finding.residual_limitation]] : []),
     ...(finding.review_records?.length ? finding.review_records : rows)
-      .map((row) => [text.evidence, reviewDetailLines(row, presentation.locale).join("\n")])
+      .map((row) => [text.evidence, reviewDetailLines(row, presentation.locale).join("\n")]),
+    ...[...rows, ...linkedRows].filter((row, index, all) => all.findIndex((other) => other.requirement_id === row.requirement_id) === index)
+      .flatMap((row) => queueReviewLines(row.queue_context, presentation.locale).map((line) => [text.evidence, line]))
   ];
 }
 
@@ -111,17 +114,18 @@ export function pendingGroups(presentation) {
   for (const row of presentation.rows) {
     if (covered.has(row.requirement_id)) continue;
     if (!["not_tested", "cant_tell"].includes(row.outcome) && !row.review_details?.reason && !row.review_details?.next_checks?.length) continue;
-    const explicit = Boolean(row.evidence?.length || row.review_details || (row.rationale?.trim()
+    const explicit = Boolean(row.queue_context || row.evidence?.length || row.review_details || (row.rationale?.trim()
       && row.rationale !== presentation.messages.text.noEvidence && !/^Not yet evaluated\./u.test(row.rationale)));
     // Unperformed catalog rows share a short follow-up instead of filling the summary with 55 copies.
-    const lines = reviewDetailLines(row, presentation.locale);
+    const lines = [...queueReviewLines(row.queue_context, presentation.locale), ...reviewDetailLines(row, presentation.locale)];
     const details = explicit ? lines : lines.slice(2);
     const key = JSON.stringify([explicit, details]);
     const group = groups.get(key) ?? { explicit, rows: [], lines: details };
     group.rows.push(row);
     groups.set(key, group);
   }
-  return [...groups.values()].sort((a, b) => Number(b.explicit) - Number(a.explicit));
+  const rank = (group) => Math.min(...group.rows.map((row) => ({ P0: 0, P1: 1, P2: 2, P3: 3 })[row.queue_context?.priority] ?? 4));
+  return [...groups.values()].sort((a, b) => rank(a) - rank(b) || Number(b.explicit) - Number(a.explicit));
 }
 
 export function escapeReaderMarkdown(value) {

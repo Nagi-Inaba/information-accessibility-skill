@@ -1,4 +1,5 @@
 import { reviewDetailLines } from "./review-details.mjs";
+import { queueReviewLines } from "./human-review-queue.mjs";
 import { reportSourceNotices } from "./source-provenance.mjs";
 import { readerText, readerOverview, readerActions, actionItems, pendingGroups, pendingTitle, provenanceCounts } from "./report-reader.mjs";
 import { inspectionText } from "./inspection-request.mjs";
@@ -263,7 +264,7 @@ function criterionTable(group, presentation, text) {
     const source = /^https?:\/\//u.test(String(row.primary_url ?? ""))
       ? `<a href="${escapeAttribute(row.primary_url)}" aria-label="${escapeAttribute(`${row.success_criterion} ${text.primarySource}`)}">${escapeHtml(text.primarySource)}</a>`
       : escapeHtml(row.primary_url || text.noRecord);
-    return `<tr data-requirement-id="${escapeAttribute(row.requirement_id)}" data-outcome="${escapeAttribute(outcomeToken(row.outcome))}" data-source="${escapeAttribute(outcomeToken(row.source_kind))}"><th scope="row">${escapeHtml(row.success_criterion)}</th><td>${escapeHtml(row.title)}</td><td>${escapeHtml(row.level)}</td><td>${escapeHtml(row.group_label)}</td><td><span class="status">${escapeHtml(row.outcome_label)}</span></td><td>${escapeHtml(row.source_label)}</td><td>${escapeHtml(row.evidence_level)}</td><td>${source}</td><td>${reviewDetailLines(row, presentation.locale).map(escapeHtml).join("<br>")}</td></tr>`;
+    return `<tr data-requirement-id="${escapeAttribute(row.requirement_id)}" data-outcome="${escapeAttribute(outcomeToken(row.outcome))}" data-source="${escapeAttribute(outcomeToken(row.source_kind))}"><th scope="row">${escapeHtml(row.success_criterion)}</th><td>${escapeHtml(row.title)}</td><td>${escapeHtml(row.level)}</td><td>${escapeHtml(row.group_label)}</td><td><span class="status">${escapeHtml(row.outcome_label)}</span></td><td>${escapeHtml(row.source_label)}</td><td>${escapeHtml(row.evidence_level)}</td><td>${source}</td><td>${[...queueReviewLines(row.queue_context, presentation.locale), ...reviewDetailLines(row, presentation.locale)].map(escapeHtml).join("<br>")}</td></tr>`;
   });
   return tableRegion({
     id: `criteria-${slug(group.id)}`,

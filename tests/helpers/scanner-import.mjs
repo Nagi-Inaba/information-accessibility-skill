@@ -1,3 +1,4 @@
+import { createHumanReviewQueue } from "../../codex/skills/information-accessibility-practice/scripts/lib/human-review-queue.mjs";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -39,6 +40,7 @@ export function importedReport(f, artifactFile) {
     payload: { schema_version: "2.0.0", items, procedure_coverage: { total_requirements: items.length,
       available_procedures: items.filter((item) => item.procedure_availability === "available").length,
       unavailable_procedures: items.filter((item) => item.procedure_availability === "unavailable").length } } };
+  queue.payload = createHumanReviewQueue({ run: f.run, screenings: [screen] });
   const queueFile = path.join(f.artifactRoot, "queue.json");
   writeNewJson(queueFile, queue);
   const queuedFile = path.join(f.root, "queued.json");

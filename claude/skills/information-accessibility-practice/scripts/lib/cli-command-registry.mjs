@@ -7,6 +7,13 @@ function option(flag, value, description) {
 
 const definitions = [
   {
+    name: "review-queue", script: "create-human-review-queue.mjs",
+    summary: "Create a target-bound human review candidate from registered observations and explicit requirements.",
+    usage: ["accessibility-audit review-queue --run <run.json> --artifact-id <ART-id> --output <artifacts/new-queue.json> [--scope screening|profile_all] [--requirement <profile-requirement-id>]"],
+    notes: ["--requirement is repeatable. Priorities start unprioritized; review reasons, target locations and required state before registration.",
+      "Creates a private candidate only. It does not perform human review, register evidence, or change the audit run. See references/human-review-queue.md."]
+  },
+  {
     name: "audit-bundle", script: "audit-bundle.mjs",
     summary: "Prepare or verify offline commitments to audit files and a signed predecessor chain.",
     usage: [

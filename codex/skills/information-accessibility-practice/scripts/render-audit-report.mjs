@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { publicQueueItem, queueReviewLines } from "./lib/human-review-queue.mjs";
 import { renderSourceNoticesMarkdown } from "./lib/source-provenance.mjs";
 import { networkScopeSummary, networkScopeText } from "./lib/network-policy.mjs";
 import { interactionScopeSummary, interactionScopeText } from "./lib/interaction-policy.mjs";
@@ -1014,7 +1015,7 @@ export function buildPublicReportModel({ run, assessment, envelopesById, resourc
     recordedHumanChecks,
     confirmedPoints,
     verifiedFailures,
-    pendingHumanChecks: sortedByRequirement([...pendingByRequirement.values()]),
+    pendingHumanChecks: sortedByRequirement([...pendingByRequirement.values()].map((item) => publicQueueItem(item, publicLocation))),
     screeningCandidates,
     remediation,
     limitations: publicLimitations(assessment.assessment.limitations),
@@ -1141,7 +1142,7 @@ export function renderRunBackedReport(model) {
         item.requirement_id,
         "未確認",
         item.procedure_availability,
-        item.human_actions.join("; "),
+        [...queueReviewLines(item), ...item.human_actions].join("; "),
         item.cant_tell_conditions.join("; ")
       ]),
       "未実施の確認手順はありません。"
@@ -1220,8 +1221,8 @@ function main() {
     const runValidation = validateAuditRun(run, { skillRoot, runFile: runSnapshot.path });
     if (!runValidation.valid) throw new Error(`Audit run validation failed:\n- ${runValidation.errors.join("\n- ")}`);
     const currentRunVersion = runValidation.resources.auditRunSchema.properties.schema_version.const;
-    if (run.schema_version !== currentRunVersion) {
-      throw new Error(`Run-backed reporting requires the current audit-run schema_version ${currentRunVersion}.`);
+    if (!["10.0.0", currentRunVersion].includes(run.schema_version)) {
+      throw new Error(`Run-backed reporting requires audit-run 10.0.0 or current schema_version ${currentRunVersion}; use the original package for older records.`);
     }
     const validation = validateAssessment(
       assessment,

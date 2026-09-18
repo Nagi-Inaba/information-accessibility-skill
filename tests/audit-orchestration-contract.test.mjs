@@ -35,7 +35,7 @@ function schemaErrors(value, schemaName) {
 
 function validAuditRun() {
   return {
-    schema_version: "10.0.0",
+    schema_version: "11.0.0",
     target_inventory: null,
     inspection_request: createInspectionRequest("quick", "Identify the next investigation"),
     run_id: runId,
@@ -73,7 +73,7 @@ function validAuditRun() {
     },
     resource_versions: {
       standards_registry_version: "1.0.0",
-      orchestration_registry_version: "9.0.0",
+      orchestration_registry_version: "10.0.0",
       orchestration_registry_sha256: sha256,
       criteria_catalog_sha256: sha256,
       criterion_procedures_sha256: sha256,
@@ -119,7 +119,7 @@ function validScreeningPayload() {
 
 function validHumanQueuePayload() {
   return {
-    schema_version: "2.0.0",
+    schema_version: "3.0.0",
     items: [{
       requirement_id: "WCAG-2.2-SC-1.1.1",
       procedure_availability: "available",
@@ -131,6 +131,9 @@ function validHumanQueuePayload() {
       ],
       human_actions: ["Inspect the target-specific alternative and visible purpose."],
       required_evidence_types: ["browser_inspection", "manual_observation"],
+      origins: ["manual"], reason: "Review requested", priority: "unprioritized", priority_reason: "Impact unknown", affected_users: [],
+      target_locations: [{ target_snapshot_id: "snapshot-fixture", target_ref: "fixture.html", location: "Main image", required_state: "Initial state" }],
+      related_screening_observations: [], status: "pending",
       cant_tell_conditions: ["The computed accessible name cannot be inspected."]
     }],
     procedure_coverage: {
@@ -222,18 +225,19 @@ function validRemediationPayload() {
   };
 }
 
-test("current queue and remediation schemas are version 2 while frozen version 1 schemas remain readable", async () => {
+test("current queue 3 and remediation 2 preserve frozen version 1 reading", async () => {
   const currentQueue = readReferenceJson("human-review-queue.schema.json");
   const legacyQueue = readReferenceJson("human-review-queue-1.0.0.schema.json");
   const currentRemediation = readReferenceJson("remediation-plan.schema.json");
   const legacyRemediation = readReferenceJson("remediation-plan-1.0.0.schema.json");
-  assert.equal(currentQueue.properties.schema_version.const, "2.0.0");
+  assert.equal(currentQueue.properties.schema_version.const, "3.0.0");
   assert.equal(legacyQueue.properties.schema_version.const, "1.0.0");
   assert.equal(currentRemediation.properties.schema_version.const, "2.0.0");
   assert.equal(legacyRemediation.properties.schema_version.const, "1.0.0");
 
   const legacyQueueValue = structuredClone(validHumanQueuePayload());
   legacyQueueValue.schema_version = "1.0.0";
+  for (const field of ["origins", "reason", "priority", "priority_reason", "affected_users", "target_locations", "related_screening_observations", "status"]) delete legacyQueueValue.items[0][field];
   delete legacyQueueValue.items[0].generic_method_ref;
   delete legacyQueueValue.items[0].official_sources;
   assert.deepEqual(await schemaErrors(legacyQueueValue, "human-review-queue-1.0.0.schema.json"), []);
@@ -250,18 +254,18 @@ test("current queue and remediation schemas are version 2 while frozen version 1
 
 test("versioned contracts freeze prior runs while run 8, registry 7, and envelope 3 are current", async () => {
   const versions = [
-    ["orchestration-registry.json", "schema_version", "9.0.0"],
+    ["orchestration-registry.json", "schema_version", "10.0.0"],
     ["orchestration-registry-6.0.0.json", "schema_version", "6.0.0"],
     ["orchestration-registry-5.0.0.json", "schema_version", "5.0.0"],
     ["orchestration-registry-4.0.0.json", "schema_version", "4.0.0"],
     ["orchestration-registry-3.0.0.json", "schema_version", "3.0.0"],
     ["orchestration-registry-2.0.0.json", "schema_version", "2.0.0"],
-    ["orchestration-registry.schema.json", "schema", "9.0.0"],
+    ["orchestration-registry.schema.json", "schema", "10.0.0"],
     ["orchestration-registry-6.0.0.schema.json", "schema", "6.0.0"],
     ["orchestration-registry-5.0.0.schema.json", "schema", "5.0.0"],
     ["orchestration-registry-4.0.0.schema.json", "schema", "4.0.0"],
     ["orchestration-registry-2.0.0.schema.json", "schema", "2.0.0"],
-    ["audit-run.schema.json", "schema", "10.0.0"],
+    ["audit-run.schema.json", "schema", "11.0.0"],
     ["audit-run-7.0.0.schema.json", "schema", "7.0.0"],
     ["audit-artifact-envelope.schema.json", "schema", "3.0.0"],
     ["audit-artifact-envelope-2.0.0.schema.json", "schema", "2.0.0"],
@@ -639,21 +643,67 @@ test("the orchestration registry fixes the complete role, artifact, and transiti
 
   assert.deepEqual(registry.artifact_types, [
     {
-      id: "audit-run",
-      latest_schema_version: "10.0.0",
-      schema_versions: [
-        { version: "1.0.0", schema_file: "audit-run-1.0.0.schema.json", mode: "read_only" },
-        { version: "2.0.0", schema_file: "audit-run-2.0.0.schema.json", mode: "read_only" },
-        { version: "3.0.0", schema_file: "audit-run-3.0.0.schema.json", mode: "read_only" },
-        { version: "4.0.0", schema_file: "audit-run-4.0.0.schema.json", mode: "read_only" },
-        { version: "5.0.0", schema_file: "audit-run-5.0.0.schema.json", mode: "read_only" },
-        { version: "6.0.0", schema_file: "audit-run-6.0.0.schema.json", mode: "read_only" },
-        { version: "7.0.0", schema_file: "audit-run-7.0.0.schema.json", mode: "read_only" },
-        { version: "8.0.0", schema_file: "audit-run-8.0.0.schema.json", mode: "read_only" },
-        { version: "9.0.0", schema_file: "audit-run-9.0.0.schema.json", mode: "read_only" },
-        { version: "10.0.0", schema_file: "audit-run.schema.json", schema_sha256: "1b9dcb511484fb1c92ee058937804ae1b9dc98147e2954978d8389a3c7abaf6c", mode: "current" }
-      ]
+  "id": "audit-run",
+  "latest_schema_version": "11.0.0",
+  "schema_versions": [
+    {
+      "version": "1.0.0",
+      "schema_file": "audit-run-1.0.0.schema.json",
+      "mode": "read_only"
     },
+    {
+      "version": "2.0.0",
+      "schema_file": "audit-run-2.0.0.schema.json",
+      "mode": "read_only"
+    },
+    {
+      "version": "3.0.0",
+      "schema_file": "audit-run-3.0.0.schema.json",
+      "mode": "read_only"
+    },
+    {
+      "version": "4.0.0",
+      "schema_file": "audit-run-4.0.0.schema.json",
+      "mode": "read_only"
+    },
+    {
+      "version": "5.0.0",
+      "schema_file": "audit-run-5.0.0.schema.json",
+      "mode": "read_only"
+    },
+    {
+      "version": "6.0.0",
+      "schema_file": "audit-run-6.0.0.schema.json",
+      "mode": "read_only"
+    },
+    {
+      "version": "7.0.0",
+      "schema_file": "audit-run-7.0.0.schema.json",
+      "mode": "read_only"
+    },
+    {
+      "version": "8.0.0",
+      "schema_file": "audit-run-8.0.0.schema.json",
+      "mode": "read_only"
+    },
+    {
+      "version": "9.0.0",
+      "schema_file": "audit-run-9.0.0.schema.json",
+      "mode": "read_only"
+    },
+    {
+      "version": "10.0.0",
+      "schema_file": "audit-run-10.0.0.schema.json",
+      "mode": "read_only"
+    },
+    {
+      "version": "11.0.0",
+      "schema_file": "audit-run.schema.json",
+      "schema_sha256": "62b7906ef2cf5a489bb0260cea57beffd2a306b70dfcc88bf067dd4594fe3cbe",
+      "mode": "current"
+    }
+  ]
+},
     {
       id: "screening-observations",
       latest_schema_version: "3.0.0",
@@ -664,13 +714,27 @@ test("the orchestration registry fixes the complete role, artifact, and transiti
       ]
     },
     {
-      id: "human-review-queue",
-      latest_schema_version: "2.0.0",
-      schema_versions: [
-        { version: "1.0.0", schema_file: "human-review-queue-1.0.0.schema.json", mode: "read_only" },
-        { version: "2.0.0", schema_file: "human-review-queue.schema.json", schema_sha256: "a067686abafc4f8a2661c9b19410d4f27b409f697f6c89b289960ba51b129533", mode: "current" }
-      ]
+  "id": "human-review-queue",
+  "latest_schema_version": "3.0.0",
+  "schema_versions": [
+    {
+      "version": "1.0.0",
+      "schema_file": "human-review-queue-1.0.0.schema.json",
+      "mode": "read_only"
     },
+    {
+      "version": "2.0.0",
+      "schema_file": "human-review-queue-2.0.0.schema.json",
+      "mode": "read_only"
+    },
+    {
+      "version": "3.0.0",
+      "schema_file": "human-review-queue.schema.json",
+      "schema_sha256": "65144521b4ae8723e0188f6b71ad2d64b42077eacdf2a0f36675b19c071e2827",
+      "mode": "current"
+    }
+  ]
+},
     {
       id: "declared-human-review",
       latest_schema_version: "1.0.0",
@@ -707,6 +771,7 @@ test("the orchestration registry fixes the complete role, artifact, and transiti
     }
   ]);
   assert.deepEqual(registry.transitions, [
+    { from: "initialized", to: "human_queue_ready", required_artifact_types: ["human-review-queue"] },
     { from: "initialized", to: "screened", required_artifact_types: ["screening-observations"] },
     { from: "screened", to: "human_queue_ready", required_artifact_types: ["human-review-queue"] },
     { from: "human_queue_ready", to: "human_review_recorded", required_artifact_types: ["declared-human-review"] },
