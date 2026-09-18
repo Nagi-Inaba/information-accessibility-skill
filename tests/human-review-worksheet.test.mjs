@@ -9,6 +9,7 @@ import JSZip from "jszip";
 import { createAuditRun, bindTargetInventory, writeNewJson, validateAuditRun } from "../codex/skills/information-accessibility-practice/scripts/lib/audit-run.mjs";
 import { encodeCsv, decodeCsv, encodeMarkdown, decodeMarkdown, reviewFromWorksheet, worksheetHeader } from "../codex/skills/information-accessibility-practice/scripts/lib/human-review-worksheet.mjs";
 import { encodeXlsx, decodeXlsx, validateWorksheetZip } from "../codex/skills/information-accessibility-practice/scripts/lib/human-review-xlsx.mjs";
+import { buildPublicReportModel } from "../codex/skills/information-accessibility-practice/scripts/render-audit-report.mjs";
 import { fixtureInventory } from "./helpers/measured-targets.mjs";
 import { cli, pass, read } from "./helpers/scanner-import.mjs";
 
@@ -113,11 +114,13 @@ test("all five outcomes work; not_tested records only an explicit non-performanc
   const assessment = mergeReview(f, registered);
   assert.equal(read(assessment).assessment.results.find((row) => row.requirement_id === ids[0]).outcome, "not_tested");
   assert.equal(read(assessment).assessment.evidence_level, "E0", "Non-performance cannot promote evidence to E2");
-  for (const format of ["markdown", "html"]) {
-    const report = path.join(f.root, `not-tested.${format}`);
-    pass(cli(["report", "--run", registered, "--assessment", assessment, "--format", format, "--output", report, "--visibility", "public", "--reviewer-disclosure", "redact", "--redaction-manifest", `${report}.redaction.json`]));
-    const content = fs.readFileSync(report, "utf8");
-    assert.doesNotMatch(content, /人手レビューが申告された達成基準: 1\//u);
+  const run = read(registered), validation = validateAuditRun(run, { runFile: registered });
+  const model = buildPublicReportModel({ run, assessment: read(assessment), envelopesById: validation.envelopesById, resources: validation.resources });
+  assert.equal(model.reviewedCount, 0); assert.equal(model.evaluationCoverage.humanReviewed, 0);
+  assert.ok(model.pendingHumanChecks.some((item) => item.requirement_id === ids[0]));
+  for (const locale of ["ja", "en"]) for (const format of ["markdown", "html"]) {
+    const report = path.join(f.root, `not-tested-${locale}.${format}`);
+    pass(cli(["report", "--run", registered, "--assessment", assessment, "--locale", locale, "--format", format, "--output", report, "--visibility", "public", "--reviewer-disclosure", "redact", "--redaction-manifest", `${report}.redaction.json`]));
   }
 });
 
