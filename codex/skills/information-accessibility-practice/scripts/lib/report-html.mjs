@@ -1,4 +1,5 @@
 import { reviewDetailLines } from "./review-details.mjs";
+import { reportSourceNotices } from "./source-provenance.mjs";
 import { readerText, readerOverview, readerActions, actionItems, pendingGroups, pendingTitle, provenanceCounts } from "./report-reader.mjs";
 import { inspectionText } from "./inspection-request.mjs";
 import { inspectionCompletion, inspectionRecordLines } from "./report-completion.mjs";
@@ -387,6 +388,9 @@ export function renderReportHtml(presentation, { detail = "full", appendixHref =
   const text = localeText(presentation.locale);
   const toc = tocEntries(detail, presentation, text, appendixHref);
   const sections = detail === "summary" ? summarySections(presentation, text, appendixHref) : fullSections(presentation, text);
+  const sourceNotice = reportSourceNotices(presentation.locale);
+  toc.push(["source-notices", sourceNotice.heading]);
+  sections.push(`<section id="source-notices"><h2>${escapeHtml(sourceNotice.heading)}</h2><p>${escapeHtml(sourceNotice.boundary)}</p><ul>${sourceNotice.entries.map(source => `<li><a href="${escapeAttribute(source.url)}">${escapeHtml(source.name)}</a> — ${escapeHtml(source.attribution)} <a href="${escapeAttribute(source.terms.url)}">${escapeHtml(source.terms.name)}</a><p>${escapeHtml(source.modification_notice)}</p><p>${escapeHtml(source.redistribution_notes)}</p>${source.derivative_notice ? `<p>${escapeHtml(source.derivative_notice)}</p>` : ""}</li>`).join("")}</ul></section>`);
   const publicationNotice = presentation.publication?.notice ?? presentation.messages.text.reportNotice;
   return [
     "<!doctype html>",

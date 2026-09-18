@@ -43,7 +43,8 @@ function fixture() {
     copyTree(path.join(root, relative), path.join(target, relative));
   }
   fs.mkdirSync(path.join(target, "scripts"), { recursive: true });
-  for (const script of ["sync-distributions.mjs", "verify-package.mjs"]) {
+  fs.copyFileSync(path.join(root, "THIRD_PARTY_NOTICES.md"), path.join(target, "THIRD_PARTY_NOTICES.md"));
+  for (const script of ["sync-distributions.mjs", "verify-package.mjs", "verify-source-provenance.mjs"]) {
     fs.copyFileSync(path.join(root, "scripts", script), path.join(target, "scripts", script));
   }
   return target;

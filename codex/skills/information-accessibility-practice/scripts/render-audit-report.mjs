@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { renderSourceNoticesMarkdown } from "./lib/source-provenance.mjs";
 import { networkScopeSummary, networkScopeText } from "./lib/network-policy.mjs";
 import { interactionScopeSummary, interactionScopeText } from "./lib/interaction-policy.mjs";
 import { guardScreeningProjection, reviewDetailLines } from "./lib/review-details.mjs";
@@ -249,7 +250,7 @@ export function renderAuditReport(record, validation) {
     assessment.next_review_at ? `- 次回確認日: ${assessment.next_review_at}` : "- 次回確認日: 記録なし。"
   );
 
-  return `${lines.join("\n").trimEnd()}\n`;
+  return `${lines.join("\n").trimEnd()}\n\n${renderSourceNoticesMarkdown("ja")}`;
 }
 
 function parseSnapshotJson(snapshot, label) {
@@ -1168,7 +1169,7 @@ export function renderRunBackedReport(model) {
     "- 結果は、記載した対象の版・範囲・環境・証拠を越えて適用しません。",
     ...model.limitations.map((limitation) => `- ${cell(limitation)}`)
   ];
-  return `${lines.join("\n").trimEnd()}\n`;
+  return `${lines.join("\n").trimEnd()}\n\n${renderSourceNoticesMarkdown("ja")}`;
 }
 
 function parseArgs(argv) {

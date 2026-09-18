@@ -8,6 +8,8 @@ This project uses a Keep a Changelog-style structure. Until a tagged release is 
 
 ### Added
 
+- Source/version/terms register, archived W3C license editions, generated third-party notices, attribution in Markdown/HTML reports, and pending-review provenance companions for catalog refresh candidates. Package and catalog checks reject provenance or notice drift.
+
 - Read-only `status --run ... --format text|json` with evidence validation, coverage, next transitions, operation readiness and sibling successor warnings.
 - Optional declared-human `finding` details and an explicit unplanned-remediation assessment state, so a verified failure can be retained before remediation planning.
 - Explicit `merge --claim-tier reference_only|screened|evaluated_subset`, checked by the same evidence guard as standalone assessments.
@@ -37,6 +39,8 @@ This project uses a Keep a Changelog-style structure. Until a tagged release is 
 - Formal claim blockers are separated from auxiliary screening candidates.
 
 ## Compatibility notes
+
+- Source notices are additive. Existing catalog metadata bytes and audit resource hashes are unchanged by their introduction; no audit schema migration is required. Third-party metadata retains source-specific terms, with unknown terms and uncompleted legal review explicitly recorded.
 
 - The optional finding/status fields are additive. Existing planned findings and declared-review payloads remain valid; null remediation/verification require `remediation_status: "unplanned"`. Existing run resource hashes remain immutable. Use the pinned package for historical runs; migration across resource hashes remains Issue #28.
 - `scan-web` requires axe-core `4.13.0` and the optional Playwright host capability `1.62.1` with Chromium installed.

@@ -80,6 +80,7 @@ Choose the target before reviewing. Load only the relevant reference when detail
 - **HTML that uses ARIA**: also read `references/aria-html-review.md` and `references/aria-review-rules.json`. Record these only as `SCREEN-ARIA-*` supporting checks until a person maps evidence to a profile requirement.
 - **Common Web screening candidates**: read `references/common-web-failure-patterns.json`. Use the records only for `SCREEN-*` observations and human-review questions; never turn a match or an absent signal into a profile outcome.
 - **Source provenance or maintenance from new research**: read `references/source-basis.md`.
+- **Metadata export or source refresh**: preserve `references/third-party-notices.md`, `references/third-party-sources.json` and `references/licenses/`. Recheck terms before adopting refreshed data; unknown terms are not MIT. Generated Markdown/HTML reports retain attribution, and standalone JSON transfers need these companion records.
 Do not split the five gates into separate workflows. They are shared evaluation axes. Route by target surface because concrete checks, evidence, and fixes differ by target.
 
 ## Inspection Level And Requested Report

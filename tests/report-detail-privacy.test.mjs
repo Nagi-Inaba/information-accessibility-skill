@@ -220,6 +220,8 @@ test("public standalone reports redact nested private data and emit a secret-fre
   assert.equal(rendered.status, 0, rendered.stderr || rendered.stdout);
 
   const report = fs.readFileSync(reportFile, "utf8");
+  assert.match(report, /Third-party metadata attribution/u);
+  assert.ok(report.includes("https://www.w3.org/copyright/document-license-2023/"));
   for (const secret of [
     "alice@example.com",
     "90-1234-5678",

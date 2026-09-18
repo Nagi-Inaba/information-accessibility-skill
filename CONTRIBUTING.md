@@ -48,6 +48,23 @@ Shared behavior exists in both the Codex and Claude distributions. Until the rep
 
 Changes to WCAG, JIS/WAIC, ARIA, Digital Agency-derived metadata, procedures, or profile composition must identify the upstream source and distinguish normative standards from organization-specific policy. Do not silently broaden a source's scope.
 
+The canonical source register is `codex/skills/information-accessibility-practice/references/third-party-sources.json`. Before adopting changed metadata:
+
+1. Check the exact upstream version, its own terms link, attribution, modifications and any applicable share-alike obligations. W3C documents can refer to different license editions. Record unknown terms explicitly; never substitute MIT or assume legal clearance.
+2. Review the candidate and its `.sources.json` companion together. The companion binds the candidate's exact bytes and source hashes, but remains `pending_source_license_review`; generating it does not approve adoption. A failed write may leave an orphan companion, which must not be treated as an adopted catalog.
+3. Update the register's adopted version, source hashes and canonical resource hashes only after reviewing the actual changed content and terms. Canonical hashes use `attestationDigest` from `scripts/lib/attestation-canonical.mjs` inside the skill. No refresh command automatically renews these review hashes. Preserve archived license bytes and their raw SHA-256.
+4. Regenerate notices and synchronize the distribution:
+
+```sh
+node scripts/verify-source-provenance.mjs --write-notices
+node scripts/sync-distributions.mjs --write
+node scripts/verify-source-provenance.mjs --check
+node scripts/verify-package.mjs
+node scripts/build-criteria-catalog.mjs --check
+```
+
+Package and catalog checks reject changed bound resources, unreviewed catalog sources, changed archived terms and notice drift. The register documents source review, not a legal opinion. Redistribution must retain the applicable notices, register and archived terms; standalone assessment JSON also needs those companions. Seek a scoped legal review when reuse or mixed-data share-alike scope is unresolved.
+
 ## Pull requests
 
 Describe:

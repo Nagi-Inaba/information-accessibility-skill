@@ -5,6 +5,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { validateStandardsRegistry } from "../codex/skills/information-accessibility-practice/scripts/lib/profile-registry.mjs";
 import { buildDistribution } from "./sync-distributions.mjs";
+import { verifySourceNotices } from "./verify-source-provenance.mjs";
 
 const defaultRoot = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 
@@ -24,6 +25,8 @@ export function verifyPackage(root = defaultRoot) {
   const packageRoot = path.resolve(root);
   const distribution = buildDistribution(packageRoot, { write: false });
   const errors = [...distribution.errors];
+  try { verifySourceNotices(packageRoot); }
+  catch (error) { errors.push(`Invalid source provenance: ${error.message}`); }
   const jsonFiles = distribution.status === "PASS"
     ? walk(packageRoot).map((file) => path.join(packageRoot, ...file.split("/"))).filter((file) => file.endsWith(".json"))
     : [];

@@ -264,6 +264,8 @@ test("run-backed public HTML preserves provenance without leaking private target
   assert.equal(rendered.status, 0, rendered.stderr || rendered.stdout);
   const html = fs.readFileSync(output, "utf8");
   assert.match(html, /AI\/automated screening/u);
+  assert.match(html, /id="source-notices"/u);
+  assert.ok(html.includes("https://creativecommons.org/licenses/by-sa/2.1/jp/"));
   assert.match(html, /Evidence level/u);
   assert.equal(html.includes("alice@example.com"), false);
   assert.equal(html.includes("RUN-HTML-SECRET"), false);

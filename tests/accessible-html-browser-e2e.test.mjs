@@ -158,7 +158,7 @@ test("generated Japanese and English HTML reports pass Chromium, axe, keyboard, 
 
   const reports = [makeAssessment(directory, "ja"), makeAssessment(directory, "en"),
     ...makeIntakeReports(directory, "ja"), ...makeIntakeReports(directory, "en")];
-  const browser = await playwright.chromium.launch({ headless: true });
+  const browser = await playwright.chromium.launch({ headless: true, ...(process.env.A11Y_BROWSER_CHANNEL ? { channel: process.env.A11Y_BROWSER_CHANNEL } : {}) });
   t.after(() => browser.close());
   const records = [];
   for (const report of reports) records.push(await auditPage(browser, report, axe.source));
@@ -168,7 +168,7 @@ test("generated Japanese and English HTML reports pass Chromium, axe, keyboard, 
   const output = process.env.REPORT_BROWSER_E2E_OUTPUT;
   if (output) writeJson(path.resolve(output), {
     schema_version: "1.0.0",
-    browser: "chromium",
+    browser: process.env.A11Y_BROWSER_CHANNEL ?? "chromium",
     viewport_width: 320,
     locales: ["ja", "en"],
     records

@@ -1,4 +1,5 @@
 import { provenanceCounts, readerText, readerOverviewMarkdown, readerActionsMarkdown, readerPendingMarkdown, readerInspectionMarkdown } from "./report-reader.mjs";
+import { renderSourceNoticesMarkdown } from "./source-provenance.mjs";
 
 function escapeCell(value) {
   return String(value ?? "")
@@ -168,5 +169,5 @@ export function renderReportSummaryMarkdown(presentation) {
     `- ${text.limitations}: ${escapeCell(presentation.limitations.join("; ") || text.none)}`,
     ""
   ];
-  return lines.join("\n");
+  return `${lines.join("\n").trimEnd()}\n\n${renderSourceNoticesMarkdown(presentation.locale)}`;
 }

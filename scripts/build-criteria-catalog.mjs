@@ -4,6 +4,8 @@ import process from "node:process";
 import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { assertNewOutputPath, writeNewText } from "../codex/skills/information-accessibility-practice/scripts/lib/audit-run.mjs";
+import { catalogCandidateProvenance } from "../codex/skills/information-accessibility-practice/scripts/lib/source-provenance.mjs";
+import { verifySourceNotices } from "./verify-source-provenance.mjs";
 
 const sourceUrls = {
   wcag: "https://www.w3.org/TR/WCAG22/",
@@ -231,6 +233,7 @@ function catalogRecords(catalog) {
 }
 
 export function verifyStoredCatalog(root) {
+  verifySourceNotices(root);
   const paths = catalogPaths(root);
   const codexBytes = fs.readFileSync(paths.codex);
   const claudeBytes = fs.readFileSync(paths.claude);
@@ -259,7 +262,15 @@ function argumentValue(name) {
 }
 
 export function writeCatalogCandidate(output, catalog) {
-  return writeNewText(path.resolve(output), `${JSON.stringify(catalog, null, 2)}\n`);
+  const resolved = path.resolve(output), companion = `${resolved}.sources.json`;
+  assertNewOutputPath(resolved);
+  assertNewOutputPath(companion);
+  const text = `${JSON.stringify(catalog, null, 2)}\n`;
+  const provenance = catalogCandidateProvenance(catalog, Buffer.from(text, "utf8"));
+  // Publish the review record first: a failed catalog write may leave a harmless
+  // orphan companion, but must never publish a catalog without its provenance.
+  writeNewText(companion, `${JSON.stringify(provenance, null, 2)}\n`);
+  return writeNewText(resolved, text);
 }
 
 async function refreshCatalog(root) {
@@ -268,9 +279,10 @@ async function refreshCatalog(root) {
   const output = path.resolve(process.cwd(), outputArgument);
   try {
     assertNewOutputPath(output);
+    assertNewOutputPath(`${output}.sources.json`);
   } catch (error) {
     if (/Refusing to overwrite existing file/u.test(error.message)) {
-      throw new Error(`Refusing to overwrite existing output: ${output}`);
+      throw new Error(`Refusing to overwrite existing output or source companion: ${output}`);
     }
     throw error;
   }
@@ -288,7 +300,7 @@ async function refreshCatalog(root) {
   ]);
   const catalog = buildCatalogFromSources({ wcagHtml, jisHtml, japanHtml, verifiedAt, registry });
   const writtenOutput = writeCatalogCandidate(output, catalog);
-  return { status: "PASS", mode: "refresh", output: writtenOutput, counts: { wcag: 55, jis: 38, japan_additional: 18 } };
+  return { status: "PASS", mode: "refresh", output: writtenOutput, provenance_output: `${writtenOutput}.sources.json`, review_status: "pending_source_license_review", counts: { wcag: 55, jis: 38, japan_additional: 18 } };
 }
 
 async function main() {

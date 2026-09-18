@@ -1,4 +1,5 @@
 import { guardScreeningProjection, reviewDetailLines } from "./review-details.mjs";
+import { renderSourceNoticesMarkdown } from "./source-provenance.mjs";
 import { networkScopeText } from "./network-policy.mjs";
 import { interactionScopeText } from "./interaction-policy.mjs";
 import { isHumanReviewMapping, publicReviewerAssurance, reviewerAssuranceLabel, reviewerAssuranceText, displayedEvidenceLevel } from "./assessment-provenance.mjs";
@@ -515,5 +516,5 @@ export function renderReportMarkdown(presentation) {
       : [`- ${messages.text.noLimitations}`])
   );
 
-  return `${lines.join("\n").trimEnd()}\n`;
+  return `${lines.join("\n").trimEnd()}\n\n${renderSourceNoticesMarkdown(presentation.locale)}`;
 }
