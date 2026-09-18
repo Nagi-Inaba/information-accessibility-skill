@@ -18,6 +18,6 @@ In both modes, preserve all profile requirements in the assessment and explain u
 
 ## Runtime and compatibility
 
-New audit-run 7.0.0 records require `inspection_request` with `mode`, nonblank `purpose`, canonical `deliverables` and `completion_criteria`. Initialize with `--inspection-mode quick|detailed --inspection-purpose <purpose>`. The runtime rejects missing choices and altered mode contracts. Historical audit-run 1.0.0–6.0.0 schemas are frozen for reading; those runs do not receive an inferred level. Current operations use a new run.
+New audit-run 8.0.0 records require `inspection_request` with `mode`, nonblank `purpose`, canonical `deliverables` and `completion_criteria`. Initialize with `--inspection-mode quick|detailed --inspection-purpose <purpose>`. The runtime rejects missing choices and altered mode contracts. Historical audit-run 1.0.0–7.0.0 schemas are frozen for reading; older records without an inspection request do not receive an inferred level. Current operations use a new run and bind measured targets before observations.
 
 A retest inherits the predecessor's inspection request when present and may not change it. Retesting a supported older run without a request requires an explicit mode and purpose. A different depth or purpose starts a separate inspection; do not rewrite the predecessor. The contract displayed in a report is an agreed checklist, never an automatic completion verdict.

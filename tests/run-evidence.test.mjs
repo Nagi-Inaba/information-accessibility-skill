@@ -6,6 +6,7 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
+import { fixtureInventory } from "./helpers/measured-targets.mjs";
 import { createAuditRun, registerArtifact, validateAuditRun, validateArtifact, mergeArtifacts, loadAuditResources, readStableFile, writeNewJson } from "../codex/skills/information-accessibility-practice/scripts/lib/audit-run.mjs";
 import { createRunEvidenceReference, collectScreeningEvidence, compareEvidenceReferences } from "../codex/skills/information-accessibility-practice/scripts/lib/run-evidence.mjs";
 import { generateAssessment } from "../codex/skills/information-accessibility-practice/scripts/generate-assessment.mjs";
@@ -26,11 +27,12 @@ function fixture(t, { suffix = "0001", version = "release-1", bytes = Buffer.fro
   const runFile = path.join(temp, "run.json");
   const run = createAuditRun({ runFile, artifactRoot, runId: `RUN-20260918T000000Z-EVID${suffix}`, profile: "web-modern", targetName: "Evidence fixture", targetVersion: version,
     targetRefs: ["https://example.invalid/"], network: "none", interaction: "safe_read_only", sourceWrite: "none", inspectionMode: "quick", inspectionPurpose: "Inspect saved evidence" });
+  run.target_inventory = fixtureInventory(run, artifactRoot, bytes);
   writeNewJson(runFile, run);
   const rawFile = path.join(artifactRoot, "private-dom.html");
   fs.writeFileSync(rawFile, bytes);
   const reference = createRunEvidenceReference({ run, targetRef: run.target.urls_or_files[0], evidenceType: "dom_snapshot", relativePath: "private-dom.html", bytes, capturedAt: at });
-  const artifact = { schema_version: "2.0.0", artifact_id: "ART-SCREEN-EVIDENCE", artifact_type: "screening-observations", run_id: run.run_id,
+  const artifact = { schema_version: "3.0.0", target_snapshot_ids: run.target_inventory.snapshots.map((snapshot) => snapshot.snapshot_id), artifact_id: "ART-SCREEN-EVIDENCE", artifact_type: "screening-observations", run_id: run.run_id,
     producer: { role_id: "e1_inspector", producer_kind: "ai_agent", origin: "saved evidence test" }, created_at: at, inputs: [],
     payload: { schema_version: "3.0.0", observations: [{ requirement_id: "SCREEN-DOM", evidence_level: "E1", method: "DOM inspection", location: "main", observation: "An observed structure requires human review.", captured_at: at,
       profile_requirement_id: null, report_outcome: null, applicability: "undetermined", report_rationale: "Unmapped observation.", evidence_refs: [reference] }] } };

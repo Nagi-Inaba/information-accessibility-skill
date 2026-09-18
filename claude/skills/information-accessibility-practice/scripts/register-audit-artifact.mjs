@@ -6,25 +6,29 @@ import {
   assertStableFile,
   assertNewOutputPath,
   readStableFile,
-  registerArtifact,
+  registerArtifactChecked,
   resolveInside,
   validateAuditRun,
   writeNewJson
 } from "./lib/audit-run.mjs";
 
 function parseArgs(argv) {
-  const options = {};
-  const flags = new Map([["--run", "run"], ["--artifact", "artifact"], ["--output", "output"]]);
+  const options = { origins: [] };
+  const flags = new Map([["--run", "run"], ["--artifact", "artifact"], ["--output", "output"], ["--allow-origin", "origins"], ["--allow-localhost", "localhost"]]);
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (!flags.has(arg)) throw new Error(`Unknown argument: ${arg}`);
     const value = argv[index + 1];
     if (!value || value.startsWith("--")) throw new Error(`Missing value for ${arg}`);
-    if (options[flags.get(arg)] !== undefined) throw new Error(`Duplicate argument: ${arg}`);
-    options[flags.get(arg)] = value;
+    if (arg === "--allow-origin") options.origins.push(value);
+    else {
+      if (options[flags.get(arg)] !== undefined) throw new Error(`Duplicate argument: ${arg}`);
+      options[flags.get(arg)] = value;
+    }
     index += 1;
   }
-  for (const [flag, key] of flags) if (!options[key]) throw new Error(`${flag} is required`);
+  for (const key of ["run", "artifact", "output"]) if (!options[key]) throw new Error(`--${key} is required`);
+  if (options.localhost !== undefined && options.localhost !== "true") throw new Error("--allow-localhost accepts only the explicit value true.");
   return options;
 }
 
@@ -36,7 +40,7 @@ function parseSnapshot(snapshot, label) {
   }
 }
 
-export function main(argv = process.argv.slice(2)) {
+export async function main(argv = process.argv.slice(2)) {
   const options = parseArgs(argv);
   const runFile = path.resolve(options.run);
   const artifactFile = options.artifact;
@@ -52,7 +56,8 @@ export function main(argv = process.argv.slice(2)) {
   const resolvedArtifact = resolveInside(initialValidation.artifactRoot, artifactFile);
   const artifactSnapshot = readStableFile(resolvedArtifact, { label: "artifact input" });
   const artifact = parseSnapshot(artifactSnapshot, "artifact input");
-  const next = registerArtifact(run, artifact, { runFile, artifactFile: resolvedArtifact });
+  const next = await registerArtifactChecked(run, artifact, { runFile, artifactFile: resolvedArtifact,
+    networkPolicy: options.origins.length ? { network: "allowlisted", allowedOrigins: options.origins, allowLocalhost: options.localhost === "true" } : undefined });
   assertStableFile(runSnapshot, "audit run input");
   assertStableFile(artifactSnapshot, "artifact input");
   const finalValidation = validateAuditRun(next, { runFile });
@@ -65,7 +70,7 @@ export function main(argv = process.argv.slice(2)) {
 
 if (process.argv[1] && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url) {
   try {
-    main();
+    await main();
   } catch (error) {
     console.error(error instanceof Error ? error.message : String(error));
     process.exitCode = 1;

@@ -26,7 +26,7 @@ times, or raise evidence levels merely because a reference can be serialized.
 
 ## Bind and register
 
-Prepare a new candidate envelope with payload version `3.0.0` and an
+First capture and bind the run's measured targets using [measured-targets.md](measured-targets.md). Prepare a new envelope version `3.0.0` with the bound inventory's exact `target_snapshot_ids`, payload version `3.0.0` and an
 `evidence_refs` array in each observation. To bind an existing capture:
 
 ```text
@@ -37,9 +37,10 @@ node <skill_root>/scripts/accessibility-audit.mjs register --run run.json --arti
 `--target-ref` must exactly match a declared run target. The binder records the
 run ID, declared target version, SHA-256 of the complete target context, SHA-256
 of the environment, raw-file SHA-256, capture time and normalized relative path.
-`target_snapshot_id` defaults to `RAW-<raw-file-sha256>`; an optional
-`--snapshot-id` preserves an existing capture identifier. Neither form
-authenticates the producer or proves the live target still matches the capture.
+For current runs, `target_snapshot_id` is the matching bound `TARGET-…` ID;
+an optional `--snapshot-id` must agree with it. DOM/AX bytes must match the
+measured target's evidence hashes. Historical references may retain their
+`RAW-…` IDs. Neither identifier authenticates the producer.
 
 For multiple captures, bind each one into a new draft path. The binder validates
 the selected observation; registration validates all observations together. It
@@ -84,6 +85,7 @@ fabricated or silently upgraded. A run's resource hashes must match its installe
 package, so older runs may require their original package version. No migration
 or resource-hash rewrite is performed by these commands.
 
-Saved evidence binds to the **declared** run target and environment. Automatic
-live file/Git/URL drift checks, browser-state identity and scan-tool import are
-separate integrations; a matching saved-file hash alone does not provide them.
+Current registration also checks the measured file/Git/HTTP or saved browser
+state for drift. Historical validation and report generation remain offline.
+A saved browser bundle proves its captured state, not the current live page;
+capture a new state for retesting. Scan-tool import is a separate integration.

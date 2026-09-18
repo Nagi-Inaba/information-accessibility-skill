@@ -107,6 +107,7 @@ test("historical run 6 remains readable without inventing an inspection level", 
   const run = createAuditRun({ ...options, inspectionMode: "quick", inspectionPurpose: "Plan improvements" });
   delete run.inspection_request;
   run.schema_version = "6.0.0";
+  delete run.target_inventory;
   run.resource_versions.orchestration_registry_version = "5.0.0";
   run.resource_versions.orchestration_registry_sha256 = crypto.createHash("sha256")
     .update(fs.readFileSync(path.join(skillRoot, "references/orchestration-registry-5.0.0.json"))).digest("hex");

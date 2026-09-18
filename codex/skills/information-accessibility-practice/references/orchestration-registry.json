@@ -1,6 +1,6 @@
 {
   "$schema": "./orchestration-registry.schema.json",
-  "schema_version": "6.0.0",
+  "schema_version": "7.0.0",
   "roles": [
     {
       "id": "orchestrator",
@@ -83,7 +83,7 @@
   "artifact_types": [
     {
       "id": "audit-run",
-      "latest_schema_version": "7.0.0",
+      "latest_schema_version": "8.0.0",
       "schema_versions": [
         { "version": "1.0.0", "schema_file": "audit-run-1.0.0.schema.json", "mode": "read_only" },
         { "version": "2.0.0", "schema_file": "audit-run-2.0.0.schema.json", "mode": "read_only" },
@@ -91,7 +91,8 @@
         { "version": "4.0.0", "schema_file": "audit-run-4.0.0.schema.json", "mode": "read_only" },
         { "version": "5.0.0", "schema_file": "audit-run-5.0.0.schema.json", "mode": "read_only" },
         { "version": "6.0.0", "schema_file": "audit-run-6.0.0.schema.json", "mode": "read_only" },
-        { "version": "7.0.0", "schema_file": "audit-run.schema.json", "schema_sha256": "28a9e55ca605a23265fa43b3efb6ac021b83a078f59a5cb8cf1580e9b4b24e6f", "mode": "current" }
+        { "version": "7.0.0", "schema_file": "audit-run-7.0.0.schema.json", "mode": "read_only" },
+        { "version": "8.0.0", "schema_file": "audit-run.schema.json", "schema_sha256": "de4aa7f432d7002d6ff6a10fc49b1bd039ca29014c7483f66c24872dc9990831", "mode": "current" }
       ]
     },
     {

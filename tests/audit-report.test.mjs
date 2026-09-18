@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { bindFixtureEvidence, fixtureEvidenceSnapshots } from "./helpers/saved-evidence.mjs";
+import { fixtureInventory } from "./helpers/measured-targets.mjs";
 import { createInspectionRequest } from "../codex/skills/information-accessibility-practice/scripts/lib/inspection-request.mjs";
 import crypto from "node:crypto";
 import fs from "node:fs";
@@ -121,6 +122,8 @@ function reportRunFixture(temp, { declaredFinding = false, withoutPlan = false, 
   const target = { name: targetName, version_or_commit: "fixture-v1", urls_or_files: ["https://example.invalid/checkout"] };
   const scope = { included: ["Checkout"], excluded: [], complete_processes: [], third_party_content: [], full_pages_reviewed: false };
   const environment = { os: ["not_declared"], browsers: [], assistive_technologies: [], input_modes: [] };
+  const targetContext = { schema_version: "8.0.0", run_id: runId, target, environment };
+  targetContext.target_inventory = fixtureInventory(targetContext, artifactRoot);
   const created = [
     "2026-07-17T12:00:01Z",
     "2026-07-17T12:00:02Z",
@@ -128,7 +131,8 @@ function reportRunFixture(temp, { declaredFinding = false, withoutPlan = false, 
     "2026-07-17T12:00:04Z"
   ];
   const envelope = (artifactId, artifactType, roleId, inputs, payload, createdAt, producerKind = "ai_agent") => ({
-    schema_version: "2.0.0",
+    schema_version: "3.0.0",
+    target_snapshot_ids: targetContext.target_inventory.snapshots.map((snapshot) => snapshot.snapshot_id),
     artifact_id: artifactId,
     artifact_type: artifactType,
     run_id: runId,
@@ -153,7 +157,7 @@ function reportRunFixture(temp, { declaredFinding = false, withoutPlan = false, 
     }]
   }, created[0]);
   const screenFile = path.join(artifactRoot, "screen.json");
-  bindFixtureEvidence(screen, { run_id: runId, target, environment }, artifactRoot);
+  bindFixtureEvidence(screen, targetContext, artifactRoot);
   writeJson(screenFile, screen);
   const queueIds = ["WCAG-2.2-SC-1.1.1", "WCAG-2.2-SC-1.3.1", "WCAG-2.2-SC-2.1.1"];
   const queueItems = queueIds.map((requirementId) => ({
@@ -256,7 +260,8 @@ function reportRunFixture(temp, { declaredFinding = false, withoutPlan = false, 
   const artifacts = withoutPlan ? [screen, queue, human] : [screen, queue, human, remediation];
   if (withoutPlan) artifactFiles.delete(remediation.artifact_id);
   const run = {
-    schema_version: "7.0.0",
+    schema_version: "8.0.0",
+    target_inventory: targetContext.target_inventory,
     inspection_request: createInspectionRequest("quick", "Identify the next investigation"),
     run_id: runId,
     supersedes_run_id: null,
@@ -828,6 +833,11 @@ test("run-backed public model still rejects IDs, role names, and registered arti
       fixture.run.artifacts[0].producer_role,
       fixture.run.artifact_root,
       fixture.run.artifacts[0].path,
+      fixture.run.target_inventory.sha256,
+      fixture.run.target_inventory.environment_sha256,
+      fixture.run.target_inventory.snapshots[0].snapshot_id,
+      fixture.run.target_inventory.snapshots[0].identity.bundle_sha256,
+      fixture.run.target_inventory.snapshots[0].identity.authentication_state_id,
       resources.orchestrationRegistry.roles.find((role) => role.agent_id)?.agent_id,
       "ART-FOREIGN-LEAK"
     ];

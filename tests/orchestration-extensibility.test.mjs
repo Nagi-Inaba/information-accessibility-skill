@@ -94,7 +94,8 @@ function screeningPayload() {
 
 function envelope(overrides = {}) {
   return {
-    schema_version: "2.0.0",
+    schema_version: "3.0.0",
+    target_snapshot_ids: [],
     artifact_id: "ART-STRUCTURE-001",
     artifact_type: "screening-observations",
     run_id: runId,
@@ -133,9 +134,9 @@ test("frozen orchestration contracts retain their normalized hashes across line-
   assert.equal(readJson(path.join(references, "audit-run-5.0.0.schema.json")).properties.schema_version.const, "5.0.0");
   assert.equal(readJson(path.join(references, "screening-observations-1.0.0.schema.json")).properties.schema_version.const, "1.0.0");
   assert.equal(readJson(path.join(references, "audit-artifact-envelope-1.0.0.schema.json")).properties.schema_version.const, "1.0.0");
-  assert.equal(readJson(path.join(references, "orchestration-registry.json")).schema_version, "6.0.0");
-  assert.equal(readJson(path.join(references, "audit-run.schema.json")).properties.schema_version.const, "7.0.0");
-  assert.equal(readJson(path.join(references, "audit-artifact-envelope.schema.json")).properties.schema_version.const, "2.0.0");
+  assert.equal(readJson(path.join(references, "orchestration-registry.json")).schema_version, "7.0.0");
+  assert.equal(readJson(path.join(references, "audit-run.schema.json")).properties.schema_version.const, "8.0.0");
+  assert.equal(readJson(path.join(references, "audit-artifact-envelope.schema.json")).properties.schema_version.const, "3.0.0");
 });
 
 test("an eighth safe read-only role can use an existing registered artifact type", (t) => withSkillCopy(t, "role", (copiedSkill) => {

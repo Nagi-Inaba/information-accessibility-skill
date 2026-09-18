@@ -35,7 +35,8 @@ function schemaErrors(value, schemaName) {
 
 function validAuditRun() {
   return {
-    schema_version: "7.0.0",
+    schema_version: "8.0.0",
+    target_inventory: null,
     inspection_request: createInspectionRequest("quick", "Identify the next investigation"),
     run_id: runId,
     supersedes_run_id: null,
@@ -72,7 +73,7 @@ function validAuditRun() {
     },
     resource_versions: {
       standards_registry_version: "1.0.0",
-      orchestration_registry_version: "6.0.0",
+      orchestration_registry_version: "7.0.0",
       orchestration_registry_sha256: sha256,
       criteria_catalog_sha256: sha256,
       criterion_procedures_sha256: sha256,
@@ -247,18 +248,23 @@ test("current queue and remediation schemas are version 2 while frozen version 1
   assert.notDeepEqual(await schemaErrors(legacyRemediationValue, "remediation-plan.schema.json"), []);
 });
 
-test("versioned contracts freeze prior runs while run 7, registry 6, and envelope 2 are current", async () => {
+test("versioned contracts freeze prior runs while run 8, registry 7, and envelope 3 are current", async () => {
   const versions = [
-    ["orchestration-registry.json", "schema_version", "6.0.0"],
+    ["orchestration-registry.json", "schema_version", "7.0.0"],
+    ["orchestration-registry-6.0.0.json", "schema_version", "6.0.0"],
     ["orchestration-registry-5.0.0.json", "schema_version", "5.0.0"],
     ["orchestration-registry-4.0.0.json", "schema_version", "4.0.0"],
     ["orchestration-registry-3.0.0.json", "schema_version", "3.0.0"],
     ["orchestration-registry-2.0.0.json", "schema_version", "2.0.0"],
-    ["orchestration-registry.schema.json", "schema", "6.0.0"],
+    ["orchestration-registry.schema.json", "schema", "7.0.0"],
+    ["orchestration-registry-6.0.0.schema.json", "schema", "6.0.0"],
     ["orchestration-registry-5.0.0.schema.json", "schema", "5.0.0"],
     ["orchestration-registry-4.0.0.schema.json", "schema", "4.0.0"],
     ["orchestration-registry-2.0.0.schema.json", "schema", "2.0.0"],
-    ["audit-run.schema.json", "schema", "7.0.0"],
+    ["audit-run.schema.json", "schema", "8.0.0"],
+    ["audit-run-7.0.0.schema.json", "schema", "7.0.0"],
+    ["audit-artifact-envelope.schema.json", "schema", "3.0.0"],
+    ["audit-artifact-envelope-2.0.0.schema.json", "schema", "2.0.0"],
     ["audit-run-6.0.0.schema.json", "schema", "6.0.0"],
     ["audit-run-5.0.0.schema.json", "schema", "5.0.0"],
     ["audit-run-4.0.0.schema.json", "schema", "4.0.0"],
@@ -411,7 +417,8 @@ function validEnvelope(artifactType = "screening-observations") {
   };
   const [role_id, producer_kind, origin] = producerByType[artifactType];
   return {
-    schema_version: "2.0.0",
+    schema_version: "3.0.0",
+    target_snapshot_ids: [],
     artifact_id: "ART-SCREENING-001",
     artifact_type: artifactType,
     run_id: runId,
@@ -633,7 +640,7 @@ test("the orchestration registry fixes the complete role, artifact, and transiti
   assert.deepEqual(registry.artifact_types, [
     {
       id: "audit-run",
-      latest_schema_version: "7.0.0",
+      latest_schema_version: "8.0.0",
       schema_versions: [
         { version: "1.0.0", schema_file: "audit-run-1.0.0.schema.json", mode: "read_only" },
         { version: "2.0.0", schema_file: "audit-run-2.0.0.schema.json", mode: "read_only" },
@@ -641,7 +648,8 @@ test("the orchestration registry fixes the complete role, artifact, and transiti
         { version: "4.0.0", schema_file: "audit-run-4.0.0.schema.json", mode: "read_only" },
         { version: "5.0.0", schema_file: "audit-run-5.0.0.schema.json", mode: "read_only" },
         { version: "6.0.0", schema_file: "audit-run-6.0.0.schema.json", mode: "read_only" },
-        { version: "7.0.0", schema_file: "audit-run.schema.json", schema_sha256: "28a9e55ca605a23265fa43b3efb6ac021b83a078f59a5cb8cf1580e9b4b24e6f", mode: "current" }
+        { version: "7.0.0", schema_file: "audit-run-7.0.0.schema.json", mode: "read_only" },
+        { version: "8.0.0", schema_file: "audit-run.schema.json", schema_sha256: "de4aa7f432d7002d6ff6a10fc49b1bd039ca29014c7483f66c24872dc9990831", mode: "current" }
       ]
     },
     {
@@ -891,7 +899,7 @@ test("audit-run rejects malformed IDs, hashes, paths, artifacts, and transition 
   }
 });
 
-test("frozen envelope 1 binds legacy artifact types while envelope 2 defers producer meaning to the registry", async () => {
+test("frozen envelopes remain readable while envelope 3 binds measured target IDs", async () => {
   for (const type of [
     "screening-observations",
     "human-review-queue",
@@ -902,12 +910,16 @@ test("frozen envelope 1 binds legacy artifact types while envelope 2 defers prod
   ]) {
     const legacy = validEnvelope(type);
     legacy.schema_version = "1.0.0";
+    delete legacy.target_snapshot_ids;
     assert.deepEqual(await schemaErrors(legacy, "audit-artifact-envelope-1.0.0.schema.json"), [], type);
+    legacy.schema_version = "2.0.0";
+    assert.deepEqual(await schemaErrors(legacy, "audit-artifact-envelope-2.0.0.schema.json"), [], type);
     assert.deepEqual(await schemaErrors(validEnvelope(type), "audit-artifact-envelope.schema.json"), [], type);
   }
 
   const unauthorized = validEnvelope("fix-authorization");
   unauthorized.schema_version = "1.0.0";
+  delete unauthorized.target_snapshot_ids;
   unauthorized.producer = {
     role_id: "e1_inspector",
     producer_kind: "ai_agent",
@@ -917,6 +929,7 @@ test("frozen envelope 1 binds legacy artifact types while envelope 2 defers prod
 
   const elevated = validEnvelope("screening-observations");
   elevated.schema_version = "1.0.0";
+  delete elevated.target_snapshot_ids;
   elevated.producer.role_id = "declared_authorizer";
   elevated.producer.producer_kind = "external_requester";
   assert.notDeepEqual(await schemaErrors(elevated, "audit-artifact-envelope-1.0.0.schema.json"), []);

@@ -2,6 +2,7 @@
 import { createInspectionRequest } from "../codex/skills/information-accessibility-practice/scripts/lib/inspection-request.mjs";
 import crypto from "node:crypto";
 import { bindFixtureEvidence } from "./helpers/saved-evidence.mjs";
+import { fixtureInventory } from "./helpers/measured-targets.mjs";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -119,6 +120,7 @@ function resourceVersions() {
   };
 }
 
+let activeArtifactRoot;
 function withTemp(t, callback) {
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), "a11y-authorized-fixer-"));
   t.after(() => fs.rmSync(temp, { recursive: true, force: true }));
@@ -126,6 +128,7 @@ function withTemp(t, callback) {
   const artifactRoot = path.join(temp, "artifacts");
   fs.mkdirSync(sourceRoot);
   fs.mkdirSync(artifactRoot);
+  activeArtifactRoot = artifactRoot;
   return callback({ temp, sourceRoot, artifactRoot });
 }
 
@@ -139,8 +142,8 @@ function assertRejected(result, pattern) {
 }
 
 function initialRun(artifactRoot) {
-  return {
-    schema_version: "7.0.0",
+  const run = {
+    schema_version: "8.0.0",
     inspection_request: createInspectionRequest("quick", "Identify the next investigation"),
     run_id: RUN_ID,
     supersedes_run_id: null,
@@ -183,6 +186,8 @@ function initialRun(artifactRoot) {
     history: [],
     limitations: ["The environment was not declared; no profile outcome has been recorded."]
   };
+  run.target_inventory = fixtureInventory(run, artifactRoot);
+  return run;
 }
 
 function screeningPayload() {
@@ -277,7 +282,8 @@ function declaredHumanReviewPayload(requirementId = "WCAG-2.2-SC-1.1.1") {
 
 function artifactEnvelope({ artifactId, artifactType, roleId, producerKind, inputs = [], payload, createdAt }) {
   return {
-    schema_version: "2.0.0",
+    schema_version: "3.0.0",
+    target_snapshot_ids: initialRun(activeArtifactRoot).target_inventory.snapshots.map((snapshot) => snapshot.snapshot_id),
     artifact_id: artifactId,
     artifact_type: artifactType,
     run_id: RUN_ID,
@@ -300,9 +306,9 @@ function registerEntry(artifactRoot, file, artifact) {
   };
 }
 
-function makeRemediationReadyFixture({ sourceRoot, artifactRoot }) {
+function makeRemediationReadyFixture({ sourceRoot, artifactRoot, initialContent = "<h1>fixture</h1>\n" }) {
   const targetFile = path.join(sourceRoot, "index.html");
-  fs.writeFileSync(targetFile, "<h1>fixture</h1>\n", "utf8");
+  fs.writeFileSync(targetFile, initialContent, "utf8");
 
   const screeningFile = path.join(artifactRoot, "screening.json");
   const queueFile = path.join(artifactRoot, "queue.json");
@@ -420,7 +426,9 @@ function makeAuthPayload({
 
 function makeAuthEnvelope(payload, artifactId = "ART-AUTH-001", origin = "external_input") {
   return {
-    schema_version: "2.0.0",
+    schema_version: "3.0.0",
+    target_snapshot_ids: fs.existsSync(path.join(path.dirname(activeArtifactRoot), "target/index.html"))
+      ? initialRun(activeArtifactRoot).target_inventory.snapshots.map((snapshot) => snapshot.snapshot_id) : [],
     artifact_id: artifactId,
     artifact_type: "fix-authorization",
     run_id: payload.run_id,
@@ -1416,7 +1424,8 @@ function prepareTransaction({ temp, sourceRoot, artifactRoot }, {
   authorizedNextContent = nextContent,
   verificationMode = "utf8"
 } = {}) {
-  const fixture = makeRemediationReadyFixture({ sourceRoot, artifactRoot });
+  const fixture = makeRemediationReadyFixture({ sourceRoot, artifactRoot,
+    ...(operation !== "create" && target === "index.html" ? { initialContent } : {}) });
   const targetFile = path.join(sourceRoot, ...target.split("/"));
   fs.mkdirSync(path.dirname(targetFile), { recursive: true });
   if (operation === "create") {

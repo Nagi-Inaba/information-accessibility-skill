@@ -2,20 +2,21 @@ import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 import { createRunEvidenceReference } from "../../codex/skills/information-accessibility-practice/scripts/lib/run-evidence.mjs";
+import { fixtureBytes, fixtureEvidenceBytes } from "./measured-targets.mjs";
 
-export const fixtureBytes = Buffer.from("<!doctype html><html lang=\"en\"><title>Fixture</title><main><h1>Fixture</h1></main></html>\n");
+export { fixtureBytes } from "./measured-targets.mjs";
 export const fixturePath = "captured-dom.html";
 export function fixtureReference(run, capturedAt) {
-  return createRunEvidenceReference({ run, targetRef: run.target.urls_or_files[0], evidenceType: "dom_snapshot", relativePath: fixturePath, bytes: fixtureBytes, capturedAt });
+  return createRunEvidenceReference({ run, targetRef: run.target.urls_or_files[0], evidenceType: "dom_snapshot", relativePath: fixturePath, bytes: fixtureEvidenceBytes(run), capturedAt });
 }
-export function saveFixtureEvidence(root) {
+export function saveFixtureEvidence(root, run) {
   const file = path.join(root, fixturePath);
-  if (!fs.existsSync(file)) fs.writeFileSync(file, fixtureBytes);
+  if (!fs.existsSync(file)) fs.writeFileSync(file, run ? fixtureEvidenceBytes(run) : fixtureBytes);
 }
 export function bindFixtureEvidence(artifact, run, root) {
   artifact.payload.schema_version = "3.0.0";
   for (const observation of artifact.payload.observations) observation.evidence_refs = [fixtureReference(run, observation.captured_at)];
-  if (root) saveFixtureEvidence(root);
+  if (root) saveFixtureEvidence(root, run);
   return artifact;
 }
 export function fixtureEvidenceSnapshots(root) {

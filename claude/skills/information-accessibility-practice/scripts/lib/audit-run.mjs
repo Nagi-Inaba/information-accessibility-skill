@@ -12,6 +12,7 @@ import { buildRunFindings } from "./run-findings.mjs";
 import { compareInstants } from "./date-time.mjs";
 import { canonicalJson } from "./canonical-json.mjs";
 import { collectScreeningEvidence } from "./run-evidence.mjs";
+import { targetInventoryErrors, targetBindingErrors, checkLocalRunTargets, consumeRunTargetCheck, checkRunTargets } from "./run-targets.mjs";
 export { canonicalJson } from "./canonical-json.mjs";
 
 const defaultSkillRoot = path.dirname(path.dirname(path.dirname(fileURLToPath(import.meta.url))));
@@ -23,7 +24,8 @@ const auditRunRegistryCompatibility = new Map([
   ["4.0.0", "3.0.0"],
   ["5.0.0", "4.0.0"],
   ["6.0.0", "5.0.0"],
-  ["7.0.0", "6.0.0"]
+  ["7.0.0", "6.0.0"],
+  ["8.0.0", "7.0.0"]
 ]);
 const auditRunEnvelopeCompatibility = new Map([
   ["1.0.0", "1.0.0"],
@@ -32,11 +34,12 @@ const auditRunEnvelopeCompatibility = new Map([
   ["4.0.0", "1.0.0"],
   ["5.0.0", "2.0.0"],
   ["6.0.0", "2.0.0"],
-  ["7.0.0", "2.0.0"]
+  ["7.0.0", "2.0.0"],
+  ["8.0.0", "3.0.0"]
 ]);
 const currentAuditRunManifestContract = {
   id: "audit-run",
-  latest_schema_version: "7.0.0",
+  latest_schema_version: "8.0.0",
   schema_versions: [
     { version: "1.0.0", schema_file: "audit-run-1.0.0.schema.json", mode: "read_only" },
     { version: "2.0.0", schema_file: "audit-run-2.0.0.schema.json", mode: "read_only" },
@@ -44,10 +47,11 @@ const currentAuditRunManifestContract = {
     { version: "4.0.0", schema_file: "audit-run-4.0.0.schema.json", mode: "read_only" },
     { version: "5.0.0", schema_file: "audit-run-5.0.0.schema.json", mode: "read_only" },
     { version: "6.0.0", schema_file: "audit-run-6.0.0.schema.json", mode: "read_only" },
+    { version: "7.0.0", schema_file: "audit-run-7.0.0.schema.json", mode: "read_only" },
     {
-      version: "7.0.0",
+      version: "8.0.0",
       schema_file: "audit-run.schema.json",
-      schema_sha256: "28a9e55ca605a23265fa43b3efb6ac021b83a078f59a5cb8cf1580e9b4b24e6f",
+      schema_sha256: "de4aa7f432d7002d6ff6a10fc49b1bd039ca29014c7483f66c24872dc9990831",
       mode: "current"
     }
   ]
@@ -496,8 +500,11 @@ export function loadAuditResources(skillRoot = defaultSkillRoot) {
     orchestrationSchemaV4: "references/orchestration-registry-4.0.0.schema.json",
     orchestrationRegistryV5: "references/orchestration-registry-5.0.0.json",
     orchestrationSchemaV5: "references/orchestration-registry-5.0.0.schema.json",
+    orchestrationRegistryV6: "references/orchestration-registry-6.0.0.json",
+    orchestrationSchemaV6: "references/orchestration-registry-6.0.0.schema.json",
     envelopeSchema: "references/audit-artifact-envelope.schema.json",
     envelopeSchemaV1: "references/audit-artifact-envelope-1.0.0.schema.json",
+    envelopeSchemaV2: "references/audit-artifact-envelope-2.0.0.schema.json",
     assessmentSchema: "references/assessment-record.schema.json",
     criteriaCatalog: "references/criteria-catalog.json",
     criterionProcedures: "references/criterion-procedures.json",
@@ -510,7 +517,8 @@ export function loadAuditResources(skillRoot = defaultSkillRoot) {
     ["frozen 2.0.0", loaded.orchestrationRegistryV2, loaded.orchestrationSchemaV2],
     ["frozen 3.0.0", loaded.orchestrationRegistryV3, loaded.orchestrationSchemaV3],
     ["frozen 4.0.0", loaded.orchestrationRegistryV4, loaded.orchestrationSchemaV4],
-    ["frozen 5.0.0", loaded.orchestrationRegistryV5, loaded.orchestrationSchemaV5]
+    ["frozen 5.0.0", loaded.orchestrationRegistryV5, loaded.orchestrationSchemaV5],
+    ["frozen 6.0.0", loaded.orchestrationRegistryV6, loaded.orchestrationSchemaV6]
   ]) {
     const registryErrors = [];
     validateJsonSchema(registry.value, schema.value, "$", registryErrors);
@@ -583,6 +591,7 @@ export function loadAuditResources(skillRoot = defaultSkillRoot) {
     loaded.orchestrationRegistryV3,
     loaded.orchestrationRegistryV4,
     loaded.orchestrationRegistryV5,
+    loaded.orchestrationRegistryV6,
     loaded.orchestrationRegistry
   ];
   const orchestrationRegistries = new Map(registryFiles.map((registry) => [
@@ -596,7 +605,8 @@ export function loadAuditResources(skillRoot = defaultSkillRoot) {
   const currentPayloadVersions = orchestrationRegistries.get(loaded.orchestrationRegistry.value.schema_version).payloadVersions;
   const envelopeSchemas = new Map([
     ["1.0.0", loaded.envelopeSchemaV1.value],
-    ["2.0.0", loaded.envelopeSchema.value]
+    ["2.0.0", loaded.envelopeSchemaV2.value],
+    ["3.0.0", loaded.envelopeSchema.value]
   ]);
   return {
     skillRoot,
@@ -1298,6 +1308,7 @@ export function validateAuditRun(run, { skillRoot = defaultSkillRoot, runFile } 
     validateRemediationBindings(envelopesById, errors);
   }
   validateHistory(runRecord, runResources, artifactsById, errors);
+  errors.push(...targetBindingErrors(runRecord, [...envelopesById.values()].map(({ envelope }) => envelope)));
   const evidence = errors.length ? { errors: [], snapshots: new Map() } : collectScreeningEvidence(
     runRecord,
     [...envelopesById.values()].map(({ envelope }) => envelope),
@@ -1338,6 +1349,7 @@ export function createAuditRun(options) {
     supersedes_run_id: options.supersedesRun?.run_id ?? null,
     status: "initialized",
     target: { name: options.targetName, version_or_commit: options.targetVersion, urls_or_files: targetRefs },
+    target_inventory: null,
     profile: { id: profile.id, registry_version: resources.standardsRegistry.schema_version },
     scope: structuredClone(options.scope ?? options.supersedesRun?.scope ?? { included: targetRefs, excluded: [], complete_processes: [], third_party_content: [], full_pages_reviewed: false }),
     environment: structuredClone(options.environment ?? options.supersedesRun?.environment ?? { os: ["not_declared"], browsers: [], assistive_technologies: [], input_modes: [] }),
@@ -1356,8 +1368,8 @@ export function createAuditRun(options) {
     if (!options.supersedesRunFile) throw new Error("supersedesRunFile is required for fresh retest initialization.");
     const predecessorValidation = validateAuditRun(options.supersedesRun, { skillRoot, runFile: options.supersedesRunFile });
     if (!predecessorValidation.valid) throw new Error(`Invalid superseded audit run:\n- ${predecessorValidation.errors.join("\n- ")}`);
-    if (!["5.0.0", "6.0.0", "7.0.0"].includes(options.supersedesRun.schema_version)) {
-      throw new Error("Fresh retest predecessor must use supported audit-run schema_version 5.0.0, 6.0.0 or 7.0.0.");
+    if (!["5.0.0", "6.0.0", "7.0.0", "8.0.0"].includes(options.supersedesRun.schema_version)) {
+      throw new Error("Fresh retest predecessor must use supported audit-run schema_version 5.0.0, 6.0.0, 7.0.0 or 8.0.0.");
     }
     if (options.supersedesRun.status !== "retest_required") throw new Error("Fresh retest predecessor status must be retest_required.");
     if (run.run_id === options.supersedesRun.run_id) throw new Error("Fresh retest run ID must differ from the predecessor run ID.");
@@ -1384,6 +1396,39 @@ function assertValidRun(run, options) {
   const validation = validateAuditRun(run, options);
   if (!validation.valid) throw new Error(`Invalid audit run:\n- ${validation.errors.join("\n- ")}`);
   return validation;
+}
+
+export function bindTargetInventory(run, inventory, options = {}) {
+  const validation = assertValidRun(run, options);
+  assertCurrentOperationalRun(run, validation.resources, "Target binding");
+  if (run.status !== "initialized" || run.artifacts.length || run.history.length || run.target_inventory !== null) {
+    throw new Error("Targets can only be bound once to an initialized run before any artifact is registered; start a fresh run to change targets.");
+  }
+  const errors = targetInventoryErrors(inventory, run);
+  if (errors.length) throw new Error(`Invalid target inventory:\n- ${errors.join("\n- ")}`);
+  const check = options.targetCheck ?? checkLocalRunTargets(run, inventory, { baseDir: path.dirname(path.resolve(options.runFile)) });
+  consumeRunTargetCheck(check, run, inventory);
+  const next = { ...structuredClone(run), target_inventory: structuredClone(inventory) };
+  const nextValidation = validateAuditRun(next, options);
+  if (!nextValidation.valid) throw new Error(`Invalid bound run:\n- ${nextValidation.errors.join("\n- ")}`);
+  return next;
+}
+
+export async function registerArtifactChecked(run, artifact, options = {}) {
+  const validation = assertValidRun(run, options);
+  assertCurrentOperationalRun(run, validation.resources, "Artifact registration");
+  const artifactFile = resolveInside(validation.artifactRoot, options.artifactFile);
+  const snapshot = readStableFile(artifactFile);
+  const installed = parseJsonBytes(snapshot.bytes, "artifact file");
+  if (artifact !== undefined && !isDeepStrictEqual(artifact, installed)) throw new Error("Artifact object does not match the exact artifact file bytes.");
+  if (installed.run_id !== run.run_id) throw new Error(`Artifact must belong to the same run: ${installed.run_id}`);
+  const errors = [...validateArtifact(installed, validation.resources, { allowedPayloadVersions: validation.resources.currentPayloadVersions }).errors,
+    ...targetBindingErrors(run, [installed])];
+  if (errors.length) throw new Error(`Invalid artifact:\n- ${errors.join("\n- ")}`);
+  const targetCheck = run.target_inventory && installed.artifact_type !== "change-record"
+    ? await checkRunTargets(run, run.target_inventory, { baseDir: path.dirname(path.resolve(options.runFile)), networkPolicy: options.networkPolicy }) : undefined;
+  assertStableFile(snapshot, "artifact file");
+  return registerArtifact(run, installed, { ...options, targetCheck });
 }
 
 export function registerArtifact(run, artifact, options = {}) {
@@ -1427,11 +1472,17 @@ export function registerArtifact(run, artifact, options = {}) {
     throw new Error(`Invalid change-record authorization binding:\n- ${authorizationBindingErrors.join("\n- ")}`);
   }
   const outgoing = validation.resources.orchestrationRegistry.transitions.filter((transition) => transition.from === run.status && transition.required_artifact_types.includes(installedArtifact.artifact_type));
+  const targetErrors = targetBindingErrors(run, [installedArtifact]);
+  if (targetErrors.length) throw new Error(`Invalid artifact target binding:\n- ${targetErrors.join("\n- ")}`);
   const incomingCurrent = validation.resources.orchestrationRegistry.transitions.some((transition) => transition.to === run.status && transition.required_artifact_types.includes(installedArtifact.artifact_type));
   if (outgoing.length > 1) throw new Error(`Ambiguous transition for ${run.status} and ${installedArtifact.artifact_type}`);
   if (outgoing.length === 0 && !incomingCurrent) throw new Error(`Artifact type ${installedArtifact.artifact_type} is a future or invalid transition from ${run.status}`);
   const lastHistoryAt = run.history.at(-1)?.at;
   if (lastHistoryAt && compareInstants(installedArtifact.created_at, lastHistoryAt) < 0) throw new Error("Artifact created_at precedes the current run state.");
+  if (run.target_inventory && installedArtifact.artifact_type !== "change-record") {
+    const check = options.targetCheck ?? checkLocalRunTargets(run, run.target_inventory, { baseDir: path.dirname(path.resolve(options.runFile)) });
+    consumeRunTargetCheck(check, run, run.target_inventory);
+  }
   const entry = {
     artifact_id: installedArtifact.artifact_id,
     artifact_type: installedArtifact.artifact_type,
@@ -1549,6 +1600,7 @@ export function mergeArtifacts({ run, assessment, artifacts, registries, claimTi
   if (!isDeepStrictEqual(assessment.assessment.environment, run.environment)) throw new Error("Assessment environment does not match the audit run.");
   assertAssessmentMergeBaseline(assessment, resources);
   const runSemanticErrors = [];
+  runSemanticErrors.push(...targetBindingErrors(run, artifacts));
   const registered = validateRegisteredArtifactEntries(run, runSemanticErrors);
   validateHistory(run, resources, registered, runSemanticErrors);
   if (runSemanticErrors.length) throw new Error(`Invalid pure merge audit-run semantics:\n- ${runSemanticErrors.join("\n- ")}`);

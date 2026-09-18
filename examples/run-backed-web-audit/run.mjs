@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 
 import { lookupRequirement } from "../../codex/skills/information-accessibility-practice/scripts/show-requirement.mjs";
 import { createRunEvidenceReference } from "../../codex/skills/information-accessibility-practice/scripts/lib/run-evidence.mjs";
+import { targetSnapshotIds } from "../../codex/skills/information-accessibility-practice/scripts/lib/run-targets.mjs";
 
 const exampleRoot = path.dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = path.resolve(exampleRoot, "../..");
@@ -73,7 +74,8 @@ function inputRef(artifact, file) {
 
 function envelope({ artifactId, artifactType, runId, roleId, producerKind, createdAt, inputs, payload }) {
   return {
-    schema_version: "2.0.0",
+    schema_version: "3.0.0",
+    target_snapshot_ids: [],
     artifact_id: artifactId,
     artifact_type: artifactType,
     run_id: runId,
@@ -229,7 +231,8 @@ function buildScenario(base, { name, runId, suffix, humanReviewed, targetName, t
   const artifactRoot = path.join(scenario, "artifacts");
   fs.mkdirSync(artifactRoot, { recursive: true, mode: 0o700 });
 
-  const initialRun = path.join(scenario, "audit-run.v0.json");
+  const unboundRun = path.join(scenario, "audit-run.v0.json");
+  const initialRun = path.join(scenario, "audit-run.bound.json");
   const baseline = path.join(scenario, "baseline-assessment.json");
   runCli([
     "init",
@@ -244,8 +247,31 @@ function buildScenario(base, { name, runId, suffix, humanReviewed, targetName, t
     "--network", "none",
     "--interaction", "safe_read_only",
     "--source-write", "none",
-    "--output", initialRun
+    "--output", unboundRun
   ]);
+  // These are explicitly synthetic saved states. No example URL is fetched.
+  const captureBytes = fs.readFileSync(path.join(exampleRoot, "fixture.html"));
+  const digest = (bytes) => crypto.createHash("sha256").update(bytes).digest("hex");
+  const specifications = targetRefs.map((targetRef, index) => {
+    const bundlePath = path.join(artifactRoot, `fixture-state-${index}.json`);
+    writeJsonNew(bundlePath, {
+      schema_version: "1.0.0", kind: "web-evidence-bundle", captured_at: "2026-08-23T12:00:00Z",
+      target: { requested_url: targetRef, final_url: targetRef, http_status: 200,
+        dom_sha256: digest(captureBytes), ax_tree_sha256: digest("[]") },
+      environment: { adapter: "synthetic-example-fixture", browser_version: "fixture",
+        viewport: { width: 1280, height: 720 }, rendering: { locale: "en-US" } },
+      evidence: { dom: captureBytes.toString("utf8"), accessibility_tree: [] }
+    });
+    return { kind: "web_state", target_ref: targetRef, bundle_path: bundlePath, locale: "en-US",
+      authentication_state_id: "synthetic-example-fixture", feature_flags: [] };
+  });
+  const specsFile = path.join(artifactRoot, "target-specifications.json");
+  const inventoryFile = path.join(artifactRoot, "target-inventory.json");
+  writeJsonNew(specsFile, specifications);
+  runCli(["capture-targets", "--run", unboundRun, "--specs", specsFile, "--output", inventoryFile]);
+  runCli(["bind-targets", "--run", unboundRun, "--targets", inventoryFile, "--output", initialRun]);
+  const measuredRun = readJson(initialRun);
+  const snapshotIds = targetSnapshotIds(measuredRun);
   runCli([
     "assessment",
     "--profile", "web-modern",
@@ -260,16 +286,17 @@ function buildScenario(base, { name, runId, suffix, humanReviewed, targetName, t
 
   const artifacts = [];
   const screening = screeningArtifact(runId, suffix);
+  screening.target_snapshot_ids = snapshotIds;
   const screeningFile = path.join(artifactRoot, "screening-observations.json");
-  const captureBytes = fs.readFileSync(path.join(exampleRoot, "fixture.html"));
   fs.writeFileSync(path.join(artifactRoot, "captured-fixture.html"), captureBytes, { flag: "wx", mode: 0o600 });
   const observation = screening.payload.observations[0];
-  observation.evidence_refs.push(createRunEvidenceReference({ run: readJson(initialRun), targetRef: targetRefs[0], evidenceType: "dom_snapshot",
+  observation.evidence_refs.push(createRunEvidenceReference({ run: measuredRun, targetRef: targetRefs[0], evidenceType: "dom_snapshot",
     relativePath: "captured-fixture.html", bytes: captureBytes, capturedAt: observation.captured_at }));
   writeJsonNew(screeningFile, screening);
   artifacts.push({ value: screening, file: screeningFile });
 
   const queue = queueArtifact(runId, suffix, screening, screeningFile);
+  queue.target_snapshot_ids = snapshotIds;
   const queueFile = path.join(artifactRoot, "human-review-queue.json");
   writeJsonNew(queueFile, queue);
   artifacts.push({ value: queue, file: queueFile });
@@ -278,6 +305,7 @@ function buildScenario(base, { name, runId, suffix, humanReviewed, targetName, t
   let humanFile;
   if (humanReviewed) {
     human = humanArtifact(runId, suffix, queue, queueFile);
+    human.target_snapshot_ids = snapshotIds;
     humanFile = path.join(artifactRoot, "declared-human-review.json");
     writeJsonNew(humanFile, human);
     artifacts.push({ value: human, file: humanFile });
@@ -286,6 +314,7 @@ function buildScenario(base, { name, runId, suffix, humanReviewed, targetName, t
   const remediationSource = humanReviewed ? human : screening;
   const remediationSourceFile = humanReviewed ? humanFile : screeningFile;
   const remediation = remediationArtifact(runId, suffix, remediationSource, remediationSourceFile, humanReviewed);
+  remediation.target_snapshot_ids = snapshotIds;
   const remediationFile = path.join(artifactRoot, "remediation-plan.json");
   writeJsonNew(remediationFile, remediation);
   artifacts.push({ value: remediation, file: remediationFile });

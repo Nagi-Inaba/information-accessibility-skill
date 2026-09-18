@@ -1,12 +1,13 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:information-accessibility:audit-artifact-envelope:2.0.0",
+  "$id": "urn:information-accessibility:audit-artifact-envelope:3.0.0",
   "title": "Extensible Information Accessibility Audit Artifact Envelope",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "artifact_id", "artifact_type", "run_id", "producer", "created_at", "inputs", "payload"],
+  "required": ["schema_version", "artifact_id", "artifact_type", "run_id", "target_snapshot_ids", "producer", "created_at", "inputs", "payload"],
   "properties": {
-    "schema_version": { "const": "2.0.0" },
+    "schema_version": { "const": "3.0.0" },
+    "target_snapshot_ids": { "type": "array", "maxItems": 32, "uniqueItems": true, "items": { "type": "string", "pattern": "^TARGET-[a-f0-9]{64}$" } },
     "artifact_id": { "$ref": "#/$defs/artifact_id" },
     "artifact_type": { "$ref": "#/$defs/artifact_type" },
     "run_id": { "$ref": "#/$defs/run_id" },

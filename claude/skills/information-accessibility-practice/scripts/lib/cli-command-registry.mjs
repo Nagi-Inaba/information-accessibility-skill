@@ -7,13 +7,25 @@ function option(flag, value, description) {
 
 const definitions = [
   {
+    name: "bind-targets", script: "bind-run-targets.mjs",
+    summary: "Remeasure and bind a target inventory once, before any artifact registration.",
+    usage: ["accessibility-audit bind-targets --run <unbound-run.json> --targets <artifacts/targets.json> [--allow-origin <origin>] [--allow-localhost true] --output <new-bound-run.json>"],
+    notes: ["The output stays beside the input run. Changing a bound inventory requires a fresh run. HTTP origins must be explicitly authorized again."]
+  },
+  {
+    name: "compare-targets", script: "compare-run-targets.mjs",
+    summary: "Compare the measured identities of two bound runs without contacting live targets.",
+    usage: ["accessibility-audit compare-targets --before <run.json> --after <run.json> --output <after-artifacts/new-target-comparison.json>"],
+    notes: ["Private output describes identity and environment changes, not accessibility outcomes. Both runs require measured target inventories."]
+  },
+  {
     name: "capture-targets",
     script: "capture-run-targets.mjs",
     summary: "Measure file, Git, HTTP or saved web-state identities into a private run companion.",
     usage: ["accessibility-audit capture-targets --run <run.json> --specs <target-specs.json> [--allow-origin <origin>] [--allow-localhost true] --output <artifacts/new-targets.json>"],
     notes: ["Target specifications must cover exactly the declared run references. Local relative paths resolve beside the run manifest.",
       "HTTP requires run network permission and explicit allowed origins for every redirect. No credentials, cookies or JavaScript are used.",
-      "This creates an unregistered private companion; audit-run registration enforcement is still being integrated. See references/measured-targets.md."]
+      "This creates an unregistered private companion. Use bind-targets before registering observations. See references/measured-targets.md."]
   },
   {
     name: "bind-evidence",
@@ -183,10 +195,12 @@ const definitions = [
     name: "register",
     script: "register-audit-artifact.mjs",
     summary: "Register one validated artifact in a new audit-run version.",
-    usage: ["accessibility-audit register --run <run.json> --artifact <artifact.json> --output <new-run.json>"],
+    usage: ["accessibility-audit register --run <run.json> --artifact <artifact.json> [--allow-origin <origin>] [--allow-localhost true] --output <new-run.json>"],
     options: [
       option("--run", "<run.json>", "Current run version."),
       option("--artifact", "<artifact.json>", "Validated artifact within its artifact root."),
+      option("--allow-origin", "<origin>", "Explicit HTTP remeasurement origin; repeatable."),
+      option("--allow-localhost", "<true>", "Permit loopback only for controlled HTTP fixtures."),
       option("--output", "<new-run.json>", "New immutable run version.")
     ]
   },

@@ -349,6 +349,14 @@ function internalControlTerms({ run, envelopesById, resources }) {
   addString(terms, run.run_id);
   addString(terms, run.supersedes_run_id);
   addString(terms, run.artifact_root);
+  for (const key of ["sha256", "target_context_sha256", "environment_sha256"]) addString(terms, run.target_inventory?.[key]);
+  for (const snapshot of run.target_inventory?.snapshots ?? []) {
+    addString(terms, snapshot.snapshot_id);
+    visitStrings(snapshot.identity, "identity", (value, location) => {
+      if (/(?:sha256|_oid|head_commit|authentication_state_id|feature_flags)(?:\[\d+\])?$/u.test(location)) addString(terms, value);
+    });
+    for (const binding of snapshot.evidence_bindings ?? []) addString(terms, binding.sha256);
+  }
   for (const artifact of run.artifacts ?? []) {
     addString(terms, artifact.artifact_id);
     addString(terms, artifact.producer_role);
@@ -363,6 +371,7 @@ function internalControlTerms({ run, envelopesById, resources }) {
     addString(terms, envelope?.artifact_id);
     addString(terms, envelope?.run_id);
     addString(terms, envelope?.producer?.role_id);
+    for (const id of envelope?.target_snapshot_ids ?? []) addString(terms, id);
     for (const observation of envelope?.payload?.observations ?? []) {
       for (const reference of observation.evidence_refs ?? []) {
         for (const key of ["path", "sha256", "environment_ref", "target_snapshot_id", "target_context_sha256"]) addString(terms, reference[key]);

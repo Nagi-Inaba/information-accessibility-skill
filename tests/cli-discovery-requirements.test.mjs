@@ -33,7 +33,7 @@ test("root help, version, and command help expose discoverable installed capabil
   assert.equal(version.status, 0, version.stderr || version.stdout);
   assert.match(version.stdout, /information-accessibility-practice-cli 0\.1\.0/u);
   assert.match(version.stdout, /standards registry 1\.0\.0/u);
-  assert.match(version.stdout, /audit-run schema 7\.0\.0/u);
+  assert.match(version.stdout, /audit-run schema 8\.0\.0/u);
 
   const initHelp = runCli(["init", "--help"]);
   assert.equal(initHelp.status, 0, initHelp.stderr || initHelp.stdout);

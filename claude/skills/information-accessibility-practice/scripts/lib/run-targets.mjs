@@ -163,6 +163,46 @@ export function consumeRunTargetCheck(token, run, inventory) {
       "A saved rendered state is not a live authenticated session and does not authenticate its producer."] });
 }
 
+export function checkLocalRunTargets(run, inventory, options = {}) {
+  const startedAt = performance.now();
+  const errors = targetInventoryErrors(inventory, run);
+  if (errors.length) throw new Error(`Invalid target inventory:\n- ${errors.join("\n- ")}`);
+  if (inventory.snapshots.some((snapshot) => snapshot.kind === "http")) throw new Error("HTTP targets require an asynchronous check with an explicit caller network policy.");
+  const observations = inventory.snapshots.map((snapshot) => {
+    const observed = observeLocalTarget(targetSpecification(snapshot), options).snapshot;
+    assertSameTarget(snapshot, observed);
+    return { snapshot_id: observed.snapshot_id, observed_at: observed.observed_at };
+  });
+  const token = Object.freeze({});
+  checks.set(token, { runHash: digest(run), inventoryHash: digest(inventory), inventory: structuredClone(inventory),
+    options: structuredClone(options), observations, checkedAt: new Date().toISOString(), expiresAt: startedAt + CHECK_LIFETIME_MS });
+  return token;
+}
+
+export function targetSnapshotIds(run) {
+  return (run.target_inventory?.snapshots ?? []).map((snapshot) => snapshot.snapshot_id).sort();
+}
+
+export function targetBindingErrors(run, artifacts = []) {
+  if (run?.schema_version !== "8.0.0") return [];
+  const errors = [];
+  if (run.target_inventory !== null) {
+    errors.push(...targetInventoryErrors(run.target_inventory, run));
+    if (errors.length) return errors;
+  }
+  const ids = targetSnapshotIds(run);
+  for (const artifact of artifacts) {
+    if (!Array.isArray(artifact?.target_snapshot_ids) || !same([...artifact.target_snapshot_ids].sort(), ids)) {
+      errors.push(`${artifact?.artifact_id}: target_snapshot_ids must exactly match the fixed run target inventory.`);
+    }
+    const hasObservation = artifact?.artifact_type === "screening-observations"
+      ? artifact.payload?.observations?.some((row) => row.evidence_level !== "E0" || row.evidence_refs?.length)
+      : !["human-review-queue", "remediation-plan"].includes(artifact?.artifact_type);
+    if (hasObservation && !ids.length) errors.push(`${artifact?.artifact_id}: bind measured targets before registering observations or authorization. An unmeasured run may contain only E0 planning evidence.`);
+  }
+  return errors;
+}
+
 export function compareRunTargets(beforeRun, beforeInventory, afterRun, afterInventory) {
   for (const [run, inventory] of [[beforeRun, beforeInventory], [afterRun, afterInventory]]) {
     const errors = targetInventoryErrors(inventory, run);

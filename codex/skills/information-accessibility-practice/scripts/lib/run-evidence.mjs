@@ -20,10 +20,13 @@ export function evidenceContext(run, targetRef) {
 // that a live target still has the captured content or authenticate a producer.
 export function createRunEvidenceReference({ run, targetRef, ...options }) {
   const context = evidenceContext(run, targetRef);
+  const measured = run.schema_version === "8.0.0" ? run.target_inventory?.snapshots?.find((snapshot) => snapshot.target_ref === targetRef) : null;
+  if (run.schema_version === "8.0.0" && !measured) throw new Error("Bind a measured target inventory before adding saved observation evidence.");
+  if (measured && options.targetSnapshotId !== undefined && options.targetSnapshotId !== measured.snapshot_id) throw new Error("Evidence snapshot ID must match the run target inventory.");
   const reference = createEvidenceReference({
     ...options,
     environmentRef: context.environment_ref,
-    targetSnapshotId: options.targetSnapshotId ?? `RAW-${hash(options.bytes)}`
+    targetSnapshotId: measured?.snapshot_id ?? options.targetSnapshotId ?? `RAW-${hash(options.bytes)}`
   });
   return Object.freeze({ ...reference, ...context });
 }
@@ -34,6 +37,16 @@ export function evidenceBindingErrors(reference, run) {
   try {
     for (const [key, expected] of Object.entries(evidenceContext(run, reference.target_ref))) {
       if (reference[key] !== expected) errors.push(`Evidence ${key} does not match the audit run.`);
+    }
+    if (run.schema_version === "8.0.0") {
+      const measured = run.target_inventory?.snapshots?.find((snapshot) => snapshot.target_ref === reference.target_ref);
+      if (!measured || reference.target_snapshot_id !== measured.snapshot_id) errors.push("Evidence target_snapshot_id does not match the measured run target.");
+      else if (["dom_snapshot", "accessibility_tree"].includes(reference.evidence_type)) {
+        const exact = measured.evidence_bindings.some((binding) => binding.sha256 === reference.sha256 && binding.evidence_type === reference.evidence_type);
+        const localSource = ["file", "git"].includes(measured.kind) && reference.evidence_type === "dom_snapshot"
+          && measured.evidence_bindings.some((binding) => binding.sha256 === reference.sha256 && binding.evidence_type === "other");
+        if (!exact && !localSource) errors.push("DOM or AX evidence bytes do not belong to the measured target snapshot.");
+      }
     }
   } catch (error) { errors.push(error.message); }
   return errors;
