@@ -7,6 +7,15 @@ function option(flag, value, description) {
 
 const definitions = [
   {
+    name: "capture-targets",
+    script: "capture-run-targets.mjs",
+    summary: "Measure file, Git, HTTP or saved web-state identities into a private run companion.",
+    usage: ["accessibility-audit capture-targets --run <run.json> --specs <target-specs.json> [--allow-origin <origin>] [--allow-localhost true] --output <artifacts/new-targets.json>"],
+    notes: ["Target specifications must cover exactly the declared run references. Local relative paths resolve beside the run manifest.",
+      "HTTP requires run network permission and explicit allowed origins for every redirect. No credentials, cookies or JavaScript are used.",
+      "This creates an unregistered private companion; audit-run registration enforcement is still being integrated. See references/measured-targets.md."]
+  },
+  {
     name: "bind-evidence",
     script: "bind-audit-evidence.mjs",
     summary: "Bind an existing private evidence file to one draft screening observation.",

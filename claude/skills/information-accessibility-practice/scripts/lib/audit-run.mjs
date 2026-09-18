@@ -124,7 +124,7 @@ function sameIdentity(left, right) {
   return isDeepStrictEqual(left, right);
 }
 
-function inspectRealComponents(target, { type, label = "path" } = {}) {
+export function inspectRealComponents(target, { type, label = "path" } = {}) {
   const absolute = path.resolve(target);
   const parsed = path.parse(absolute);
   let current = parsed.root;
@@ -269,22 +269,38 @@ function parseJsonBytes(bytes, label) {
   }
 }
 
-export function readStableFile(file, { label = "input file" } = {}) {
+export function readStableFile(file, { label = "input file", maxBytes = Infinity } = {}) {
+  if (maxBytes !== Infinity && (!Number.isSafeInteger(maxBytes) || maxBytes < 1)) throw new Error("maxBytes must be a positive safe integer.");
   const inspected = inspectRealComponents(file, { type: "file", label });
   const descriptor = fs.openSync(inspected.absolute, fs.constants.O_RDONLY | noFollow);
   try {
     const before = statIdentity(fs.fstatSync(descriptor, { bigint: true }));
-    const bytes = fs.readFileSync(descriptor);
+    let bytes;
+    if (maxBytes === Infinity) bytes = fs.readFileSync(descriptor);
+    else {
+      if (BigInt(before.size) > BigInt(maxBytes)) throw new Error(`${label} exceeds the ${maxBytes}-byte limit.`);
+      const chunks = [];
+      let total = 0;
+      while (true) {
+        const chunk = Buffer.alloc(Math.min(65536, maxBytes + 1 - total));
+        const count = fs.readSync(descriptor, chunk, 0, chunk.length, null);
+        if (!count) break;
+        total += count;
+        if (total > maxBytes) throw new Error(`${label} exceeds the ${maxBytes}-byte limit.`);
+        chunks.push(chunk.subarray(0, count));
+      }
+      bytes = Buffer.concat(chunks, total);
+    }
     const after = statIdentity(fs.fstatSync(descriptor, { bigint: true }));
     if (!sameIdentity(before, after)) throw new Error(`${label} changed while it was read: ${inspected.absolute}`);
-    return { path: inspected.absolute, bytes, sha256: sha256Bytes(bytes), identity: after };
+    return { path: inspected.absolute, bytes, sha256: sha256Bytes(bytes), identity: after, ...(maxBytes === Infinity ? {} : { maxBytes }) };
   } finally {
     fs.closeSync(descriptor);
   }
 }
 
 export function assertStableFile(snapshot, label = "input file") {
-  const current = readStableFile(snapshot.path, { label });
+  const current = readStableFile(snapshot.path, { label, maxBytes: snapshot.maxBytes });
   if (!sameIdentity(snapshot.identity, current.identity) || snapshot.sha256 !== current.sha256 || !snapshot.bytes.equals(current.bytes)) {
     throw new Error(`${label} changed before commit: ${snapshot.path}`);
   }

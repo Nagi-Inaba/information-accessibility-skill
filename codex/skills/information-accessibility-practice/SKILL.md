@@ -46,6 +46,8 @@ The default artifact sequence is `screening-observations` -> `human-review-queue
 
 For registered screening evidence, use payload 3.0.0 and read [`references/saved-evidence.md`](references/saved-evidence.md). Every E1 observation requires saved raw evidence bound to the exact run, declared target version and environment; unavailable capture remains E0 with its limitation. `bind-evidence` adds a reference to a new candidate without changing its conclusions. Registration and report generation recheck raw bytes; `compare-evidence` records private before/after byte and context differences.
 
+For measured file, Git, HTTP or saved browser-state identity, see [`references/measured-targets.md`](references/measured-targets.md). `capture-targets` creates a private, unregistered companion. Mandatory binding to artifact registration is still in progress; do not claim that capture alone enforces target drift rejection.
+
 When registered artifacts have been merged into an assessment, use the run-backed report route described there. It validates the run, assessment, and registered artifact bytes, then publishes the Observed / 観測, Improvement / 改善, and Human review / 人が確認 categories without the internal run and role metadata. Keep standalone `--input` reporting for assessments that are not backed by an audit run.
 
 ## Core Model
