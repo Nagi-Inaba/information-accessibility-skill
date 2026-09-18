@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:information-accessibility:screening-observations:2.0.0",
-  "title": "E0 and E1 Screening Observations With Report Judgements",
+  "$id": "urn:information-accessibility:screening-observations:3.0.0",
+  "title": "E0 and E1 Screening Observations With Run-bound Saved Evidence",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -10,7 +10,7 @@
   ],
   "properties": {
     "schema_version": {
-      "const": "2.0.0"
+      "const": "3.0.0"
     },
     "observations": {
       "type": "array",
@@ -28,9 +28,15 @@
           "profile_requirement_id",
           "report_outcome",
           "applicability",
-          "report_rationale"
+          "report_rationale",
+          "evidence_refs"
         ],
         "properties": {
+          "evidence_refs": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": { "$ref": "#/$defs/evidence_reference" }
+          },
           "requirement_id": {
             "type": "string",
             "pattern": "^SCREEN-[A-Z0-9]+(?:-[A-Z0-9]+)*$"
@@ -267,6 +273,10 @@
         },
         "allOf": [
           {
+            "if": { "properties": { "evidence_level": { "const": "E1" } } },
+            "then": { "properties": { "evidence_refs": { "type": "array", "minItems": 1 } } }
+          },
+          {
             "if": {
               "properties": {
                 "profile_requirement_id": {
@@ -423,6 +433,26 @@
             }
           }
         ]
+      }
+    }
+  },
+  "$defs": {
+    "evidence_reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["evidence_type", "path", "sha256", "captured_at", "environment_ref", "target_snapshot_id", "publication", "run_id", "target_version", "target_ref", "target_context_sha256"],
+      "properties": {
+        "evidence_type": { "enum": ["dom_snapshot", "accessibility_tree", "screenshot", "interaction_log", "network_log", "other"] },
+        "path": { "type": "string", "minLength": 1 },
+        "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "captured_at": { "type": "string", "format": "date-time" },
+        "environment_ref": { "type": "string", "pattern": "^ENV-[a-f0-9]{64}$" },
+        "target_snapshot_id": { "type": "string", "minLength": 1 },
+        "publication": { "const": "private_by_default" },
+        "run_id": { "type": "string", "pattern": "^RUN-[0-9]{8}T[0-9]{6}Z-[A-Z0-9]{8}$" },
+        "target_version": { "type": "string", "minLength": 1 },
+        "target_ref": { "type": "string", "minLength": 1 },
+        "target_context_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
       }
     }
   }

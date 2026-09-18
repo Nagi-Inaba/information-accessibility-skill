@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import crypto from "node:crypto";
+import { schemaFixtureReference } from "./helpers/saved-evidence.mjs";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -74,8 +75,9 @@ function readOnlyRole(overrides = {}) {
 
 function screeningPayload() {
   return {
-    schema_version: "2.0.0",
+    schema_version: "3.0.0",
     observations: [{
+      evidence_refs: [schemaFixtureReference(createdAt)],
       requirement_id: "SCREEN-EXTENSION",
       evidence_level: "E1",
       method: "Read-only structural inspection",

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import crypto from "node:crypto";
+import { createRunEvidenceReference } from "../codex/skills/information-accessibility-practice/scripts/lib/run-evidence.mjs";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -143,6 +144,12 @@ test("installed CLIs carry a local public-like fixture through the read-only age
     payload: screeningPayload
   });
   const screeningFile = path.join(artifactRoot, "screening-observations.json");
+  const capture = fs.readFileSync(path.join(root, "tests/fixtures/multi-agent-site/index.html"));
+  fs.writeFileSync(path.join(artifactRoot, "captured-dom.html"), capture);
+  screening.payload.schema_version = "3.0.0";
+  for (const observation of screening.payload.observations) {
+    observation.evidence_refs = [createRunEvidenceReference({ run: run0, targetRef: targetUrl, evidenceType: "dom_snapshot", relativePath: "captured-dom.html", bytes: capture, capturedAt: observation.captured_at })];
+  }
   writeJson(screeningFile, screening);
 
   const queueItems = queueTemplate.requirement_ids.map((requirementId) => {

@@ -96,10 +96,11 @@
     },
     {
       "id": "screening-observations",
-      "latest_schema_version": "2.0.0",
+      "latest_schema_version": "3.0.0",
       "schema_versions": [
         { "version": "1.0.0", "schema_file": "screening-observations-1.0.0.schema.json", "mode": "read_only" },
-        { "version": "2.0.0", "schema_file": "screening-observations.schema.json", "schema_sha256": "9af1013793af9e250e0a16521d8241fe82e1a20d6eff415d965e89fcfef6b7f2", "mode": "current" }
+        { "version": "2.0.0", "schema_file": "screening-observations-2.0.0.schema.json", "mode": "read_only" },
+        { "version": "3.0.0", "schema_file": "screening-observations.schema.json", "schema_sha256": "268da46d8988039e5ff272166fa2ab13c3492a6a164ecadbb3ac07f47691e33b", "mode": "current" }
       ]
     },
     {

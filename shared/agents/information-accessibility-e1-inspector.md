@@ -29,6 +29,8 @@ For every observation, set `profile_requirement_id`, `applicability`, `report_ou
 
 Do not add fields that `screening-observations.schema.json` does not define.
 
+Use payload version 3.0.0 and include `evidence_refs` for every observation. E1 requires at least one actual saved capture bound to the run ID, declared target version, target reference and environment, with a matching file hash and capture time. Read `saved-evidence.md` for the contract. If saved capture is unavailable, return E0 with an empty array and a limitation; do not manufacture evidence from prose or promote its level. The orchestrator saves actual capture output and may use `bind-evidence` before registration. Keep raw files and references private; do not paste private capture paths, hashes, identifiers or contents into report prose.
+
 The specialist must not write or materialize an artifact file or envelope file. The specialist must not claim the candidate is validated. The orchestrator alone materializes the candidate as a new artifact under `artifact_root`, invokes `register-audit-artifact.mjs`, and treats it as validated only after stable runtime validation and registration succeed.
 
 ## Stateful UI Inspection

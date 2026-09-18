@@ -48,6 +48,7 @@ function discoverSuccessors(run, runFile, artifactRoot, skillRoot) {
       }
       assertStableFile(snapshot, "sibling run candidate");
       for (const record of validation.envelopesById.values()) assertStableFile(record.snapshot, "sibling registered artifact");
+      for (const evidence of validation.evidenceSnapshots.values()) assertStableFile(evidence, "sibling raw evidence");
       if (retest || (validation.artifactRoot === artifactRoot && extendsRun(candidate, run))) {
         candidates.push({ file: entry.name, run_id: candidate.run_id, state: candidate.status, kind: retest ? "retest" : "registration" });
       } else if (sameRun && !isDeepStrictEqual(candidate, run) && !extendsRun(run, candidate)) {
@@ -115,7 +116,7 @@ export function auditStatus(runFile, { skillRoot = defaultSkillRoot } = {}) {
         });
         baseline.assessment.scope = structuredClone(run.scope);
         baseline.assessment.environment = structuredClone(run.environment);
-        const registries = { ...resources, artifact_snapshots_by_id: new Map([...validation.envelopesById].map(([id, record]) => [id, record.snapshot])) };
+        const registries = { ...resources, artifact_snapshots_by_id: new Map([...validation.envelopesById].map(([id, record]) => [id, record.snapshot])), evidence_snapshots_by_path: validation.evidenceSnapshots };
         const assessment = mergeArtifacts({ run, assessment: baseline, artifacts: envelopes, registries });
         const guard = validateAssessment(assessment, resources.standardsRegistry, resources.assessmentSchema, resources.criteriaCatalog, resources.auditMethods).guard;
         result.coverage.evaluation = guard.evaluation_coverage;
@@ -133,6 +134,7 @@ export function auditStatus(runFile, { skillRoot = defaultSkillRoot } = {}) {
   }
   assertStableFile(snapshot, "audit run");
   for (const record of validation.envelopesById?.values() ?? []) assertStableFile(record.snapshot, "registered artifact");
+  for (const evidence of validation.evidenceSnapshots?.values() ?? []) assertStableFile(evidence, "raw evidence");
   return result;
 }
 

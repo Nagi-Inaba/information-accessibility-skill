@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { bindFixtureEvidence, fixtureEvidenceSnapshots } from "./helpers/saved-evidence.mjs";
 import { createInspectionRequest } from "../codex/skills/information-accessibility-practice/scripts/lib/inspection-request.mjs";
 import crypto from "node:crypto";
 import fs from "node:fs";
@@ -112,12 +113,12 @@ test("report judgement vocabulary and overall priority are fixed", () => {
   for (const [counts, expected] of cases) assert.equal(overallReportJudgement(counts), expected);
 });
 
-function reportRunFixture(temp, { declaredFinding = false, withoutPlan = false } = {}) {
+function reportRunFixture(temp, { declaredFinding = false, withoutPlan = false, targetName = "Public fixture" } = {}) {
   const artifactRoot = path.join(temp, "artifacts");
   fs.mkdirSync(artifactRoot);
   const resources = loadAuditResources(skill);
   const runId = "RUN-20260717T120000Z-REPORT01";
-  const target = { name: "Public fixture", version_or_commit: "fixture-v1", urls_or_files: ["https://example.invalid/checkout"] };
+  const target = { name: targetName, version_or_commit: "fixture-v1", urls_or_files: ["https://example.invalid/checkout"] };
   const scope = { included: ["Checkout"], excluded: [], complete_processes: [], third_party_content: [], full_pages_reviewed: false };
   const environment = { os: ["not_declared"], browsers: [], assistive_technologies: [], input_modes: [] };
   const created = [
@@ -152,6 +153,7 @@ function reportRunFixture(temp, { declaredFinding = false, withoutPlan = false }
     }]
   }, created[0]);
   const screenFile = path.join(artifactRoot, "screen.json");
+  bindFixtureEvidence(screen, { run_id: runId, target, environment }, artifactRoot);
   writeJson(screenFile, screen);
   const queueIds = ["WCAG-2.2-SC-1.1.1", "WCAG-2.2-SC-1.3.1", "WCAG-2.2-SC-2.1.1"];
   const queueItems = queueIds.map((requirementId) => ({
@@ -311,6 +313,7 @@ function reportRunFixture(temp, { declaredFinding = false, withoutPlan = false }
     const bytes = fs.readFileSync(file);
     return [artifactId, { bytes, sha256: resourcesSha256(file) }];
   }));
+  resources.evidence_snapshots_by_path = fixtureEvidenceSnapshots(artifactRoot);
   const assessment = mergeArtifacts({ run, assessment: baseline, artifacts, registries: resources });
   const assessmentFile = path.join(temp, "assessment.json");
   writeJson(assessmentFile, assessment);
@@ -506,7 +509,7 @@ test("status refuses corrupt evidence and detects ambiguous related manifests", 
   t.after(() => fs.rmSync(temp, { recursive: true, force: true }));
   const fixture = reportRunFixture(temp, { declaredFinding: true, withoutPlan: true });
   const divergent = structuredClone(fixture.run);
-  divergent.target.name = "Another target with a reused ID";
+  divergent.scope.included.push("Another scope with a reused ID");
   writeJson(path.join(temp, "divergent.json"), divergent);
   assert.ok(auditStatus(fixture.runFile).warnings.some((warning) => warning.code === "divergent_run"));
   const humanFile = fixture.artifactFiles.get("ART-HUMAN-REPORT");
@@ -769,6 +772,7 @@ test("run-backed renderer rejects internal control metadata embedded in register
     });
     baseline.assessment.scope = structuredClone(fixture.run.scope);
     baseline.assessment.environment = structuredClone(fixture.run.environment);
+    resources.evidence_snapshots_by_path = fixtureEvidenceSnapshots(path.dirname([...fixture.artifactFiles.values()][0]));
     const assessment = mergeArtifacts({ run: fixture.run, assessment: baseline, artifacts, registries: resources });
     writeJson(fixture.assessmentFile, assessment);
 
@@ -1169,13 +1173,9 @@ test("run-backed report uses inspection judgements without a second formal-claim
 test("run-backed renderer turns every newline sequence in target text into a safe line break", () => {
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), "a11y-run-backed-carriage-return-"));
   try {
-    const fixture = reportRunFixture(temp);
-    const renderer = path.join(skill, "scripts/render-audit-report.mjs");
     const forgedTarget = "Safe\r---\rForged";
-    fixture.run.target.name = forgedTarget;
-    fixture.assessment.assessment.target.name = forgedTarget;
-    writeJson(fixture.runFile, fixture.run);
-    writeJson(fixture.assessmentFile, fixture.assessment);
+    const fixture = reportRunFixture(temp, { targetName: forgedTarget });
+    const renderer = path.join(skill, "scripts/render-audit-report.mjs");
     const output = path.join(temp, "carriage-return.md");
 
     const result = spawnSync(process.execPath, [

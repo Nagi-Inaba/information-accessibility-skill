@@ -272,6 +272,7 @@ function renderRunBacked(options) {
     assertStableFile(runSnapshot, "audit run");
     assertStableFile(assessmentSnapshot, "run-backed assessment");
     for (const snapshot of artifactSnapshots) assertStableFile(snapshot, "registered artifact");
+    for (const snapshot of runValidation.evidenceSnapshots.values()) assertStableFile(snapshot, "raw evidence");
   };
   const written = writeRequestedOutputs(options, rendered, assertInputsStable);
   return {

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { fixtureReference, saveFixtureEvidence, fixtureEvidenceSnapshots } from "./helpers/saved-evidence.mjs";
 import { createInspectionRequest } from "../codex/skills/information-accessibility-practice/scripts/lib/inspection-request.mjs";
 import crypto from "node:crypto";
 import fs from "node:fs";
@@ -35,6 +36,7 @@ function runNode(script, args) {
 }
 
 function writeJson(file, value) {
+  if (value.artifact_type === "screening-observations" && value.payload.schema_version === "3.0.0") saveFixtureEvidence(path.dirname(file));
   fs.writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`, "utf8");
 }
 
@@ -162,8 +164,9 @@ function screeningEnvelope({ artifactId, requirementId, capturedAt = "2026-07-17
     created_at: capturedAt,
     inputs: [],
     payload: {
-      schema_version: "2.0.0",
+      schema_version: "3.0.0",
       observations: [{
+        evidence_refs: [fixtureReference(initialRun("artifacts"), capturedAt)],
         requirement_id: requirementId,
         evidence_level: "E1",
         method: "DOM inspection",
@@ -183,6 +186,7 @@ function downgradeScreeningEnvelopeToV1(artifact) {
   artifact.schema_version = "1.0.0";
   artifact.payload.schema_version = "1.0.0";
   for (const observation of artifact.payload.observations) {
+    delete observation.evidence_refs;
     delete observation.profile_requirement_id;
     delete observation.report_outcome;
     delete observation.applicability;
@@ -646,6 +650,7 @@ function registerEntry(artifactRoot, file, artifact) {
 
 function pureMergeResources(run, artifactRoot) {
   const resources = loadAuditResources(skillRoot);
+  resources.evidence_snapshots_by_path = fs.existsSync(path.join(artifactRoot, "captured-dom.html")) ? fixtureEvidenceSnapshots(artifactRoot) : new Map();
   resources.artifact_snapshots_by_id = new Map(run.artifacts.map((entry) => {
     const file = path.join(artifactRoot, ...entry.path.replace(/^\.\//u, "").split("/"));
     const bytes = fs.readFileSync(file);
@@ -1436,7 +1441,7 @@ test("each registry derives its own exact per-artifact payload compatibility pol
       "change-record": "2.0.0"
     }],
     ["6.0.0", {
-      "screening-observations": "2.0.0",
+      "screening-observations": "3.0.0",
       "human-review-queue": "2.0.0",
       "declared-human-review": "1.0.0",
       "remediation-plan": "2.0.0",

@@ -28,7 +28,7 @@ The current read-only boundary is a behavioral contract, not a complete tool san
 
 ## Public reporting boundary
 
-Screening schema 2.0.0 accepts optional `signal_class`, `human_review_required`, and `evidence_provenance` fields. A signal-classified handoff must include the latter two fields; automated-tool provenance must identify the tool, version, and rule. `no_automated_signal` and `inconclusive` cannot produce a report-only pass or fail. Every signal-classified observation mapped to a profile requirement must reach an input-linked human-review queue before merge. Existing records and completed target-specific report judgements remain supported; none of these fields creates a formal profile outcome.
+Screening schema 3.0.0 requires `evidence_refs`, with saved run-bound captures for E1; see [saved-evidence.md](saved-evidence.md). It retains optional `signal_class`, `human_review_required`, and `evidence_provenance` fields. A signal-classified handoff must include the latter two fields; automated-tool provenance must identify the tool, version, and rule. `no_automated_signal` and `inconclusive` cannot produce a report-only pass or fail. Every signal-classified observation mapped to a profile requirement must reach an input-linked human-review queue before merge. Historical payloads remain read-only; none of these fields creates a formal profile outcome.
 
 The public report must never expose internal agent identifiers, run IDs, orchestration history, transition history, state history, local paths, Git branches, or raw artifact envelopes. It may publish only target and scope context, results with their evidence level, limitations, human checks, remediation, and retest information accepted by the report validator.
 

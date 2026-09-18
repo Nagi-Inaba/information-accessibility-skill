@@ -363,6 +363,11 @@ function internalControlTerms({ run, envelopesById, resources }) {
     addString(terms, envelope?.artifact_id);
     addString(terms, envelope?.run_id);
     addString(terms, envelope?.producer?.role_id);
+    for (const observation of envelope?.payload?.observations ?? []) {
+      for (const reference of observation.evidence_refs ?? []) {
+        for (const key of ["path", "sha256", "environment_ref", "target_snapshot_id", "target_context_sha256"]) addString(terms, reference[key]);
+      }
+    }
     for (const input of envelope?.inputs ?? []) {
       addString(terms, input?.artifact_id);
       addString(terms, input?.run_id);
@@ -913,7 +918,7 @@ export function buildPublicReportModel({ run, assessment, envelopesById, resourc
     .sort((left, right) => String(left.requirement_id).localeCompare(String(right.requirement_id), "en")
       || String(left.remediation?.proposed_change ?? "").localeCompare(String(right.remediation?.proposed_change ?? ""), "en"));
   const screeningCandidates = evidence.screeningObservations
-    .map(guardScreeningProjection)
+    .map(({ evidence_refs: _privateReferences, ...observation }) => guardScreeningProjection(observation))
     .flatMap((observation) => {
       const remediations = evidence.remediationItems
         .filter((item) => item.basis === "unverified_screening_candidate" && item.requirement_id === observation.requirement_id)
@@ -1210,6 +1215,7 @@ function main() {
         assertStableFile(runSnapshot, "audit run");
         assertStableFile(assessmentSnapshot, "merged assessment");
         for (const snapshot of artifactSnapshots) assertStableFile(snapshot, "registered artifact");
+        for (const snapshot of runValidation.evidenceSnapshots.values()) assertStableFile(snapshot, "raw evidence");
       }
     });
     console.log(JSON.stringify({ status: "PASS", report: output }));

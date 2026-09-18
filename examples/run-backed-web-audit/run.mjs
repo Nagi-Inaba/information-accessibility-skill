@@ -8,6 +8,7 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 import { lookupRequirement } from "../../codex/skills/information-accessibility-practice/scripts/show-requirement.mjs";
+import { createRunEvidenceReference } from "../../codex/skills/information-accessibility-practice/scripts/lib/run-evidence.mjs";
 
 const exampleRoot = path.dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = path.resolve(exampleRoot, "../..");
@@ -17,10 +18,19 @@ const profileRequirement = "WCAG-2.2-SC-1.1.1";
 const screeningRequirement = "SCREEN-IMAGE-ALT";
 
 function parseArgs(argv) {
-  if (argv.length !== 2 || argv[0] !== "--output" || !argv[1] || argv[1].startsWith("--")) {
-    throw new Error("Usage: node examples/run-backed-web-audit/run.mjs --output <empty-directory>");
+  const options = { targetName: "Public run-backed accessibility example", targetRefs: [] };
+  const seen = new Set();
+  for (let i = 0; i < argv.length; i += 2) {
+    const flag = argv[i];
+    if (!["--output", "--target-name", "--target-ref"].includes(flag) || !argv[i + 1] || argv[i + 1].startsWith("--")) throw new Error(`Invalid example argument: ${flag}`);
+    if (flag !== "--target-ref" && seen.has(flag)) throw new Error(`Duplicate argument: ${flag}`);
+    seen.add(flag);
+    if (flag === "--target-ref") options.targetRefs.push(argv[i + 1]);
+    else options[flag === "--output" ? "output" : "targetName"] = argv[i + 1];
   }
-  return { output: path.resolve(argv[1]) };
+  if (!options.output) throw new Error("Usage: node examples/run-backed-web-audit/run.mjs --output <empty-directory> [--target-name <name>] [--target-ref <ref>]");
+  if (!options.targetRefs.length) options.targetRefs.push("https://example.com/");
+  return { ...options, output: path.resolve(options.output) };
 }
 
 function runCli(args) {
@@ -89,11 +99,12 @@ function screeningArtifact(runId, suffix) {
     createdAt: capturedAt,
     inputs: [],
     payload: {
-      schema_version: "2.0.0",
+      schema_version: "3.0.0",
       observations: [{
+        evidence_refs: [],
         requirement_id: screeningRequirement,
         evidence_level: "E1",
-        method: "Read-only rendered fixture inspection",
+        method: "Static fixture HTML inspection (illustrative)",
         location: "Example page, informative image",
         observation: "The fixture image has no programmatically determinable text alternative.",
         captured_at: capturedAt,
@@ -213,7 +224,7 @@ function bindAssessmentToRun(assessmentFile, runFile) {
   rewriteJson(assessmentFile, assessment);
 }
 
-function buildScenario(base, { name, runId, suffix, humanReviewed }) {
+function buildScenario(base, { name, runId, suffix, humanReviewed, targetName, targetRefs }) {
   const scenario = path.join(base, name);
   const artifactRoot = path.join(scenario, "artifacts");
   fs.mkdirSync(artifactRoot, { recursive: true, mode: 0o700 });
@@ -226,9 +237,9 @@ function buildScenario(base, { name, runId, suffix, humanReviewed }) {
     "--inspection-purpose", "Identify major barriers and the next checks",
     "--run-id", runId,
     "--profile", "web-modern",
-    "--target-name", "Public run-backed accessibility example",
+    "--target-name", targetName,
     "--target-version", "fixture-v1",
-    "--target-ref", "https://example.com/",
+    ...targetRefs.flatMap((ref) => ["--target-ref", ref]),
     "--artifact-root", artifactRoot,
     "--network", "none",
     "--interaction", "safe_read_only",
@@ -238,9 +249,9 @@ function buildScenario(base, { name, runId, suffix, humanReviewed }) {
   runCli([
     "assessment",
     "--profile", "web-modern",
-    "--target-name", "Public run-backed accessibility example",
+    "--target-name", targetName,
     "--target-version", "fixture-v1",
-    "--target-ref", "https://example.com/",
+    ...targetRefs.flatMap((ref) => ["--target-ref", ref]),
     "--evaluator", "Audit orchestrator",
     "--evaluated-at", "2026-08-23",
     "--output", baseline
@@ -250,6 +261,11 @@ function buildScenario(base, { name, runId, suffix, humanReviewed }) {
   const artifacts = [];
   const screening = screeningArtifact(runId, suffix);
   const screeningFile = path.join(artifactRoot, "screening-observations.json");
+  const captureBytes = fs.readFileSync(path.join(exampleRoot, "fixture.html"));
+  fs.writeFileSync(path.join(artifactRoot, "captured-fixture.html"), captureBytes, { flag: "wx", mode: 0o600 });
+  const observation = screening.payload.observations[0];
+  observation.evidence_refs.push(createRunEvidenceReference({ run: readJson(initialRun), targetRef: targetRefs[0], evidenceType: "dom_snapshot",
+    relativePath: "captured-fixture.html", bytes: captureBytes, capturedAt: observation.captured_at }));
   writeJsonNew(screeningFile, screening);
   artifacts.push({ value: screening, file: screeningFile });
 
@@ -302,15 +318,17 @@ function buildScenario(base, { name, runId, suffix, humanReviewed }) {
 }
 
 export function main(argv = process.argv.slice(2)) {
-  const { output } = parseArgs(argv);
+  const { output, targetName, targetRefs } = parseArgs(argv);
   ensureEmptyDirectory(output);
   const screeningOnly = buildScenario(output, {
+    targetName, targetRefs,
     name: "screening-only",
     runId: "RUN-20260823T120000Z-EXAM0001",
     suffix: "1",
     humanReviewed: false
   });
   const humanReviewed = buildScenario(output, {
+    targetName, targetRefs,
     name: "human-reviewed",
     runId: "RUN-20260823T120000Z-EXAM0002",
     suffix: "2",

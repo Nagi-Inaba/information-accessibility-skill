@@ -1,6 +1,7 @@
 ﻿import assert from "node:assert/strict";
 import { createInspectionRequest } from "../codex/skills/information-accessibility-practice/scripts/lib/inspection-request.mjs";
 import crypto from "node:crypto";
+import { bindFixtureEvidence } from "./helpers/saved-evidence.mjs";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -315,6 +316,7 @@ function makeRemediationReadyFixture({ sourceRoot, artifactRoot }) {
     createdAt: "2026-07-18T10:00:01Z",
     payload: screeningPayload()
   });
+  bindFixtureEvidence(screening, initialRun(artifactRoot), artifactRoot);
   writeJson(screeningFile, screening);
   const screeningSha256 = sha256File(screeningFile);
 

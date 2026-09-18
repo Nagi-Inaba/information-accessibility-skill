@@ -32,6 +32,8 @@ export function main(argv = process.argv.slice(2)) {
   const snapshot = readStableFile(input, { label: "audit run input" });
   const result = validateAuditRun(parseSnapshot(snapshot), { runFile: input });
   assertStableFile(snapshot, "audit run input");
+  for (const { snapshot: artifact } of result.envelopesById?.values() ?? []) assertStableFile(artifact, "registered artifact");
+  for (const evidence of result.evidenceSnapshots?.values() ?? []) assertStableFile(evidence, "raw evidence");
   writeNewJson(output, { valid: result.valid, errors: result.errors });
   process.stdout.write(`${JSON.stringify({ status: result.valid ? "PASS" : "FAIL", input, output, valid: result.valid })}\n`);
   if (!result.valid) {

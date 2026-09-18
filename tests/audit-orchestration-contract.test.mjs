@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { schemaFixtureReference } from "./helpers/saved-evidence.mjs";
 import { createInspectionRequest } from "../codex/skills/information-accessibility-practice/scripts/lib/inspection-request.mjs";
 import fs from "node:fs";
 import path from "node:path";
@@ -98,8 +99,9 @@ function validRunArtifact() {
 
 function validScreeningPayload() {
   return {
-    schema_version: "2.0.0",
+    schema_version: "3.0.0",
     observations: [{
+      evidence_refs: [schemaFixtureReference(createdAt)],
       requirement_id: "SCREEN-AXE-SERIOUS",
       evidence_level: "E1",
       method: "Automated scan followed by read-only inspection",
@@ -644,10 +646,11 @@ test("the orchestration registry fixes the complete role, artifact, and transiti
     },
     {
       id: "screening-observations",
-      latest_schema_version: "2.0.0",
+      latest_schema_version: "3.0.0",
       schema_versions: [
         { version: "1.0.0", schema_file: "screening-observations-1.0.0.schema.json", mode: "read_only" },
-        { version: "2.0.0", schema_file: "screening-observations.schema.json", schema_sha256: "9af1013793af9e250e0a16521d8241fe82e1a20d6eff415d965e89fcfef6b7f2", mode: "current" }
+        { version: "2.0.0", schema_file: "screening-observations-2.0.0.schema.json", mode: "read_only" },
+        { version: "3.0.0", schema_file: "screening-observations.schema.json", schema_sha256: "268da46d8988039e5ff272166fa2ab13c3492a6a164ecadbb3ac07f47691e33b", mode: "current" }
       ]
     },
     {

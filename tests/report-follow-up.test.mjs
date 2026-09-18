@@ -3,6 +3,7 @@ import fs from "node:fs";
 import test from "node:test";
 import { guardScreeningProjection } from "../codex/skills/information-accessibility-practice/scripts/lib/review-details.mjs";
 import { validateJsonSchema } from "../codex/skills/information-accessibility-practice/scripts/lib/json-schema.mjs";
+import { schemaFixtureReference } from "./helpers/saved-evidence.mjs";
 import { generateAssessment } from "../codex/skills/information-accessibility-practice/scripts/generate-assessment.mjs";
 import { validateAssessment } from "../codex/skills/information-accessibility-practice/scripts/validate-assessment.mjs";
 import { buildStandalonePresentation, renderReportMarkdown } from "../codex/skills/information-accessibility-practice/scripts/lib/report-presentation.mjs";
@@ -65,6 +66,7 @@ test("report passes for resize and skip links require a completed E1 test record
   for (const prefix of ["WCAG-2.2", "JIS-X-8341-3-2016"]) {
     for (const [criterion, id] of [["1.4.4", "text_resize_200"], ["2.4.1", "skip_link_navigation"]]) {
       const observation = {
+        evidence_refs: [schemaFixtureReference("2026-09-13T15:00:00Z")],
         requirement_id: "SCREEN-FOLLOW-UP", evidence_level: "E1", method: "Limited browser check",
         location: "https://example.com/", observation: "Only viewport settings or the link presence were inspected.",
         captured_at: "2026-09-13T15:00:00Z", profile_requirement_id: `${prefix}-SC-${criterion}`,
@@ -78,7 +80,7 @@ test("report passes for resize and skip links require a completed E1 test record
           evidence: criterion === "1.4.4" ? "Up to 200%: content and functions retained." : "Activation reaches main content; next Tab reaches its first link." }],
         next_checks: []
       };
-      assert.deepEqual(validateJsonSchema({ schema_version: "2.0.0", observations: [observation] }, screeningSchema), []);
+      assert.deepEqual(validateJsonSchema({ schema_version: "3.0.0", observations: [observation] }, screeningSchema), []);
       assert.equal(guardScreeningProjection(observation).report_outcome, "pass");
       for (const mutate of [
         (item) => { item.review_details.performed_checks[0].environment = " "; },
@@ -94,7 +96,7 @@ test("report passes for resize and skip links require a completed E1 test record
       }
       const invalid = structuredClone(observation);
       delete invalid.review_details.performed_checks[0].evidence;
-      assert.ok(validateJsonSchema({ schema_version: "2.0.0", observations: [invalid] }, screeningSchema).length > 0);
+      assert.ok(validateJsonSchema({ schema_version: "3.0.0", observations: [invalid] }, screeningSchema).length > 0);
       observation.report_outcome = "fail";
       assert.equal(guardScreeningProjection(observation).report_outcome, "fail");
     }

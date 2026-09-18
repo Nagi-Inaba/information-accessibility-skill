@@ -7,6 +7,20 @@ function option(flag, value, description) {
 
 const definitions = [
   {
+    name: "bind-evidence",
+    script: "bind-audit-evidence.mjs",
+    summary: "Bind an existing private evidence file to one draft screening observation.",
+    usage: ["accessibility-audit bind-evidence --run <run.json> --artifact <draft.json> --observation <SCREEN-id> --file <saved-file> --type <dom_snapshot|accessibility_tree|screenshot|interaction_log|network_log|other> --target-ref <declared-target> --captured-at <RFC3339> [--snapshot-id <id>] --output <new-artifact.json>"],
+    notes: ["Drafts use screening-observations 3.0.0 and evidence_refs arrays. Bind every E1 observation before registration.", "Files and outputs stay within the artifact root. The command preserves observations and evidence levels; it does not inspect targets or authenticate the capture."]
+  },
+  {
+    name: "compare-evidence",
+    script: "compare-audit-evidence.mjs",
+    summary: "Compare validated saved evidence before and after a change, for private review.",
+    usage: ["accessibility-audit compare-evidence --before <run.json> --after <run.json> --output <new-private-comparison.json>"],
+    notes: ["Both runs and their saved files are revalidated. Results describe byte changes, not accessibility outcomes."]
+  },
+  {
     name: "status",
     script: "show-audit-status.mjs",
     summary: "Read run state, evidence coverage, validation, successor warnings and next operations.",

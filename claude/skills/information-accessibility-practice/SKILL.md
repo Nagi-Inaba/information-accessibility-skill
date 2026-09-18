@@ -44,6 +44,8 @@ Use the reviewer as the orchestrator when a review needs registered role artifac
 
 The default artifact sequence is `screening-observations` -> `human-review-queue` -> `remediation-plan`. The orchestrator materializes and registers each candidate before using it as an input. Read [`references/agent-orchestration.md`](references/agent-orchestration.md) for schemas, transitions, CLI usage, authorization boundaries, and recovery behavior; do not duplicate the role prompts in a run plan.
 
+For registered screening evidence, use payload 3.0.0 and read [`references/saved-evidence.md`](references/saved-evidence.md). Every E1 observation requires saved raw evidence bound to the exact run, declared target version and environment; unavailable capture remains E0 with its limitation. `bind-evidence` adds a reference to a new candidate without changing its conclusions. Registration and report generation recheck raw bytes; `compare-evidence` records private before/after byte and context differences.
+
 When registered artifacts have been merged into an assessment, use the run-backed report route described there. It validates the run, assessment, and registered artifact bytes, then publishes the Observed / 観測, Improvement / 改善, and Human review / 人が確認 categories without the internal run and role metadata. Keep standalone `--input` reporting for assessments that are not backed by an audit run.
 
 ## Core Model

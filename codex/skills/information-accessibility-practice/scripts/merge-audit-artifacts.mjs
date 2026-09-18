@@ -79,12 +79,14 @@ export function main(argv = process.argv.slice(2)) {
   }
   const resources = loadAuditResources();
   resources.artifact_snapshots_by_id = artifactSnapshotsById;
+  resources.evidence_snapshots_by_path = runValidation.evidenceSnapshots;
   const assessment = parseSnapshot(assessmentSnapshot, "assessment input");
   const merged = mergeArtifacts({ run, assessment, artifacts, registries: resources, claimTier: options.claimTier });
   assertStableFile(runSnapshot, "audit run input");
   assertStableFile(assessmentSnapshot, "assessment input");
   for (const snapshot of artifactSnapshots) assertStableFile(snapshot, "merge artifact");
   for (const { snapshot } of runValidation.envelopesById.values()) assertStableFile(snapshot, "registered artifact");
+  for (const snapshot of runValidation.evidenceSnapshots.values()) assertStableFile(snapshot, "raw evidence");
   writeNewJson(output, merged);
   process.stdout.write(`${JSON.stringify({ status: "PASS", output, artifacts: artifacts.length, assessment_valid: true })}\n`);
 }

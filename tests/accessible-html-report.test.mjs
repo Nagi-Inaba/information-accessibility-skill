@@ -242,20 +242,11 @@ test("public HTML uses the shared sanitizer and escapes hostile assessment prose
 
 test("run-backed public HTML preserves provenance without leaking private target metadata", (t) => {
   const directory = tempDirectory(t);
-  const generated = runNode(runBackedExample, ["--output", directory]);
+  const generated = runNode(runBackedExample, ["--output", directory, "--target-name", "Private report alice@example.com", "--target-ref", "https://10.0.0.5/admin?token=RUN-HTML-SECRET"]);
   assert.equal(generated.status, 0, generated.stderr || generated.stdout);
   const scenario = path.join(directory, "screening-only");
   const runFile = path.join(scenario, "audit-run.json");
   const assessmentFile = path.join(scenario, "merged-assessment.json");
-  const run = readJson(runFile);
-  const assessment = readJson(assessmentFile);
-  run.target.name = "Private report alice@example.com";
-  run.target.urls_or_files = ["https://10.0.0.5/admin?token=RUN-HTML-SECRET"];
-  run.scope.included = [...run.target.urls_or_files];
-  assessment.assessment.target = structuredClone(run.target);
-  assessment.assessment.scope = structuredClone(run.scope);
-  writeJson(runFile, run);
-  writeJson(assessmentFile, assessment);
 
   const output = path.join(directory, "run-public.html");
   const manifest = path.join(directory, "run-redactions.json");

@@ -10,6 +10,9 @@ import { validateJsonSchema } from "./json-schema.mjs";
 import { createInspectionRequest, inspectionRequestErrors } from "./inspection-request.mjs";
 import { buildRunFindings } from "./run-findings.mjs";
 import { compareInstants } from "./date-time.mjs";
+import { canonicalJson } from "./canonical-json.mjs";
+import { collectScreeningEvidence } from "./run-evidence.mjs";
+export { canonicalJson } from "./canonical-json.mjs";
 
 const defaultSkillRoot = path.dirname(path.dirname(path.dirname(fileURLToPath(import.meta.url))));
 const noFollow = process.platform === "win32" ? 0 : (fs.constants.O_NOFOLLOW ?? 0);
@@ -51,13 +54,14 @@ const currentAuditRunManifestContract = {
 };
 const currentScreeningManifestContract = {
   id: "screening-observations",
-  latest_schema_version: "2.0.0",
+  latest_schema_version: "3.0.0",
   schema_versions: [
     { version: "1.0.0", schema_file: "screening-observations-1.0.0.schema.json", mode: "read_only" },
+    { version: "2.0.0", schema_file: "screening-observations-2.0.0.schema.json", mode: "read_only" },
     {
-      version: "2.0.0",
+      version: "3.0.0",
       schema_file: "screening-observations.schema.json",
-      schema_sha256: "9af1013793af9e250e0a16521d8241fe82e1a20d6eff415d965e89fcfef6b7f2",
+      schema_sha256: "268da46d8988039e5ff272166fa2ab13c3492a6a164ecadbb3ac07f47691e33b",
       mode: "current"
     }
   ]
@@ -187,17 +191,6 @@ function inspectSafeOutput(output) {
 
 export function assertNewOutputPath(output) {
   return inspectSafeOutput(output).absolute;
-}
-
-export function canonicalJson(value) {
-  function normalize(item) {
-    if (Array.isArray(item)) return item.map(normalize);
-    if (item !== null && typeof item === "object") {
-      return Object.fromEntries(Object.keys(item).sort(compareText).map((key) => [key, normalize(item[key])]));
-    }
-    return item;
-  }
-  return `${JSON.stringify(normalize(value), null, 2)}\n`;
 }
 
 function removeCreatedOutput(inspected, createdIdentity) {
@@ -1289,7 +1282,13 @@ export function validateAuditRun(run, { skillRoot = defaultSkillRoot, runFile } 
     validateRemediationBindings(envelopesById, errors);
   }
   validateHistory(runRecord, runResources, artifactsById, errors);
-  return { valid: errors.length === 0, errors, resources: runResources, artifactRoot, envelopesById };
+  const evidence = errors.length ? { errors: [], snapshots: new Map() } : collectScreeningEvidence(
+    runRecord,
+    [...envelopesById.values()].map(({ envelope }) => envelope),
+    (relativePath) => readStableFile(resolveInside(artifactRoot, path.join(artifactRoot, ...relativePath.split("/"))))
+  );
+  errors.push(...evidence.errors);
+  return { valid: errors.length === 0, errors, resources: runResources, artifactRoot, envelopesById, evidenceSnapshots: evidence.snapshots };
 }
 
 function normalizePermission(value, aliases, name) {
@@ -1444,6 +1443,8 @@ export function registerArtifact(run, artifact, options = {}) {
   const nextValidation = validateAuditRun(next, { skillRoot, runFile: options.runFile });
   if (!nextValidation.valid) throw new Error(`Registered run is invalid:\n- ${nextValidation.errors.join("\n- ")}`);
   assertStableFile(snapshot, "artifact file");
+  for (const { snapshot: registeredSnapshot } of nextValidation.envelopesById.values()) assertStableFile(registeredSnapshot, "registered artifact");
+  for (const evidenceSnapshot of nextValidation.evidenceSnapshots.values()) assertStableFile(evidenceSnapshot, "raw evidence");
   return next;
 }
 
@@ -1580,6 +1581,10 @@ export function mergeArtifacts({ run, assessment, artifacts, registries, claimTi
   validateHumanQueueBindings(suppliedEnvelopesById, run.profile.id, resources, bindingErrors);
   validateDeclaredHumanBindings(suppliedEnvelopesById, run.profile.id, resources, bindingErrors);
   validateRemediationBindings(suppliedEnvelopesById, bindingErrors);
+  if (!bindingErrors.length) {
+    bindingErrors.push(...collectScreeningEvidence(run, artifacts,
+      (relativePath) => resources.evidence_snapshots_by_path?.get(relativePath)).errors);
+  }
   if (bindingErrors.length) throw new Error(`Invalid merge artifact binding:\n- ${bindingErrors.join("\n- ")}`);
   const merged = structuredClone(assessment);
   const existingIds = new Set(merged.assessment.results.map((item) => item.requirement_id));

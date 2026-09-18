@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import crypto from "node:crypto";
+import { schemaFixtureReference } from "./helpers/saved-evidence.mjs";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
@@ -16,8 +17,9 @@ const schema = JSON.parse(schemaBytes.toString("utf8"));
 
 function payload(profileRequirementId) {
   return {
-    schema_version: "2.0.0",
+    schema_version: "3.0.0",
     observations: [{
+      evidence_refs: [schemaFixtureReference("2026-08-21T00:00:00Z")],
       requirement_id: "SCREEN-ADDITIONAL-FOCUS",
       evidence_level: "E1",
       method: "browser inspection",
