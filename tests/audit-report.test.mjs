@@ -528,6 +528,18 @@ test("status refuses corrupt evidence and detects ambiguous related manifests", 
   const nullFile = path.join(temp, "null.json");
   writeJson(nullFile, null);
   assert.equal(auditStatus(nullFile).valid, false);
+  const malformedFile = path.join(temp, "malformed-types.json");
+  writeJson(malformedFile, { run_id: 42, schema_version: 7, status: false, profile: { id: 42 }, permissions: [],
+    artifacts: [{ artifact_id: 42, artifact_type: [], producer_role: false, sha256: {} }] });
+  const malformed = auditStatus(malformedFile);
+  const malformedSchemaErrors = [];
+  validateJsonSchema(malformed, readJson(path.join(skill, "references/audit-status.schema.json")), "$", malformedSchemaErrors);
+  assert.deepEqual(malformedSchemaErrors, []);
+  assert.equal(malformed.valid, false);
+  assert.ok(Object.values(malformed.operations).every((operation) => !operation.available));
+  assert.equal(malformed.run.id, null);
+  assert.equal(malformed.run.permissions, null);
+  assert.equal(malformed.artifacts[0].sha256, null);
 });
 
 test("public follow-up projection keeps counts and source records coherent and withholds private prose", (t) => {

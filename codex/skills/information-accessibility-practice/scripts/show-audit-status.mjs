@@ -12,6 +12,10 @@ function parse(snapshot) {
   return JSON.parse(snapshot.bytes.toString("utf8").replace(/^\uFEFF/u, ""));
 }
 
+function stringOrNull(value) {
+  return typeof value === "string" ? value : null;
+}
+
 function extendsRun(candidate, run) {
   const fields = ["run_id", "schema_version", "target", "profile", "scope", "environment", "permissions", "resource_versions", "inspection_request", "supersedes_run_id"];
   return fields.every((key) => isDeepStrictEqual(candidate[key], run[key]))
@@ -75,12 +79,12 @@ export function auditStatus(runFile, { skillRoot = defaultSkillRoot } = {}) {
   const result = {
     schema_version: "1.0.0",
     valid: validation.valid,
-    run: { id: run?.run_id ?? null, schema_version: run?.schema_version ?? null, state: run?.status ?? null,
-      profile: run?.profile?.id ?? null, revision: Array.isArray(run?.artifacts) ? run.artifacts.length : null,
-      permissions: run?.permissions ?? null },
+    run: { id: stringOrNull(run?.run_id), schema_version: stringOrNull(run?.schema_version), state: stringOrNull(run?.status),
+      profile: stringOrNull(run?.profile?.id), revision: Array.isArray(run?.artifacts) ? run.artifacts.length : null,
+      permissions: run?.permissions && typeof run.permissions === "object" && !Array.isArray(run.permissions) ? run.permissions : null },
     artifacts: (Array.isArray(run?.artifacts) ? run.artifacts : []).map((item) => ({
-      id: item?.artifact_id ?? null, type: item?.artifact_type ?? null, producer: item?.producer_role ?? null,
-      sha256: item?.sha256 ?? null, validation: validation.valid ? "valid" : "run_invalid"
+      id: stringOrNull(item?.artifact_id), type: stringOrNull(item?.artifact_type), producer: stringOrNull(item?.producer_role),
+      sha256: stringOrNull(item?.sha256), validation: validation.valid ? "valid" : "run_invalid"
     })),
     coverage: { profile_requirements: profile?.requirement_ids.length ?? null,
       human_reviewed: validation.valid ? reviewed.size : null, evaluation: null },
