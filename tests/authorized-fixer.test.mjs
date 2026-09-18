@@ -581,7 +581,7 @@ test("validate-fix-authorization CLI rejects missing operation permissions and m
 
   const permissionCases = [
     [(run) => { run.permissions = { ...deniedCanonicalPermissions }; }, /run\.permissions\.(source_write|command_execution) must be/],
-    [(run) => { run.permissions.command_execution = "denied"; }, /command_execution must be authorized_verification_only|permissions must exactly match/],
+    [(run) => { run.permissions.command_execution = "denied"; }, /command_execution must (?:be authorized_verification_only|equal "authorized_verification_only")|permissions must exactly match/],
     [(run) => { run.permissions.allowed_actions = ["execute_authorized_verification_commands", "inspect_without_mutation", "read_allowlisted_resources"]; }, /permissions must exactly match|allowed_actions/],
     [(run) => { run.permissions.allowed_actions = ["write_authorized_files", "inspect_without_mutation", "read_allowlisted_resources"]; }, /permissions must exactly match|allowed_actions/]
   ];
@@ -604,6 +604,11 @@ test("validate-fix-authorization CLI rejects missing operation permissions and m
 
   const legacyRun = structuredClone(fixture.run);
   legacyRun.schema_version = "3.0.0";
+  delete legacyRun.target_inventory;
+  delete legacyRun.inspection_request;
+  delete legacyRun.permissions.command_execution;
+  delete legacyRun.permissions.network_policy;
+  delete legacyRun.permissions.interaction_policy;
   writeJson(fixture.runFile, legacyRun);
   assertRejected(
     runNode(validateFixAuthorizationScript, [

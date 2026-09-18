@@ -80,6 +80,8 @@ Supervised input requires [concrete operations, a supervisor, expiry and live ap
 
 The [human review signature CLI](codex/skills/information-accessibility-practice/references/reviewer-assurance.md) distinguishes declarations, self-signed records, and signatures recognized by a recipient-selected trust policy. Assessment 2.0.0 binds declared rows to portable review records and rederives assurance during validation and reporting. Old `human_verified` rows are displayed as legacy self-declarations. Signatures do not prove review correctness or final-bundle integrity.
 
+The [audit-bundle CLI](codex/skills/information-accessibility-practice/references/audit-bundle-attestation.md) verifies saved run, registered artifact, evidence, assessment and report files, plus linked predecessor signatures, offline. It uses externally signed records and recipient-selected trust to distinguish unsigned, self-signed, organizational and other assurances. Complete target-source retention, historical file retention, trusted time and report correctness require separate verification.
+
 ### Codex
 
 On Windows, use the manifest-aware installer.

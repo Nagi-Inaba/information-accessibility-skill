@@ -655,10 +655,14 @@ export function loadAuditResources(skillRoot = defaultSkillRoot) {
 
 function artifactRootFor(run, runFile) {
   if (!runFile) throw new Error("runFile is required to resolve artifact_root");
-  if (typeof run?.artifact_root !== "string" || path.isAbsolute(run.artifact_root) || hasTraversal(run.artifact_root)) {
+  if (typeof run?.artifact_root !== "string" || path.isAbsolute(run.artifact_root)
+      || path.win32.isAbsolute(run.artifact_root) || /^[A-Za-z]:/u.test(run.artifact_root) || hasTraversal(run.artifact_root)) {
     throw new Error(`artifact_root must be a traversal-free relative path: ${String(run?.artifact_root)}`);
   }
-  return inspectRealComponents(path.resolve(path.dirname(path.resolve(runFile)), run.artifact_root), {
+  const parent = path.dirname(path.resolve(runFile));
+  const resolved = path.resolve(parent, run.artifact_root);
+  if (pathKey(parent) !== pathKey(resolved) && !isInside(parent, resolved)) throw new Error("artifact_root must stay inside the run directory.");
+  return inspectRealComponents(resolved, {
     type: "directory",
     label: "artifact root"
   }).absolute;
@@ -1238,7 +1242,7 @@ function validateHistory(run, resources, artifactsById, errors) {
   }
 }
 
-export function validateAuditRun(run, { skillRoot = defaultSkillRoot, runFile } = {}) {
+export function validateAuditRun(run, { skillRoot = defaultSkillRoot, runFile, readArtifactFile = readStableFile } = {}) {
   const errors = [];
   let resources;
   try {
@@ -1250,6 +1254,9 @@ export function validateAuditRun(run, { skillRoot = defaultSkillRoot, runFile } 
   const schema = resources.auditRunSchemas.get(runRecord.schema_version);
   if (!schema) errors.push(`Unsupported audit-run schema_version: ${String(runRecord.schema_version)}.`);
   else validateJsonSchema(run, schema, "$", errors);
+  // Invalid paths and malformed collections must not cause artifact I/O before
+  // the schema rejection. Bundle verification also supplies a bounded reader.
+  if (errors.length) return { valid: false, errors, resources, envelopesById: new Map(), evidenceSnapshots: new Map() };
   const registryVersion = runRecord.resource_versions?.orchestration_registry_version;
   const registryRecord = resources.orchestrationRegistries.get(registryVersion);
   if (!registryRecord) errors.push(`Unsupported orchestration_registry_version: ${String(registryVersion)}.`);
@@ -1311,7 +1318,7 @@ export function validateAuditRun(run, { skillRoot = defaultSkillRoot, runFile } 
       const canonicalPath = pathKey(file);
       if (canonicalArtifactPaths.has(canonicalPath)) errors.push(`Duplicate canonical artifact path: ${String(entry?.path)}.`);
       canonicalArtifactPaths.add(canonicalPath);
-      const snapshot = readStableFile(file, { label: `registered artifact ${String(entry?.artifact_id)}` });
+      const snapshot = readArtifactFile(file, { label: `registered artifact ${String(entry?.artifact_id)}` });
       if (snapshot.sha256 !== entry?.sha256) errors.push(`Registered artifact current hash mismatch: ${String(entry?.artifact_id)}.`);
       const envelope = parseJsonBytes(snapshot.bytes, `registered artifact ${String(entry?.artifact_id)}`);
       envelopesById.set(entry?.artifact_id, { envelope, snapshot });
@@ -1338,7 +1345,7 @@ export function validateAuditRun(run, { skillRoot = defaultSkillRoot, runFile } 
   const evidence = errors.length ? { errors: [], snapshots: new Map() } : collectScreeningEvidence(
     runRecord,
     [...envelopesById.values()].map(({ envelope }) => envelope),
-    (relativePath) => readStableFile(resolveInside(artifactRoot, path.join(artifactRoot, ...relativePath.split("/"))))
+    (relativePath) => readArtifactFile(resolveInside(artifactRoot, path.join(artifactRoot, ...relativePath.split("/"))))
   );
   errors.push(...evidence.errors);
   return { valid: errors.length === 0, errors, resources: runResources, artifactRoot, envelopesById, evidenceSnapshots: evidence.snapshots };

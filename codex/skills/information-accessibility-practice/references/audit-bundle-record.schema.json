@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:information-accessibility:audit-bundle-record:1.0.0",
+  "title": "Private audit bundle file commitments and detached external attestation",
+  "description": "Runtime additionally verifies exact file-set equality, portable paths, sorted uniqueness, byte budgets, current run/assessment semantics and every supplied predecessor signature. Historical file bytes and report correctness are not implied.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "manifest", "attestation"],
+  "properties": {
+    "schema_version": { "const": "1.0.0" },
+    "manifest": {
+      "type": "object", "additionalProperties": false,
+      "required": ["bundle_id", "coverage", "context", "run", "assessment", "reports", "artifacts", "evidence", "attachments", "files", "predecessor"],
+      "properties": {
+        "bundle_id": { "$ref": "#/$defs/id" },
+        "coverage": { "const": "registered-artifacts-and-evidence-plus-explicit-attachments" },
+        "context": {
+          "type": "object", "additionalProperties": false,
+          "required": ["run_id", "run_schema_version", "target", "profile", "scope", "environment", "target_inventory", "resource_versions", "supersedes_run_id"],
+          "properties": {
+            "run_id": { "$ref": "#/$defs/id" },
+            "run_schema_version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
+            "target": { "type": "object" },
+            "profile": { "type": "object" },
+            "scope": { "type": "object" },
+            "environment": { "type": "object" },
+            "target_inventory": { "type": ["object", "null"] },
+            "resource_versions": { "type": "object" },
+            "supersedes_run_id": { "type": ["string", "null"], "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$" }
+          }
+        },
+        "run": { "$ref": "#/$defs/path" },
+        "assessment": { "$ref": "#/$defs/path" },
+        "reports": { "type": "array", "minItems": 1, "maxItems": 16, "uniqueItems": true, "items": { "$ref": "#/$defs/path" } },
+        "artifacts": {
+          "type": "array", "maxItems": 4096,
+          "items": {
+            "type": "object", "additionalProperties": false, "required": ["artifact_id", "path"],
+            "properties": { "artifact_id": { "$ref": "#/$defs/id" }, "path": { "$ref": "#/$defs/path" } }
+          }
+        },
+        "evidence": { "type": "array", "maxItems": 4096, "uniqueItems": true, "items": { "$ref": "#/$defs/path" } },
+        "attachments": { "type": "array", "maxItems": 4096, "uniqueItems": true, "items": { "$ref": "#/$defs/path" } },
+        "files": {
+          "type": "array", "minItems": 1, "maxItems": 4096,
+          "items": {
+            "type": "object", "additionalProperties": false, "required": ["path", "sha256", "size_bytes"],
+            "properties": {
+              "path": { "$ref": "#/$defs/path" },
+              "sha256": { "$ref": "#/$defs/sha256" },
+              "size_bytes": { "type": "integer", "minimum": 0, "maximum": 67108864 }
+            }
+          }
+        },
+        "predecessor": {
+          "type": ["object", "null"], "additionalProperties": false,
+          "required": ["bundle_id", "run_id", "run_sha256", "subject_sha256", "attestation_sha256"],
+          "properties": {
+            "bundle_id": { "$ref": "#/$defs/id" },
+            "run_id": { "$ref": "#/$defs/id" },
+            "run_sha256": { "$ref": "#/$defs/sha256" },
+            "subject_sha256": { "$ref": "#/$defs/sha256" },
+            "attestation_sha256": { "$ref": "#/$defs/sha256" }
+          }
+        }
+      }
+    },
+    "attestation": {
+      "type": ["object", "null"],
+      "description": "Null for unsigned records. Otherwise the strict statement, public_key and signature protocol from attestation-verifier.mjs; kind must be audit_bundle. Verification results must never be serialized here as authority."
+    }
+  },
+  "$defs": {
+    "id": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$" },
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "path": { "type": "string", "minLength": 1, "description": "Portable root-relative slash-separated path; runtime rejects traversal, absolute/drive-relative paths, Windows device/stream aliases, control characters, trailing dots/spaces and case collisions." }
+  }
+}

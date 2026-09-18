@@ -80,6 +80,8 @@ run-backedの実通信には、[具体的な通信方針と非公開ログ](code
 
 [人手レビューの署名検証CLI](codex/skills/information-accessibility-practice/references/reviewer-assurance.md)は、自己申告・自己署名・受領者の信頼方針で認められた署名を区別します。新しいassessment 2.0.0の結果行に元のレビュー記録を結び付け、検証・レポート生成のたびに保証水準を再計算します。旧形式の`human_verified`は「旧形式の自己申告」と表示します。署名はレビュー内容の正しさや最終bundle全体の完全性を証明しません。
 
+[audit-bundle CLI](codex/skills/information-accessibility-practice/references/audit-bundle-attestation.md)は、保存したrun・登録artifact・証拠・assessment・レポートの実ファイルと、前段の署名への連結をオフラインで照合します。外部で署名した記録と受領者の信頼方針を使い、未署名・自己署名・組織署名等を区別します。保存した全対象ソース、過去ファイルの保存状態、信頼できる時刻、報告内容の正しさは別途確認が必要です。
+
 ### Codex
 
 Windowsではmanifest対応installerを利用できます。

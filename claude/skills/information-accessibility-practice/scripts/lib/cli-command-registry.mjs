@@ -7,6 +7,27 @@ function option(flag, value, description) {
 
 const definitions = [
   {
+    name: "audit-bundle", script: "audit-bundle.mjs",
+    summary: "Prepare or verify offline commitments to audit files and a signed predecessor chain.",
+    usage: [
+      "accessibility-audit audit-bundle prepare --root <directory> --run <run.json> --assessment <assessment.json> --report <report.md|html> --output <new-private-record.json>",
+      "accessibility-audit audit-bundle verify --root <directory> --record <private-record.json> [trust options]"
+    ],
+    options: [
+      option("--report", "<file>", "Prepare: 1–16 explicit reports; repeat for multiple formats."),
+      option("--attachment", "<file>", "Prepare: explicitly retained source/capture file; repeatable."),
+      option("--predecessor", "<record.json>", "Repeat for earlier signed records; prepare takes the immediate predecessor first."),
+      option("--require-complete-chain", "", "Reject any superseded run without a predecessor signature."),
+      option("--trust-policy", "<policy.json>", "Recipient-selected external signer policy."),
+      option("--trust-policy-sha256", "<SHA-256>", "Independently trusted canonical policy digest; required with policy."),
+      option("--minimum-assurance", "<level>", "Verify: unsigned, self_signed, signed, organization_attested or independent; applies to every link."),
+      option("--expected-subject-sha256", "<SHA-256>", "Verify: recipient-selected current bundle digest, to reject an older valid record.")
+    ],
+    notes: ["All committed files must be inside --root. Paths supplied on the CLI resolve from the working directory.",
+      "No keys are created, no data is uploaded, and no conformance tier is elevated. Historical file bytes and trusted timestamps are not verified.",
+      "See references/audit-bundle-attestation.md for the signed format, offline trust and archival limits."]
+  },
+  {
     name: "human-review", script: "human-review.mjs",
     summary: "Prepare, verify or apply portable human-review records under recipient-selected trust.",
     usage: [

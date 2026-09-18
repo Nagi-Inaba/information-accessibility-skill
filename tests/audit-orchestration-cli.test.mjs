@@ -1539,6 +1539,8 @@ test("registry 2 rejects remediation artifact payload 2 while registry 3 rejects
     delete legacyFixture.run.inspection_request;
     legacyFixture.run.resource_versions = resourceVersions("orchestration-registry-2.0.0.json");
     delete legacyFixture.run.permissions.command_execution;
+    delete legacyFixture.run.permissions.network_policy;
+    delete legacyFixture.run.permissions.interaction_policy;
     let legacyAuthorization;
     let legacyAuthorizationFile;
     if (artifactType === "change-record") {
