@@ -95,7 +95,7 @@ test("per-action approval persists before/after and immutable chain bound to mea
   const incomplete = Buffer.from(log.bytes.toString().trim().split("\n").slice(0, -1).join("\n"));
   assert.throws(() => validateInteractionEvidence(incomplete, f.run, log.reference), /Interaction evidence/);
   const artifact = { artifact_type: "screening-observations", artifact_id: "ART-INTERACTION", created_at: log.reference.captured_at,
-    payload: { schema_version: "3.0.0", observations: [{ requirement_id: "SCREEN-FOCUS", evidence_level: "E1", captured_at: log.reference.captured_at, evidence_refs: [log.reference] }] } };
+    payload: { schema_version: "4.0.0", observations: [{ requirement_id: "SCREEN-FOCUS", evidence_level: "E1", captured_at: log.reference.captured_at, evidence_refs: [log.reference] }] } };
   assert.deepEqual(collectScreeningEvidence(f.run, [artifact], () => ({ bytes: log.bytes, sha256: log.reference.sha256 })).errors, []);
 });
 

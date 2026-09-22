@@ -1,4 +1,4 @@
-import { guardScreeningProjection, groupScreeningProjections, screeningReviewRecord, reviewDetailLines } from "./review-details.mjs";
+import { guardScreeningProjection, groupScreeningProjections, screeningMappings, screeningInspectionRecord, screeningReviewRecord, reviewDetailLines } from "./review-details.mjs";
 import { queueReviewLines } from "./human-review-queue.mjs";
 import { renderSourceNoticesMarkdown } from "./source-provenance.mjs";
 import { networkScopeText } from "./network-policy.mjs";
@@ -172,7 +172,7 @@ function buildClaim({ assessment, validation, registry, locale, rows }) {
   };
 }
 
-function commonPresentation({ assessment, validation, registry, locale, rows, target, scope, environment, evaluator, limitations, findings, inspectionRequest, inspectionRecords }) {
+function commonPresentation({ assessment, validation, registry, locale, rows, target, scope, environment, evaluator, limitations, findings, inspectionRequest, inspectionRecords, screeningSummary }) {
   const normalizedLocale = normalizeReportLocale(locale);
   const messages = reportMessages(normalizedLocale);
   const profileId = assessment.profile.id;
@@ -195,6 +195,7 @@ function commonPresentation({ assessment, validation, registry, locale, rows, ta
     target: clone(target),
     ...(inspectionRequest ? { inspection_request: clone(inspectionRequest) } : {}),
     ...(inspectionRecords ? { inspection_records: clone(inspectionRecords) } : {}),
+    ...(screeningSummary ? { screening_summary: clone(screeningSummary) } : {}),
     scope: clone(scope),
     environment: clone(environment),
     evaluated_at: assessment.evaluated_at,
@@ -305,18 +306,16 @@ export function buildRunBackedPresentation({ run, assessment: assessmentRecord, 
     locale: normalizedLocale,
     rows,
     target: publicModel.target,
+    screeningSummary: {
+      observation_count: screeningCandidates.length,
+      barrier_candidate_count: screeningCandidates.filter((candidate) => candidate.signal_class === "candidate_issue"
+        || screeningMappings(candidate).some((mapping) => mapping.report_outcome === "fail")).length,
+      mapped_requirement_count: screeningByProfileId.size,
+      conflicting_requirement_count: [...screeningByProfileId.values()].filter((group) => group.conflicts.length).length
+    },
     inspectionRequest: run.inspection_request,
     inspectionRecords: [
-      ...screeningCandidates.map((candidate) => ({
-        requirement_id: candidate.requirement_id,
-        profile_requirement_id: candidate.profile_requirement_id,
-        outcome: candidate.report_outcome,
-        source_kind: "screening",
-        evidence_level: candidate.evidence_level,
-        rationale: candidate.report_rationale,
-        evidence: screeningEvidence(candidate),
-        review_details: clone(candidate.review_details)
-      })),
+      ...screeningCandidates.map(screeningInspectionRecord),
       ...(publicModel.recordedHumanChecks ?? []).map((human) => ({ ...clone(human), source_kind: "human_review" }))
     ],
     scope: publicModel.scope,
@@ -329,14 +328,8 @@ export function buildRunBackedPresentation({ run, assessment: assessmentRecord, 
       const human = humanById.get(finding.requirement_id);
       return {
         ...finding,
-        related_requirement_ids: [...new Set(candidates.map((candidate) => candidate.profile_requirement_id).filter(Boolean))],
-        review_records: human && finding.evidence_status === "Verified failure" ? [clone(human)] : [...new Map(candidates.map((candidate) => [candidate.requirement_id, {
-          requirement_id: candidate.profile_requirement_id ?? candidate.requirement_id,
-          outcome: candidate.report_outcome,
-          rationale: candidate.report_rationale || candidate.observation || messages.text.noEvidence,
-          evidence: screeningEvidence(candidate),
-          review_details: clone(candidate.review_details)
-        }])).values()]
+        related_requirement_ids: [...new Set(candidates.flatMap((candidate) => screeningMappings(candidate).map((mapping) => mapping.requirement_id)))],
+        review_records: human && finding.evidence_status === "Verified failure" ? [clone(human)] : candidates.map(screeningInspectionRecord)
       };
     })
   });

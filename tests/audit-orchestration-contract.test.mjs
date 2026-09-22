@@ -35,7 +35,7 @@ function schemaErrors(value, schemaName) {
 
 function validAuditRun() {
   return {
-    schema_version: "11.0.0",
+    schema_version: "12.0.0",
     target_inventory: null,
     inspection_request: createInspectionRequest("quick", "Identify the next investigation"),
     run_id: runId,
@@ -73,7 +73,7 @@ function validAuditRun() {
     },
     resource_versions: {
       standards_registry_version: "1.0.0",
-      orchestration_registry_version: "10.0.0",
+      orchestration_registry_version: "11.0.0",
       orchestration_registry_sha256: sha256,
       criteria_catalog_sha256: sha256,
       criterion_procedures_sha256: sha256,
@@ -100,7 +100,7 @@ function validRunArtifact() {
 
 function validScreeningPayload() {
   return {
-    schema_version: "3.0.0",
+    schema_version: "4.0.0",
     observations: [{
       evidence_refs: [schemaFixtureReference(createdAt)],
       requirement_id: "SCREEN-AXE-SERIOUS",
@@ -254,18 +254,18 @@ test("current queue 3 and remediation 2 preserve frozen version 1 reading", asyn
 
 test("versioned contracts freeze prior runs while run 8, registry 7, and envelope 3 are current", async () => {
   const versions = [
-    ["orchestration-registry.json", "schema_version", "10.0.0"],
+    ["orchestration-registry.json", "schema_version", "11.0.0"],
     ["orchestration-registry-6.0.0.json", "schema_version", "6.0.0"],
     ["orchestration-registry-5.0.0.json", "schema_version", "5.0.0"],
     ["orchestration-registry-4.0.0.json", "schema_version", "4.0.0"],
     ["orchestration-registry-3.0.0.json", "schema_version", "3.0.0"],
     ["orchestration-registry-2.0.0.json", "schema_version", "2.0.0"],
-    ["orchestration-registry.schema.json", "schema", "10.0.0"],
+    ["orchestration-registry.schema.json", "schema", "11.0.0"],
     ["orchestration-registry-6.0.0.schema.json", "schema", "6.0.0"],
     ["orchestration-registry-5.0.0.schema.json", "schema", "5.0.0"],
     ["orchestration-registry-4.0.0.schema.json", "schema", "4.0.0"],
     ["orchestration-registry-2.0.0.schema.json", "schema", "2.0.0"],
-    ["audit-run.schema.json", "schema", "11.0.0"],
+    ["audit-run.schema.json", "schema", "12.0.0"],
     ["audit-run-7.0.0.schema.json", "schema", "7.0.0"],
     ["audit-artifact-envelope.schema.json", "schema", "3.0.0"],
     ["audit-artifact-envelope-2.0.0.schema.json", "schema", "2.0.0"],
@@ -644,7 +644,7 @@ test("the orchestration registry fixes the complete role, artifact, and transiti
   assert.deepEqual(registry.artifact_types, [
     {
   "id": "audit-run",
-  "latest_schema_version": "11.0.0",
+  "latest_schema_version": "12.0.0",
   "schema_versions": [
     {
       "version": "1.0.0",
@@ -698,21 +698,46 @@ test("the orchestration registry fixes the complete role, artifact, and transiti
     },
     {
       "version": "11.0.0",
-      "schema_file": "audit-run.schema.json",
+      "schema_file": "audit-run-11.0.0.schema.json",
       "schema_sha256": "62b7906ef2cf5a489bb0260cea57beffd2a306b70dfcc88bf067dd4594fe3cbe",
+      "mode": "read_only"
+    },
+    {
+      "version": "12.0.0",
+      "schema_file": "audit-run.schema.json",
+      "schema_sha256": "836344169a4f237e4d724ce26501ad43712fb7b2e5028be73ad279e389788cce",
       "mode": "current"
     }
   ]
 },
     {
-      id: "screening-observations",
-      latest_schema_version: "3.0.0",
-      schema_versions: [
-        { version: "1.0.0", schema_file: "screening-observations-1.0.0.schema.json", mode: "read_only" },
-        { version: "2.0.0", schema_file: "screening-observations-2.0.0.schema.json", mode: "read_only" },
-        { version: "3.0.0", schema_file: "screening-observations.schema.json", schema_sha256: "268da46d8988039e5ff272166fa2ab13c3492a6a164ecadbb3ac07f47691e33b", mode: "current" }
-      ]
+  "id": "screening-observations",
+  "latest_schema_version": "4.0.0",
+  "schema_versions": [
+    {
+      "version": "1.0.0",
+      "schema_file": "screening-observations-1.0.0.schema.json",
+      "mode": "read_only"
     },
+    {
+      "version": "2.0.0",
+      "schema_file": "screening-observations-2.0.0.schema.json",
+      "mode": "read_only"
+    },
+    {
+      "version": "3.0.0",
+      "schema_file": "screening-observations-3.0.0.schema.json",
+      "schema_sha256": "268da46d8988039e5ff272166fa2ab13c3492a6a164ecadbb3ac07f47691e33b",
+      "mode": "read_only"
+    },
+    {
+      "version": "4.0.0",
+      "schema_file": "screening-observations.schema.json",
+      "schema_sha256": "0d1836dd7fa397ec46688810c2d1403320da9fb499a4c1d5746681873803c315",
+      "mode": "current"
+    }
+  ]
+},
     {
   "id": "human-review-queue",
   "latest_schema_version": "3.0.0",

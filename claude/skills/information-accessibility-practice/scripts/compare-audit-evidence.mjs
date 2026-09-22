@@ -19,7 +19,7 @@ export function main(argv = process.argv.slice(2)) {
     const validation = validateAuditRun(run, { runFile: path.resolve(file) });
     if (!validation.valid) throw new Error(`Invalid comparison run:\n- ${validation.errors.join("\n- ")}`);
     const screenings = [...validation.envelopesById.values()].map(({ envelope }) => envelope).filter((artifact) => artifact.artifact_type === "screening-observations");
-    if (screenings.some((artifact) => artifact.payload.schema_version !== "3.0.0")) throw new Error("Comparison requires saved evidence in screening-observations 3.0.0; legacy prose is not comparable.");
+    if (screenings.some((artifact) => !["3.0.0", "4.0.0"].includes(artifact.payload.schema_version))) throw new Error("Comparison requires saved evidence in screening-observations 3.0.0 or 4.0.0; legacy prose is not comparable.");
     return { run, snapshot, validation, rows: screenings.flatMap((artifact) => artifact.payload.observations) };
   });
   const [before, after] = inputs;

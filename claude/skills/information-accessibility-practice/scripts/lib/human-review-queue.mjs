@@ -1,5 +1,5 @@
 import { lookupRequirement } from "../show-requirement.mjs";
-import { groupScreeningProjections, screeningConflictReason } from "./review-details.mjs";
+import { groupScreeningProjections, screeningMappings, screeningConflictReason } from "./review-details.mjs";
 
 const unwrap = (record) => record?.envelope ?? record;
 const locationKey = (location) => JSON.stringify([location.target_snapshot_id, location.location.trim().normalize("NFC"), location.required_state.trim().normalize("NFC")]);
@@ -10,11 +10,11 @@ export function createHumanReviewQueue({ run, screenings = [], manualRequirement
   if (!run?.target_inventory?.snapshots?.length) throw new Error("Queue generation requires measured target snapshots.");
   const grouped = groupScreeningProjections(screenings.flatMap((source) => source.payload.observations));
   const ids = [...new Set([...manualRequirements, ...profileRequirements,
-    ...screenings.flatMap((source) => source.payload.observations.map((row) => row.profile_requirement_id).filter(Boolean))])];
+    ...screenings.flatMap((source) => source.payload.observations.flatMap((row) => screeningMappings(row).map((mapping) => mapping.requirement_id)))])];
   if (!ids.length) throw new Error("Queue generation requires at least one profile requirement.");
   const items = ids.map((requirementId) => {
     const matches = screenings.flatMap((source) => source.payload.observations
-      .filter((row) => row.profile_requirement_id === requirementId).map((observation) => ({ source, observation })));
+      .filter((row) => screeningMappings(row).some((mapping) => mapping.requirement_id === requirementId)).map((observation) => ({ source, observation })));
     const origins = [matches.length && "screening", profileRequirements.includes(requirementId) && "profile_all",
       manualRequirements.includes(requirementId) && "manual"].filter(Boolean);
     const locations = matches.length ? matches.flatMap(({ observation }) => {
@@ -85,7 +85,7 @@ export function queueContextErrors(run, envelopesById, profileRequirementIds) {
           continue;
         }
         const matches = source.payload.observations.filter((row) => row.requirement_id === ref.requirement_id);
-        if (matches.length !== 1 || matches[0].profile_requirement_id !== item.requirement_id) {
+        if (matches.length !== 1 || !screeningMappings(matches[0]).some((mapping) => mapping.requirement_id === item.requirement_id)) {
           errors.push(`${label} observation reference must match exactly one screening requirement and its profile requirement.`);
           continue;
         }
@@ -103,8 +103,7 @@ export function queueContextErrors(run, envelopesById, profileRequirementIds) {
       const source = unwrap(envelopesById.get(input.artifact_id));
       if (source?.artifact_type !== "screening-observations") continue;
       for (const row of source.payload.observations ?? []) {
-        if (!row.profile_requirement_id) continue;
-        if (!items.some((item) => item.requirement_id === row.profile_requirement_id && item.related_screening_observations?.some((ref) => ref.artifact_id === source.artifact_id && ref.requirement_id === row.requirement_id))) {
+        if (screeningMappings(row).some((mapping) => !items.some((item) => item.requirement_id === mapping.requirement_id && item.related_screening_observations?.some((ref) => ref.artifact_id === source.artifact_id && ref.requirement_id === row.requirement_id)))) {
           errors.push(`Queue ${queue.artifact_id} must explicitly route mapped observation ${source.artifact_id}/${row.requirement_id}.`);
         }
       }

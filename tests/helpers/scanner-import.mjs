@@ -1,4 +1,5 @@
 import { createHumanReviewQueue } from "../../codex/skills/information-accessibility-practice/scripts/lib/human-review-queue.mjs";
+import { screeningMappings } from "../../codex/skills/information-accessibility-practice/scripts/lib/review-details.mjs";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -32,7 +33,7 @@ export function importedReport(f, artifactFile) {
   const screen = read(artifactFile);
   const screenedFile = path.join(f.root, "screened.json");
   pass(cli(["register", "--run", f.runFile, "--artifact", artifactFile, "--output", screenedFile]));
-  const profileIds = [...new Set(screen.payload.observations.map((row) => row.profile_requirement_id).filter(Boolean))];
+  const profileIds = [...new Set(screen.payload.observations.flatMap((row) => screeningMappings(row).map((mapping) => mapping.requirement_id)))];
   const items = profileIds.map((requirementId) => ({ requirement_id: requirementId, ...lookupRequirement("web-modern", requirementId).procedure_binding }));
   const queue = { schema_version: "3.0.0", artifact_id: "ART-IMPORT-QUEUE", artifact_type: "human-review-queue", run_id: f.run.run_id,
     target_snapshot_ids: targetSnapshotIds(f.run), producer: { role_id: "human_queue_planner", producer_kind: "ai_agent", origin: "import integration fixture" },

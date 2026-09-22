@@ -17,7 +17,7 @@ const schema = JSON.parse(schemaBytes.toString("utf8"));
 
 function payload(profileRequirementId) {
   return {
-    schema_version: "3.0.0",
+    schema_version: "4.0.0",
     observations: [{
       evidence_refs: [schemaFixtureReference("2026-08-21T00:00:00Z")],
       requirement_id: "SCREEN-ADDITIONAL-FOCUS",

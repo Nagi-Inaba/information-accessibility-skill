@@ -30,8 +30,8 @@ export function main(argv = process.argv.slice(2)) {
   assertNewOutputPath(output);
   const artifactSnapshot = readStableFile(resolveInside(validation.artifactRoot, options.artifact));
   const artifact = JSON.parse(artifactSnapshot.bytes.toString("utf8").replace(/^\uFEFF/u, ""));
-  if (artifact.artifact_type !== "screening-observations" || artifact.payload?.schema_version !== "3.0.0" || artifact.run_id !== run.run_id) {
-    throw new Error("Evidence binding requires a screening-observations 3.0.0 artifact for this run.");
+  if (artifact.artifact_type !== "screening-observations" || artifact.payload?.schema_version !== "4.0.0" || artifact.run_id !== run.run_id) {
+    throw new Error("Evidence binding requires a screening-observations 4.0.0 artifact for this run.");
   }
   if (run.artifacts.some((item) => item.artifact_id === artifact.artifact_id)) throw new Error("Bind evidence before artifact registration; registered evidence is immutable.");
   const matches = artifact.payload.observations?.filter((item) => item.requirement_id === options.observation) ?? [];

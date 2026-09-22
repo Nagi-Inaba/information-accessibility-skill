@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:information-accessibility:screening-observations:4.0.0",
+  "$id": "urn:information-accessibility:screening-observations:3.0.0",
   "title": "E0 and E1 Screening Observations With Run-bound Saved Evidence",
   "type": "object",
   "additionalProperties": false,
@@ -10,7 +10,7 @@
   ],
   "properties": {
     "schema_version": {
-      "const": "4.0.0"
+      "const": "3.0.0"
     },
     "observations": {
       "type": "array",
@@ -25,15 +25,17 @@
           "location",
           "observation",
           "captured_at",
+          "profile_requirement_id",
+          "report_outcome",
+          "applicability",
+          "report_rationale",
           "evidence_refs"
         ],
         "properties": {
           "evidence_refs": {
             "type": "array",
             "uniqueItems": true,
-            "items": {
-              "$ref": "#/$defs/evidence_reference"
-            }
+            "items": { "$ref": "#/$defs/evidence_reference" }
           },
           "requirement_id": {
             "type": "string",
@@ -267,124 +269,12 @@
                 }
               }
             ]
-          },
-          "profile_mappings": {
-            "type": "array",
-            "maxItems": 128,
-            "uniqueItems": true,
-            "items": {
-              "type": "object",
-              "additionalProperties": false,
-              "required": [
-                "requirement_id",
-                "report_outcome",
-                "applicability",
-                "rationale"
-              ],
-              "properties": {
-                "requirement_id": {
-                  "type": "string",
-                  "pattern": "^(?:WCAG-2\\.2-SC-[0-9]+(?:\\.[0-9]+){2}|WCAG-2\\.2-ADDITIONAL-SC-[0-9]+(?:\\.[0-9]+){2}|JIS-X-8341-3-2016-SC-[0-9]+(?:\\.[0-9]+){2})$"
-                },
-                "report_outcome": {
-                  "enum": [
-                    "pass",
-                    "fail",
-                    "not_tested",
-                    "cant_tell",
-                    null
-                  ]
-                },
-                "applicability": {
-                  "enum": [
-                    "applicable",
-                    "not_applicable",
-                    "undetermined"
-                  ]
-                },
-                "rationale": {
-                  "type": "string",
-                  "minLength": 1
-                }
-              },
-              "allOf": [
-                {
-                  "if": {
-                    "properties": {
-                      "applicability": {
-                        "const": "not_applicable"
-                      }
-                    }
-                  },
-                  "then": {
-                    "properties": {
-                      "report_outcome": {
-                        "const": null
-                      }
-                    }
-                  }
-                },
-                {
-                  "if": {
-                    "properties": {
-                      "applicability": {
-                        "const": "applicable"
-                      }
-                    }
-                  },
-                  "then": {
-                    "properties": {
-                      "report_outcome": {
-                        "enum": [
-                          "pass",
-                          "fail",
-                          "not_tested",
-                          "cant_tell"
-                        ]
-                      }
-                    }
-                  }
-                },
-                {
-                  "if": {
-                    "properties": {
-                      "applicability": {
-                        "const": "undetermined"
-                      }
-                    }
-                  },
-                  "then": {
-                    "properties": {
-                      "report_outcome": {
-                        "enum": [
-                          "not_tested",
-                          "cant_tell"
-                        ]
-                      }
-                    }
-                  }
-                }
-              ]
-            }
           }
         },
         "allOf": [
           {
-            "if": {
-              "properties": {
-                "evidence_level": {
-                  "const": "E1"
-                }
-              }
-            },
-            "then": {
-              "properties": {
-                "evidence_refs": {
-                  "type": "array",
-                  "minItems": 1
-                }
-              }
-            }
+            "if": { "properties": { "evidence_level": { "const": "E1" } } },
+            "then": { "properties": { "evidence_refs": { "type": "array", "minItems": 1 } } }
           },
           {
             "if": {
@@ -525,19 +415,6 @@
                     "cant_tell",
                     null
                   ]
-                },
-                "profile_mappings": {
-                  "items": {
-                    "properties": {
-                      "report_outcome": {
-                        "enum": [
-                          "not_tested",
-                          "cant_tell",
-                          null
-                        ]
-                      }
-                    }
-                  }
                 }
               }
             }
@@ -554,38 +431,6 @@
                 "evidence_provenance"
               ]
             }
-          },
-          {
-            "if": {
-              "required": [
-                "profile_mappings"
-              ]
-            },
-            "then": {
-              "properties": {
-                "evidence_refs": {},
-                "requirement_id": {},
-                "evidence_level": {},
-                "method": {},
-                "location": {},
-                "observation": {},
-                "captured_at": {},
-                "review_details": {},
-                "signal_class": {},
-                "human_review_required": {},
-                "evidence_provenance": {},
-                "profile_mappings": {}
-              },
-              "additionalProperties": false
-            },
-            "else": {
-              "required": [
-                "profile_requirement_id",
-                "report_outcome",
-                "applicability",
-                "report_rationale"
-              ]
-            }
           }
         ]
       }
@@ -595,69 +440,19 @@
     "evidence_reference": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "evidence_type",
-        "path",
-        "sha256",
-        "captured_at",
-        "environment_ref",
-        "target_snapshot_id",
-        "publication",
-        "run_id",
-        "target_version",
-        "target_ref",
-        "target_context_sha256"
-      ],
+      "required": ["evidence_type", "path", "sha256", "captured_at", "environment_ref", "target_snapshot_id", "publication", "run_id", "target_version", "target_ref", "target_context_sha256"],
       "properties": {
-        "evidence_type": {
-          "enum": [
-            "dom_snapshot",
-            "accessibility_tree",
-            "screenshot",
-            "interaction_log",
-            "network_log",
-            "other"
-          ]
-        },
-        "path": {
-          "type": "string",
-          "minLength": 1
-        },
-        "sha256": {
-          "type": "string",
-          "pattern": "^[a-f0-9]{64}$"
-        },
-        "captured_at": {
-          "type": "string",
-          "format": "date-time"
-        },
-        "environment_ref": {
-          "type": "string",
-          "pattern": "^ENV-[a-f0-9]{64}$"
-        },
-        "target_snapshot_id": {
-          "type": "string",
-          "minLength": 1
-        },
-        "publication": {
-          "const": "private_by_default"
-        },
-        "run_id": {
-          "type": "string",
-          "pattern": "^RUN-[0-9]{8}T[0-9]{6}Z-[A-Z0-9]{8}$"
-        },
-        "target_version": {
-          "type": "string",
-          "minLength": 1
-        },
-        "target_ref": {
-          "type": "string",
-          "minLength": 1
-        },
-        "target_context_sha256": {
-          "type": "string",
-          "pattern": "^[a-f0-9]{64}$"
-        }
+        "evidence_type": { "enum": ["dom_snapshot", "accessibility_tree", "screenshot", "interaction_log", "network_log", "other"] },
+        "path": { "type": "string", "minLength": 1 },
+        "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "captured_at": { "type": "string", "format": "date-time" },
+        "environment_ref": { "type": "string", "pattern": "^ENV-[a-f0-9]{64}$" },
+        "target_snapshot_id": { "type": "string", "minLength": 1 },
+        "publication": { "const": "private_by_default" },
+        "run_id": { "type": "string", "pattern": "^RUN-[0-9]{8}T[0-9]{6}Z-[A-Z0-9]{8}$" },
+        "target_version": { "type": "string", "minLength": 1 },
+        "target_ref": { "type": "string", "minLength": 1 },
+        "target_context_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
       }
     }
   }

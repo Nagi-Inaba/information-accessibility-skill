@@ -103,7 +103,7 @@ function screeningArtifact(runId, suffix) {
     createdAt: capturedAt,
     inputs: [],
     payload: {
-      schema_version: "3.0.0",
+      schema_version: "4.0.0",
       observations: [{
         evidence_refs: [],
         requirement_id: screeningRequirement,

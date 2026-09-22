@@ -34,7 +34,7 @@ function fixture(t, { suffix = "0001", version = "release-1", bytes = Buffer.fro
   const reference = createRunEvidenceReference({ run, targetRef: run.target.urls_or_files[0], evidenceType: "dom_snapshot", relativePath: "private-dom.html", bytes, capturedAt: at });
   const artifact = { schema_version: "3.0.0", target_snapshot_ids: run.target_inventory.snapshots.map((snapshot) => snapshot.snapshot_id), artifact_id: "ART-SCREEN-EVIDENCE", artifact_type: "screening-observations", run_id: run.run_id,
     producer: { role_id: "e1_inspector", producer_kind: "ai_agent", origin: "saved evidence test" }, created_at: at, inputs: [],
-    payload: { schema_version: "3.0.0", observations: [{ requirement_id: "SCREEN-DOM", evidence_level: "E1", method: "DOM inspection", location: "main", observation: "An observed structure requires human review.", captured_at: at,
+    payload: { schema_version: "4.0.0", observations: [{ requirement_id: "SCREEN-DOM", evidence_level: "E1", method: "DOM inspection", location: "main", observation: "An observed structure requires human review.", captured_at: at,
       profile_requirement_id: null, report_outcome: null, applicability: "undetermined", report_rationale: "Unmapped observation.", evidence_refs: [reference] }] } };
   const artifactFile = path.join(artifactRoot, "screen.json");
   const register = () => {
@@ -77,7 +77,7 @@ test("E1 requires saved bytes; E0 may explicitly record unavailable capture; leg
   f.artifact.payload.schema_version = "2.0.0";
   delete f.artifact.payload.observations[0].evidence_refs;
   assert.equal(validateArtifact(f.artifact, loadAuditResources()).valid, true, "archived payload schema still reads");
-  assert.throws(f.register, /3\.0\.0|current|read.only/i);
+  assert.throws(f.register, /4\.0\.0|current|read.only/i);
 });
 
 test("missing, changed and future-dated capture is rejected before registration", (t) => {

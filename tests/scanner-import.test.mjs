@@ -12,7 +12,7 @@ import { cli, pass, read, measuredScannerRun, importedReport } from "./helpers/s
 const url = "https://example.invalid/fixture";
 const secret = "SCANNER-PRIVATE-SECRET";
 function result() {
-  const rule = (id, nodes = true) => ({ id, impact: "serious", tags: ["wcag111"], helpUrl: `https://example.invalid/${secret}`,
+  const rule = (id, nodes = true) => ({ id, impact: "serious", tags: id === "label" ? ["wcag111", "wcag131"] : ["wcag111"], helpUrl: `https://example.invalid/${secret}`,
     help: secret, description: secret, nodes: nodes ? [{ target: [["#shadow", `#${secret}`]], html: `<img data-secret="${secret}">`, impact: "serious", failureSummary: secret, any: [], all: [], none: [] }] : [] });
   return { testEngine: { name: "axe-core", version: "4.13.0" }, testEnvironment: { userAgent: secret, windowWidth: 1280, windowHeight: 800 },
     url, timestamp: "2026-09-18T00:00:00Z", toolOptions: { reporter: "v1", custom: secret },
@@ -51,7 +51,10 @@ test("axe import preserves all outcomes, raw evidence and unknown rules through 
   assert.deepEqual(record.rows[0].target, [["#shadow", `#${secret}`]]);
   assert.equal(record.rows[0].screening_check_id, "SCREEN-WEB-ALT-MISSING");
   const artifact = read(f.output);
-  assert.ok(artifact.payload.observations.every((row) => row.human_review_required && !["pass", "fail"].includes(row.report_outcome)));
+  assert.equal(artifact.payload.observations.length, record.rows.length);
+  assert.ok(artifact.payload.observations.every((row) => row.human_review_required && row.profile_mappings.every((mapping) => !["pass", "fail"].includes(mapping.report_outcome))));
+  assert.ok(artifact.payload.observations.some((row) => row.profile_mappings.length > 1), "One scanner observation retains several criterion mappings");
+  assert.ok(artifact.payload.observations.every((row) => row.evidence_refs.length === 2), "Raw and normalized evidence stay attached once per observation");
   const pipeline = importedReport(f, f.output);
   assert.doesNotMatch(pipeline.report, new RegExp(secret));
   assert.doesNotMatch(pipeline.report, /TARGET-[a-f0-9]|ENV-[a-f0-9]|raw_result_sha256/);

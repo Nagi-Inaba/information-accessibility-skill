@@ -80,7 +80,7 @@ test("report passes for resize and skip links require a completed E1 test record
           evidence: criterion === "1.4.4" ? "Up to 200%: content and functions retained." : "Activation reaches main content; next Tab reaches its first link." }],
         next_checks: []
       };
-      assert.deepEqual(validateJsonSchema({ schema_version: "3.0.0", observations: [observation] }, screeningSchema), []);
+      assert.deepEqual(validateJsonSchema({ schema_version: "4.0.0", observations: [observation] }, screeningSchema), []);
       assert.equal(guardScreeningProjection(observation).report_outcome, "pass");
       for (const mutate of [
         (item) => { item.review_details.performed_checks[0].environment = " "; },
@@ -96,7 +96,7 @@ test("report passes for resize and skip links require a completed E1 test record
       }
       const invalid = structuredClone(observation);
       delete invalid.review_details.performed_checks[0].evidence;
-      assert.ok(validateJsonSchema({ schema_version: "3.0.0", observations: [invalid] }, screeningSchema).length > 0);
+      assert.ok(validateJsonSchema({ schema_version: "4.0.0", observations: [invalid] }, screeningSchema).length > 0);
       observation.report_outcome = "fail";
       assert.equal(guardScreeningProjection(observation).report_outcome, "fail");
     }

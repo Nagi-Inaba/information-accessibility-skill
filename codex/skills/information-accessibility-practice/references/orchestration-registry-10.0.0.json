@@ -1,6 +1,6 @@
 {
   "$schema": "./orchestration-registry.schema.json",
-  "schema_version": "11.0.0",
+  "schema_version": "10.0.0",
   "roles": [
     {
       "id": "orchestrator",
@@ -102,7 +102,7 @@
   "artifact_types": [
     {
       "id": "audit-run",
-      "latest_schema_version": "12.0.0",
+      "latest_schema_version": "11.0.0",
       "schema_versions": [
         {
           "version": "1.0.0",
@@ -156,21 +156,15 @@
         },
         {
           "version": "11.0.0",
-          "schema_file": "audit-run-11.0.0.schema.json",
-          "schema_sha256": "62b7906ef2cf5a489bb0260cea57beffd2a306b70dfcc88bf067dd4594fe3cbe",
-          "mode": "read_only"
-        },
-        {
-          "version": "12.0.0",
           "schema_file": "audit-run.schema.json",
-          "schema_sha256": "836344169a4f237e4d724ce26501ad43712fb7b2e5028be73ad279e389788cce",
+          "schema_sha256": "62b7906ef2cf5a489bb0260cea57beffd2a306b70dfcc88bf067dd4594fe3cbe",
           "mode": "current"
         }
       ]
     },
     {
       "id": "screening-observations",
-      "latest_schema_version": "4.0.0",
+      "latest_schema_version": "3.0.0",
       "schema_versions": [
         {
           "version": "1.0.0",
@@ -184,14 +178,8 @@
         },
         {
           "version": "3.0.0",
-          "schema_file": "screening-observations-3.0.0.schema.json",
-          "schema_sha256": "268da46d8988039e5ff272166fa2ab13c3492a6a164ecadbb3ac07f47691e33b",
-          "mode": "read_only"
-        },
-        {
-          "version": "4.0.0",
           "schema_file": "screening-observations.schema.json",
-          "schema_sha256": "0d1836dd7fa397ec46688810c2d1403320da9fb499a4c1d5746681873803c315",
+          "schema_sha256": "268da46d8988039e5ff272166fa2ab13c3492a6a164ecadbb3ac07f47691e33b",
           "mode": "current"
         }
       ]
@@ -286,9 +274,7 @@
     {
       "from": "initialized",
       "to": "human_queue_ready",
-      "required_artifact_types": [
-        "human-review-queue"
-      ]
+      "required_artifact_types": ["human-review-queue"]
     },
     {
       "from": "initialized",

@@ -133,7 +133,7 @@ test("installed CLIs carry a local public-like fixture through the read-only age
   runFiles[0] = path.join(temp, "audit-run.bound.json");
   assertSucceeded(runNode(cli.bind, ["--run", unboundFile, "--targets", inventoryFile, "--output", runFiles[0]]));
   const run0 = readJson(runFiles[0]);
-  assert.equal(run0.schema_version, "11.0.0");
+  assert.equal(run0.schema_version, "12.0.0");
   assert.equal(run0.permissions.network, "allowlisted");
   assert.equal(run0.permissions.interaction, "read_only");
   assert.equal(run0.permissions.source_write, "denied");
@@ -157,7 +157,7 @@ test("installed CLIs carry a local public-like fixture through the read-only age
   });
   const screeningFile = path.join(artifactRoot, "screening-observations.json");
   fs.writeFileSync(path.join(artifactRoot, "captured-dom.html"), capture);
-  screening.payload.schema_version = "3.0.0";
+  screening.payload.schema_version = "4.0.0";
   for (const observation of screening.payload.observations) {
     observation.evidence_refs = [createRunEvidenceReference({ run: run0, targetRef: targetUrl, evidenceType: "dom_snapshot", relativePath: "captured-dom.html", bytes: capture, capturedAt: observation.captured_at })];
   }
@@ -284,7 +284,7 @@ test("installed CLIs carry a local public-like fixture through the read-only age
   const improvement = section(report, "## 4. 改善事項", "## 5. 今後の確認事項");
   const pending = section(report, "## 5. 今後の確認事項", "## 6. 対象範囲と検査環境");
   for (const token of ["WAYFINDING-MAP", "SESSION-DETAILS-CONTROL", "SUPPORT-PREFERENCES-GROUP"]) {
-    assert.doesNotMatch(judgements, new RegExp(token, "u"));
+    assert.match(judgements, new RegExp(token, "u"), "Criterion rows retain the underlying unverified observations");
     assert.match(improvement, new RegExp(token, "u"));
     assert.match(pending, new RegExp(token, "u"));
   }

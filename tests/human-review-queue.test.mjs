@@ -11,6 +11,8 @@ import { fixtureReference, saveFixtureEvidence } from "./helpers/saved-evidence.
 import { cli, pass, read } from "./helpers/scanner-import.mjs";
 import { buildPublicReportModel } from "../codex/skills/information-accessibility-practice/scripts/render-audit-report.mjs";
 import { buildInternalRunBackedModel } from "../codex/skills/information-accessibility-practice/scripts/lib/report-privacy.mjs";
+import { buildRunBackedPresentation } from "../codex/skills/information-accessibility-practice/scripts/lib/report-presentation.mjs";
+import { validateAssessment } from "../codex/skills/information-accessibility-practice/scripts/validate-assessment.mjs";
 
 const requirement = "WCAG-2.2-SC-1.1.1";
 const privateFields = ["origins", "reason", "priority", "priority_reason", "affected_users", "target_locations", "related_screening_observations", "status"];
@@ -27,7 +29,7 @@ function fixture(t, targetRefs = ["https://example.com/product"], prepareScreeni
   writeNewJson(runFile, run); saveFixtureEvidence(artifactRoot, run);
   const screening = { schema_version: "3.0.0", artifact_id: "ART-QUEUE-SCREEN", artifact_type: "screening-observations", run_id: run.run_id,
     producer: { role_id: "e1_inspector", producer_kind: "ai_agent", origin: "synthetic fixture" }, created_at: "2026-01-01T00:00:00Z", inputs: [],
-    target_snapshot_ids: run.target_inventory.snapshots.map((snapshot) => snapshot.snapshot_id), payload: { schema_version: "3.0.0", observations: ["candidate_issue", "inconclusive", "no_automated_signal"].map((signal, index) => ({
+    target_snapshot_ids: run.target_inventory.snapshots.map((snapshot) => snapshot.snapshot_id), payload: { schema_version: "4.0.0", observations: ["candidate_issue", "inconclusive", "no_automated_signal"].map((signal, index) => ({
       requirement_id: `SCREEN-IMAGE-${index}`, profile_requirement_id: requirement, evidence_level: "E1", method: "fixture DOM", location: index < 2 ? "Product image" : "Footer image",
       observation: "Machine observation awaiting review", captured_at: "2026-01-01T00:00:00Z", signal_class: signal, human_review_required: true,
       evidence_provenance: { collection_method: "static_inspection", tool_name: null, tool_version: null, rule_id: null, target_dom: null, viewport: null },
@@ -112,7 +114,7 @@ test("queue registration rejects altered provenance and old payloads without cre
   assert.equal(fs.existsSync(output), false);
 });
 
-test("queue locations and priority reasons survive public Japanese/English Markdown/HTML while IDs stay private; frozen run 10 remains readable", (t) => {
+test("queue locations and priority reasons survive public Japanese/English Markdown/HTML while IDs stay private; frozen runs 10 and 11 remain readable", (t) => {
   const f = fixture(t); const q = candidate(f);
   const item = q.payload.items[0]; item.priority = "P1"; item.priority_reason = "Product purchase decision depends on this image.";
   item.reason = "Confirm the product description."; item.target_locations[0].required_state = "Product gallery expanded";
@@ -134,18 +136,28 @@ test("queue locations and priority reasons survive public Japanese/English Markd
     for (const privateValue of [q.artifact_id, f.screening.artifact_id, ...q.target_snapshot_ids, f.root]) assert.equal(report.includes(privateValue), false, privateValue);
   }
   // Construct a historical fixture, never migrate an actual registered record.
-  const historical = read(queued); historical.schema_version = "10.0.0";
-  const resources = loadAuditResources(); const frozen = resources.orchestrationRegistries.get("9.0.0");
-  historical.resource_versions.orchestration_registry_version = "9.0.0";
-  historical.resource_versions.orchestration_registry_sha256 = frozen.sha256;
-  q.payload.schema_version = "2.0.0";
-  for (const entry of q.payload.items) for (const field of privateFields) delete entry[field];
-  fs.writeFileSync(f.queueFile, JSON.stringify(q));
-  historical.artifacts.find((entry) => entry.artifact_id === q.artifact_id).sha256 = hash(f.queueFile);
-  const oldFile = path.join(f.root, "historical.json"); writeNewJson(oldFile, historical);
-  const validation = validateAuditRun(historical, { runFile: oldFile }); assert.equal(validation.valid, true, validation.errors.join("\n"));
-  pass(cli(["report", "--run", oldFile, "--assessment", merged, "--output", path.join(f.root, "historical.md")]));
-  assert.notEqual(cli(["review-queue", "--run", oldFile, "--artifact-id", "ART-OLD", "--output", path.join(f.artifactRoot, "old.json")]).status, 0);
+  for (const [version, registryVersion] of [["10.0.0", "9.0.0"], ["11.0.0", "10.0.0"]]) {
+    const historical = read(queued); historical.schema_version = version;
+    const frozen = loadAuditResources().orchestrationRegistries.get(registryVersion);
+    historical.resource_versions.orchestration_registry_version = registryVersion;
+    historical.resource_versions.orchestration_registry_sha256 = frozen.sha256;
+    const oldScreen = structuredClone(f.screening); oldScreen.payload.schema_version = "3.0.0";
+    const oldScreenFile = path.join(f.artifactRoot, `screen-${version}.json`); writeNewJson(oldScreenFile, oldScreen);
+    const oldQueue = structuredClone(q);
+    oldQueue.inputs.find((input) => input.artifact_id === oldScreen.artifact_id).sha256 = hash(oldScreenFile);
+    if (version === "10.0.0") {
+      oldQueue.payload.schema_version = "2.0.0";
+      for (const entry of oldQueue.payload.items) for (const field of privateFields) delete entry[field];
+    }
+    const oldQueueFile = path.join(f.artifactRoot, `queue-${version}.json`); writeNewJson(oldQueueFile, oldQueue);
+    for (const [artifact, file] of [[oldScreen, oldScreenFile], [oldQueue, oldQueueFile]]) {
+      Object.assign(historical.artifacts.find((entry) => entry.artifact_id === artifact.artifact_id), { path: path.relative(f.artifactRoot, file).split(path.sep).join("/"), sha256: hash(file) });
+    }
+    const oldFile = path.join(f.root, `historical-${version}.json`); writeNewJson(oldFile, historical);
+    const validation = validateAuditRun(historical, { runFile: oldFile }); assert.equal(validation.valid, true, validation.errors.join("\n"));
+    pass(cli(["report", "--run", oldFile, "--assessment", merged, "--output", path.join(f.root, `historical-${version}.md`)]));
+    assert.notEqual(cli(["review-queue", "--run", oldFile, "--artifact-id", "ART-OLD", "--output", path.join(f.artifactRoot, `old-${version}.json`)]).status, 0);
+  }
 });
 
 test("manual-only candidate has explicit locations and cannot escape the private output root", (t) => {
@@ -214,4 +226,74 @@ test("conflicting observations keep every rationale and target in the queue and 
   assert.equal(notApplicable.notApplicableChecks[0].outcome, "not_applicable");
   assert.equal(notApplicable.notApplicableChecks[0].screening_observations.length, 3);
   assert.deepEqual(notApplicable.notApplicableChecks[0].screening_conflicts, []);
+});
+
+test("one saved observation maps to several criteria without duplicating evidence, counts or a remediation", (t) => {
+  const secondRequirement = "WCAG-2.2-SC-1.3.1";
+  const f = fixture(t, undefined, (screening) => {
+    screening.payload.observations.length = 2;
+    screening.payload.observations.forEach((item, index) => {
+      for (const key of ["profile_requirement_id", "report_outcome", "applicability", "report_rationale", "signal_class", "human_review_required", "evidence_provenance"]) delete item[key];
+      item.observation = `Single saved observation ${index}`;
+      item.profile_mappings = [
+        { requirement_id: requirement, report_outcome: index ? "pass" : "fail", applicability: "applicable", rationale: `Alternative text rationale ${index}` },
+        { requirement_id: secondRequirement, report_outcome: "cant_tell", applicability: "undetermined", rationale: `Structure rationale ${index}` }
+      ];
+    });
+  });
+  const queue = candidate(f);
+  assert.equal(f.screening.payload.observations.length, 2);
+  assert.equal(f.screening.payload.observations.flatMap((item) => item.evidence_refs).length, 2);
+  assert.equal(queue.payload.items.length, 2);
+  for (const item of queue.payload.items) assert.equal(item.related_screening_observations.length, 2);
+  assert.match(queue.payload.items.find((item) => item.requirement_id === requirement).reason, /判定候補が一致しません/);
+  const invalidFile = path.join(f.artifactRoot, "invalid-mapping.json");
+  for (const [mutate, message] of [
+    [(artifact) => { artifact.payload.observations[0].profile_mappings.push({ ...artifact.payload.observations[0].profile_mappings[0], rationale: "Duplicate criterion" }); }, /must be unique per observation/],
+    [(artifact) => { artifact.payload.observations[0].profile_requirement_id = requirement; }, /not allowed by schema/],
+    [(artifact) => { artifact.payload.observations[0].profile_mappings[0].requirement_id = "JIS-X-8341-3-2016-SC-1.1.1"; }, /this run's profile/],
+    [(artifact) => { artifact.payload.observations[1].requirement_id = artifact.payload.observations[0].requirement_id; }, /observation IDs must be unique/]
+  ]) {
+    const invalid = structuredClone(f.screening); mutate(invalid); fs.writeFileSync(invalidFile, JSON.stringify(invalid), "utf8");
+    const result = cli(["artifact", "validate", "--run", f.runFile, "--artifact", invalidFile]);
+    assert.notEqual(result.status, 0); assert.match(result.stderr, message);
+  }
+  const incompleteQueue = structuredClone(queue); incompleteQueue.payload.items.pop();
+  assert.match(queueContextErrors(f.run, new Map([[f.screening.artifact_id, f.screening], [queue.artifact_id, incompleteQueue]]),
+    loadAuditResources().standardsRegistry.profiles.find((profile) => profile.id === f.run.profile.id).requirement_ids).join("\n"), /explicitly route mapped observation/);
+  const queued = path.join(f.root, "queued.json");
+  pass(cli(["register", "--run", f.screenedFile, "--artifact", f.queueFile, "--output", queued]));
+  const planPayload = path.join(f.artifactRoot, "plan-payload.json"), planFile = path.join(f.artifactRoot, "plan.json");
+  fs.writeFileSync(planPayload, JSON.stringify({ items: [{ remediation_id: "REM-MULTI001", basis: "unverified_screening_candidate",
+    requirement_id: f.screening.payload.observations[0].requirement_id, source_artifact_ids: [f.screening.artifact_id], priority: "P1",
+    location: "Product image", affected_users: ["Screen reader users"], issue: "One synthetic barrier candidate",
+    proposed_change: "Review the shared label and structure", verification: "Check both related criteria", residual_limitation: "Human confirmation is pending" }] }), "utf8");
+  pass(cli(["artifact", "init", "--run", queued, "--type", "remediation-plan", "--payload", planPayload, "--input", f.screening.artifact_id, "--output", planFile]));
+  const finalRun = path.join(f.root, "planned.json");
+  pass(cli(["register", "--run", queued, "--artifact", planFile, "--output", finalRun]));
+  const baseline = path.join(f.root, "baseline.json"), merged = path.join(f.root, "merged.json");
+  pass(cli(["assessment", "--profile", f.run.profile.id, "--target-name", f.run.target.name, "--target-version", f.run.target.version_or_commit,
+    "--target-ref", f.run.target.urls_or_files[0], "--evaluator", "Synthetic fixture", "--evaluated-at", "2026-09-23", "--output", baseline]));
+  const initial = read(baseline); initial.assessment.scope = f.run.scope; initial.assessment.environment = f.run.environment;
+  fs.writeFileSync(baseline, JSON.stringify(initial), "utf8");
+  pass(cli(["merge", "--run", finalRun, "--assessment", baseline, "--artifact", f.screenFile, "--artifact", f.queueFile, "--artifact", planFile, "--output", merged]));
+  const run = read(finalRun), assessment = read(merged), validated = validateAuditRun(run, { runFile: finalRun }), resources = validated.resources;
+  const model = buildPublicReportModel({ run, assessment, envelopesById: validated.envelopesById, resources });
+  const presentation = buildRunBackedPresentation({ run, assessment, publicModel: model, registry: resources.standardsRegistry, catalog: resources.criteriaCatalog, locale: "en",
+    validation: validateAssessment(assessment, resources.standardsRegistry, resources.assessmentSchema, resources.criteriaCatalog, resources.auditMethods) });
+  assert.deepEqual(presentation.screening_summary, { observation_count: 2, barrier_candidate_count: 1, mapped_requirement_count: 2, conflicting_requirement_count: 1 });
+  assert.equal(presentation.inspection_records.length, 2);
+  assert.equal(presentation.findings.length, 1);
+  assert.deepEqual(presentation.findings[0].related_requirement_ids, [requirement, secondRequirement]);
+  for (const criterion of [requirement, secondRequirement]) {
+    const row = presentation.rows.find((item) => item.requirement_id === criterion);
+    assert.equal(row.outcome, "cant_tell"); assert.equal(row.screening_observations.length, 2);
+  }
+  for (const [locale, format] of [["ja", "markdown"], ["en", "html"]]) {
+    const output = path.join(f.root, `multi-${locale}.${format === "html" ? "html" : "md"}`);
+    pass(cli(["report", "--run", finalRun, "--assessment", merged, "--locale", locale, "--format", format, "--output", output]));
+    const text = fs.readFileSync(output, "utf8");
+    for (const phrase of ["Alternative text rationale 0", "Alternative text rationale 1", "Structure rationale 0", "Structure rationale 1"]) assert.ok(text.includes(phrase));
+    assert.ok(text.includes(locale === "ja" ? "問題候補数（人手未確認）" : "Unique barrier candidates (unverified)"));
+  }
 });

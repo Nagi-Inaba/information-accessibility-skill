@@ -49,7 +49,7 @@ Windows device names and alternate data stream syntax on all platforms.
 Consumers must still enforce a trusted evidence root, reject symlinks and
 verify the file bytes before use. These modules do not open the referenced path.
 
-`run-evidence.mjs` integrates saved evidence with screening payload 3.0.0.
+`run-evidence.mjs` integrates saved evidence with screening payloads 3.0.0 and 4.0.0.
 `bind-evidence` creates references tied to the exact run, declared target version,
 target context and environment. Registration, validation, status, merge and
 run-backed reports verify the saved bytes. `compare-evidence` provides a private

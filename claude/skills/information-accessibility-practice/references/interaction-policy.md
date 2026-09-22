@@ -1,6 +1,6 @@
 # Supervised interaction and private operation evidence
 
-Current run 11.0.0 requires `permissions.interaction_policy`. It is `null` for `read_only`. `human_supervised` requires the concrete policy below. Creating or reading this JSON records a proposed supervision scope; it does not establish live permission, authenticate a person, or authorize source writes. Run 10 and earlier remain read-only under their frozen schemas.
+Current run 12.0.0 requires `permissions.interaction_policy`. It is `null` for `read_only`. `human_supervised` requires the concrete policy below. Creating or reading this JSON records a proposed supervision scope; it does not establish live permission, authenticate a person, or authorize source writes. Run 11 and earlier remain read-only under their frozen schemas.
 
 ## Define the scope before starting a run
 

@@ -42,7 +42,7 @@ function runNode(script, args) {
 }
 
 function writeJson(file, value) {
-  if (value.artifact_type === "screening-observations" && value.payload.schema_version === "3.0.0") saveFixtureEvidence(path.dirname(file));
+  if (value.artifact_type === "screening-observations" && ["3.0.0", "4.0.0"].includes(value.payload.schema_version)) saveFixtureEvidence(path.dirname(file));
   fs.writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`, "utf8");
 }
 
@@ -74,7 +74,7 @@ function resourceVersions(registryFile = "orchestration-registry.json") {
 function initialRun(artifactRoot) {
   const resolvedRoot = path.isAbsolute(artifactRoot) ? artifactRoot : activeArtifactRoot;
   const run = {
-    schema_version: "11.0.0",
+    schema_version: "12.0.0",
     inspection_request: createInspectionRequest("quick", "Identify the next investigation"),
     run_id: runId,
     supersedes_run_id: null,
@@ -189,7 +189,7 @@ function screeningEnvelope({ artifactId, requirementId, capturedAt = "2026-07-17
     created_at: capturedAt,
     inputs: [],
     payload: {
-      schema_version: "3.0.0",
+      schema_version: "4.0.0",
       observations: [{
         evidence_refs: [fixtureReference(initialRun("artifacts"), capturedAt)],
         requirement_id: requirementId,
@@ -799,7 +799,7 @@ test("run initialization creates a schema-valid immutable manifest with installe
   ]);
   assert.equal(result.status, 0, result.stderr || result.stdout);
   const run = readJson(output);
-  assert.equal(run.schema_version, "11.0.0");
+  assert.equal(run.schema_version, "12.0.0");
   assert.equal(run.target_inventory, null);
   assert.equal(run.status, "initialized");
   assert.equal(run.artifact_root, "artifacts");
@@ -970,8 +970,8 @@ test("audit-run dispatch maps runs 1/2 to registry 1 through run 7 to registry 6
   const legacyV3SchemaFile = path.join(references, "audit-run-3.0.0.schema.json");
   const legacyV4SchemaFile = path.join(references, "audit-run-4.0.0.schema.json");
   const legacyV5SchemaFile = path.join(references, "audit-run-5.0.0.schema.json");
-  assert.equal(currentSchema.$id, "urn:information-accessibility:audit-run:11.0.0");
-  assert.equal(currentSchema.properties.schema_version.const, "11.0.0");
+  assert.equal(currentSchema.$id, "urn:information-accessibility:audit-run:12.0.0");
+  assert.equal(currentSchema.properties.schema_version.const, "12.0.0");
   assert.equal(readJson(legacyV1SchemaFile).properties.schema_version.const, "1.0.0");
   assert.equal(readJson(legacyV2SchemaFile).properties.schema_version.const, "2.0.0");
   assert.equal(readJson(legacyV3SchemaFile).properties.schema_version.const, "3.0.0");
@@ -983,7 +983,7 @@ test("audit-run dispatch maps runs 1/2 to registry 1 through run 7 to registry 6
   const registryV2 = readJson(path.join(references, "orchestration-registry-2.0.0.json"));
   const registryV3 = readJson(path.join(references, "orchestration-registry-3.0.0.json"));
   const registryV4 = readJson(path.join(references, "orchestration-registry-4.0.0.json"));
-  assert.equal(currentRegistry.schema_version, "10.0.0");
+  assert.equal(currentRegistry.schema_version, "11.0.0");
   assert.equal(registryV1.schema_version, "1.0.0");
   assert.equal(registryV2.schema_version, "2.0.0");
   assert.equal(registryV3.schema_version, "3.0.0");
@@ -1486,6 +1486,7 @@ test("each registry derives its own exact per-artifact payload compatibility pol
   expected.set("8.0.0", structuredClone(expected.get("7.0.0")));
   expected.set("9.0.0", structuredClone(expected.get("8.0.0")));
   expected.set("10.0.0", { ...expected.get("9.0.0"), "human-review-queue": "3.0.0" });
+  expected.set("11.0.0", { ...expected.get("10.0.0"), "screening-observations": "4.0.0" });
   assert.deepEqual([...resources.orchestrationRegistries.keys()], [...expected.keys()]);
   for (const [registryVersion, payloadVersions] of expected) {
     assert.deepEqual(

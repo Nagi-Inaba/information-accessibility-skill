@@ -1,9 +1,34 @@
 # Saved screening evidence
 
-Current `screening-observations` payloads use schema **3.0.0**. Every observation
+Current `screening-observations` payloads use schema **4.0.0**. Every observation
 has an `evidence_refs` array. E1 requires at least one saved DOM snapshot,
 accessibility tree, screenshot, interaction log, network log, or other relevant
 file. A description of a check alone is insufficient for E1.
+
+## One observation, several criteria
+
+Store the observation, location and saved evidence once under its unique `SCREEN-*`
+`requirement_id`. Use `profile_mappings` for criterion-specific conclusions:
+
+```json
+"profile_mappings": [
+  { "requirement_id": "WCAG-2.2-SC-1.1.1", "report_outcome": "cant_tell", "applicability": "undetermined", "rationale": "Check the alternative against the image purpose." },
+  { "requirement_id": "WCAG-2.2-SC-1.3.1", "report_outcome": "cant_tell", "applicability": "undetermined", "rationale": "Check the relationship conveyed by this image." }
+]
+```
+
+Every mapping must belong to the run profile. Duplicate observation IDs and repeated
+criteria within one observation are rejected. Use an empty array when no supported
+criterion mapping exists. Version 4 also accepts the four singular mapping fields
+from version 3; do not combine the two shapes. Frozen version 3 records remain readable
+in their original runs and are never rewritten automatically.
+
+The queue links one source observation to each mapped criterion. Conflicting outcomes
+or applicability remain visible with all their evidence and require human review.
+Reports count mapped criteria separately from unique source observations. The unverified
+barrier count includes observations marked `candidate_issue` or with a `fail` mapping,
+counting each observation ID once. This does not deduplicate different descriptions of
+the same real-world barrier or certify a defect. Human judgements retain their existing priority.
 
 ## Minimum record
 

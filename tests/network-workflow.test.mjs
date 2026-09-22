@@ -62,7 +62,7 @@ test("policy proposal is offline; HTTP capture, bind and register persist logs b
   const artifact = { schema_version: "3.0.0", artifact_id: "ART-NETWORK-OBS", artifact_type: "screening-observations", run_id: run.run_id,
     target_snapshot_ids: bound.target_inventory.snapshots.map((item) => item.snapshot_id),
     producer: { role_id: "e1_inspector", producer_kind: "ai_agent", origin: "Network fixture" }, created_at: at, inputs: [],
-    payload: { schema_version: "3.0.0", observations: [{ requirement_id: "SCREEN-NETWORK", evidence_level: "E1", evidence_refs: [reference],
+    payload: { schema_version: "4.0.0", observations: [{ requirement_id: "SCREEN-NETWORK", evidence_level: "E1", evidence_refs: [reference],
       method: "Recorded HTTP request", location: "HTTP response", observation: "Pinned response received", captured_at: at,
       profile_requirement_id: null, report_outcome: null, applicability: "undetermined", report_rationale: "Network evidence only" }] } };
   const artifactFile = path.join(artifacts, "screening.json"); writeNewJson(artifactFile, artifact);

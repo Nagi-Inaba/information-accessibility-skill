@@ -4,7 +4,7 @@
 
 ## 候補の作成
 
-現行run 11.0.0で対象inventoryを測定・固定してから、skillのCLIを実行します。登録済みscreeningがあれば、その全観測を確認候補へ結び付けます。
+現行run 12.0.0で対象inventoryを測定・固定してから、skillのCLIを実行します。登録済みscreeningがあれば、その全観測を確認候補へ結び付けます。
 
 ```powershell
 node scripts/accessibility-audit.mjs review-queue --run run.json --artifact-id ART-QUEUE-001 --output artifacts/queue.json

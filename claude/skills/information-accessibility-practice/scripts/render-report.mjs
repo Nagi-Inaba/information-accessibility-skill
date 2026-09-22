@@ -237,8 +237,8 @@ function renderRunBacked(options) {
   const runValidation = validateAuditRun(run, { skillRoot, runFile: runSnapshot.path });
   if (!runValidation.valid) throw new Error(`Audit run validation failed:\n- ${runValidation.errors.join("\n- ")}`);
   const currentRunVersion = runValidation.resources.auditRunSchema.properties.schema_version.const;
-  if (!["10.0.0", currentRunVersion].includes(run.schema_version)) {
-    throw new Error(`Run-backed reporting requires audit-run 10.0.0 or current schema_version ${currentRunVersion}; use the original package for older records.`);
+    if (!["10.0.0", "11.0.0", currentRunVersion].includes(run.schema_version)) {
+      throw new Error(`Run-backed reporting requires audit-run 10.0.0, 11.0.0 or current schema_version ${currentRunVersion}; use the original package for older records.`);
   }
   const trustInput = loadReviewTrust(options);
   const reviewOptions = reviewerVerificationOptions({ run, envelopesById: runValidation.envelopesById, trust: trustInput.trust });

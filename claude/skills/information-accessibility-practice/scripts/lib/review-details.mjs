@@ -59,11 +59,21 @@ export function guardScreeningProjection(observation) {
 
 // Keep every observation behind a criterion. Different locations or methods can
 // disagree; severity ordering must not silently discard their evidence.
+export function screeningMappings(observation) {
+  if (Array.isArray(observation.profile_mappings)) return observation.profile_mappings;
+  return observation.profile_requirement_id ? [{ requirement_id: observation.profile_requirement_id,
+    report_outcome: observation.report_outcome, applicability: observation.applicability, rationale: observation.report_rationale }] : [];
+}
+
+export function screeningProjections(observation) {
+  return screeningMappings(observation).map((mapping) => guardScreeningProjection({ ...observation,
+    profile_requirement_id: mapping.requirement_id, report_outcome: mapping.report_outcome,
+    applicability: mapping.applicability, report_rationale: mapping.rationale }));
+}
+
 export function groupScreeningProjections(observations) {
   const groups = new Map();
-  for (const supplied of observations) {
-    if (!supplied.profile_requirement_id) continue;
-    const observation = guardScreeningProjection(supplied);
+  for (const observation of observations.flatMap(screeningProjections)) {
     const group = groups.get(observation.profile_requirement_id) ?? { observations: [] };
     if (!group.observations.some((item) => item.requirement_id === observation.requirement_id)) group.observations.push(observation);
     groups.set(observation.profile_requirement_id, group);
@@ -94,6 +104,22 @@ export function screeningReviewRecord(observation) {
     applicability: observation.applicability, rationale: observation.report_rationale,
     evidence: [{ location: observation.location, method: observation.method, observation: observation.observation, captured_at: observation.captured_at }],
     ...(observation.review_details ? { review_details: structuredClone(observation.review_details) } : {}) };
+}
+
+// Keep one inspection record per source observation, with each criterion's
+// decision visible inside it; evidence is stored only on the source.
+export function screeningInspectionRecord(observation) {
+  const projections = screeningProjections(observation);
+  const records = projections.map(screeningReviewRecord);
+  const outcomes = new Set(records.map((record) => record.outcome));
+  return { requirement_id: observation.requirement_id,
+    profile_requirement_id: projections.length === 1 ? projections[0].profile_requirement_id : null,
+    outcome: outcomes.size === 1 ? [...outcomes][0] : (observation.report_outcome ?? "cant_tell"),
+    source_kind: "screening", evidence_level: observation.evidence_level,
+    rationale: observation.report_rationale ?? observation.observation,
+    evidence: screeningReviewRecord(observation).evidence, review_details: observation.review_details,
+    ...(projections.length ? { screening_observations: records.map((record) => projections.length > 1
+      ? { ...record, rationale: `${record.requirement_id}: ${record.rationale}` } : record) } : {}) };
 }
 
 export function reviewDetailLines(row, locale = "ja") {

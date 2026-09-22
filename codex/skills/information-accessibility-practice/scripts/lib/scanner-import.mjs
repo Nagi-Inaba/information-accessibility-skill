@@ -79,7 +79,7 @@ function nativeResult(value, importedAt) {
 
 export function buildAxeImport({ input, run, targetRef, rawSha256, configuration = null, importedAt = new Date().toISOString(), resources }) {
   requireValue(isRfc3339DateTime(importedAt), "Invalid import timestamp.");
-  requireValue(run.schema_version === "11.0.0" && targetBindingErrors(run).length === 0, "Import requires a valid current measured run.");
+  requireValue(run.schema_version === "12.0.0" && targetBindingErrors(run).length === 0, "Import requires a valid current measured run.");
   const snapshot = run.target_inventory?.snapshots.find((item) => item.target_ref === targetRef);
   requireValue(snapshot?.kind === "web_state", "axe import requires the exact bound saved web_state target.");
   instant(snapshot.captured_at, "target capture time", importedAt);
@@ -193,27 +193,26 @@ export function buildAxeImport({ input, run, targetRef, rawSha256, configuration
 
 export function importedScreeningArtifact({ run, record, artifactId, evidenceRefs }) {
   const rows = record.rows.length ? record.rows : [null];
-  const observations = rows.flatMap((row, index) => {
-    const profiles = row?.reported_profile_requirement_ids.length ? row.reported_profile_requirement_ids : [null];
-    return profiles.map((profileId) => {
-      const source = row ? record.sources.find((item) => item.frame.path === row.frame.path) : record.sources[0];
-      const known = row?.mapping_status === "requires_human_verification";
-      const signal = !row || !known || record.binding_assurance === "state_changed_requires_review" || row.source_outcome === "incomplete" ? "inconclusive" : row.source_outcome === "violations" ? "candidate_issue" : "no_automated_signal";
-      const outcome = row?.source_outcome ?? "empty results";
-      return { requirement_id: `SCREEN-IMPORT-${digest({ index, profileId, source: row?.source_key ?? "empty" }).slice(0, 24).toUpperCase()}`,
-        evidence_level: "E1", method: "Versioned axe-core result import; source details retained in private evidence",
-        location: `Imported scanner item ${index + 1}`, observation: known
-          ? `The scanner reported ${outcome} for ${row.rule_id}. Human verification is required.`
-          : `The scanner result requires review because its rule mapping is unsupported or no rule result was supplied. Source category: ${outcome}.`,
-        captured_at: record.imported_at, profile_requirement_id: profileId, report_outcome: profileId ? "cant_tell" : null,
-        applicability: "undetermined", report_rationale: record.limitations.join(" "),
-        evidence_refs: structuredClone(evidenceRefs), signal_class: signal, human_review_required: true,
-        evidence_provenance: { collection_method: "automated_tool", tool_name: "axe-core", tool_version: source.tool.version,
-          rule_id: known ? row.rule_id : "unsupported-rule", target_dom: `Private scanner item ${index + 1}`, viewport: null } };
-    });
+  const observations = rows.map((row, index) => {
+    const profiles = row?.reported_profile_requirement_ids ?? [];
+    const source = row ? record.sources.find((item) => item.frame.path === row.frame.path) : record.sources[0];
+    const known = row?.mapping_status === "requires_human_verification";
+    const signal = !row || !known || record.binding_assurance === "state_changed_requires_review" || row.source_outcome === "incomplete" ? "inconclusive" : row.source_outcome === "violations" ? "candidate_issue" : "no_automated_signal";
+    const outcome = row?.source_outcome ?? "empty results";
+    return { requirement_id: `SCREEN-IMPORT-${digest({ index, source: row?.source_key ?? "empty" }).slice(0, 24).toUpperCase()}`,
+      evidence_level: "E1", method: "Versioned axe-core result import; source details retained in private evidence",
+      location: `Imported scanner item ${index + 1}`, observation: known
+        ? `The scanner reported ${outcome} for ${row.rule_id}. Human verification is required.`
+        : `The scanner result requires review because its rule mapping is unsupported or no rule result was supplied. Source category: ${outcome}. ${record.limitations.join(" ")}`,
+      captured_at: record.imported_at,
+      profile_mappings: profiles.map((profileId) => ({ requirement_id: profileId, report_outcome: "cant_tell",
+        applicability: "undetermined", rationale: record.limitations.join(" ") })),
+      evidence_refs: structuredClone(evidenceRefs), signal_class: signal, human_review_required: true,
+      evidence_provenance: { collection_method: "automated_tool", tool_name: "axe-core", tool_version: source.tool.version,
+        rule_id: known ? row.rule_id : "unsupported-rule", target_dom: `Private scanner item ${index + 1}`, viewport: null } };
   });
-  requireValue(observations.length <= 10000, "Scanner import exceeds the 10000-observation limit after profile mapping.");
+  requireValue(observations.length <= 10000, "Scanner import exceeds the 10000-observation limit.");
   return { schema_version: "3.0.0", artifact_id: artifactId, artifact_type: "screening-observations", run_id: run.run_id,
     target_snapshot_ids: targetSnapshotIds(run), producer: { role_id: "e1_inspector", producer_kind: "ai_agent", origin: `axe importer ${AXE_IMPORTER_VERSION}` },
-    created_at: record.imported_at, inputs: [], payload: { schema_version: "3.0.0", observations } };
+    created_at: record.imported_at, inputs: [], payload: { schema_version: "4.0.0", observations } };
 }

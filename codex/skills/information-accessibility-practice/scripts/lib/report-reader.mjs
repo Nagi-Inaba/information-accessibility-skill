@@ -51,7 +51,13 @@ export function readerOverview(presentation) {
     [text.overall, presentation.messages.outcomes[presentation.overall_outcome]],
     [text.human, `${counts.human_review}/${total}`],
     [text.screening, `${counts.screening}/${total}`],
-    [text.notRun, `${counts.not_run}/${total}`]
+    [text.notRun, `${counts.not_run}/${total}`],
+    ...(presentation.screening_summary ? [
+      [presentation.locale === "ja" ? "観測記録数" : "Observation records", String(presentation.screening_summary.observation_count)],
+      [presentation.locale === "ja" ? "問題候補数（人手未確認）" : "Unique barrier candidates (unverified)", String(presentation.screening_summary.barrier_candidate_count)],
+      [presentation.locale === "ja" ? "観測に関連する達成基準数" : "Requirements linked to observations", String(presentation.screening_summary.mapped_requirement_count)],
+      [presentation.locale === "ja" ? "競合がある達成基準数" : "Requirements with conflicting observations", String(presentation.screening_summary.conflicting_requirement_count)]
+    ] : [])
   ];
 }
 

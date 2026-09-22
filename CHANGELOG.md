@@ -25,6 +25,7 @@ This project uses a Keep a Changelog-style structure. Until a tagged release is 
 
 ### Changed
 
+- Screening payload 4.0.0 links one saved observation to several criteria, retains all conflicting evidence, and counts observation candidates separately from mapped criteria. Run 12.0.0 uses registry 11.0.0; frozen run 11 and screening 3 remain readable.
 - Browser rule findings remain machine observations with related criterion references rather than profile outcomes.
 - The existing raw Web evidence adapter now shares its browser-session implementation with `scan-web` while retaining its default rendering behavior.
 - Report and claim behavior is being tightened so unevaluated content cannot be presented as conforming.
