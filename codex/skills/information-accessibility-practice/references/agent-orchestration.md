@@ -24,7 +24,7 @@ After a completed change, `create-audit-run.mjs --supersedes-run <old-run.json>`
 
 The current read-only boundary is a behavioral contract, not a complete tool sandbox. Agent instructions prohibit target writes, authentication, forms, and state-changing interaction. They do not by themselves provide an operating-system or browser enforcement boundary.
 
-`audit-run` schema 12.0.0, orchestration registry 11.0.0 and artifact envelope 3.0.0 define the current run-backed flow. Runs 1 and 2 remain bound to registry 1, run 3 to registry 2, run 4 to registry 3, run 5 to registry 4, run 6 to registry 5, run 7 to registry 6, run 8 to registry 7, run 9 to registry 8, run 10 to registry 9, and run 11 to registry 10; all prior run versions are read-only. New runs record the agreed inspection level, purpose, deliverables and completion criteria in `inspection_request`; see `inspection-levels.md`. Before observations, the orchestrator captures and binds a measured inventory as described in `measured-targets.md`. Each envelope names the exact inventory snapshot IDs, and registration rejects target drift. Completed authorized change records retain the prior IDs and move the run to retesting without requiring the already-modified target to remain unchanged. The reviewer dispatches applicable specialists, the orchestrator materializes and registers candidates, `merge-audit-artifacts.mjs` produces the assessment, and `render-audit-report.mjs` with `--run` `<run.json>`, `--assessment` `<merged.json>`, and `--output` `<new-report.md>` creates the public report through stable and safe runtime checks.
+`audit-run` schema 13.0.0, orchestration registry 12.0.0 and artifact envelope 3.0.0 define the current run-backed flow. Runs 1 and 2 remain bound to registry 1, run 3 to registry 2, run 4 to registry 3, run 5 to registry 4, run 6 to registry 5, run 7 to registry 6, run 8 to registry 7, run 9 to registry 8, run 10 to registry 9, run 11 to registry 10, and run 12 to registry 11; all prior run versions are read-only. New runs record the agreed inspection level, purpose, deliverables and completion criteria in `inspection_request`; see `inspection-levels.md`. Before observations, the orchestrator captures and binds a measured inventory as described in `measured-targets.md`. Each envelope names the exact inventory snapshot IDs, and registration rejects target drift. Completed authorized change records retain the prior IDs and move the run to retesting without requiring the already-modified target to remain unchanged. The reviewer dispatches applicable specialists, the orchestrator materializes and registers candidates, `merge-audit-artifacts.mjs` produces the assessment, and `render-audit-report.mjs` with `--run` `<run.json>`, `--assessment` `<merged.json>`, and `--output` `<new-report.md>` creates the public report through stable and safe runtime checks.
 
 ## Authoring without agent dispatch
 
@@ -60,3 +60,40 @@ The runtime uses canonical-path, file-identity, hard-link, symlink, junction, st
 Public-report generation does not yet provide a complete privacy scan for private URLs, person names, or sensitive evidence. Distribution remains subject to the documented public-report review boundary and an explicit publication review.
 
 Queue payload 3.0.0 binds each item to measured locations, registered screening observation references, review origins and priority reasons. Read [human-review-queue.md](human-review-queue.md). The current registry also permits initialized → human_queue_ready for an explicit manual or all-profile queue without screening. This transition records a review plan only. Frozen registries do not gain this transition.
+
+## Findings and remedies
+
+Human review 2 accepts either `finding` or a nonempty `findings` array for a failed criterion. Each finding contains `id`, `priority`, `location`, `affected_users`, and `observation`. Reuse an ID across criteria only when the reviewer declares the same finding with identical details. Different barriers on one criterion need different IDs. The worksheet keeps its single-finding entry; use an actual human-authored JSON payload with `artifact init` for plural findings. The CLI does not invent or authenticate these declarations.
+
+Remediation plan 3 can separate barriers from remedies. This excerpt shows the complete payload shape; replace the example IDs with registered records from the same run and list both source artifacts in the envelope inputs:
+
+```json
+{
+  "schema_version": "3.0.0",
+  "findings": [{
+    "finding_id": "FIND-IMAGE-ONE",
+    "basis": "verified_failure",
+    "requirement_ids": ["WCAG-2.2-SC-1.1.1", "WCAG-2.2-SC-4.1.2"],
+    "observation_refs": [{"artifact_id": "ART-SCREEN-001", "requirement_id": "SCREEN-IMAGE-ONE"}],
+    "human_review_refs": [
+      {"artifact_id": "ART-HUMAN-001", "requirement_id": "WCAG-2.2-SC-1.1.1"},
+      {"artifact_id": "ART-HUMAN-001", "requirement_id": "WCAG-2.2-SC-4.1.2"}
+    ],
+    "priority": "P1",
+    "locations": ["Product image button"],
+    "affected_users": ["Screen reader users"],
+    "issue": "The reviewed image button lacks an accessible name."
+  }],
+  "items": [{
+    "remediation_id": "REM-IMAGE001",
+    "finding_id": "FIND-IMAGE-ONE",
+    "proposed_change": "Provide the reviewed control with a name describing its action.",
+    "verification": "Retest the image alternative and the control name with the registered procedures.",
+    "residual_limitation": "The proposal has not been applied or retested."
+  }]
+}
+```
+
+Several observations and criteria can support one finding, and one criterion can have several findings. A remedy is stored once per finding, with further distinct remedies added as separate items. For explicit human findings, IDs, priority, affected users and issue must match the declaration; join multiple `locations` with a newline to match the human `location`. Source references, duplicate IDs, identical duplicate content and unused inputs are checked before registration. Shared evidence alone does not merge distinct barriers. `unverified_screening_candidate` findings refer only to observations and remain unverified, including when they have no criterion mapping. The compatibility item shape remains accepted, but plural human findings require explicit `finding_id` links.
+
+Reports group related criteria and observations under each finding and distinguish human-declared finding counts from failed-criterion counts. `status --run <successor.json> --retest-of <predecessor.json>` reports criterion declarations and their aggregate for each predecessor finding. It requires the linked `retest_required` predecessor, the same target, profile, scope and inspection request, and a new target version. A pass declaration does not prove that every original location was repaired and does not close the finding. This comparison remains local; it does not rewrite either run.

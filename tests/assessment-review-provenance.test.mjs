@@ -19,6 +19,7 @@ import { renderReportHtml } from "../codex/skills/information-accessibility-prac
 import { renderReportSummaryMarkdown } from "../codex/skills/information-accessibility-practice/scripts/lib/report-summary.mjs";
 import { applyReportVisibility } from "../codex/skills/information-accessibility-practice/scripts/lib/report-privacy.mjs";
 import { legacyAssessment } from "./helpers/legacy-assessment.mjs";
+import { buildRunFindings } from "../codex/skills/information-accessibility-practice/scripts/lib/run-findings.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const scripts = path.join(root, "codex/skills/information-accessibility-practice/scripts");
@@ -66,6 +67,45 @@ function signer(record, assurance = "independent") {
       assurance_ceiling: "independent", target_context_sha256: [statement.target_context_sha256], public_key: publicKey, valid_from: date(-600_000), valid_until: date(600_000), revoked_at: null }] };
   return { signed, policy, trust: createAttestationTrust(policy, attestationDigest(policy)) };
 }
+
+test("signed plural findings retain shared criteria and reject unsigned relations", () => {
+  const { baseline, record } = fixture({ failure: true });
+  const second = fixture({ failure: true, requirementIndex: 1 }).record.review.reviews[0];
+  const payload = structuredClone(record.review); payload.schema_version = "2.0.0";
+  const first = payload.reviews[0], shared = first.finding;
+  delete first.finding; delete second.finding;
+  first.findings = [shared, { ...structuredClone(shared), id: "FIND-SECOND", observation: "Another declared barrier" }];
+  second.findings = [structuredClone(shared)]; payload.reviews.push(second);
+  const current = createHumanReviewRecord({ reviewerId: record.reviewer_id, review: payload, context: record.context });
+  const { signed, trust } = signer(current);
+  assert.equal(signed.schema_version, "2.0.0");
+  const merged = applyStandaloneHumanReview({ assessment: baseline, reviewRecord: signed, resources, trust });
+  assert.equal(merged.assessment.findings.length, 2);
+  assert.deepEqual(merged.assessment.findings.find((item) => item.id === shared.id).requirement_ids, [first.requirement_id, second.requirement_id].sort());
+  assert.equal(validate(merged, { trust }).valid, true);
+  const planned = buildRunFindings(payload.reviews, [{ finding_id: shared.id, remediation_id: shared.id, basis: "verified_failure",
+    priority: shared.priority, requirement_ids: [first.requirement_id, second.requirement_id], location: shared.location,
+    affected_users: shared.affected_users, issue: shared.observation, proposed_change: "Synthetic remedy", verification: "Synthetic retest" }]);
+  assert.equal(planned.find((item) => item.id === "FIND-SECOND").remediation_status, "unplanned");
+  const legacyLinked = buildRunFindings(payload.reviews.map((review) => ({ ...review, findings: [shared] })), [{
+    remediation_id: "REM-LEGACY01", basis: "verified_failure", requirement_id: second.requirement_id,
+    proposed_change: "Remedy recorded on the second criterion", verification: "Retest shared finding"
+  }]);
+  assert.equal(legacyLinked.length, 1);
+  assert.equal(legacyLinked[0].remediation_status, "planned");
+  assert.equal(legacyLinked[0].remediation, "Remedy recorded on the second criterion");
+  for (const change of [
+    (value) => { value.assessment.findings.find((item) => item.id === "FIND-SECOND").requirement_ids.push(second.requirement_id); },
+    (value) => { value.assessment.findings[0].observation = "Unsigned change"; },
+    (value) => { value.assessment.human_review_records[0].review.reviews[0].findings[0].observation = "Changed signed content"; }
+  ]) {
+    const value = structuredClone(merged); change(value); assert.equal(validate(value, { trust }).valid, false);
+  }
+  const duplicate = structuredClone(payload); duplicate.reviews[0].findings.push({ ...shared, observation: "Conflicting duplicate ID" });
+  assert.throws(() => buildRunFindings(duplicate.reviews, []), /Duplicate finding|Conflicting human/);
+  const duplicateContent = structuredClone(payload); duplicateContent.reviews[0].findings.push({ ...shared, id: "FIND-DUPLICATE-CONTENT" });
+  assert.throws(() => buildRunFindings(duplicateContent.reviews, []), /Duplicate human finding content/);
+});
 
 test("assessment assurance is rederived from records and external trust for every report format", () => {
   const { baseline, record } = fixture();

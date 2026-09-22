@@ -115,7 +115,7 @@ const definitions = [
     name: "status",
     script: "show-audit-status.mjs",
     summary: "Read run state, evidence coverage, validation, successor warnings and next operations.",
-    usage: ["accessibility-audit status --run <run.json> [--format text|json] [--locale ja|en]"],
+    usage: ["accessibility-audit status --run <run.json> [--retest-of <predecessor-run.json>] [--format text|json] [--locale ja|en]"],
     options: [option("--run", "<run.json>", "Run manifest to inspect without modification."),
       option("--format", "<text|json>", "Text or versioned JSON output. Default: text."),
       option("--locale", "<ja|en>", "Human-readable locale. JSON field names stay stable.")],

@@ -17,7 +17,7 @@ import {
   writeNewText
 } from "./lib/audit-run.mjs";
 import { validateAssessment } from "./validate-assessment.mjs";
-import { buildRunFindings, findingPlanMetadata } from "./lib/run-findings.mjs";
+import { buildRunFindings, declaredFindings, findingPlanMetadata, remediationPlanItems } from "./lib/run-findings.mjs";
 import { isHumanReviewMapping, publicReviewerAssurance, reviewerAssuranceText, reviewerVerificationOptions, displayedEvidenceLevel } from "./lib/assessment-provenance.mjs";
 import { loadReviewTrust } from "./lib/review-trust-input.mjs";
 import { parseAttestationJson } from "./lib/attestation-canonical.mjs";
@@ -286,7 +286,7 @@ function collectRunEvidence(envelopesById) {
       })));
     }
     if (envelope?.artifact_type === "screening-observations") screeningObservations.push(...(envelope.payload?.observations ?? []));
-    if (envelope?.artifact_type === "remediation-plan") remediationItems.push(...(envelope.payload?.items ?? []));
+    if (envelope?.artifact_type === "remediation-plan") remediationItems.push(...remediationPlanItems(envelope.payload));
   }
   return { queues, humanReviews, screeningObservations, remediationItems };
 }
@@ -846,7 +846,7 @@ export function validateRunBackedAssessment({ run, assessment, envelopesById, re
   if (humanByRequirement.size > 0) {
     const expectedReviewers = [...new Set(evidence.humanReviews.map((review) => review.reviewer_name))].sort().join(", ");
     const expectedDate = evidence.humanReviews.map((review) => review.review_date).sort().at(-1);
-    const hasPerformedReview = !["11.0.0", "12.0.0"].includes(run.schema_version) || evidence.humanReviews.some((review) => review.profile_outcome !== "not_tested");
+    const hasPerformedReview = !["11.0.0", "12.0.0", "13.0.0"].includes(run.schema_version) || evidence.humanReviews.some((review) => review.profile_outcome !== "not_tested");
     const expectedLevel = hasPerformedReview ? "E2" : screeningByRequirement.size > 0 ? "E1" : "E0";
     if (record.evidence_level !== expectedLevel || record.evaluator !== expectedReviewers || record.evaluated_at !== expectedDate) {
       throw new Error("Assessment evaluation identity does not match the current run human review declarations.");
@@ -904,7 +904,7 @@ export function buildPublicReportModel({ run, assessment, envelopesById, resourc
   }));
   const reportProjection = buildReportProjection(profileResults, evidence.screeningObservations);
   const expectedProfileCount = registeredRequirementIds.length;
-  const performedReviews = evidence.humanReviews.filter((review) => !["11.0.0", "12.0.0"].includes(run.schema_version) || review.profile_outcome !== "not_tested");
+  const performedReviews = evidence.humanReviews.filter((review) => !["11.0.0", "12.0.0", "13.0.0"].includes(run.schema_version) || review.profile_outcome !== "not_tested");
   const reviewedIds = new Set(performedReviews.map((review) => review.requirement_id));
   const resultByRequirement = new Map(assessment.assessment.results.map((result) => [result.requirement_id, result]));
   const findingById = uniqueMap(assessment.assessment.findings ?? [], "id", "assessment finding ID");
@@ -942,7 +942,8 @@ export function buildPublicReportModel({ run, assessment, envelopesById, resourc
     .map(({ evidence_refs: _privateReferences, ...observation }) => guardScreeningProjection(observation))
     .flatMap((observation) => {
       const remediations = evidence.remediationItems
-        .filter((item) => item.basis === "unverified_screening_candidate" && item.requirement_id === observation.requirement_id)
+        .filter((item) => item.basis === "unverified_screening_candidate" && (item.observation_refs
+          ? item.observation_refs.some((ref) => ref.requirement_id === observation.requirement_id) : item.requirement_id === observation.requirement_id))
         .sort((left, right) => left.remediation_id.localeCompare(right.remediation_id, "en"));
       return (remediations.length ? remediations : [null]).map((remediation) => ({
         ...observation,
@@ -953,12 +954,13 @@ export function buildPublicReportModel({ run, assessment, envelopesById, resourc
     })
     .sort((left, right) => String(left.requirement_id).localeCompare(String(right.requirement_id), "en")
       || String(left.remediation?.proposed_change ?? "").localeCompare(String(right.remediation?.proposed_change ?? ""), "en"));
-  const declaredFindingRequirements = new Set(evidence.humanReviews.filter((review) => review.finding).map((review) => review.requirement_id));
+  const declaredFindingRequirements = new Set(evidence.humanReviews.filter((review) => declaredFindings(review).length).map((review) => review.requirement_id));
   const remediation = [...evidence.remediationItems]
     .filter((item) => item.basis !== "verified_failure" || !declaredFindingRequirements.has(item.requirement_id))
     .sort((left, right) => left.remediation_id.localeCompare(right.remediation_id, "en"))
     .map((item) => ({
       requirement_id: item.requirement_id,
+      ...(item.finding_id ? { requirement_ids: item.requirement_ids, observation_ids: item.observation_refs.map((ref) => ref.requirement_id) } : {}),
       evidence_status: item.basis === "verified_failure" ? "Verified failure" : "Unverified screening candidate",
       priority: item.priority,
       location: publicLocation(item.location),
@@ -973,6 +975,8 @@ export function buildPublicReportModel({ run, assessment, envelopesById, resourc
     if (!finding.requirement_ids.some((id) => declaredFindingRequirements.has(id))) continue;
     remediation.push({
       requirement_id: finding.requirement_ids[0],
+      requirement_ids: finding.requirement_ids,
+      observation_ids: evidence.remediationItems.find((item) => item.finding_id === finding.id)?.observation_refs.map((ref) => ref.requirement_id) ?? [],
       evidence_status: "Verified failure",
       priority: finding.priority,
       location: publicLocation(finding.location),
@@ -1030,7 +1034,7 @@ export function buildPublicReportModel({ run, assessment, envelopesById, resourc
     reportOutcomeCounts: reportProjection.counts,
     catalogCoverage: { recorded: recordedProfileResults.length, expected: expectedProfileCount },
     evaluationCoverage: {
-      humanReviewed: profileResults.filter((result) => isHumanReviewMapping(result) && (!["11.0.0", "12.0.0"].includes(run.schema_version) || result.outcome !== "not_tested")).length,
+      humanReviewed: profileResults.filter((result) => isHumanReviewMapping(result) && (!["11.0.0", "12.0.0", "13.0.0"].includes(run.schema_version) || result.outcome !== "not_tested")).length,
       expected: expectedProfileCount
     }
   };
@@ -1218,8 +1222,8 @@ function main() {
     const runValidation = validateAuditRun(run, { skillRoot, runFile: runSnapshot.path });
     if (!runValidation.valid) throw new Error(`Audit run validation failed:\n- ${runValidation.errors.join("\n- ")}`);
     const currentRunVersion = runValidation.resources.auditRunSchema.properties.schema_version.const;
-    if (!["10.0.0", "11.0.0", currentRunVersion].includes(run.schema_version)) {
-      throw new Error(`Run-backed reporting requires audit-run 10.0.0, 11.0.0 or current schema_version ${currentRunVersion}; use the original package for older records.`);
+    if (!["10.0.0", "11.0.0", "12.0.0", currentRunVersion].includes(run.schema_version)) {
+      throw new Error(`Run-backed reporting requires audit-run 10.0.0, 11.0.0, 12.0.0 or current schema_version ${currentRunVersion}; use the original package for older records.`);
     }
     const validation = validateAssessment(
       assessment,

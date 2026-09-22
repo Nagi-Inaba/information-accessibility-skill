@@ -74,7 +74,7 @@ function resourceVersions(registryFile = "orchestration-registry.json") {
 function initialRun(artifactRoot) {
   const resolvedRoot = path.isAbsolute(artifactRoot) ? artifactRoot : activeArtifactRoot;
   const run = {
-    schema_version: "12.0.0",
+    schema_version: "13.0.0",
     inspection_request: createInspectionRequest("quick", "Identify the next investigation"),
     run_id: runId,
     supersedes_run_id: null,
@@ -258,7 +258,7 @@ function queueEnvelope({ artifactId = "ART-QUEUE-001", inputs = [], payload = qu
 
 function declaredHumanPayload(requirementId = "WCAG-2.2-SC-1.1.1", profileOutcome = "pass") {
   return {
-    schema_version: "1.0.0",
+    schema_version: "2.0.0",
     declaration: "I declare that I performed the recorded review as an external human reviewer.",
     reviewer_name: "External Reviewer",
     review_date: "2026-07-17",
@@ -334,7 +334,7 @@ function legacyFixAuthorizationPayload() {
 
 function remediationPayload(sourceArtifactId, requirementId = "SCREEN-FIRST") {
   return {
-    schema_version: "2.0.0",
+    schema_version: "3.0.0",
     items: [{
       remediation_id: "REM-TEST0001",
       basis: "unverified_screening_candidate",
@@ -353,7 +353,7 @@ function remediationPayload(sourceArtifactId, requirementId = "SCREEN-FIRST") {
 
 function verifiedFailureRemediationPayload(sourceArtifactId, requirementId = "WCAG-2.2-SC-1.1.1") {
   return {
-    schema_version: "2.0.0",
+    schema_version: "3.0.0",
     items: [{
       remediation_id: "REM-FAIL0001",
       basis: "verified_failure",
@@ -799,7 +799,7 @@ test("run initialization creates a schema-valid immutable manifest with installe
   ]);
   assert.equal(result.status, 0, result.stderr || result.stdout);
   const run = readJson(output);
-  assert.equal(run.schema_version, "12.0.0");
+  assert.equal(run.schema_version, "13.0.0");
   assert.equal(run.target_inventory, null);
   assert.equal(run.status, "initialized");
   assert.equal(run.artifact_root, "artifacts");
@@ -881,6 +881,10 @@ test("fresh retest initialization validates its predecessor and copies no prior 
   assert.equal(run.permissions.command_execution, "denied");
   assert.deepEqual(run.resource_versions, resourceVersions());
   assert.deepEqual(fs.readdirSync(newArtifactRoot), []);
+  const retestStatus = auditStatus(output, { retestOf: predecessorFile });
+  assert.equal(retestStatus.finding_retest.basis, "successor_declared_human_reviews");
+  assert.ok(retestStatus.finding_retest.findings.length > 0);
+  assert.ok(retestStatus.finding_retest.findings.every((finding) => ["pending", "unmapped"].includes(finding.status)));
 
   const crossRunOutput = path.join(temp, "cross-run.json");
   const copiedOldArtifact = path.join(newArtifactRoot, "copied-old-screen.json");
@@ -970,8 +974,8 @@ test("audit-run dispatch maps runs 1/2 to registry 1 through run 7 to registry 6
   const legacyV3SchemaFile = path.join(references, "audit-run-3.0.0.schema.json");
   const legacyV4SchemaFile = path.join(references, "audit-run-4.0.0.schema.json");
   const legacyV5SchemaFile = path.join(references, "audit-run-5.0.0.schema.json");
-  assert.equal(currentSchema.$id, "urn:information-accessibility:audit-run:12.0.0");
-  assert.equal(currentSchema.properties.schema_version.const, "12.0.0");
+  assert.equal(currentSchema.$id, "urn:information-accessibility:audit-run:13.0.0");
+  assert.equal(currentSchema.properties.schema_version.const, "13.0.0");
   assert.equal(readJson(legacyV1SchemaFile).properties.schema_version.const, "1.0.0");
   assert.equal(readJson(legacyV2SchemaFile).properties.schema_version.const, "2.0.0");
   assert.equal(readJson(legacyV3SchemaFile).properties.schema_version.const, "3.0.0");
@@ -983,7 +987,7 @@ test("audit-run dispatch maps runs 1/2 to registry 1 through run 7 to registry 6
   const registryV2 = readJson(path.join(references, "orchestration-registry-2.0.0.json"));
   const registryV3 = readJson(path.join(references, "orchestration-registry-3.0.0.json"));
   const registryV4 = readJson(path.join(references, "orchestration-registry-4.0.0.json"));
-  assert.equal(currentRegistry.schema_version, "11.0.0");
+  assert.equal(currentRegistry.schema_version, "12.0.0");
   assert.equal(registryV1.schema_version, "1.0.0");
   assert.equal(registryV2.schema_version, "2.0.0");
   assert.equal(registryV3.schema_version, "3.0.0");
@@ -1113,6 +1117,7 @@ test("legacy declared-human runs remain readable without retroactive current bin
   writeJson(fixture.screenFile, screen);
   const human = readJson(fixture.humanFile);
   human.schema_version = "1.0.0";
+  human.payload.schema_version = "1.0.0";
   delete human.target_snapshot_ids;
   human.payload.reviews[0].official_sources = [];
   human.payload.reviews[0].target_specific_evidence = human.payload.reviews[0].target_specific_evidence
@@ -1427,7 +1432,7 @@ test("frozen registry 1 payload compatibility stays fixed at 1.0.0 alongside new
   assert.equal(frozenPolicy.get("human-review-queue"), "1.0.0");
   assert.equal(frozenPolicy.get("remediation-plan"), "1.0.0");
   assert.equal(resources.currentPayloadVersions.get("human-review-queue"), "3.0.0");
-  assert.equal(resources.currentPayloadVersions.get("remediation-plan"), "2.0.0");
+  assert.equal(resources.currentPayloadVersions.get("remediation-plan"), "3.0.0");
 });
 
 test("each registry derives its own exact per-artifact payload compatibility policy", () => {
@@ -1487,6 +1492,7 @@ test("each registry derives its own exact per-artifact payload compatibility pol
   expected.set("9.0.0", structuredClone(expected.get("8.0.0")));
   expected.set("10.0.0", { ...expected.get("9.0.0"), "human-review-queue": "3.0.0" });
   expected.set("11.0.0", { ...expected.get("10.0.0"), "screening-observations": "4.0.0" });
+  expected.set("12.0.0", { ...expected.get("11.0.0"), "remediation-plan": "3.0.0", "declared-human-review": "2.0.0" });
   assert.deepEqual([...resources.orchestrationRegistries.keys()], [...expected.keys()]);
   for (const [registryVersion, payloadVersions] of expected) {
     assert.deepEqual(

@@ -10,7 +10,7 @@ import { queueContextErrors } from "./human-review-queue.mjs";
 import { screeningMappings } from "./review-details.mjs";
 import { validateJsonSchema } from "./json-schema.mjs";
 import { createInspectionRequest, inspectionRequestErrors } from "./inspection-request.mjs";
-import { buildRunFindings } from "./run-findings.mjs";
+import { buildRunFindings, remediationPlanItems, findingRelationErrors, declaredFindings, declaredFindingErrors } from "./run-findings.mjs";
 import { compareInstants } from "./date-time.mjs";
 import { canonicalJson } from "./canonical-json.mjs";
 import { interactionPolicyErrors } from "./interaction-policy.mjs";
@@ -35,7 +35,8 @@ const auditRunRegistryCompatibility = new Map([
   ["9.0.0", "8.0.0"],
   ["10.0.0", "9.0.0"],
   ["11.0.0", "10.0.0"],
-  ["12.0.0", "11.0.0"]
+  ["12.0.0", "11.0.0"],
+  ["13.0.0", "12.0.0"]
 ]);
 const auditRunEnvelopeCompatibility = new Map([
   ["1.0.0", "1.0.0"],
@@ -49,11 +50,12 @@ const auditRunEnvelopeCompatibility = new Map([
   ["9.0.0", "3.0.0"],
   ["10.0.0", "3.0.0"],
   ["11.0.0", "3.0.0"],
-  ["12.0.0", "3.0.0"]
+  ["12.0.0", "3.0.0"],
+  ["13.0.0", "3.0.0"]
 ]);
 const currentAuditRunManifestContract = {
   "id": "audit-run",
-  "latest_schema_version": "12.0.0",
+  "latest_schema_version": "13.0.0",
   "schema_versions": [
     {
       "version": "1.0.0",
@@ -113,8 +115,14 @@ const currentAuditRunManifestContract = {
     },
     {
       "version": "12.0.0",
-      "schema_file": "audit-run.schema.json",
+      "schema_file": "audit-run-12.0.0.schema.json",
       "schema_sha256": "836344169a4f237e4d724ce26501ad43712fb7b2e5028be73ad279e389788cce",
+      "mode": "read_only"
+    },
+    {
+      "version": "13.0.0",
+      "schema_file": "audit-run.schema.json",
+      "schema_sha256": "2c4b852b3599e036fda577f52b04933f4ddb7ab53a3e8f399f2b99c30713e187",
       "mode": "current"
     }
   ]
@@ -169,15 +177,46 @@ const currentScreeningManifestContract = {
     }
   ]
 };
+const currentRemediationManifestContract = {
+  "id": "remediation-plan",
+  "latest_schema_version": "3.0.0",
+  "schema_versions": [
+    {
+      "version": "1.0.0",
+      "schema_file": "remediation-plan-1.0.0.schema.json",
+      "mode": "read_only"
+    },
+    {
+      "version": "2.0.0",
+      "schema_file": "remediation-plan-2.0.0.schema.json",
+      "schema_sha256": "b8036ca3587b1a91a89baa034ac4807f5f228ed6bbb1d6e898e96c5ce6b79f92",
+      "mode": "read_only"
+    },
+    {
+      "version": "3.0.0",
+      "schema_file": "remediation-plan.schema.json",
+      "schema_sha256": "a0758d53df985a561f49219d556f564894676743b960919f2187298f2059f934",
+      "mode": "current"
+    }
+  ]
+};
 const currentHumanReviewManifestContract = {
-  id: "declared-human-review",
-  latest_schema_version: "1.0.0",
-  schema_versions: [{
-    version: "1.0.0",
-    schema_file: "declared-human-review.schema.json",
-    schema_sha256: "f4732affdb197ae02d56bf1cdccda2978422b127a1b8c5f173ed452ba1198f7a",
-    mode: "current"
-  }]
+  "id": "declared-human-review",
+  "latest_schema_version": "2.0.0",
+  "schema_versions": [
+    {
+      "version": "1.0.0",
+      "schema_file": "declared-human-review-1.0.0.schema.json",
+      "schema_sha256": "f4732affdb197ae02d56bf1cdccda2978422b127a1b8c5f173ed452ba1198f7a",
+      "mode": "read_only"
+    },
+    {
+      "version": "2.0.0",
+      "schema_file": "declared-human-review.schema.json",
+      "schema_sha256": "4474360f5eb63e75485acfa45bf832fe4bc2d2cc92d7beaf87beae059ed0c41e",
+      "mode": "current"
+    }
+  ]
 };
 // Additive timestamp support in the current payloads. Keep every other
 // manifest field, especially frozen versions and role bindings, pinned.
@@ -473,6 +512,8 @@ function validateOrchestrationRegistrySemantics(registry, canonicalRegistry) {
       if (!isDeepStrictEqual(installedArtifactType, currentScreeningManifestContract)) errors.push("Canonical screening-observations manifest changed.");
     } else if (canonicalArtifactType.id === "human-review-queue") {
       if (!isDeepStrictEqual(installedArtifactType, currentQueueManifestContract)) errors.push("Canonical human-review-queue manifest changed.");
+    } else if (canonicalArtifactType.id === "remediation-plan") {
+      if (!isDeepStrictEqual(installedArtifactType, currentRemediationManifestContract)) errors.push("Canonical remediation-plan manifest changed.");
     } else if (canonicalArtifactType.id === "declared-human-review") {
       if (!isDeepStrictEqual(installedArtifactType, currentHumanReviewManifestContract)) errors.push("Canonical declared-human-review manifest changed.");
     } else {
@@ -617,6 +658,8 @@ export function loadAuditResources(skillRoot = defaultSkillRoot) {
     orchestrationSchemaV9: "references/orchestration-registry-9.0.0.schema.json",
     orchestrationRegistryV10: "references/orchestration-registry-10.0.0.json",
     orchestrationSchemaV10: "references/orchestration-registry-10.0.0.schema.json",
+    orchestrationRegistryV11: "references/orchestration-registry-11.0.0.json",
+    orchestrationSchemaV11: "references/orchestration-registry-11.0.0.schema.json",
     envelopeSchema: "references/audit-artifact-envelope.schema.json",
     envelopeSchemaV1: "references/audit-artifact-envelope-1.0.0.schema.json",
     envelopeSchemaV2: "references/audit-artifact-envelope-2.0.0.schema.json",
@@ -637,7 +680,8 @@ export function loadAuditResources(skillRoot = defaultSkillRoot) {
     ["frozen 7.0.0", loaded.orchestrationRegistryV7, loaded.orchestrationSchemaV7],
     ["frozen 8.0.0", loaded.orchestrationRegistryV8, loaded.orchestrationSchemaV8],
     ["frozen 9.0.0", loaded.orchestrationRegistryV9, loaded.orchestrationSchemaV9],
-    ["frozen 10.0.0", loaded.orchestrationRegistryV10, loaded.orchestrationSchemaV10]
+    ["frozen 10.0.0", loaded.orchestrationRegistryV10, loaded.orchestrationSchemaV10],
+    ["frozen 11.0.0", loaded.orchestrationRegistryV11, loaded.orchestrationSchemaV11]
   ]) {
     const registryErrors = [];
     validateJsonSchema(registry.value, schema.value, "$", registryErrors);
@@ -715,6 +759,7 @@ export function loadAuditResources(skillRoot = defaultSkillRoot) {
     loaded.orchestrationRegistryV8,
     loaded.orchestrationRegistryV9,
     loaded.orchestrationRegistryV10,
+    loaded.orchestrationRegistryV11,
     loaded.orchestrationRegistry
   ];
   const orchestrationRegistries = new Map(registryFiles.map((registry) => [
@@ -1138,7 +1183,7 @@ function validateHumanQueueBindings(envelopesById, profileId, resources, errors,
 }
 
 function validateScreeningProfileBindings(run, envelopesById, resources, errors) {
-  if (run.schema_version !== "12.0.0" || errors.length) return;
+  if (!["12.0.0", "13.0.0"].includes(run.schema_version) || errors.length) return;
   const profileIds = new Set(resources.standardsRegistry.profiles.find((profile) => profile.id === run.profile.id).requirement_ids);
   const observedIds = new Set();
   for (const record of envelopesById.values()) {
@@ -1202,11 +1247,12 @@ function validateDeclaredHumanBindings(envelopesById, profileId, resources, erro
     const reviewed = new Set();
     for (const review of Array.isArray(artifact.payload?.reviews) ? artifact.payload.reviews : []) {
       const requirementId = review?.requirement_id;
-      if (review.finding && review.profile_outcome !== "fail") {
+      if (declaredFindings(review).length && review.profile_outcome !== "fail") {
         errors.push(`Declared human review ${artifactId} finding requires profile_outcome fail for ${requirementId}.`);
       }
       if (reviewed.has(requirementId)) errors.push(`Declared human review ${artifactId} repeats queued requirement ${String(requirementId)}.`);
       reviewed.add(requirementId);
+      errors.push(...declaredFindingErrors([review]));
       const queueItem = queuedItems.get(requirementId);
       if (!queueItem) {
         errors.push(`Declared human review ${artifactId} requirement was not queued by its registered inputs: ${String(requirementId)}.`);
@@ -1252,7 +1298,7 @@ function validateDeclaredHumanBindings(envelopesById, profileId, resources, erro
       const evidenceTypes = new Set((review.target_specific_evidence ?? []).map((item) => item?.type));
       // Current run 11 may explicitly record non-performance without inventing
       // keyboard/browser/AT results. Frozen run 10 keeps its original checks.
-      if (["10.0.0", "11.0.0"].includes(resources.orchestrationRegistry.schema_version) && review.profile_outcome === "not_tested") {
+      if (["10.0.0", "11.0.0", "12.0.0"].includes(resources.orchestrationRegistry.schema_version) && review.profile_outcome === "not_tested") {
         requiredEvidenceTypes.clear();
         requiredEvidenceTypes.add("manual_observation");
         if ([...evidenceTypes].some((type) => type !== "manual_observation")) errors.push(`Declared human review ${artifactId} not_tested accepts only manual_observation non-performance notes for ${requirementId}.`);
@@ -1310,7 +1356,7 @@ function remediationItems(envelopesById) {
   for (const [artifactId, record] of envelopesById) {
     const artifact = artifactEnvelopeFromRecord(record);
     if (artifact?.artifact_type !== "remediation-plan") continue;
-    for (const item of Array.isArray(artifact.payload?.items) ? artifact.payload.items : []) {
+    for (const item of remediationPlanItems(artifact.payload)) {
       items.push({ artifactId, artifact, item });
     }
   }
@@ -1319,10 +1365,25 @@ function remediationItems(envelopesById) {
 }
 
 function validateRemediationBindings(envelopesById, errors) {
+  if (errors.length) return;
   const seenRemediationIds = new Set();
+  const seenFindingIds = new Set();
+  const envelopes = new Map([...envelopesById].map(([id, record]) => [id, artifactEnvelopeFromRecord(record)]));
   for (const [artifactId, record] of envelopesById) {
     const artifact = artifactEnvelopeFromRecord(record);
     if (artifact?.artifact_type !== "remediation-plan") continue;
+    if (Array.isArray(artifact.payload?.findings)) {
+      errors.push(...findingRelationErrors(artifact, envelopes));
+      for (const finding of artifact.payload.findings) {
+        if (seenFindingIds.has(finding.finding_id)) errors.push(`Duplicate finding ID: ${finding.finding_id}.`);
+        seenFindingIds.add(finding.finding_id);
+      }
+      for (const item of artifact.payload.items) {
+        if (seenRemediationIds.has(item.remediation_id)) errors.push(`Duplicate remediation ID: ${item.remediation_id}.`);
+        seenRemediationIds.add(item.remediation_id);
+      }
+      continue;
+    }
     const inputIds = new Set((Array.isArray(artifact.inputs) ? artifact.inputs : []).map((input) => input?.artifact_id));
     const usedInputIds = new Set();
     for (const item of Array.isArray(artifact.payload?.items) ? artifact.payload.items : []) {
@@ -1354,6 +1415,9 @@ function validateRemediationBindings(envelopesById, errors) {
           }
           const matchingFailure = (source.payload?.reviews ?? []).some((review) => review?.requirement_id === item?.requirement_id
             && review?.profile_outcome === "fail");
+          if ((source.payload?.reviews ?? []).some((review) => review.requirement_id === item.requirement_id && declaredFindings(review).length > 1)) {
+            errors.push(`Multiple human findings require explicit finding_id remediation links: ${String(item.requirement_id)}.`);
+          }
           if (!matchingFailure) {
             errors.push(`Remediation ${String(remediationId)} verified_failure requires a matching declared-human-review profile_outcome fail for ${String(item?.requirement_id)}.`);
           }
@@ -1457,7 +1521,7 @@ export function validateAuditRun(run, { skillRoot = defaultSkillRoot, runFile, r
   const currentSchemaVersion = resources.auditRunSchema.properties.schema_version.const;
   // Run 10 has the same target/permission/human-binding checks; freezing its
   // payload schema must not weaken validation of existing records.
-  const usesCurrentPolicy = ["10.0.0", "11.0.0", currentSchemaVersion].includes(runRecord.schema_version);
+  const usesCurrentPolicy = ["10.0.0", "11.0.0", "12.0.0", currentSchemaVersion].includes(runRecord.schema_version);
   if (usesCurrentPolicy) {
     errors.push(...inspectionRequestErrors(runRecord.inspection_request));
     const profile = resources.standardsRegistry.profiles.find((item) => item.id === runRecord.profile?.id);
@@ -1587,8 +1651,8 @@ export function createAuditRun(options) {
     if (!options.supersedesRunFile) throw new Error("supersedesRunFile is required for fresh retest initialization.");
     const predecessorValidation = validateAuditRun(options.supersedesRun, { skillRoot, runFile: options.supersedesRunFile });
     if (!predecessorValidation.valid) throw new Error(`Invalid superseded audit run:\n- ${predecessorValidation.errors.join("\n- ")}`);
-    if (!["5.0.0", "6.0.0", "7.0.0", "8.0.0", "9.0.0", "10.0.0", "11.0.0", "12.0.0"].includes(options.supersedesRun.schema_version)) {
-      throw new Error("Fresh retest predecessor must use supported audit-run schema_version 5.0.0 through 12.0.0.");
+    if (!["5.0.0", "6.0.0", "7.0.0", "8.0.0", "9.0.0", "10.0.0", "11.0.0", "12.0.0", "13.0.0"].includes(options.supersedesRun.schema_version)) {
+      throw new Error("Fresh retest predecessor must use supported audit-run schema_version 5.0.0 through 13.0.0.");
     }
     if (options.supersedesRun.status !== "retest_required") throw new Error("Fresh retest predecessor status must be retest_required.");
     if (run.run_id === options.supersedesRun.run_id) throw new Error("Fresh retest run ID must differ from the predecessor run ID.");

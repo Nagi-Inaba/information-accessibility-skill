@@ -52,6 +52,11 @@ export function readerOverview(presentation) {
     [text.human, `${counts.human_review}/${total}`],
     [text.screening, `${counts.screening}/${total}`],
     [text.notRun, `${counts.not_run}/${total}`],
+    ...(presentation.finding_summary ? [
+      [presentation.locale === "ja" ? "人手の不適合申告に基づく指摘数" : "Findings supported by declared human failures", String(presentation.finding_summary.verified_finding_count)],
+      [presentation.locale === "ja" ? "人手未確認の指摘候補数" : "Unverified findings", String(presentation.finding_summary.candidate_finding_count)],
+      [presentation.locale === "ja" ? "不適合が申告された達成基準数" : "Criteria with declared failures", String(presentation.finding_summary.failed_criterion_count)]
+    ] : []),
     ...(presentation.screening_summary ? [
       [presentation.locale === "ja" ? "観測記録数" : "Observation records", String(presentation.screening_summary.observation_count)],
       [presentation.locale === "ja" ? "問題候補数（人手未確認）" : "Unique barrier candidates (unverified)", String(presentation.screening_summary.barrier_candidate_count)],
@@ -66,7 +71,9 @@ function relatedRows(finding, rows) {
   // A screening finding must not inherit a later human judgement for the same criterion.
   return rows.filter((row) => ids.includes(row.requirement_id)
     && (finding.evidence_status !== "Unverified screening candidate"
-      || (row.source_kind === "screening" && row.screening_requirement_id === finding.requirement_id)));
+      || (row.source_kind === "screening" && (finding.observation_ids
+        ? finding.requirement_ids?.includes(row.requirement_id)
+        : row.screening_requirement_id === finding.requirement_id))));
 }
 
 export function readerActions(presentation) {

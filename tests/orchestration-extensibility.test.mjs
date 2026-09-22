@@ -113,6 +113,12 @@ function envelope(overrides = {}) {
 
 test("frozen orchestration contracts retain their normalized hashes across line-ending conventions", () => {
   const frozenHashes = [
+    ["declared-human-review-1.0.0.schema.json","f4732affdb197ae02d56bf1cdccda2978422b127a1b8c5f173ed452ba1198f7a"],
+    ["human-review-record-1.0.0.schema.json","463e029221fea69c7175947b82962bcde4db4790f3b9a53f7692b367dfbbfb39"],
+    ["audit-run-12.0.0.schema.json","836344169a4f237e4d724ce26501ad43712fb7b2e5028be73ad279e389788cce"],
+    ["remediation-plan-2.0.0.schema.json","b8036ca3587b1a91a89baa034ac4807f5f228ed6bbb1d6e898e96c5ce6b79f92"],
+    ["orchestration-registry-11.0.0.json","5e5f65e30221c27690dbf65f8beca33f2320557bf4c3218f021c5758ad179782"],
+    ["orchestration-registry-11.0.0.schema.json","f4d7cf044dc498a971a719bd15a8ce9168c7704c313bf5c2b884ff166b62ba2b"],
     ["audit-run-11.0.0.schema.json","62b7906ef2cf5a489bb0260cea57beffd2a306b70dfcc88bf067dd4594fe3cbe"],
     ["screening-observations-3.0.0.schema.json","268da46d8988039e5ff272166fa2ab13c3492a6a164ecadbb3ac07f47691e33b"],
     ["orchestration-registry-10.0.0.json","ac9677b26a9771e0d65be60b04aa9fd4a83ec095249219e7db105691fcff262a"],
@@ -142,8 +148,8 @@ test("frozen orchestration contracts retain their normalized hashes across line-
   assert.equal(readJson(path.join(references, "audit-run-5.0.0.schema.json")).properties.schema_version.const, "5.0.0");
   assert.equal(readJson(path.join(references, "screening-observations-1.0.0.schema.json")).properties.schema_version.const, "1.0.0");
   assert.equal(readJson(path.join(references, "audit-artifact-envelope-1.0.0.schema.json")).properties.schema_version.const, "1.0.0");
-  assert.equal(readJson(path.join(references, "orchestration-registry.json")).schema_version, "11.0.0");
-  assert.equal(readJson(path.join(references, "audit-run.schema.json")).properties.schema_version.const, "12.0.0");
+  assert.equal(readJson(path.join(references, "orchestration-registry.json")).schema_version, "12.0.0");
+  assert.equal(readJson(path.join(references, "audit-run.schema.json")).properties.schema_version.const, "13.0.0");
   assert.equal(readJson(path.join(references, "audit-artifact-envelope.schema.json")).properties.schema_version.const, "3.0.0");
 });
 

@@ -1,6 +1,6 @@
 {
   "$schema": "./orchestration-registry.schema.json",
-  "schema_version": "11.0.0",
+  "schema_version": "12.0.0",
   "roles": [
     {
       "id": "orchestrator",
@@ -102,7 +102,7 @@
   "artifact_types": [
     {
       "id": "audit-run",
-      "latest_schema_version": "12.0.0",
+      "latest_schema_version": "13.0.0",
       "schema_versions": [
         {
           "version": "1.0.0",
@@ -162,8 +162,14 @@
         },
         {
           "version": "12.0.0",
-          "schema_file": "audit-run.schema.json",
+          "schema_file": "audit-run-12.0.0.schema.json",
           "schema_sha256": "836344169a4f237e4d724ce26501ad43712fb7b2e5028be73ad279e389788cce",
+          "mode": "read_only"
+        },
+        {
+          "version": "13.0.0",
+          "schema_file": "audit-run.schema.json",
+          "schema_sha256": "2c4b852b3599e036fda577f52b04933f4ddb7ab53a3e8f399f2b99c30713e187",
           "mode": "current"
         }
       ]
@@ -220,19 +226,25 @@
     },
     {
       "id": "declared-human-review",
-      "latest_schema_version": "1.0.0",
+      "latest_schema_version": "2.0.0",
       "schema_versions": [
         {
           "version": "1.0.0",
-          "schema_file": "declared-human-review.schema.json",
+          "schema_file": "declared-human-review-1.0.0.schema.json",
           "schema_sha256": "f4732affdb197ae02d56bf1cdccda2978422b127a1b8c5f173ed452ba1198f7a",
+          "mode": "read_only"
+        },
+        {
+          "version": "2.0.0",
+          "schema_file": "declared-human-review.schema.json",
+          "schema_sha256": "4474360f5eb63e75485acfa45bf832fe4bc2d2cc92d7beaf87beae059ed0c41e",
           "mode": "current"
         }
       ]
     },
     {
       "id": "remediation-plan",
-      "latest_schema_version": "2.0.0",
+      "latest_schema_version": "3.0.0",
       "schema_versions": [
         {
           "version": "1.0.0",
@@ -241,8 +253,14 @@
         },
         {
           "version": "2.0.0",
-          "schema_file": "remediation-plan.schema.json",
+          "schema_file": "remediation-plan-2.0.0.schema.json",
           "schema_sha256": "b8036ca3587b1a91a89baa034ac4807f5f228ed6bbb1d6e898e96c5ce6b79f92",
+          "mode": "read_only"
+        },
+        {
+          "version": "3.0.0",
+          "schema_file": "remediation-plan.schema.json",
+          "schema_sha256": "a0758d53df985a561f49219d556f564894676743b960919f2187298f2059f934",
           "mode": "current"
         }
       ]

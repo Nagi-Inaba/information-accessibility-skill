@@ -8,6 +8,7 @@ import { validateAssessment } from "./validate-assessment.mjs";
 import { validateRunBackedAssessment } from "./render-audit-report.mjs";
 import { networkScopeSummary } from "./lib/network-policy.mjs";
 import { interactionScopeSummary } from "./lib/interaction-policy.mjs";
+import { findingRelations, findingRetestSummary } from "./lib/run-findings.mjs";
 import { assertStableFile, defaultSkillRoot, mergeArtifacts, readStableFile, validateAuditRun } from "./lib/audit-run.mjs";
 
 function parse(snapshot) {
@@ -65,7 +66,7 @@ function discoverSuccessors(run, runFile, artifactRoot, skillRoot) {
   return { search_scope: "sibling_json_files_only", successors: candidates, warnings };
 }
 
-export function auditStatus(runFile, { skillRoot = defaultSkillRoot } = {}) {
+export function auditStatus(runFile, { skillRoot = defaultSkillRoot, retestOf } = {}) {
   const absolute = path.resolve(runFile);
   const snapshot = readStableFile(absolute, { label: "audit run" });
   const run = parse(snapshot);
@@ -133,8 +134,23 @@ export function auditStatus(runFile, { skillRoot = defaultSkillRoot } = {}) {
         result.recovery.push("Complete the registered finding details or required artifact bindings, then merge from a fresh E0 baseline.");
       }
     }
-    const retest = ["5.0.0", "6.0.0", "7.0.0", "8.0.0", "9.0.0", "10.0.0", "11.0.0", "12.0.0"].includes(run.schema_version) && run.status === "retest_required";
+    const retest = ["5.0.0", "6.0.0", "7.0.0", "8.0.0", "9.0.0", "10.0.0", "11.0.0", "12.0.0", "13.0.0"].includes(run.schema_version) && run.status === "retest_required";
     result.operations.retest = { available: retest, reason: retest ? "new_run_id_and_target_version_required" : "requires_completed_authorized_change" };
+    let priorEnvelopes = envelopes, comparison = false;
+    if (retestOf) {
+      const priorSnapshot = readStableFile(path.resolve(retestOf), { label: "retest predecessor" }), prior = parse(priorSnapshot);
+      const priorValidation = validateAuditRun(prior, { runFile: path.resolve(retestOf), skillRoot });
+      if (!priorValidation.valid) throw new Error(`Invalid retest predecessor: ${priorValidation.errors.join("; ")}`);
+      if (run.supersedes_run_id !== prior.run_id || run.run_id === prior.run_id || prior.status !== "retest_required"
+        || run.target.version_or_commit === prior.target.version_or_commit || run.target.name !== prior.target.name
+        || !isDeepStrictEqual(run.target.urls_or_files, prior.target.urls_or_files) || !isDeepStrictEqual(run.profile, prior.profile)
+        || !isDeepStrictEqual(run.scope, prior.scope) || !isDeepStrictEqual(run.inspection_request, prior.inspection_request)) throw new Error("Retest comparison requires the linked predecessor and the same target/profile/scope at a new version.");
+      priorEnvelopes = [...priorValidation.envelopesById.values()].map((record) => record.envelope); comparison = true;
+      assertStableFile(priorSnapshot, "retest predecessor");
+      for (const record of priorValidation.envelopesById.values()) assertStableFile(record.snapshot, "predecessor artifact");
+      for (const evidence of priorValidation.evidenceSnapshots?.values() ?? []) assertStableFile(evidence, "predecessor evidence");
+    }
+    result.finding_retest = findingRetestSummary(findingRelations(priorEnvelopes), envelopes.filter((item) => item.artifact_type === "declared-human-review").flatMap((item) => item.payload.reviews), { comparison, required: retest });
   }
   assertStableFile(snapshot, "audit run");
   for (const record of validation.envelopesById?.values() ?? []) assertStableFile(record.snapshot, "registered artifact");
@@ -159,6 +175,9 @@ export function statusText(result, locale = "en") {
     "", ja ? "次の遷移（成果物の作成・検証が必要）" : "Next transitions (create and validate the required artifact)",
     ...result.next_transitions.map((item) => `- ${item.from} -> ${item.to}: ${item.required_artifact_types.join(", ")} / ${item.producer_roles.join(", ")} / ${item.permitted ? "available" : item.reason}`),
     "", ...Object.entries(result.operations).map(([name, operation]) => `${name}: ${operation.available ? "available" : "unavailable"} (${operation.reason})`),
+    ...(result.finding_retest ? ["", ja ? "指摘・条項ごとの再確認（申告に基づく。指摘の解消確定ではありません）" : "Finding/criterion retest declarations (not confirmation of finding resolution)",
+      ...result.finding_retest.findings.map((item) => `- ${item.finding_id}: ${item.status} / ${item.requirement_ids.join(", ")}`),
+      ...result.finding_retest.requirements.map((item) => `- ${item.requirement_id}: ${item.status}`)] : []),
     "", ja ? "後続runの検索範囲: 同じディレクトリ内のJSONのみ。外部のコピーは未確認です。" : "Successor search: sibling JSON files only; copies elsewhere are not checked.",
     ...result.warnings.map((warning) => `${ja ? "注意" : "Warning"}: ${JSON.stringify(warning)}`),
     ...result.errors.map((error) => `${ja ? "エラー" : "Error"}: ${error}`),
@@ -171,7 +190,7 @@ export function main(argv = process.argv.slice(2)) {
   const options = { format: "text", locale: "en" };
   const seen = new Set();
   for (let i = 0; i < argv.length; i += 2) {
-    const key = { "--run": "run", "--format": "format", "--locale": "locale" }[argv[i]];
+    const key = { "--run": "run", "--format": "format", "--locale": "locale", "--retest-of": "retestOf" }[argv[i]];
     if (!key || seen.has(key) || !argv[i + 1] || argv[i + 1].startsWith("--")) throw new Error(`Invalid or duplicate argument: ${argv[i]}`);
     seen.add(key);
     options[key] = argv[i + 1];
@@ -179,7 +198,7 @@ export function main(argv = process.argv.slice(2)) {
   if (!options.run) throw new Error("--run is required");
   if (!["text", "json"].includes(options.format)) throw new Error("--format must be text or json");
   if (!["ja", "en"].includes(options.locale)) throw new Error("--locale must be ja or en");
-  const result = auditStatus(options.run);
+  const result = auditStatus(options.run, { retestOf: options.retestOf });
   process.stdout.write(options.format === "json" ? `${JSON.stringify(result, null, 2)}\n` : statusText(result, options.locale));
   return result.valid ? 0 : 1;
 }

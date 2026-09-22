@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:information-accessibility:human-review-record:1.0.0",
+  "$id": "urn:information-accessibility:human-review-record:2.0.0",
   "title": "Portable human review record; identity assurance is derived at verification time",
   "type": "object",
   "additionalProperties": false,
@@ -13,7 +13,7 @@
   ],
   "properties": {
     "schema_version": {
-      "const": "1.0.0"
+      "const": "2.0.0"
     },
     "reviewer_id": {
       "type": "string",
@@ -258,7 +258,6 @@
       }
     },
     "review": {
-      "title": "Declared External Human Review",
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -271,7 +270,7 @@
       ],
       "properties": {
         "schema_version": {
-          "const": "1.0.0"
+          "const": "2.0.0"
         },
         "declaration": {
           "type": "string",
@@ -374,6 +373,15 @@
         },
         "finding": {
           "$ref": "#/$defs/finding"
+        },
+        "findings": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 128,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/finding"
+          }
         }
       },
       "allOf": [
@@ -430,6 +438,27 @@
                 }
               }
             }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "findings"
+            ]
+          },
+          "then": {
+            "properties": {
+              "requirement_id": {},
+              "procedure_availability": {},
+              "criterion_procedure_ref": {},
+              "generic_method_ref": {},
+              "official_sources": {},
+              "target_specific_evidence": {},
+              "profile_outcome": {},
+              "rationale": {},
+              "findings": {}
+            },
+            "additionalProperties": false
           }
         }
       ]

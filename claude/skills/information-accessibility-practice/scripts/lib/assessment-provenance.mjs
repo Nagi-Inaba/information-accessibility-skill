@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { attestationDigest, canonicalAttestationJson, parseAttestationJson } from "./attestation-canonical.mjs";
 import { humanReviewContext, humanReviewRunContext, humanReviewSigningSubject, verifyHumanReviewRecord } from "./human-review-provenance.mjs";
+import { declaredFindings, declaredFindingErrors } from "./run-findings.mjs";
 
 const assurances = ["legacy_self_declared", "self_declared", "self_signed", "signed", "organization_attested", "independent"];
 const authenticated = new Set(["signed", "organization_attested", "independent"]);
@@ -42,13 +43,13 @@ export function validateReviewBindings(record, catalogRecords, auditMethods, pro
       }
       if (!exactSet(review.official_sources, procedure?.primary_sources ?? catalog.official_method_sources)) errors.push(`Human review official_sources must exactly match the registered procedure or catalog: ${id}`);
       const types = new Set((review.target_specific_evidence ?? []).map((entry) => entry?.type));
-      const nonPerformance = ["11.0.0", "12.0.0"].includes(options.run?.schema_version) && review.profile_outcome === "not_tested";
+      const nonPerformance = ["11.0.0", "12.0.0", "13.0.0"].includes(options.run?.schema_version) && review.profile_outcome === "not_tested";
       const requiredTypes = nonPerformance ? ["manual_observation"] : procedure?.required_evidence_types ?? method?.required_evidence_types ?? [];
       if (nonPerformance && [...types].some((type) => type !== "manual_observation")) errors.push(`Human review not_tested accepts only manual_observation non-performance notes: ${id}`);
       for (const type of requiredTypes) {
         if (!types.has(type)) errors.push(`Human review is missing required evidence type ${type}: ${id}`);
       }
-      if (review.finding && review.profile_outcome !== "fail") errors.push(`Human review finding requires profile_outcome fail: ${id}`);
+      errors.push(...declaredFindingErrors([review]));
     }
   }
   return errors;
@@ -90,22 +91,39 @@ export function assessReviewerProvenance(record, options = {}) {
   } else if (record?.schema_version === "2.0.0") {
     const records = Array.isArray(assessment.human_review_records) ? assessment.human_review_records : [];
     const seen = new Set(), used = new Set();
+    const verifiedRecords = new Map(), declaredRequirements = new Map();
     recordCount = records.length;
+    for (const reviewRecord of records) {
+      try {
+        const verification = verifyHumanReviewRecord({ record: reviewRecord, ...expectedReviewContext(reviewRecord, assessment, options), trust: options.trust });
+        verifiedRecords.set(reviewRecord, verification);
+        for (const review of reviewRecord.review.reviews) for (const finding of declaredFindings(review)) {
+          const ids = declaredRequirements.get(finding.id) ?? new Set();
+          ids.add(review.requirement_id); declaredRequirements.set(finding.id, ids);
+        }
+      } catch (error) { errors.push(error.message); }
+    }
+    errors.push(...declaredFindingErrors([...verifiedRecords.keys()].flatMap((item) => item.review.reviews)));
     for (const reviewRecord of records) {
       try {
         const hash = reviewRecordSha256(reviewRecord);
         if (seen.has(hash)) throw new Error("Duplicate human review record subject.");
         seen.add(hash);
-        const verification = verifyHumanReviewRecord({ record: reviewRecord, ...expectedReviewContext(reviewRecord, assessment, options), trust: options.trust });
+        const verification = verifiedRecords.get(reviewRecord);
+        if (!verification) continue;
         for (const review of reviewRecord.review.reviews) {
           const row = rows.find((item) => item.requirement_id === review.requirement_id && item.requirement_kind === "profile_requirement");
           if (!row || row.mapping_status !== "human_declared" || row.review_record_sha256 !== hash) throw new Error(`Review record has no exactly referenced declared profile row: ${review.requirement_id}`);
           if (Object.hasOwn(row, "review_details")) throw new Error(`Declared profile row cannot add unsigned review_details: ${review.requirement_id}`);
-          if (review.profile_outcome === "fail" && reviewRecord.context.origin.kind === "standalone" && !review.finding) throw new Error(`Standalone human failure requires signed-subject finding details: ${review.requirement_id}`);
-          if (review.finding) {
+          const declared = declaredFindings(review);
+          if (review.profile_outcome === "fail" && reviewRecord.context.origin.kind === "standalone" && !declared.length) throw new Error(`Standalone human failure requires signed-subject finding details: ${review.requirement_id}`);
+          if (declared.length) {
             const findings = (assessment.findings ?? []).filter((finding) => finding.requirement_ids?.includes(review.requirement_id));
-            if (findings.length !== 1 || !same(findings[0].requirement_ids, [review.requirement_id])
-                || Object.entries(review.finding).some(([key, value]) => !same(findings[0][key], value))) {
+            if (findings.length !== declared.length || declared.some((item) => {
+              const finding = findings.find((entry) => entry.id === item.id);
+              return !finding || !same([...finding.requirement_ids].sort(), [...declaredRequirements.get(item.id)].sort())
+                || Object.entries(item).some(([key, value]) => !same(finding[key], value));
+            })) {
               throw new Error(`Assessment finding differs from the referenced human review: ${review.requirement_id}`);
             }
           }

@@ -35,7 +35,7 @@ function schemaErrors(value, schemaName) {
 
 function validAuditRun() {
   return {
-    schema_version: "12.0.0",
+    schema_version: "13.0.0",
     target_inventory: null,
     inspection_request: createInspectionRequest("quick", "Identify the next investigation"),
     run_id: runId,
@@ -73,7 +73,7 @@ function validAuditRun() {
     },
     resource_versions: {
       standards_registry_version: "1.0.0",
-      orchestration_registry_version: "11.0.0",
+      orchestration_registry_version: "12.0.0",
       orchestration_registry_sha256: sha256,
       criteria_catalog_sha256: sha256,
       criterion_procedures_sha256: sha256,
@@ -180,7 +180,7 @@ test("optional signal provenance preserves legacy reports and never turns no-sig
 function validDeclaredHumanReviewPayload(availability = "available") {
   const available = availability === "available";
   return {
-    schema_version: "1.0.0",
+    schema_version: "2.0.0",
     declaration: "I declare that I performed the described target-specific review.",
     reviewer_name: "Declared Reviewer",
     review_date: "2026-07-17",
@@ -207,7 +207,7 @@ function validDeclaredHumanReviewPayload(availability = "available") {
 
 function validRemediationPayload() {
   return {
-    schema_version: "2.0.0",
+    schema_version: "3.0.0",
     items: [{
       remediation_id: "REM-ABC12345",
       basis: "unverified_screening_candidate",
@@ -225,14 +225,14 @@ function validRemediationPayload() {
   };
 }
 
-test("current queue 3 and remediation 2 preserve frozen version 1 reading", async () => {
+test("current queue 3 and remediation 3 preserve frozen version 1 reading", async () => {
   const currentQueue = readReferenceJson("human-review-queue.schema.json");
   const legacyQueue = readReferenceJson("human-review-queue-1.0.0.schema.json");
   const currentRemediation = readReferenceJson("remediation-plan.schema.json");
   const legacyRemediation = readReferenceJson("remediation-plan-1.0.0.schema.json");
   assert.equal(currentQueue.properties.schema_version.const, "3.0.0");
   assert.equal(legacyQueue.properties.schema_version.const, "1.0.0");
-  assert.equal(currentRemediation.properties.schema_version.const, "2.0.0");
+  assert.equal(currentRemediation.properties.schema_version.const, "3.0.0");
   assert.equal(legacyRemediation.properties.schema_version.const, "1.0.0");
 
   const legacyQueueValue = structuredClone(validHumanQueuePayload());
@@ -254,18 +254,18 @@ test("current queue 3 and remediation 2 preserve frozen version 1 reading", asyn
 
 test("versioned contracts freeze prior runs while run 8, registry 7, and envelope 3 are current", async () => {
   const versions = [
-    ["orchestration-registry.json", "schema_version", "11.0.0"],
+    ["orchestration-registry.json", "schema_version", "12.0.0"],
     ["orchestration-registry-6.0.0.json", "schema_version", "6.0.0"],
     ["orchestration-registry-5.0.0.json", "schema_version", "5.0.0"],
     ["orchestration-registry-4.0.0.json", "schema_version", "4.0.0"],
     ["orchestration-registry-3.0.0.json", "schema_version", "3.0.0"],
     ["orchestration-registry-2.0.0.json", "schema_version", "2.0.0"],
-    ["orchestration-registry.schema.json", "schema", "11.0.0"],
+    ["orchestration-registry.schema.json", "schema", "12.0.0"],
     ["orchestration-registry-6.0.0.schema.json", "schema", "6.0.0"],
     ["orchestration-registry-5.0.0.schema.json", "schema", "5.0.0"],
     ["orchestration-registry-4.0.0.schema.json", "schema", "4.0.0"],
     ["orchestration-registry-2.0.0.schema.json", "schema", "2.0.0"],
-    ["audit-run.schema.json", "schema", "12.0.0"],
+    ["audit-run.schema.json", "schema", "13.0.0"],
     ["audit-run-7.0.0.schema.json", "schema", "7.0.0"],
     ["audit-artifact-envelope.schema.json", "schema", "3.0.0"],
     ["audit-artifact-envelope-2.0.0.schema.json", "schema", "2.0.0"],
@@ -644,7 +644,7 @@ test("the orchestration registry fixes the complete role, artifact, and transiti
   assert.deepEqual(registry.artifact_types, [
     {
   "id": "audit-run",
-  "latest_schema_version": "12.0.0",
+  "latest_schema_version": "13.0.0",
   "schema_versions": [
     {
       "version": "1.0.0",
@@ -704,8 +704,14 @@ test("the orchestration registry fixes the complete role, artifact, and transiti
     },
     {
       "version": "12.0.0",
-      "schema_file": "audit-run.schema.json",
+      "schema_file": "audit-run-12.0.0.schema.json",
       "schema_sha256": "836344169a4f237e4d724ce26501ad43712fb7b2e5028be73ad279e389788cce",
+      "mode": "read_only"
+    },
+    {
+      "version": "13.0.0",
+      "schema_file": "audit-run.schema.json",
+      "schema_sha256": "2c4b852b3599e036fda577f52b04933f4ddb7ab53a3e8f399f2b99c30713e187",
       "mode": "current"
     }
   ]
@@ -761,18 +767,46 @@ test("the orchestration registry fixes the complete role, artifact, and transiti
   ]
 },
     {
-      id: "declared-human-review",
-      latest_schema_version: "1.0.0",
-      schema_versions: [{ version: "1.0.0", schema_file: "declared-human-review.schema.json", schema_sha256: "f4732affdb197ae02d56bf1cdccda2978422b127a1b8c5f173ed452ba1198f7a", mode: "current" }]
+  "id": "declared-human-review",
+  "latest_schema_version": "2.0.0",
+  "schema_versions": [
+    {
+      "version": "1.0.0",
+      "schema_file": "declared-human-review-1.0.0.schema.json",
+      "schema_sha256": "f4732affdb197ae02d56bf1cdccda2978422b127a1b8c5f173ed452ba1198f7a",
+      "mode": "read_only"
     },
     {
-      id: "remediation-plan",
-      latest_schema_version: "2.0.0",
-      schema_versions: [
-        { version: "1.0.0", schema_file: "remediation-plan-1.0.0.schema.json", mode: "read_only" },
-        { version: "2.0.0", schema_file: "remediation-plan.schema.json", schema_sha256: "b8036ca3587b1a91a89baa034ac4807f5f228ed6bbb1d6e898e96c5ce6b79f92", mode: "current" }
-      ]
+      "version": "2.0.0",
+      "schema_file": "declared-human-review.schema.json",
+      "schema_sha256": "4474360f5eb63e75485acfa45bf832fe4bc2d2cc92d7beaf87beae059ed0c41e",
+      "mode": "current"
+    }
+  ]
+},
+    {
+  "id": "remediation-plan",
+  "latest_schema_version": "3.0.0",
+  "schema_versions": [
+    {
+      "version": "1.0.0",
+      "schema_file": "remediation-plan-1.0.0.schema.json",
+      "mode": "read_only"
     },
+    {
+      "version": "2.0.0",
+      "schema_file": "remediation-plan-2.0.0.schema.json",
+      "schema_sha256": "b8036ca3587b1a91a89baa034ac4807f5f228ed6bbb1d6e898e96c5ce6b79f92",
+      "mode": "read_only"
+    },
+    {
+      "version": "3.0.0",
+      "schema_file": "remediation-plan.schema.json",
+      "schema_sha256": "a0758d53df985a561f49219d556f564894676743b960919f2187298f2059f934",
+      "mode": "current"
+    }
+  ]
+},
     {
       id: "fix-authorization",
       latest_schema_version: "2.0.0",

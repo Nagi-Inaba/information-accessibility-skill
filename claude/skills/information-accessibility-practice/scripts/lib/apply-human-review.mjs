@@ -25,8 +25,11 @@ export function applyStandaloneHumanReview({ assessment, reviewRecord, resources
       method_kind: "manual", method: declaredReviewMethod(review), evidence: structuredClone(review.target_specific_evidence), notes: review.rationale });
   }
   merged.assessment.human_review_records.push(structuredClone(reviewRecord));
-  const addedFindings = buildRunFindings(reviewRecord.review.reviews, []);
-  merged.assessment.findings = [...(merged.assessment.findings ?? []), ...addedFindings];
+  const priorReviewFindingIds = new Set(buildRunFindings(assessment.assessment.human_review_records.flatMap((item) => item.review.reviews), []).map((finding) => finding.id));
+  const otherFindings = (merged.assessment.findings ?? []).filter((finding) => !priorReviewFindingIds.has(finding.id));
+  const reviewFindings = buildRunFindings(merged.assessment.human_review_records.flatMap((item) => item.review.reviews), []);
+  if (otherFindings.some((finding) => reviewFindings.some((reviewFinding) => reviewFinding.id === finding.id))) throw new Error("Human finding ID conflicts with an existing assessment finding.");
+  merged.assessment.findings = [...otherFindings, ...reviewFindings];
   merged.assessment.evidence_level = "E2";
   merged.assessment.evaluator = [...new Set(merged.assessment.human_review_records.map((item) => item.review.reviewer_name))].sort().join(", ");
   merged.assessment.evaluated_at = merged.assessment.human_review_records.map((item) => item.review.review_date).sort().at(-1);

@@ -172,7 +172,7 @@ function buildClaim({ assessment, validation, registry, locale, rows }) {
   };
 }
 
-function commonPresentation({ assessment, validation, registry, locale, rows, target, scope, environment, evaluator, limitations, findings, inspectionRequest, inspectionRecords, screeningSummary }) {
+function commonPresentation({ assessment, validation, registry, locale, rows, target, scope, environment, evaluator, limitations, findings, inspectionRequest, inspectionRecords, screeningSummary, findingSummary }) {
   const normalizedLocale = normalizeReportLocale(locale);
   const messages = reportMessages(normalizedLocale);
   const profileId = assessment.profile.id;
@@ -196,6 +196,7 @@ function commonPresentation({ assessment, validation, registry, locale, rows, ta
     ...(inspectionRequest ? { inspection_request: clone(inspectionRequest) } : {}),
     ...(inspectionRecords ? { inspection_records: clone(inspectionRecords) } : {}),
     ...(screeningSummary ? { screening_summary: clone(screeningSummary) } : {}),
+    ...(findingSummary ? { finding_summary: clone(findingSummary) } : {}),
     scope: clone(scope),
     environment: clone(environment),
     evaluated_at: assessment.evaluated_at,
@@ -306,6 +307,11 @@ export function buildRunBackedPresentation({ run, assessment: assessmentRecord, 
     locale: normalizedLocale,
     rows,
     target: publicModel.target,
+    findingSummary: {
+      verified_finding_count: (publicModel.remediation ?? []).filter((finding) => finding.evidence_status === "Verified failure").length,
+      candidate_finding_count: (publicModel.remediation ?? []).filter((finding) => finding.evidence_status === "Unverified screening candidate").length,
+      failed_criterion_count: rows.filter((row) => row.source_kind === "human_review" && row.outcome === "fail").length
+    },
     screeningSummary: {
       observation_count: screeningCandidates.length,
       barrier_candidate_count: screeningCandidates.filter((candidate) => candidate.signal_class === "candidate_issue"
@@ -324,12 +330,13 @@ export function buildRunBackedPresentation({ run, assessment: assessmentRecord, 
     limitations: [...(publicModel.limitations ?? []), ...(publicModel.networkScope ? [networkScopeText(publicModel.networkScope, normalizedLocale)] : []),
       ...(publicModel.interactionScope ? [interactionScopeText(publicModel.interactionScope, normalizedLocale)] : [])],
     findings: (publicModel.remediation ?? []).map((finding) => {
-      const candidates = screeningCandidates.filter((candidate) => candidate.requirement_id === finding.requirement_id);
-      const human = humanById.get(finding.requirement_id);
+      const candidates = screeningCandidates.filter((candidate) => finding.observation_ids
+        ? finding.observation_ids.includes(candidate.requirement_id) : candidate.requirement_id === finding.requirement_id);
+      const humans = (finding.requirement_ids ?? [finding.requirement_id]).map((id) => humanById.get(id)).filter(Boolean);
       return {
         ...finding,
-        related_requirement_ids: [...new Set(candidates.flatMap((candidate) => screeningMappings(candidate).map((mapping) => mapping.requirement_id)))],
-        review_records: human && finding.evidence_status === "Verified failure" ? [clone(human)] : candidates.map(screeningInspectionRecord)
+        related_requirement_ids: finding.requirement_ids ?? [...new Set(candidates.flatMap((candidate) => screeningMappings(candidate).map((mapping) => mapping.requirement_id)))],
+        review_records: finding.evidence_status === "Verified failure" ? [...humans.map(clone), ...candidates.map(screeningInspectionRecord)] : candidates.map(screeningInspectionRecord)
       };
     })
   });

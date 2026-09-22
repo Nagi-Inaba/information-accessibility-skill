@@ -1,5 +1,5 @@
 import { isIP } from "node:net";
-import { findingPlanMetadata } from "./run-findings.mjs";
+import { declaredFindings, findingPlanMetadata, remediationPlanItems } from "./run-findings.mjs";
 import { groupScreeningProjections, screeningReviewRecord } from "./review-details.mjs";
 
 const redacted = "[redacted]";
@@ -186,7 +186,7 @@ export function buildInternalRunBackedModel({ run, assessment, publicModel, enve
     const envelope = record?.envelope ?? record;
     if (envelope?.artifact_type === "screening-observations") screenings.push(...(envelope.payload?.observations ?? []));
     if (envelope?.artifact_type === "declared-human-review") humanReviews.push(...(envelope.payload?.reviews ?? []));
-    if (envelope?.artifact_type === "remediation-plan") remediations.push(...(envelope.payload?.items ?? []));
+    if (envelope?.artifact_type === "remediation-plan") remediations.push(...remediationPlanItems(envelope.payload));
   }
   const humanByRequirement = new Map(humanReviews.map((review) => [review.requirement_id, review]));
   const screeningByProfile = groupScreeningProjections(screenings);
@@ -207,11 +207,12 @@ export function buildInternalRunBackedModel({ run, assessment, publicModel, enve
   model.screeningCandidates = screenings.map((observation) => ({
     ...structuredClone(observation),
     remediation: remediations.find((item) => item.basis === "unverified_screening_candidate"
-      && item.requirement_id === observation.requirement_id) ?? null
+      && (item.observation_refs ? item.observation_refs.some((ref) => ref.requirement_id === observation.requirement_id) : item.requirement_id === observation.requirement_id)) ?? null
   }));
-  const declaredFindingRequirements = new Set(humanReviews.filter((review) => review.finding).map((review) => review.requirement_id));
+  const declaredFindingRequirements = new Set(humanReviews.filter((review) => declaredFindings(review).length).map((review) => review.requirement_id));
   model.remediation = remediations.filter((item) => item.basis !== "verified_failure" || !declaredFindingRequirements.has(item.requirement_id)).map((item) => ({
     requirement_id: item.requirement_id,
+    ...(item.finding_id ? { requirement_ids: item.requirement_ids, observation_ids: item.observation_refs.map((ref) => ref.requirement_id) } : {}),
     evidence_status: item.basis === "verified_failure" ? "Verified failure" : "Unverified screening candidate",
     priority: item.priority,
     location: item.location,
@@ -226,6 +227,8 @@ export function buildInternalRunBackedModel({ run, assessment, publicModel, enve
     if (!finding.requirement_ids.some((id) => declaredFindingRequirements.has(id))) continue;
     model.remediation.push({
       requirement_id: finding.requirement_ids[0], evidence_status: "Verified failure",
+      requirement_ids: finding.requirement_ids,
+      observation_ids: remediations.find((item) => item.finding_id === finding.id)?.observation_refs.map((ref) => ref.requirement_id) ?? [],
       priority: finding.priority, location: finding.location, affected_users: structuredClone(finding.affected_users),
       issue: finding.observation, remediation_status: finding.remediation_status,
       proposed_change: finding.remediation, verification: finding.verification, ...findingPlanMetadata(finding, remediations)

@@ -651,7 +651,10 @@
       ],
       "properties": {
         "schema_version": {
-          "const": "1.0.0"
+          "enum": [
+            "1.0.0",
+            "2.0.0"
+          ]
         },
         "reviewer_id": {
           "type": "string",
@@ -896,7 +899,6 @@
           }
         },
         "review": {
-          "title": "Declared External Human Review",
           "type": "object",
           "additionalProperties": false,
           "required": [
@@ -909,7 +911,10 @@
           ],
           "properties": {
             "schema_version": {
-              "const": "1.0.0"
+              "enum": [
+                "1.0.0",
+                "2.0.0"
+              ]
             },
             "declaration": {
               "type": "string",
@@ -1012,6 +1017,15 @@
             },
             "finding": {
               "$ref": "#/$defs/human_review_record/$defs/finding"
+            },
+            "findings": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 128,
+              "uniqueItems": true,
+              "items": {
+                "$ref": "#/$defs/human_review_record/$defs/finding"
+              }
             }
           },
           "allOf": [
@@ -1068,6 +1082,27 @@
                     }
                   }
                 }
+              }
+            },
+            {
+              "if": {
+                "required": [
+                  "findings"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "requirement_id": {},
+                  "procedure_availability": {},
+                  "criterion_procedure_ref": {},
+                  "generic_method_ref": {},
+                  "official_sources": {},
+                  "target_specific_evidence": {},
+                  "profile_outcome": {},
+                  "rationale": {},
+                  "findings": {}
+                },
+                "additionalProperties": false
               }
             }
           ]
@@ -1150,7 +1185,56 @@
             }
           }
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "schema_version": {
+                "const": "1.0.0"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "review": {
+                "properties": {
+                  "schema_version": {
+                    "const": "1.0.0"
+                  },
+                  "reviews": {
+                    "items": {
+                      "properties": {
+                        "requirement_id": {},
+                        "procedure_availability": {},
+                        "criterion_procedure_ref": {},
+                        "generic_method_ref": {},
+                        "official_sources": {},
+                        "target_specific_evidence": {},
+                        "profile_outcome": {},
+                        "rationale": {},
+                        "finding": {}
+                      },
+                      "additionalProperties": false
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "review": {
+                "properties": {
+                  "schema_version": {
+                    "const": "2.0.0"
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
     }
   }
 }

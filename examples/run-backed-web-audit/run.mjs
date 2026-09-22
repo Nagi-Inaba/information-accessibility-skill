@@ -145,7 +145,7 @@ function humanArtifact(runId, suffix, queue, queueFile) {
     createdAt: `2026-08-23T12:00:2${suffix}Z`,
     inputs: [inputRef(queue, queueFile)],
     payload: {
-      schema_version: "1.0.0",
+      schema_version: "2.0.0",
       declaration: "I declare that I performed the recorded review as an external human reviewer.",
       reviewer_name: "Example External Reviewer",
       review_date: "2026-08-23",
@@ -184,7 +184,7 @@ function remediationArtifact(runId, suffix, source, sourceFile, humanReviewed) {
     createdAt: `2026-08-23T12:00:3${suffix}Z`,
     inputs: [inputRef(source, sourceFile)],
     payload: {
-      schema_version: "2.0.0",
+      schema_version: "3.0.0",
       items: [{
         remediation_id: `REM-EXAMP00${suffix}`,
         basis: humanReviewed ? "verified_failure" : "unverified_screening_candidate",

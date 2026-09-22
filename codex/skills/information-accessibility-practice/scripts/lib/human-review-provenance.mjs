@@ -5,6 +5,7 @@ import { canonicalAttestationJson, attestationDigest, parseAttestationJson } fro
 import { verifyDetachedAttestation, attestationVerificationResult } from "./attestation-verifier.mjs";
 
 const recordSchema = JSON.parse(fs.readFileSync(new URL("../../references/human-review-record.schema.json", import.meta.url), "utf8"));
+const legacyRecordSchema = JSON.parse(fs.readFileSync(new URL("../../references/human-review-record-1.0.0.schema.json", import.meta.url), "utf8"));
 const hasSameJson = (left, right) => canonicalAttestationJson(left) === canonicalAttestationJson(right);
 const requireValue = (condition, message) => { if (!condition) throw new Error(message); };
 
@@ -12,7 +13,7 @@ export function validateHumanReviewRecord(record) {
   // This also rejects accessors, hidden fields, non-finite numbers and other
   // non-JSON values before any application code reads attacker-owned fields.
   canonicalAttestationJson(record);
-  const errors = validateJsonSchema(record, recordSchema);
+  const errors = validateJsonSchema(record, record.schema_version === "1.0.0" ? legacyRecordSchema : recordSchema);
   requireValue(errors.length === 0, `Invalid human review record:\n- ${errors.join("\n- ")}`);
   const context = record.context;
   const reviewedIds = record.review.reviews.map((review) => review.requirement_id);
@@ -48,7 +49,7 @@ export function humanReviewRunContext({ run, artifact, artifactSha256 }) {
 }
 
 export function createHumanReviewRecord({ reviewerId, review, context }) {
-  const record = { schema_version: "1.0.0", reviewer_id: reviewerId, context: structuredClone(context), review: structuredClone(review), attestation: null };
+  const record = { schema_version: review.schema_version === "1.0.0" ? "1.0.0" : "2.0.0", reviewer_id: reviewerId, context: structuredClone(context), review: structuredClone(review), attestation: null };
   validateHumanReviewRecord(record);
   return record;
 }
@@ -56,7 +57,7 @@ export function createHumanReviewRecord({ reviewerId, review, context }) {
 export function humanReviewSigningSubject(record) {
   validateHumanReviewRecord(record);
   return {
-    subject_type: "information-accessibility-human-review-v1",
+    subject_type: record.schema_version === "1.0.0" ? "information-accessibility-human-review-v1" : "information-accessibility-human-review-v2",
     schema_version: record.schema_version,
     reviewer_id: record.reviewer_id,
     context: structuredClone(record.context),

@@ -7,7 +7,7 @@ const instant = (value) => typeof value === "string" && /^\d{4}-\d{2}-\d{2}T/u.t
 // Validates a saved declaration against its run and measured target. This does
 // not authenticate the producer or retroactively authorize any request.
 export function validateNetworkEvidence(bytes, run, reference) {
-  if (!["9.0.0", "10.0.0", "11.0.0", "12.0.0"].includes(run.schema_version)) return;
+  if (!["9.0.0", "10.0.0", "11.0.0", "12.0.0", "13.0.0"].includes(run.schema_version)) return;
   const fail = () => { throw new Error("Network evidence does not match this run, policy, target or bounded adapter contract."); };
   let value;
   try { value = JSON.parse(bytes.toString("utf8")); } catch { fail(); }

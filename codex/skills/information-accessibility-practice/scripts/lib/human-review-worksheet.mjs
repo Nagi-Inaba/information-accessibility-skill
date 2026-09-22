@@ -146,7 +146,7 @@ export function reviewFromWorksheet({ rows, expected, items, artifactId, now }) 
     reviews.push(review);
   }
   if (!reviews.length) throw new Error("Worksheet has no submitted reviews.");
-  return { schema_version: "1.0.0", declaration: required("reviewer.declaration"), reviewer_name: required("reviewer.name"),
+  return { schema_version: "2.0.0", declaration: required("reviewer.declaration"), reviewer_name: required("reviewer.name"),
     review_date: reviewDate, identity_authenticated: false, reviews };
 }
 

@@ -8,6 +8,21 @@
   "properties": {
     "schema_version": {"const": "1.0.0"},
     "valid": {"type": "boolean"},
+    "finding_retest": {
+      "type": "object", "additionalProperties": false, "required": ["basis", "requirements", "findings"],
+      "properties": {
+        "basis": {"enum": ["successor_declared_human_reviews", "no_successor_comparison"]},
+        "requirements": {"type": "array", "items": {
+          "type": "object", "additionalProperties": false, "required": ["requirement_id", "status"],
+          "properties": {"requirement_id": {"type": "string"}, "status": {"enum": ["not_recorded", "retest_required", "pending", "pass_declared", "fail_declared", "not_applicable_declared"]}}
+        }},
+        "findings": {"type": "array", "items": {
+          "type": "object", "additionalProperties": false, "required": ["finding_id", "requirement_ids", "status"],
+          "properties": {"finding_id": {"type": "string"}, "requirement_ids": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
+            "status": {"enum": ["unmapped", "not_recorded", "retest_required", "related_requirement_failed", "pending", "all_related_requirements_pass_declared", "related_requirements_pass_or_not_applicable_declared"]}}
+        }}
+      }
+    },
     "run": {
       "type": "object", "additionalProperties": false,
       "required": ["id", "schema_version", "state", "profile", "revision", "permissions"],
