@@ -1,4 +1,5 @@
 import { lookupRequirement } from "../show-requirement.mjs";
+import { groupScreeningProjections, screeningConflictReason } from "./review-details.mjs";
 
 const unwrap = (record) => record?.envelope ?? record;
 const locationKey = (location) => JSON.stringify([location.target_snapshot_id, location.location.trim().normalize("NFC"), location.required_state.trim().normalize("NFC")]);
@@ -7,6 +8,7 @@ const locationKey = (location) => JSON.stringify([location.target_snapshot_id, l
 // measured targets and exact procedure bindings. No priority or human outcome is inferred.
 export function createHumanReviewQueue({ run, screenings = [], manualRequirements = [], profileRequirements = [], skillRoot }) {
   if (!run?.target_inventory?.snapshots?.length) throw new Error("Queue generation requires measured target snapshots.");
+  const grouped = groupScreeningProjections(screenings.flatMap((source) => source.payload.observations));
   const ids = [...new Set([...manualRequirements, ...profileRequirements,
     ...screenings.flatMap((source) => source.payload.observations.map((row) => row.profile_requirement_id).filter(Boolean))])];
   if (!ids.length) throw new Error("Queue generation requires at least one profile requirement.");
@@ -29,7 +31,7 @@ export function createHumanReviewQueue({ run, screenings = [], manualRequirement
       }
     }
     return { requirement_id: requirementId, ...lookupRequirement(run.profile.id, requirementId, skillRoot).procedure_binding,
-      origins, reason: matches.length ? "登録済み観測を人が確認する。自動結果だけでは基準の適否を判断しない。"
+      origins, reason: matches.length ? (screeningConflictReason(grouped.get(requirementId)?.conflicts) || "登録済み観測を人が確認する。自動結果だけでは基準の適否を判断しない。")
         : profileRequirements.includes(requirementId) ? "プロファイルの全基準を確認するための項目。" : "確認者が指定した基準を確認するための項目。",
       priority: "unprioritized", priority_reason: "影響と利用状況を確認して優先度を決める。", affected_users: [],
       target_locations: [...new Map(locations.map((location) => [locationKey(location), location])).values()],

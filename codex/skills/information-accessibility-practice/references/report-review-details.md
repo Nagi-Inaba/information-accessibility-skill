@@ -29,6 +29,10 @@ Record the actual reason and an actionable next step. Absence of a video, image,
 
 ## Screening pass records
 
+When several registered observations map to the same criterion, reports retain each location, method, observation, rationale and follow-up. Different outcomes or applicability decisions produce a report-only `cant_tell` with an explicit conflict reason; a disagreement on applicability also remains `undetermined`. The generated human-review queue carries that reason and all source observations. Human review still takes precedence, and saved artifacts are not rewritten. Consistent `not_applicable` observations remain outside the applicable checks.
+
+This aggregation does not prove that differently named observations describe the same real barrier. The current singular mapping format still assigns each observation to at most one profile criterion.
+
 This first implementation checks record completeness for report projections of SC 1.4.4 and SC 2.4.1, including corresponding JIS IDs. For a report-only `pass`, an E1 observation needs a matching completed check:
 
 ```json

@@ -653,7 +653,7 @@ test("run-backed renderer reports verified, pending, and unverified work without
     assert.match(report, /WCAG-2\.2-SC-2\.1\.1/);
     assert.match(report, /今後の確認事項/);
     assert.match(report, /SCREEN-FIRST/);
-    assert.match(report, /\| WCAG-2\.2-SC-2\.4\.2 \| 不適合 \| The inspected page title does not identify the page topic\. \|/);
+    assert.match(report, /\| WCAG-2\.2-SC-2\.4\.2 \| 不適合 \|[^\n]*The inspected page title does not identify the page topic\./);
     const formalProfileRow = fixture.assessment.assessment.results.find((item) => item.requirement_id === "WCAG-2.2-SC-2.4.2");
     assert.equal(formalProfileRow.mapping_status, "unverified");
     assert.equal(formalProfileRow.outcome, "not_tested");

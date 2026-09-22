@@ -3,7 +3,7 @@ import { publicQueueItem, queueReviewLines } from "./lib/human-review-queue.mjs"
 import { renderSourceNoticesMarkdown } from "./lib/source-provenance.mjs";
 import { networkScopeSummary, networkScopeText } from "./lib/network-policy.mjs";
 import { interactionScopeSummary, interactionScopeText } from "./lib/interaction-policy.mjs";
-import { guardScreeningProjection, reviewDetailLines } from "./lib/review-details.mjs";
+import { guardScreeningProjection, groupScreeningProjections, screeningReviewRecord, reviewDetailLines } from "./lib/review-details.mjs";
 import { isIP } from "node:net";
 import path from "node:path";
 import process from "node:process";
@@ -708,13 +708,9 @@ function outcomeCountsFor(results) {
   ]));
 }
 
-function reportOutcomeRank(outcome) {
-  return ({ fail: 4, cant_tell: 3, not_tested: 2, pass: 1 }[outcome] ?? 0);
-}
-
 function buildReportProjection(profileResults, screeningObservations) {
   const profileIds = new Set(profileResults.map((result) => result.requirement_id));
-  const aiByProfile = new Map();
+  const aiByProfile = groupScreeningProjections(screeningObservations);
   for (const suppliedObservation of screeningObservations) {
     const observation = guardScreeningProjection(suppliedObservation);
     const hasProjection = observation.profile_requirement_id !== null
@@ -730,10 +726,6 @@ function buildReportProjection(profileResults, screeningObservations) {
         if (observation.report_outcome !== null) throw new Error(`Not-applicable report projection must use report_outcome null: ${observation.requirement_id}.`);
       } else if (!Object.hasOwn(outcomeLabels, observation.report_outcome)) {
         throw new Error(`Screening report projection has an invalid report_outcome: ${observation.requirement_id}.`);
-      }
-      const current = aiByProfile.get(observation.profile_requirement_id);
-      if (!current || reportOutcomeRank(observation.report_outcome) > reportOutcomeRank(current.report_outcome)) {
-        aiByProfile.set(observation.profile_requirement_id, observation);
       }
       continue;
     }
@@ -759,10 +751,12 @@ function buildReportProjection(profileResults, screeningObservations) {
     }
     const row = {
       requirement_id: result.requirement_id,
-      outcome: observation.report_outcome,
+      outcome: observation.applicability === "not_applicable" ? "not_applicable" : observation.report_outcome,
       rationale: observation.report_rationale,
       applicability: observation.applicability,
-      review_details: observation.review_details
+      review_details: observation.observations.length === 1 ? observation.observations[0].review_details : undefined,
+      screening_conflicts: observation.conflicts,
+      screening_observations: observation.observations.map(screeningReviewRecord)
     };
     (row.applicability === "not_applicable" ? notApplicable : checks).push(row);
   }
@@ -1099,7 +1093,7 @@ export function renderRunBackedReport(model) {
     "",
     publicTable(
       ["達成基準", "理由"],
-      notApplicableChecks.map((item) => [item.requirement_id, item.rationale]),
+      notApplicableChecks.map((item) => [item.requirement_id, reviewDetailLines(item, "ja").join("\n")]),
       "適用対象外とした達成基準はありません。"
     ),
     "",

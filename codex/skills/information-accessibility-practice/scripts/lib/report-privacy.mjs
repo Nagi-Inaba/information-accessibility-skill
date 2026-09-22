@@ -1,5 +1,6 @@
 import { isIP } from "node:net";
 import { findingPlanMetadata } from "./run-findings.mjs";
+import { groupScreeningProjections, screeningReviewRecord } from "./review-details.mjs";
 
 const redacted = "[redacted]";
 const machineFields = new Set([
@@ -188,21 +189,15 @@ export function buildInternalRunBackedModel({ run, assessment, publicModel, enve
     if (envelope?.artifact_type === "remediation-plan") remediations.push(...(envelope.payload?.items ?? []));
   }
   const humanByRequirement = new Map(humanReviews.map((review) => [review.requirement_id, review]));
-  const rank = { fail: 4, cant_tell: 3, not_tested: 2, pass: 1 };
-  const screeningByProfile = new Map();
-  for (const observation of screenings) {
-    if (!observation.profile_requirement_id) continue;
-    const current = screeningByProfile.get(observation.profile_requirement_id);
-    if (!current || (rank[observation.report_outcome] ?? 0) > (rank[current.report_outcome] ?? 0)) {
-      screeningByProfile.set(observation.profile_requirement_id, observation);
-    }
-  }
+  const screeningByProfile = groupScreeningProjections(screenings);
   const rawRationale = (check) => humanByRequirement.get(check.requirement_id)?.rationale
     ?? screeningByProfile.get(check.requirement_id)?.report_rationale
     ?? assessment.assessment.results.find((row) => row.requirement_id === check.requirement_id)?.notes
     ?? check.rationale;
-  model.reportChecks = (model.reportChecks ?? []).map((check) => ({ ...check, rationale: rawRationale(check) }));
-  model.notApplicableChecks = (model.notApplicableChecks ?? []).map((check) => ({ ...check, rationale: rawRationale(check) }));
+  const restoreCheck = (check) => ({ ...check, rationale: rawRationale(check),
+    ...(check.screening_observations ? { screening_observations: screeningByProfile.get(check.requirement_id).observations.map(screeningReviewRecord) } : {}) });
+  model.reportChecks = (model.reportChecks ?? []).map(restoreCheck);
+  model.notApplicableChecks = (model.notApplicableChecks ?? []).map(restoreCheck);
   model.recordedHumanChecks = humanReviews.map((review) => ({
     requirement_id: review.requirement_id,
     outcome: review.profile_outcome,
@@ -283,6 +278,7 @@ export function applyReportVisibility(presentation, { visibility = "internal", r
     primary_url: sanitizeUrl(row.primary_url, `rows[${index}].primary_url`, entries),
     rationale: sanitizeText(row.rationale, `rows[${index}].rationale`, entries),
     evidence: sanitizeNested(row.evidence, `rows[${index}].evidence`, entries, "evidence"),
+    screening_observations: sanitizeNested(row.screening_observations, `rows[${index}].screening_observations`, entries, "screening_observations"),
     queue_context: sanitizeNested(row.queue_context, `rows[${index}].queue_context`, entries, "queue_context"),
     review_details: sanitizeNested(row.review_details, `rows[${index}].review_details`, entries, "review_details")
   }));

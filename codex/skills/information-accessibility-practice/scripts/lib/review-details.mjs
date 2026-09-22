@@ -57,7 +57,50 @@ export function guardScreeningProjection(observation) {
   };
 }
 
+// Keep every observation behind a criterion. Different locations or methods can
+// disagree; severity ordering must not silently discard their evidence.
+export function groupScreeningProjections(observations) {
+  const groups = new Map();
+  for (const supplied of observations) {
+    if (!supplied.profile_requirement_id) continue;
+    const observation = guardScreeningProjection(supplied);
+    const group = groups.get(observation.profile_requirement_id) ?? { observations: [] };
+    if (!group.observations.some((item) => item.requirement_id === observation.requirement_id)) group.observations.push(observation);
+    groups.set(observation.profile_requirement_id, group);
+  }
+  for (const group of groups.values()) {
+    const outcomes = new Set(group.observations.map((item) => item.report_outcome));
+    const applicability = new Set(group.observations.map((item) => item.applicability));
+    group.conflicts = [...(outcomes.size > 1 ? ["report_outcome"] : []), ...(applicability.size > 1 ? ["applicability"] : [])];
+    group.report_outcome = group.conflicts.length ? "cant_tell" : group.observations[0].report_outcome;
+    group.applicability = applicability.size > 1 ? "undetermined" : group.observations[0].applicability;
+    group.report_rationale = group.observations.length === 1 ? group.observations[0].report_rationale
+      : group.observations.map((item) => `${item.location}: ${item.report_rationale}`).join("\n");
+  }
+  return groups;
+}
+
+export function screeningConflictReason(conflicts, locale = "ja") {
+  if (!conflicts?.length) return "";
+  const labels = locale === "ja" ? { report_outcome: "判定候補", applicability: "適用判断" }
+    : { report_outcome: "outcome", applicability: "applicability" };
+  return locale === "ja" ? `観測間で${conflicts.map((key) => labels[key]).join("・")}が一致しません。箇所・状態・根拠を人が確認してください。`
+    : `Observations disagree on ${conflicts.map((key) => labels[key]).join(" and ")}. Review their locations, states and evidence.`;
+}
+
+export function screeningReviewRecord(observation) {
+  return { requirement_id: observation.profile_requirement_id ?? observation.requirement_id,
+    outcome: observation.applicability === "not_applicable" ? "not_applicable" : observation.report_outcome,
+    applicability: observation.applicability, rationale: observation.report_rationale,
+    evidence: [{ location: observation.location, method: observation.method, observation: observation.observation, captured_at: observation.captured_at }],
+    ...(observation.review_details ? { review_details: structuredClone(observation.review_details) } : {}) };
+}
+
 export function reviewDetailLines(row, locale = "ja") {
+  if (row.screening_observations?.length) return [
+    ...(row.screening_conflicts?.length ? [screeningConflictReason(row.screening_conflicts, locale)] : []),
+    ...row.screening_observations.flatMap((observation) => reviewDetailLines(observation, locale))
+  ];
   const text = messages[locale] ?? messages.ja;
   const details = row.review_details;
   const pending = ["not_tested", "cant_tell"].includes(row.outcome);

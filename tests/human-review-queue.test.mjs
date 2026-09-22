@@ -9,11 +9,13 @@ import { createHumanReviewQueue, queueContextErrors } from "../codex/skills/info
 import { fixtureInventory } from "./helpers/measured-targets.mjs";
 import { fixtureReference, saveFixtureEvidence } from "./helpers/saved-evidence.mjs";
 import { cli, pass, read } from "./helpers/scanner-import.mjs";
+import { buildPublicReportModel } from "../codex/skills/information-accessibility-practice/scripts/render-audit-report.mjs";
+import { buildInternalRunBackedModel } from "../codex/skills/information-accessibility-practice/scripts/lib/report-privacy.mjs";
 
 const requirement = "WCAG-2.2-SC-1.1.1";
 const privateFields = ["origins", "reason", "priority", "priority_reason", "affected_users", "target_locations", "related_screening_observations", "status"];
 const hash = (file) => crypto.createHash("sha256").update(fs.readFileSync(file)).digest("hex");
-function fixture(t, targetRefs = ["https://example.com/product"]) {
+function fixture(t, targetRefs = ["https://example.com/product"], prepareScreening = () => {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "human-queue-"));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const artifactRoot = path.join(root, "artifacts"); fs.mkdirSync(artifactRoot);
@@ -31,6 +33,7 @@ function fixture(t, targetRefs = ["https://example.com/product"]) {
       evidence_provenance: { collection_method: "static_inspection", tool_name: null, tool_version: null, rule_id: null, target_dom: null, viewport: null },
       report_outcome: "cant_tell", applicability: "undetermined", report_rationale: "Human review required", evidence_refs: [fixtureReference(run, "2026-01-01T00:00:00Z")]
     })) } };
+  prepareScreening(screening);
   const screenFile = path.join(artifactRoot, "screen.json"); writeNewJson(screenFile, screening);
   const screenedFile = path.join(root, "screened.json");
   pass(cli(["register", "--run", runFile, "--artifact", screenFile, "--output", screenedFile]));
@@ -158,4 +161,57 @@ test("manual-only candidate has explicit locations and cannot escape the private
   const manualRun = path.join(f.root, "manual-run.json");
   pass(cli(["register", "--run", f.runFile, "--artifact", manualFile, "--output", manualRun]));
   assert.equal(read(manualRun).status, "human_queue_ready");
+});
+
+test("conflicting observations keep every rationale and target in the queue and public/internal reports", (t) => {
+  const f = fixture(t, undefined, (screening) => {
+    screening.payload.observations.forEach((item, index) => {
+      delete item.signal_class; delete item.human_review_required; delete item.evidence_provenance;
+      item.report_outcome = ["pass", "fail", null][index];
+      item.applicability = index === 2 ? "not_applicable" : "applicable";
+      item.location = ["Product image", "Footer image", "Decorative image"][index];
+      item.report_rationale = `Retained rationale ${index}`;
+      item.observation = `Distinct observation ${index}`;
+    });
+    screening.payload.observations[1].report_rationale += " C:\\Users\\PrivateConflict\\evidence.txt";
+  });
+  const queue = candidate(f);
+  assert.match(queue.payload.items[0].reason, /判定候補・適用判断が一致しません/);
+  assert.equal(queue.payload.items[0].related_screening_observations.length, 3);
+  const queued = path.join(f.root, "conflict-run.json");
+  pass(cli(["register", "--run", f.screenedFile, "--artifact", f.queueFile, "--output", queued]));
+  const baseline = path.join(f.root, "baseline.json"), merged = path.join(f.root, "merged.json");
+  pass(cli(["assessment", "--profile", f.run.profile.id, "--target-name", f.run.target.name, "--target-version", f.run.target.version_or_commit,
+    "--target-ref", f.run.target.urls_or_files[0], "--evaluator", "Synthetic fixture", "--evaluated-at", "2026-09-23", "--output", baseline]));
+  const baselineValue = read(baseline); baselineValue.assessment.scope = f.run.scope; baselineValue.assessment.environment = f.run.environment;
+  fs.writeFileSync(baseline, JSON.stringify(baselineValue), "utf8");
+  pass(cli(["merge", "--run", queued, "--assessment", baseline, "--artifact", f.screenFile, "--artifact", f.queueFile, "--output", merged]));
+  const run = read(queued), assessment = read(merged), validated = validateAuditRun(run, { runFile: queued });
+  const publicModel = buildPublicReportModel({ run, assessment, envelopesById: validated.envelopesById, resources: validated.resources });
+  const row = publicModel.reportChecks.find((item) => item.requirement_id === requirement);
+  assert.equal(row.outcome, "cant_tell"); assert.equal(row.applicability, "undetermined");
+  assert.deepEqual(row.screening_conflicts, ["report_outcome", "applicability"]);
+  assert.equal(row.screening_observations.length, 3);
+  assert.equal(publicModel.reportOutcomeCounts.cant_tell, 1);
+  assert.doesNotMatch(JSON.stringify(publicModel), /PrivateConflict/);
+  const internal = buildInternalRunBackedModel({ run, assessment, publicModel, envelopesById: validated.envelopesById });
+  assert.match(JSON.stringify(internal.reportChecks.find((item) => item.requirement_id === requirement)), /PrivateConflict/);
+  for (const [visibility, locale, format] of [["public", "ja", "markdown"], ["internal", "en", "html"]]) {
+    const output = path.join(f.root, `conflicts-${visibility}.${format === "html" ? "html" : "md"}`);
+    pass(cli(["report", "--run", queued, "--assessment", merged, "--visibility", visibility, "--locale", locale, "--format", format, "--output", output,
+      ...(visibility === "public" ? ["--reviewer-disclosure", "redact", "--redaction-manifest", `${output}.redaction.json`] : [])]));
+    const text = fs.readFileSync(output, "utf8");
+    for (let index = 0; index < 3; index++) { assert.ok(text.includes(`Retained rationale ${index}`)); assert.ok(text.includes(`Distinct observation ${index}`)); }
+    assert.ok(text.includes(locale === "ja" ? "判定候補・適用判断が一致しません" : "Observations disagree on outcome and applicability"));
+    if (visibility === "public") assert.doesNotMatch(text, /PrivateConflict|ART-QUEUE-SCREEN|TARGET-[a-f0-9]{64}/);
+  }
+  // A unanimous not-applicable projection remains a valid report judgement.
+  const unanimous = new Map([...validated.envelopesById].map(([id, record]) => [id, structuredClone(record.envelope)]));
+  for (const observation of unanimous.get(f.screening.artifact_id).payload.observations) {
+    observation.report_outcome = null; observation.applicability = "not_applicable";
+  }
+  const notApplicable = buildPublicReportModel({ run, assessment, envelopesById: unanimous, resources: validated.resources });
+  assert.equal(notApplicable.notApplicableChecks[0].outcome, "not_applicable");
+  assert.equal(notApplicable.notApplicableChecks[0].screening_observations.length, 3);
+  assert.deepEqual(notApplicable.notApplicableChecks[0].screening_conflicts, []);
 });

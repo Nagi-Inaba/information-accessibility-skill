@@ -1,4 +1,4 @@
-import { guardScreeningProjection, reviewDetailLines } from "./review-details.mjs";
+import { guardScreeningProjection, groupScreeningProjections, screeningReviewRecord, reviewDetailLines } from "./review-details.mjs";
 import { queueReviewLines } from "./human-review-queue.mjs";
 import { renderSourceNoticesMarkdown } from "./source-provenance.mjs";
 import { networkScopeText } from "./network-policy.mjs";
@@ -19,7 +19,6 @@ import {
 } from "./report-locale.mjs";
 
 const outcomes = ["pass", "fail", "not_applicable", "not_tested", "cant_tell"];
-const outcomeRank = { fail: 5, cant_tell: 4, not_tested: 3, not_applicable: 2, pass: 1 };
 
 function emptyCounts() {
   return Object.fromEntries(outcomes.map((outcome) => [outcome, 0]));
@@ -131,13 +130,6 @@ function overallOutcome(counts) {
   if (counts.not_tested > 0) return "not_tested";
   if (counts.pass > 0 || counts.not_applicable > 0) return "pass";
   return "not_tested";
-}
-
-function selectScreeningCandidate(current, candidate) {
-  if (!current) return candidate;
-  const currentRank = outcomeRank[current.report_outcome] ?? 0;
-  const candidateRank = outcomeRank[candidate.report_outcome] ?? 0;
-  return candidateRank > currentRank ? candidate : current;
 }
 
 function buildGroups({ profile, rows, locale }) {
@@ -277,12 +269,7 @@ export function buildRunBackedPresentation({ run, assessment: assessmentRecord, 
   const queueById = new Map((publicModel.pendingHumanChecks ?? []).map((item) => [item.requirement_id, item]));
   const screeningCandidates = [...new Map((publicModel.screeningCandidates ?? []).map(guardScreeningProjection)
     .map((candidate) => [candidate.requirement_id, candidate])).values()];
-  const screeningByProfileId = new Map();
-  for (const candidate of screeningCandidates) {
-    const requirementId = candidate.profile_requirement_id;
-    if (!requirementId) continue;
-    screeningByProfileId.set(requirementId, selectScreeningCandidate(screeningByProfileId.get(requirementId), candidate));
-  }
+  const screeningByProfileId = groupScreeningProjections(screeningCandidates);
   const rows = metadata.map((item) => {
     const check = checkById.get(item.requirement_id) ?? {
       outcome: "not_tested",
@@ -292,20 +279,22 @@ export function buildRunBackedPresentation({ run, assessment: assessmentRecord, 
     const human = humanById.get(item.requirement_id);
     const screening = screeningByProfileId.get(item.requirement_id);
     const sourceKind = human ? "human_review" : screening ? "screening" : "not_run";
-    const evidenceLevel = human ? "E2" : screening ? (screening.evidence_level ?? "E1") : "E0";
+    const evidenceLevel = human ? "E2" : screening ? (screening.observations.every((item) => item.evidence_level === "E1") ? "E1" : "E0") : "E0";
     return {
       ...item,
       group_label: localizedGroupLabel(item.group_id, normalizedLocale),
       outcome: check.outcome,
       outcome_label: messages.outcomes[check.outcome],
       source_kind: sourceKind,
-      screening_requirement_id: screening?.requirement_id,
+      screening_requirement_id: screening?.observations[0].requirement_id,
+      ...(!human && screening ? { screening_conflicts: screening.conflicts,
+        screening_observations: screening.observations.map(screeningReviewRecord) } : {}),
       queue_context: clone(queueById.get(item.requirement_id)),
       source_label: human ? `${messages.sources[sourceKind]} (${reviewerAssuranceLabel(validation.guard.reviewer_assurance?.requirement_assurances?.[item.requirement_id], normalizedLocale)})` : messages.sources[sourceKind],
       evidence_level: evidenceLevel,
       rationale: check.rationale || messages.text.noEvidence,
       review_details: clone(check.review_details),
-      evidence: human ? clone(human.evidence ?? []) : screeningEvidence(screening),
+      evidence: human ? clone(human.evidence ?? []) : (screening?.observations ?? []).flatMap(screeningEvidence),
       applicability: check.applicability ?? (check.outcome === "not_applicable" ? "not_applicable" : "undetermined")
     };
   });
