@@ -1218,21 +1218,38 @@ function artifactEnvelopeFromRecord(record) {
   return record?.envelope ?? record;
 }
 
-// Validates a new human-review candidate without writing a temporary artifact.
+// Validates a new candidate without writing a temporary artifact.
 // Registration still performs the live target check and immutable file binding.
-export function validateHumanReviewCandidate(run, artifact, validation) {
-  const errors = [...validateArtifact(artifact, validation.resources).errors];
-  if (artifact.artifact_type !== "declared-human-review") errors.push("Expected declared-human-review candidate.");
-  if (run.artifacts.some((entry) => entry.artifact_id === artifact.artifact_id)) errors.push("Duplicate artifact ID.");
+export function validateArtifactCandidate(run, artifact, validation) {
+  const resources = validation.resources;
+  const errors = [...validation.errors, ...validateArtifact(artifact, resources, { allowedPayloadVersions: resources.currentPayloadVersions }).errors];
+  try { assertCurrentOperationalRun(run, resources, "Artifact authoring"); } catch (error) { errors.push(error.message); }
+  if (run.artifacts.some((entry) => entry.artifact_id === artifact?.artifact_id)) errors.push("Duplicate artifact ID.");
   if (errors.length) return { valid: false, errors };
+  const permissionError = remediationPermissionError(run, [artifact]);
+  if (permissionError) errors.push(permissionError);
+  const outgoing = resources.orchestrationRegistry.transitions.filter((transition) => transition.from === run.status && transition.required_artifact_types.includes(artifact.artifact_type));
+  const incoming = resources.orchestrationRegistry.transitions.some((transition) => transition.to === run.status && transition.required_artifact_types.includes(artifact.artifact_type));
+  if (outgoing.length > 1 || (!outgoing.length && !incoming)) errors.push(`Artifact type ${artifact.artifact_type} is not registerable from ${run.status}.`);
+  if (run.history.at(-1)?.at && compareInstants(artifact.created_at, run.history.at(-1).at) < 0) errors.push("Artifact created_at precedes the current run state.");
   const envelopes = new Map([...validation.envelopesById, [artifact.artifact_id, artifact]]);
   const entries = new Map(run.artifacts.map((entry) => [entry.artifact_id, entry]));
   entries.set(artifact.artifact_id, { artifact_id: artifact.artifact_id, artifact_type: artifact.artifact_type,
     producer_role: artifact.producer.role_id, created_at: artifact.created_at });
-  validateArtifactEnvelopeSemantics(run, validation.resources, entries, envelopes, errors);
-  validateDeclaredHumanBindings(envelopes, run.profile.id, validation.resources, errors);
+  validateArtifactEnvelopeSemantics(run, resources, entries, envelopes, errors);
+  validateHumanQueueBindings(envelopes, run.profile.id, resources, errors, run);
+  validateDeclaredHumanBindings(envelopes, run.profile.id, resources, errors);
+  validateRemediationBindings(envelopes, errors);
   errors.push(...targetBindingErrors(run, [artifact]));
-  return { valid: errors.length === 0, errors };
+  const evidence = errors.length ? { errors: [], snapshots: new Map() } : collectScreeningEvidence(run, [artifact],
+    (relativePath) => readStableFile(resolveInside(validation.artifactRoot, path.join(validation.artifactRoot, ...relativePath.split("/")))));
+  errors.push(...evidence.errors);
+  return { valid: errors.length === 0, errors, evidenceSnapshots: evidence.snapshots };
+}
+
+export function validateHumanReviewCandidate(run, artifact, validation) {
+  if (artifact?.artifact_type !== "declared-human-review") return { valid: false, errors: ["Expected declared-human-review candidate."] };
+  return validateArtifactCandidate(run, artifact, validation);
 }
 
 function remediationItems(envelopesById) {

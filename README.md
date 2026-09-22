@@ -244,4 +244,6 @@ node .\scripts\verify-all.mjs
 
 対象箇所に結び付いた確認候補は `review-queue` で作成できます。[人手確認queueの作成・登録・旧形式の扱い](codex/skills/information-accessibility-practice/references/human-review-queue.md)を参照してください。
 
+記入済みのpayloadから4種類の標準artifactを作る場合は `artifact init`、編集後の登録前確認には `artifact validate` を使います。ID・版・日時・入力hashはCLIが設定します。[エージェントなしでの作成手順](codex/skills/information-accessibility-practice/references/agent-orchestration.md#authoring-without-agent-dispatch)を参照してください。
+
 登録済みのキューは `human-review export` でCSV・Markdown・Excelへ出力し、確認者の記入後に `human-review import` でレビュー候補へ変換できます。[入力方法、一部提出、複数の確認者、再提出の扱い](codex/skills/information-accessibility-practice/references/human-review-worksheet.md)を確認してください。取り込みでは本人性を認証せず、runも自動更新しません。

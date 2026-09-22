@@ -244,4 +244,6 @@ The [machine-readable source register](codex/skills/information-accessibility-pr
 
 Use `review-queue` to create target-bound review candidates. See [human-review queue generation, registration and historical formats](codex/skills/information-accessibility-practice/references/human-review-queue.md).
 
+Use `artifact init` to wrap a completed payload for any of the four standard review artifacts, then `artifact validate` after editing and before registration. The CLI supplies IDs, versions, timestamps and input hashes. See [authoring without agent dispatch](codex/skills/information-accessibility-practice/references/agent-orchestration.md#authoring-without-agent-dispatch).
+
 Use `human-review export` for CSV, Markdown or Excel worksheets, then `human-review import` to turn the person's answers into a review candidate. See [input fields, partial submissions, multiple reviewers and resubmission (Japanese)](codex/skills/information-accessibility-practice/references/human-review-worksheet.md). Import does not authenticate reviewer identity or update the run automatically.

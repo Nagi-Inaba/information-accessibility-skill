@@ -7,6 +7,18 @@ function option(flag, value, description) {
 
 const definitions = [
   {
+    name: "artifact", script: "create-audit-artifact.mjs",
+    summary: "Wrap a completed payload in a run-bound candidate, or check it before registration.",
+    usage: [
+      "accessibility-audit artifact init --run <run.json> --type <type> --payload <payload.json> [--input <registered-ART-id>] [--artifact-id <ART-id>] --output <artifacts/new-candidate.json>",
+      "accessibility-audit artifact validate --run <run.json> --artifact <artifacts/candidate.json>"
+    ],
+    notes: ["Types: screening-observations, human-review-queue, declared-human-review, remediation-plan. --input is repeatable.",
+      "The CLI fills envelope metadata and omitted payload schema_version. Supply actual observations, review declarations or proposals in --payload; none are invented.",
+      "Human review payloads must be the reviewer's actual declaration; AI agents must not write human outcomes or evidence on their behalf. Metadata does not authenticate identity.",
+      "Creates a private candidate only; register performs live target checks. Prefer review-queue and human-review export/import for guided authoring. See references/agent-orchestration.md."]
+  },
+  {
     name: "review-queue", script: "create-human-review-queue.mjs",
     summary: "Create a target-bound human review candidate from registered observations and explicit requirements.",
     usage: ["accessibility-audit review-queue --run <run.json> --artifact-id <ART-id> --output <artifacts/new-queue.json> [--scope screening|profile_all] [--requirement <profile-requirement-id>]"],

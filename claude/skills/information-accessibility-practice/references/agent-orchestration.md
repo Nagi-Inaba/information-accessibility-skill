@@ -26,6 +26,27 @@ The current read-only boundary is a behavioral contract, not a complete tool san
 
 `audit-run` schema 11.0.0, orchestration registry 10.0.0 and artifact envelope 3.0.0 define the current run-backed flow. Runs 1 and 2 remain bound to registry 1, run 3 to registry 2, run 4 to registry 3, run 5 to registry 4, run 6 to registry 5, run 7 to registry 6, run 8 to registry 7, run 9 to registry 8, and run 10 to registry 9; all prior run versions are read-only. New runs record the agreed inspection level, purpose, deliverables and completion criteria in `inspection_request`; see `inspection-levels.md`. Before observations, the orchestrator captures and binds a measured inventory as described in `measured-targets.md`. Each envelope names the exact inventory snapshot IDs, and registration rejects target drift. Completed authorized change records retain the prior IDs and move the run to retesting without requiring the already-modified target to remain unchanged. The reviewer dispatches applicable specialists, the orchestrator materializes and registers candidates, `merge-audit-artifacts.mjs` produces the assessment, and `render-audit-report.mjs` with `--run` `<run.json>`, `--assessment` `<merged.json>`, and `--output` `<new-report.md>` creates the public report through stable and safe runtime checks.
 
+## Authoring without agent dispatch
+
+Use `artifact init` with a completed payload JSON to create a valid candidate for any of the four standard review types: `screening-observations`, `human-review-queue`, `declared-human-review`, or `remediation-plan`. The CLI supplies the envelope version, artifact ID, run ID, registered producer role, UTC creation time, measured target IDs, omitted payload version, and exact hashes for each repeated `--input <registered-artifact-id>`. Its producer origin explicitly records caller-supplied content without agent dispatch.
+
+```sh
+accessibility-audit artifact init --run audit-run.json --type screening-observations --payload observations.json --output artifacts/screening.json
+# Edit only payload fields in the unregistered candidate, then:
+accessibility-audit artifact validate --run audit-run.json --artifact artifacts/screening.json
+accessibility-audit register --run audit-run.json --artifact artifacts/screening.json --output audit-run.screened.json
+```
+
+`observations.json` contains the screening payload object, not an envelope. Supply actual observations and capture times; E1 requires saved evidence references described in [saved-evidence.md](saved-evidence.md). The command requires `--payload`: it does not fill invented observations, completed human tests, or remediation proposals into a blank template. An incompatible payload version or incomplete content is rejected before a candidate is written.
+
+For guided authoring, use [`review-queue`](human-review-queue.md) after registering screening, then [`human-review export/import`](human-review-worksheet.md) for the person's answers. For a remediation payload, pass `--type remediation-plan --input <registered-screening-or-human-review-id>`; each item's `source_artifact_ids` must match its supporting inputs. Repeat `--input` for multiple sources. Unverified screening proposals remain unverified.
+
+For `declared-human-review`, supply only the reviewer's actual completed declaration and observations. AI agents must not fill human outcomes or evidence on a person's behalf. The external-human producer role records the declared source of the payload, not the identity of the CLI caller. As with worksheet import and hand-written JSON registration, validation cannot prove who wrote the declaration or whether a test was performed; [reviewer assurance](reviewer-assurance.md) is a separate signature-verification workflow.
+
+Candidates stay inside the private artifact root, use new filenames, and do not update the run. `artifact validate` checks current schemas, registration order, same-run inputs and hashes, target bindings, saved evidence and review/remediation relationships without writing files or contacting targets. Registration still rechecks the live target and creates a new run file. Registered artifacts are immutable. Optional `fix-authorization` and `change-record` use the separate authorized-fix workflow above.
+
+The repository's `examples/run-backed-web-audit` documents a synthetic workflow; its artifact-authoring integration test reuses the four payload fixtures through init → edit → validate → register → merge → report. No real human audit is implied.
+
 ## Public reporting boundary
 
 Screening schema 3.0.0 requires `evidence_refs`, with saved run-bound captures for E1; see [saved-evidence.md](saved-evidence.md). It retains optional `signal_class`, `human_review_required`, and `evidence_provenance` fields. A signal-classified handoff must include the latter two fields; automated-tool provenance must identify the tool, version, and rule. `no_automated_signal` and `inconclusive` cannot produce a report-only pass or fail. Every signal-classified observation mapped to a profile requirement must reach an input-linked human-review queue before merge. Historical payloads remain read-only; none of these fields creates a formal profile outcome.
