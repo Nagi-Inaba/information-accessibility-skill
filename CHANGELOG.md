@@ -8,6 +8,8 @@ This project uses a Keep a Changelog-style structure. Until a tagged release is 
 
 ### Added
 
+- WCAG 2.2 SC 1.4.3 has English and Japanese text-contrast procedures covering effective colors, large-scale text including CJK, unrounded thresholds, and criterion-specific exceptions.
+
 - WCAG 2.2 SC 3.3.3 has English and Japanese error-suggestion procedures that distinguish correction guidance from error identification and require a concrete security or purpose reason for an exception.
 
 - WCAG 2.2 SC 2.1.2 has English and Japanese keyboard-trap procedures covering entry, keyboard exit, advised nonstandard exits, and modal focus containment.

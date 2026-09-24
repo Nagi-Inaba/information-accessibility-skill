@@ -150,12 +150,13 @@ test("catalog procedures include the expected unique requirement IDs", () => {
     "WCAG-2.2-SC-2.4.3",
     "WCAG-2.2-SC-2.4.7",
     "WCAG-2.2-SC-2.1.2",
-    "WCAG-2.2-SC-3.3.3"
+    "WCAG-2.2-SC-3.3.3",
+    "WCAG-2.2-SC-1.4.3"
   ]);
 
   assert.equal(requirementIds.length, procedures.procedures.length);
   assert.equal(unique.size, procedures.procedures.length);
-  assert.ok(unique.size >= 16);
+  assert.ok(unique.size >= 17);
   for (const req of expected) {
     assert.equal(unique.has(req), true, `missing requirement ${req}`);
   }
@@ -275,6 +276,20 @@ test("SC 3.3.3 requires known safe correction guidance after an automatically de
   assert.match(procedure.procedure_steps.join(" "), /SC 3\.3\.1.*SC 3\.3\.2.*SC 3\.3\.4/u);
   assert.ok(procedure.counterexamples.pass.length && procedure.counterexamples.fail.length && procedure.counterexamples.cant_tell.length);
   assert.match(procedure.ai_boundary, /must not decide whether an exception applies/u);
+});
+
+test("SC 1.4.3 checks unrounded text contrast with large-text and incidental exceptions", () => {
+  const procedure = procedureFor("WCAG-2.2-SC-1.4.3");
+  assert.deepEqual(procedure.primary_sources, [
+    "https://www.w3.org/TR/WCAG22/#contrast-minimum",
+    "https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html"
+  ]);
+  assert.deepEqual(procedure.required_evidence_types, ["browser_inspection", "manual_observation"]);
+  assert.match(procedure.applicability_steps.join(" "), /placeholder.*hover.*keyboard focus/u);
+  assert.match(procedure.procedure_steps.join(" "), /unrounded ratio.*4\.5:1.*3:1.*equivalent CJK sizing/u);
+  assert.match(procedure.procedure_steps.join(" "), /SC 1\.4\.11/u);
+  assert.match(procedure.counterexamples.fail.join(" "), /4\.49:1/u);
+  assert.ok(procedure.cant_tell_when.length && procedure.counterexamples.pass.length && procedure.counterexamples.cant_tell.length);
 });
 
 test("new focus and input-error procedures keep their criterion boundaries and primary sources", () => {
