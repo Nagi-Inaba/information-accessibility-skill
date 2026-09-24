@@ -8,6 +8,8 @@ This project uses a Keep a Changelog-style structure. Until a tagged release is 
 
 ### Added
 
+- Cross-platform Codex installation and shared Codex/Claude lifecycle commands for dry-run, backed-up upgrade, reversible uninstall and backup restore. Installed CLI, skill and manifest-selected agents come from one verified source revision.
+
 - Read-only historical run validation and report regeneration can use explicitly saved resource files whose catalog, procedure and method hashes match the run. Frozen run 1–16 reports use the current renderer only when the original run and assessment pass validation, without changing source records.
 
 - `human-review export/import` creates Japanese CSV, Markdown and XLSX worksheets from a registered queue and validates actual human answers into a private review candidate. Fixed run/queue hashes, procedure bindings, partial submissions, finding details and immutable output paths are checked; ExcelJS 4.4.0 is pinned for XLSX support. Formula and active workbook content are rejected. Import does not authenticate a reviewer or register an artifact.

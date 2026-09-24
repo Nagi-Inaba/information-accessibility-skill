@@ -307,6 +307,12 @@ Codex／Claudeの既定installerは監査専用skillを配置し、修正用agen
 
 `audit-runs/<run-id>/`を内部成果物と公開候補の推奨先としてCLIヘルプ・skill・レポート例に統一した。確認後の公開用レポートはリポジトリ外の新しいpathへ明示的に書き出し、内部用伏字manifestはrun内の新しいpathへ保存する。run単位の保管・保存期間・手動削除の方針も記載した。既存のCLI上書き防止と`.gitignore`は維持した。3種類の内部pathが`git check-ignore`で無視されること、関連50テスト中48成功・2環境依存スキップ、配布同期・package検証成功を確認。GitHub Issueはopen、未push・未PR・未merge。次は#27の各環境の導入・更新・削除経路を確認する。
 
+## #27 3 OSの導入・更新・削除（ローカル実装・対象検証済み）
+
+既存のClaude Node installerを共通化し、CodexのNode入口を追加した。両者ともdry-run、既存skill・manifest管理agentを新規backupへ退避してからの更新、退避型uninstall、以前のbackupからのrestoreを利用できる。新規導入は既存配置先を拒否し、更新中の失敗では退避したファイルを戻す。任意fixerは既定では入れず、同じfeature manifestとregistry版を照合する。既存のWindows PowerShell installerは維持した。版固定、Codex／Claudeの差、3 OSの手順、導入後のCLI／doctor確認をdocs/installing.mdとREADME日英に記載。release収録リストに新しいscript・test・文書を登録した。
+
+Windows上の一時homeでCodex／Claudeの初回導入、更新、uninstall、restoreとinstalled CLI／doctorを確認した。macOS／Linux上の実機動作、リモートCI、公開済みtag付きreleaseは未確認。GitHub Issueはopen、未push・未PR・未merge。次はP3の#14→#32の条項手順と状態付きUIへ進む。
+
 以下の未着手Issueも継続目標に含む。技術的な前提や外部判断が必要な項目は、具体的な残課題を記録して実行可能な作業を進める。
 
 同じ行でも、前提となるIssueから順に実装する。P1は証拠・権限・日時の信頼性、P2は人手作業と再検査、P3は対象拡張と保守性を優先する区分であり、指摘の重大度とは異なる。
@@ -323,7 +329,7 @@ Codex／Claudeの既定installerは監査専用skillを配置し、修正用agen
 | P2 | #41 → #60 | 2件ともローカル実装・検証済み。run補足情報と、規格判定から分離した同意付き当事者テストを接続済み。 |
 | P2 | #48 → #49 → #59 | 3件ともローカル実装・検証済み。外部変更、再検査比較、指摘の状態・期限・例外を接続済み。 |
 | P2 | #53 → #33 | 両件ともローカル実装・対象検証済み。#53はAI handoffと実行runtime、#33は監査専用の既定導入と任意修正機能を分離。ソースpackageの物理分割とリモートCIは未実施。全体テストは`exceljs`欠落による環境上の未確認が残る。 |
-| P2 | #28、#26、#27 | #28は旧runの読取り・再レポートをローカル実装。#26は出力例の統一と公開書出し・保管方針を整備し、Git無視を確認。次は#27の導入・更新・削除。既存データを上書きしない。 |
+| P2 | #28、#26、#27 | 3件ともローカル実装・対象検証済み。#28は旧run再レポート、#26は内部出力先、#27は版固定と3 OS向け導入・更新・削除を整備。macOS／Linux実機とリモートCI、公開releaseは未確認。 |
 | P3 | #14 → #32 | 条項別手順を一次資料と照合し、状態付きUIの確認パターンを増やす。 |
 | P3 | #30、#66 | 非Web記録とATAGの専用経路。現行READMEの未対応範囲を維持し、Web評価へ自動転用しない。 |
 | P3 | #51 → #46 | 共通sourceと配布物を分離し、一次資料の監視結果を人がレビューできる形で保存する。 |

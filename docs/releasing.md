@@ -26,6 +26,7 @@ tar -xzf <archive.tar.gz> -C <empty-directory>
 node <extracted-root>/scripts/verify-package.mjs
 node <extracted-root>/scripts/build-criteria-catalog.mjs --check
 node <extracted-root>/scripts/install-claude.mjs --claude-home <temporary-home> --dry-run
+node <extracted-root>/scripts/install-codex.mjs --codex-home <temporary-home> --dry-run
 ```
 
 Windowsでは64-bit Windows PowerShellでCodex installerの `-CodexHome <temporary-home> -WhatIf` も確認します。展開した全ファイルをmanifestのhashと照合し、研究用原本や実監査証拠がないことを確認します。

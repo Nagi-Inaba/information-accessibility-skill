@@ -2,6 +2,8 @@
 
 # Information Accessibility Audit Skill and Agent
 
+Installation requires Node.js 20 or later and a pinned source revision. See the [Windows, macOS and Linux install, upgrade, restore and removal guide](docs/installing.md) first.
+
 ## In 30 seconds
 
 This Codex and Claude package reviews whether people can **find information, receive it, understand it, complete the intended action, and check the result later** across websites, applications, documents, slides, videos, and event information.
@@ -93,7 +95,7 @@ powershell -ExecutionPolicy Bypass -File ".\scripts\install-codex.ps1"
 
 The default installation contains only the audit workflow; fixer agents, commands, and schemas are omitted. Specify `-IncludeAuthorizedFixer` only when deliberately installing authorized remediation. The fixer agent prepares a read-only handoff; a trusted operator performs the bounded change, verification, and rollback after checking external authorization. Both profiles use registry 17.0.0; the installer rejects a mismatched fixer registry version.
 
-On macOS or Linux, copy `codex/skills/information-accessibility-practice/` and the manifest-default agents. See [Getting started](docs/getting-started.md).
+The cross-platform Node installer is `node scripts/install-codex.mjs --dry-run` followed by `node scripts/install-codex.mjs`. See the [installation guide](docs/installing.md) for pinning, upgrade, restore and removal.
 
 ### Claude
 
@@ -111,6 +113,7 @@ node .\scripts\install-claude.mjs
 
 The multi-agent installation preserves the same role artifact contract as Codex. Use `--reviewer-only` only when the Claude host cannot dispatch specialist agents.
 Claude also defaults to the audit-only profile. Specify `--include-authorized-fixer` to install the optional fixer.
+The Node installer works on Windows, macOS and Linux. See the [installation guide](docs/installing.md) for upgrade, restore and removal.
 
 ### CLI
 

@@ -2,6 +2,8 @@
 
 # 情報アクセシビリティ監査スキル／エージェント
 
+導入にはNode.js 20以上と版を固定したソースが必要です。[3 OS共通の導入・更新・復元・削除手順](docs/installing.md)を先に確認してください。
+
 ## 30秒で分かる概要
 
 Webサイト、アプリ、文書、スライド、動画、イベント案内などについて、**情報を見つけ、受け取り、理解し、目的の行動を完了し、後から確認できるか**を調べるCodex／Claude向けパッケージです。
@@ -93,7 +95,7 @@ powershell -ExecutionPolicy Bypass -File ".\scripts\install-codex.ps1"
 
 既定導入は監査専用で、修正用agent・CLI・schemaを含みません。認可済み修正が必要な場合だけ`-IncludeAuthorizedFixer`を指定します。agentは読み取り専用のhandoffを作成し、対象の変更・検証・rollbackは、外部許可を確認した信頼された運用者が行います。両構成はregistry 17.0.0を共有し、異なるregistry版の修正機能は導入を拒否します。
 
-macOS／Linuxでは`codex/skills/information-accessibility-practice/`とmanifestで既定指定されたagentを配置します。詳細は[はじめに](docs/getting-started.md)を参照してください。
+Windows／macOS／Linux共通のNode installerは`node scripts/install-codex.mjs --dry-run`と`node scripts/install-codex.mjs`です。更新・復元・削除と版固定は[導入手順](docs/installing.md)を参照してください。
 
 ### Claude
 
@@ -111,6 +113,7 @@ node .\scripts\install-claude.mjs
 
 multi-agent構成はCodex版と同じrole artifact contractを維持します。specialist agentをdispatchできない場合だけ`--reviewer-only`を使用します。
 Claudeも既定は監査専用です。修正機能の明示導入には`--include-authorized-fixer`を指定します。
+Node installerはWindows／macOS／Linuxに対応します。更新・復元・削除は[導入手順](docs/installing.md)を参照してください。
 
 ### CLI
 
