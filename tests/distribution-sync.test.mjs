@@ -72,6 +72,11 @@ test("a source-only checkout generates both existing skill paths", () => withFix
       fs.readFileSync(path.join(target, `${platform}/skills/information-accessibility-practice/SKILL.md`)),
       fs.readFileSync(path.join(target, "shared/skill/SKILL.md"))
     );
+    if (process.platform !== "win32") {
+      for (const script of ["accessibility-audit.mjs", "render-report.mjs"]) {
+        assert.equal(fs.statSync(path.join(target, `${platform}/skills/information-accessibility-practice/scripts`, script)).mode & 0o111, 0o111);
+      }
+    }
   }
   assert.equal(buildDistribution(target).status, "PASS");
 }, { includeGenerated: false }));

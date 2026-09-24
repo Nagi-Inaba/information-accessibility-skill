@@ -6,7 +6,7 @@ import { gzipSync } from "node:zlib";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { verifyPackage } from "./verify-package.mjs";
-import { buildDistribution } from "./sync-distributions.mjs";
+import { buildDistribution, executableSkillScripts } from "./sync-distributions.mjs";
 import { assertNewOutputPath, writeNewText } from "../shared/skill/scripts/lib/audit-run.mjs";
 
 const defaultRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -155,6 +155,10 @@ function archiveCommittedSource(root, commit, sourceFiles, stem) {
     });
     git(stageRoot, ["init", "-q"]);
     git(stageRoot, ["-c", "core.autocrlf=false", "add", "-f", "-A"]);
+    git(stageRoot, ["update-index", "--chmod=+x", "--", ...["shared", "codex", "claude"].flatMap(prefix =>
+      [...executableSkillScripts].map(relative => prefix === "shared"
+        ? `shared/skill/${relative}`
+        : `${prefix}/skills/information-accessibility-practice/${relative}`))]);
     const tree = git(stageRoot, ["write-tree"]).toString("ascii").trim();
     const timestamp = git(root, ["show", "-s", "--format=%ct", commit]).toString("ascii").trim();
     const archive = gzipSync(git(stageRoot, ["-c", "core.autocrlf=false", "-c", "core.eol=lf", "archive", "--format=tar", `--mtime=@${timestamp}`, `--prefix=${stem}/`, tree]), { level: 9 });
