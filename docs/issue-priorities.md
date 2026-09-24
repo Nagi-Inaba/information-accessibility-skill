@@ -289,6 +289,12 @@ mergeとreportは登録済みの申告とassessmentの完全一致を確認す�
 
 受け入れ条件を満たすには、新版で引継ぎroleを読取り専用にし、変更実行runtimeを別roleと証拠で結び付ける必要がある。実行者identity、runtime、承認、handoff、実行時刻、前後hashのbindingと、旧記録の読取り互換性を次に実装・検証する。#53はまだ完了扱いにしない。
 
+### 新版の実装境界
+
+run 17の既存schemaはresource versionとregistry hashを保持できるため、run schema自体は増やさず、registry 16を凍結してregistry 17を追加する方針とする。検証時にはrun 17とregistry 16／17の組だけを許し、旧registry 16のrunは読取り専用にする。新registry 17に、書込み不可のAI handoff role、登録済み `fix-handoff`、唯一の書込み主体となる `trusted_fix_executor` を定義する。handoffは承認後の補助成果物として登録し、状態遷移を増やさない。実行runtimeはそのID・hashと承認を照合してから変更し、change-recordの新版へ実行者・runtime・時刻・前後hashを保存する。
+
+既存のenvelope 3とchange-record 2は旧run検証用に凍結し、新版だけにtrusted runtimeのproducer kindと追加bindingを許す。登録時にはhandoff、承認、runtimeの完了記録の一致を要求する。ホスト側の実行者identityは申告値であり、同じOSアカウントの干渉は現行runtimeの脅威境界外であることを明示する。専用確認はhandoffのみ、正常実行、rollback、旧run読取り、新版への手書きexecutor成果物の登録拒否に絞る。
+
 以下の未着手Issueも継続目標に含む。技術的な前提や外部判断が必要な項目は、具体的な残課題を記録して実行可能な作業を進める。
 
 同じ行でも、前提となるIssueから順に実装する。P1は証拠・権限・日時の信頼性、P2は人手作業と再検査、P3は対象拡張と保守性を優先する区分であり、指摘の重大度とは異なる。
