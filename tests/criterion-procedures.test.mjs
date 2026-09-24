@@ -16,6 +16,21 @@ function procedureFor(requirementId) {
   return result.criterion_procedure;
 }
 
+test("prerecorded media procedures distinguish media alternatives, captions, and visual description", () => {
+  const audioVideoOnly = procedureFor("WCAG-2.2-SC-1.2.1");
+  const captions = procedureFor("WCAG-2.2-SC-1.2.2");
+  const description = procedureFor("WCAG-2.2-SC-1.2.3");
+  for (const procedure of [audioVideoOnly, captions, description]) {
+    assert.equal(procedure.primary_sources.length, 2);
+    assert.ok(procedure.primary_sources[0].startsWith("https://www.w3.org/TR/WCAG22/#"));
+    assert.ok(procedure.counterexamples.cant_tell.length > 0);
+  }
+  assert.match(audioVideoOnly.expected_results.join(" "), /audio-only.*alternative.*video-only.*audio track/u);
+  assert.match(captions.procedure_steps.join(" "), /synchronization.*speaker identification/u);
+  assert.match(captions.procedure_steps.join(" "), /non-speech/u);
+  assert.match(description.procedure_steps.join(" "), /full text alternative.*SC 1\.2\.5/u);
+});
+
 test("SC 1.1.1 exposes a human review procedure with pass, fail, and cant_tell counterexamples", () => {
   const procedure = procedureFor("WCAG-2.2-SC-1.1.1");
 

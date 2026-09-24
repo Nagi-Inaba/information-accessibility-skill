@@ -23,6 +23,9 @@ const distributions = [
 
 const equivalentRequirements = [
   ["JIS-X-8341-3-2016-SC-1.1.1", "WCAG-2.2-SC-1.1.1"],
+  ["JIS-X-8341-3-2016-SC-1.2.1", "WCAG-2.2-SC-1.2.1"],
+  ["JIS-X-8341-3-2016-SC-1.2.2", "WCAG-2.2-SC-1.2.2"],
+  ["JIS-X-8341-3-2016-SC-1.2.3", "WCAG-2.2-SC-1.2.3"],
   ["JIS-X-8341-3-2016-SC-1.3.1", "WCAG-2.2-SC-1.3.1"],
   ["JIS-X-8341-3-2016-SC-1.3.2", "WCAG-2.2-SC-1.3.2"],
   ["JIS-X-8341-3-2016-SC-1.3.3", "WCAG-2.2-SC-1.3.3"],

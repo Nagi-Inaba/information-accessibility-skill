@@ -1784,6 +1784,73 @@
         "cant_tell": ["A screenshot shows stylized words in an image, but its live text alternative, available customization, and intended visual presentation cannot be checked."]
       },
       "ai_boundary": "AI may find images with candidate words, but it must not treat OCR or alt text alone as equivalent visible actual text, or assume technical infeasibility or essential design from appearance, or record a profile outcome, human_verified mapping, or E2+ claim without human review of the presented information and exceptions."
+    },
+    {
+      "id": "wcag22-sc-1-2-1-audio-only-and-video-only-prerecorded",
+      "requirement_id": "WCAG-2.2-SC-1.2.1",
+      "procedure_version": "1.0.0",
+      "procedure_kind": "human_manual_or_hybrid",
+      "automation_role": "supporting_only",
+      "primary_sources": ["https://www.w3.org/TR/WCAG22/#audio-only-and-video-only-prerecorded", "https://www.w3.org/WAI/WCAG22/Understanding/audio-only-and-video-only-prerecorded.html"],
+      "applicability_steps": [
+        "Inventory prerecorded audio-only and video-only media. Separate synchronized audio-video media and live media, and identify any item clearly labeled as a media alternative for text that conveys no more information than the text.",
+        "For each applicable item, locate the offered alternative and record its access path, language, and the media version reviewed."
+      ],
+      "procedure_steps": [
+        "For audio-only media, listen and compare a time-based media alternative with speech, speaker changes, meaningful sounds, sequence, and any time-based interaction outcomes.",
+        "For video-only media, watch the silent video and compare either a time-based media alternative or an audio track with the visual actions, on-screen information, sequence, and interaction outcomes.",
+        "Record the media type, exemption evidence, alternative route, and representative information matched or omitted. A dialogue-only transcript does not cover meaningful non-speech audio; captions for synchronized media are assessed under SC 1.2.2."
+      ],
+      "expected_results": [
+        "Prerecorded audio-only media has an alternative for time-based media with equivalent information; prerecorded video-only media has such an alternative or an equivalent audio track.",
+        "The exception applies only when the media is clearly labeled as an alternative for text and conveys no more information than that text."
+      ],
+      "required_evidence_types": ["browser_inspection", "manual_observation"],
+      "cant_tell_when": ["The original media or offered alternative cannot be played or inspected sufficiently to compare information and sequence.", "The relationship to purported equivalent text or the outcome of a time-based interaction cannot be established."],
+      "counterexamples": {
+        "pass": ["A silent demonstration has an accessible audio track describing its actions and visible instructions in order."],
+        "fail": ["A prerecorded audio-only interview has no alternative for time-based media."],
+        "cant_tell": ["A transcript link exists, but the recording is unavailable, so its coverage of speech and meaningful sounds cannot be checked."]
+      },
+      "ai_boundary": "AI may locate media and alternative candidates, but it must not infer equivalence from a transcript link, metadata, or automatic speech recognition alone, or record a profile outcome, human_verified mapping, or E2+ claim without human comparison of the media and alternative."
+    },
+    {
+      "id": "wcag22-sc-1-2-2-captions-prerecorded",
+      "requirement_id": "WCAG-2.2-SC-1.2.2",
+      "procedure_version": "1.0.0",
+      "procedure_kind": "human_manual_or_hybrid",
+      "automation_role": "supporting_only",
+      "primary_sources": ["https://www.w3.org/TR/WCAG22/#captions-prerecorded", "https://www.w3.org/WAI/WCAG22/Understanding/captions-prerecorded.html"],
+      "applicability_steps": ["Inventory prerecorded audio content in synchronized media, including multiple language or player versions. Identify any clearly labeled media alternative for text that conveys no more information than its text source.", "Separate audio-only recordings under SC 1.2.1 and live synchronized media under SC 1.2.4."],
+      "procedure_steps": ["Play each applicable version with captions enabled, or inspect always-visible captions, and compare representative beginning, middle, end, speaker changes, and meaningful non-speech sounds with the audio.", "Check synchronization and whether dialogue, speaker identification, and sound information needed to understand the media are conveyed. Record media version, caption selection, timing, and omissions; a plain transcript or dialogue-only subtitles do not by themselves establish this criterion."],
+      "expected_results": ["Captions synchronized with all prerecorded audio content in applicable synchronized media convey speech and meaningful non-speech information, including speaker identity where needed.", "The exception applies only to media clearly labeled as an alternative for text with no additional information."],
+      "required_evidence_types": ["browser_inspection", "manual_observation"],
+      "cant_tell_when": ["The audio or caption presentation cannot be played or inspected sufficiently to compare content and timing.", "An asserted text-alternative exception cannot be checked against both the media and source text."],
+      "counterexamples": {
+        "pass": ["A prerecorded tutorial offers captions timed to speech and identifies a relevant alarm and its speaker."],
+        "fail": ["A video with recorded speech provides only a separate untimed transcript and no captions."],
+        "cant_tell": ["A player lists a caption track, but playback fails, so synchronization and coverage cannot be verified."]
+      },
+      "ai_boundary": "AI may detect caption tracks and candidate omissions, but it must not infer accurate synchronized captions from track presence or automatic transcription alone, or record a profile outcome, human_verified mapping, or E2+ claim without human comparison with the audio."
+    },
+    {
+      "id": "wcag22-sc-1-2-3-audio-description-or-media-alternative-prerecorded",
+      "requirement_id": "WCAG-2.2-SC-1.2.3",
+      "procedure_version": "1.0.0",
+      "procedure_kind": "human_manual_or_hybrid",
+      "automation_role": "supporting_only",
+      "primary_sources": ["https://www.w3.org/TR/WCAG22/#audio-description-or-media-alternative-prerecorded", "https://www.w3.org/WAI/WCAG22/Understanding/audio-description-or-media-alternative-prerecorded.html"],
+      "applicability_steps": ["Inventory prerecorded video content in synchronized media and any audio-description track or full alternative for time-based media. Separate video-only content under SC 1.2.1.", "Identify media clearly labeled as an alternative for text with no more information than that text; inspect the actual source text before applying this exception."],
+      "procedure_steps": ["Watch and listen to representative segments, noting meaningful actions, scene changes, characters, on-screen text, and visual information not conveyed by the main audio.", "Check either an available audio description that conveys missing visual information or a correctly sequenced full text alternative covering both auditory and visual information and any time-based interaction outcomes. Compare the offered route to the media, and record omissions and evidence that the main audio already conveys all important visual information.", "Record which of the two permitted routes satisfies this Level A criterion. A full text alternative alone does not satisfy the separate Level AA SC 1.2.5 requirement."],
+      "expected_results": ["Prerecorded video in synchronized media has audio description of meaningful visual information or a full alternative for time-based media, unless the clearly labeled text-alternative exception applies.", "No added description is necessary when all important visual information is already conveyed in the existing audio."],
+      "required_evidence_types": ["browser_inspection", "manual_observation"],
+      "cant_tell_when": ["The video, main audio, audio-description route, or full alternative cannot be inspected sufficiently to compare coverage.", "A claimed text-alternative exception or assertion that the main audio already conveys all important visuals cannot be established from available evidence."],
+      "counterexamples": {
+        "pass": ["A recorded demonstration has a full sequential text alternative covering spoken instructions, shown actions, and a timed question's equivalent interaction."],
+        "fail": ["A training video silently shows essential button choices while narration omits them and neither audio description nor a full media alternative is offered."],
+        "cant_tell": ["An audio-description option is listed, but its track cannot be played or compared with the video."]
+      },
+      "ai_boundary": "AI may identify visual events and alternative candidates, but it must not infer equivalent coverage from a link, caption, or generated description alone, or record a profile outcome, human_verified mapping, or E2+ claim without human review of the media and offered route."
     }
   ]
 }
