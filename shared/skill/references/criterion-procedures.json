@@ -1047,6 +1047,39 @@
         "cant_tell": ["A screenshot shows a 'Search' button, but there is no access to its computed name or a reliable accessibility-tree capture."]
       },
       "ai_boundary": "AI may propose label/name pairs and flag likely mismatches, but it must not infer the computed name, label association, or a symbol exception from a screenshot or markup alone, or record a profile outcome, human_verified mapping, or E2+ claim without human review of the rendered state and accessibility exposure."
+    },
+    {
+      "id": "wcag22-sc-2-5-4-motion-actuation",
+      "requirement_id": "WCAG-2.2-SC-2.5.4",
+      "procedure_version": "1.0.0",
+      "procedure_kind": "human_manual_or_hybrid",
+      "automation_role": "supporting_only",
+      "primary_sources": ["https://www.w3.org/TR/WCAG22/#motion-actuation", "https://www.w3.org/WAI/WCAG22/Understanding/motion-actuation.html"],
+      "applicability_steps": [
+        "Inventory functions triggered by intentional device motion or user motion interpreted by the content, such as shake, tilt, or camera-detected eye, face, or hand gestures; record the device, permission, and state.",
+        "Separate motion used as input from geolocation or beacons, positioning a camera to recognize an object, incidental sensor events, and ordinary movements needed to use a keyboard, mouse, touchscreen, or assistive technology."
+      ],
+      "procedure_steps": [
+        "In a safe test state, establish each motion-triggered function and its outcome. Operate the same outcomes using available user interface components without making the triggering motion.",
+        "Find the content or verified system setting that disables response to the motion; turn it off and check that the motion no longer actuates the function while the other controls remain usable.",
+        "If an exception is claimed, document either the specific accessibility-supported interface used for the motion or why motion is essential and removing it would invalidate the activity; do not generalize an exception from the presence of a sensor.",
+        "Record the motion, alternate control, disable route, observed outcomes, device conditions, and any exception. Review keyboard and pointer operation of the alternate control under their own criteria."
+      ],
+      "expected_results": [
+        "Each applicable motion-triggered function has a usable user interface component for the same outcome and a working way to disable motion response, unless a supported-interface or essential exception is established.",
+        "With motion response disabled, incidental movement does not activate the function and the alternate control still works."
+      ],
+      "required_evidence_types": ["browser_inspection", "manual_observation"],
+      "cant_tell_when": [
+        "A required sensor, permission, device state, or safe fixture is unavailable, so the motion path, alternate control, or disable behavior cannot be exercised.",
+        "The available evidence cannot establish that a system setting disables this content's motion response or that a claimed accessibility-supported or essential exception applies."
+      ],
+      "counterexamples": {
+        "pass": ["Tilting a phone advances a page; next and previous buttons reach the same pages, and a tested setting turns tilt navigation off."],
+        "fail": ["Shaking a phone undoes an edit and an Undo button works, but there is no way to stop shaking from triggering undo."],
+        "cant_tell": ["A demo says hand gestures navigate a gallery, but the permitted test device has no working camera and the controls and disable setting cannot be exercised."]
+      },
+      "ai_boundary": "AI may identify candidate motion handlers, alternate controls, and settings, but it must not infer their runtime behavior or an exception from code or documentation alone, or record a profile outcome, human_verified mapping, or E2+ claim without human review on a suitable permitted device."
     }
   ]
 }

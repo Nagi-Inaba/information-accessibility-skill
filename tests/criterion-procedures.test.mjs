@@ -420,6 +420,18 @@ test("SC 2.5.3 compares the visible label with the computed name", () => {
   assert.ok(procedure.cant_tell_when.length && procedure.counterexamples.cant_tell.length);
 });
 
+test("SC 2.5.4 checks both alternate controls and motion-response disablement", () => {
+  const procedure = procedureFor("WCAG-2.2-SC-2.5.4");
+  assert.deepEqual(procedure.primary_sources, [
+    "https://www.w3.org/TR/WCAG22/#motion-actuation",
+    "https://www.w3.org/WAI/WCAG22/Understanding/motion-actuation.html"
+  ]);
+  assert.match(procedure.applicability_steps.join(" "), /device motion.*user motion.*geolocation/u);
+  assert.match(procedure.procedure_steps.join(" "), /user interface components.*disables response.*essential/u);
+  assert.match(procedure.expected_results.join(" "), /same outcome.*disable motion response/u);
+  assert.ok(procedure.cant_tell_when.length && procedure.counterexamples.fail.length);
+});
+
 test("new focus and input-error procedures keep their criterion boundaries and primary sources", () => {
   const focus = procedureFor("WCAG-2.2-SC-2.4.11");
   assert.ok(focus.primary_sources.includes("https://www.w3.org/TR/WCAG22/#focus-not-obscured-minimum"));
