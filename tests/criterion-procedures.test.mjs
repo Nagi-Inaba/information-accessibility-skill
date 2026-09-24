@@ -546,6 +546,18 @@ test("motion and flash procedures retain distinct timing and safety boundaries",
   assert.match(flash.cant_tell_when.join(" "), /reliable capture.*threshold measurements/u);
 });
 
+test("autoplay audio and images-of-text procedures preserve their presentation boundaries", () => {
+  const audio = procedureFor("WCAG-2.2-SC-1.4.2");
+  assert.ok(audio.primary_sources.includes("https://www.w3.org/TR/WCAG22/#audio-control"));
+  assert.match(audio.procedure_steps.join(" "), /independently of overall system volume.*System mute alone/u);
+  assert.match(audio.applicability_steps.join(" "), /more than three seconds.*two-way voice communication/u);
+
+  const image = procedureFor("WCAG-2.2-SC-1.4.5");
+  assert.ok(image.primary_sources.includes("https://www.w3.org/TR/WCAG22/#images-of-text"));
+  assert.match(image.procedure_steps.join(" "), /text alternative exposed only to assistive technology.*Treat logotypes as essential/u);
+  assert.match(image.expected_results.join(" "), /visually customizable.*visible actual text/u);
+});
+
 test("new focus and input-error procedures keep their criterion boundaries and primary sources", () => {
   const focus = procedureFor("WCAG-2.2-SC-2.4.11");
   assert.ok(focus.primary_sources.includes("https://www.w3.org/TR/WCAG22/#focus-not-obscured-minimum"));

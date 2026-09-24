@@ -1720,6 +1720,70 @@
         "cant_tell": ["A compressed screen recording suggests rapid red flashes, but its dropped frames and unknown full-screen scale prevent reliable counting or threshold analysis."]
       },
       "ai_boundary": "AI may flag candidate flashes and assist with frame counting, but it must not declare safety from ordinary playback, a warning, or an unvalidated measurement, or record a profile outcome, human_verified mapping, or E2+ claim without human review of safe frame evidence and threshold analysis."
+    },
+    {
+      "id": "wcag22-sc-1-4-2-audio-control",
+      "requirement_id": "WCAG-2.2-SC-1.4.2",
+      "procedure_version": "1.0.0",
+      "procedure_kind": "human_manual_or_hybrid",
+      "automation_role": "supporting_only",
+      "primary_sources": ["https://www.w3.org/TR/WCAG22/#audio-control", "https://www.w3.org/WAI/WCAG22/Understanding/audio-control.html"],
+      "applicability_steps": [
+        "Inventory page audio that starts without direct, intentional user activation, including media, background sound, and sound triggered indirectly during navigation. Record whether each playback lasts more than three seconds.",
+        "Separate a clearly user-started audio experience and two-way voice communication from automatically playing page audio. Record browser autoplay policy and the permitted state used to observe playback."
+      ],
+      "procedure_steps": [
+        "For each applicable autoplay source, locate a mechanism to pause or stop it, or to control its volume independently of overall system volume. Test that the control actually stops playback or can reduce that source to zero while system or screen-reader volume remains available.",
+        "Check whether the control can be found and operated while audio is playing; record source, trigger, duration, control location, action, and observed output. System mute alone does not satisfy either option.",
+        "If browser policy blocks autoplay in the tested state, inspect implementation and seek a permitted representative state before deciding; do not treat blocked playback alone as proof that content never autoplays. Assess visual motion under SC 2.2.2 separately."
+      ],
+      "expected_results": [
+        "Automatically playing page audio lasting more than three seconds can be paused or stopped, or its volume can be set to zero independently of overall system volume.",
+        "Directly user-started playback and autoplay that ends within three seconds do not trigger this criterion."
+      ],
+      "required_evidence_types": ["browser_inspection", "manual_observation"],
+      "cant_tell_when": [
+        "Autoplay cannot be observed in a permitted representative state, or playback duration and trigger cannot be established.",
+        "The available evidence cannot show whether a control affects the page audio independently of overall system volume."
+      ],
+      "counterexamples": {
+        "pass": ["Background music starts on page load and lasts longer than three seconds, but a page-level mute control silences it without muting screen-reader speech."],
+        "fail": ["A promotional video starts sound on page load for a minute and has no pause, stop, or independent volume control."],
+        "cant_tell": ["The browser blocks autoplay, and no permitted state or reliable evidence establishes whether sound would play or a control would work."]
+      },
+      "ai_boundary": "AI may flag autoplay media and candidate controls, but it must not infer audible duration, control effectiveness, or independent volume from attributes or browser blocking alone, or record a profile outcome, human_verified mapping, or E2+ claim without human observation of a representative state."
+    },
+    {
+      "id": "wcag22-sc-1-4-5-images-of-text",
+      "requirement_id": "WCAG-2.2-SC-1.4.5",
+      "procedure_version": "1.0.0",
+      "procedure_kind": "human_manual_or_hybrid",
+      "automation_role": "supporting_only",
+      "primary_sources": ["https://www.w3.org/TR/WCAG22/#images-of-text", "https://www.w3.org/WAI/WCAG22/Understanding/images-of-text.html"],
+      "applicability_steps": [
+        "Inventory images containing human-language text rendered as pixels or other non-text form to achieve a visual effect, including image-based headings, menus, and posters. Separate text incidental to a picture with significant other visual content, such as a photograph, graph, or screenshot.",
+        "For each image of text, determine whether the technologies used can achieve the intended visual presentation using actual text, and whether the same information is also visibly presented as real text."
+      ],
+      "procedure_steps": [
+        "Inspect each applicable image and any accompanying actual text. Where the same information is visibly available as adjustable real text, record that route; a text alternative exposed only to assistive technology is assessed under SC 1.1.1 and does not by itself meet this visual-presentation criterion.",
+        "Otherwise determine whether users can visually customize the image's font, size, foreground color, and background to their requirements, or whether the particular presentation is essential to the information. Treat logotypes as essential; test other essential claims against the information conveyed, not author preference alone.",
+        "Record the exact text, image role, available real-text route, feasible text rendering, customization controls, and exception evidence. Distinguish symbolic letters that do not express human-language text from actual words or sentences."
+      ],
+      "expected_results": [
+        "When the technologies can produce the presentation, information is conveyed with actual text rather than only an image of text, unless the image is visually customizable or its particular presentation is essential.",
+        "An image accompanied by the same information as visible actual text can satisfy this criterion; a logotype's specific presentation is essential."
+      ],
+      "required_evidence_types": ["browser_inspection", "manual_observation"],
+      "cant_tell_when": [
+        "The image's informative words, accompanying visible text, or actual customization behavior cannot be inspected in the permitted state.",
+        "Available evidence cannot establish whether the specific presentation is essential or feasible as actual text with the technologies used."
+      ],
+      "counterexamples": {
+        "pass": ["An event poster image is displayed beside the same event details as selectable, restylable page text."],
+        "fail": ["A page heading is only a bitmap of words, although the site's text technology can reproduce its styling, and no visible real-text equivalent or exception applies."],
+        "cant_tell": ["A screenshot shows stylized words in an image, but its live text alternative, available customization, and intended visual presentation cannot be checked."]
+      },
+      "ai_boundary": "AI may find images with candidate words, but it must not treat OCR or alt text alone as equivalent visible actual text, or assume technical infeasibility or essential design from appearance, or record a profile outcome, human_verified mapping, or E2+ claim without human review of the presented information and exceptions."
     }
   ]
 }
