@@ -357,6 +357,19 @@ test("SC 3.3.8 reviews every authentication step and its AA exceptions", () => {
   assert.ok(procedure.counterexamples.pass.length && procedure.counterexamples.fail.length && procedure.counterexamples.cant_tell.length);
 });
 
+test("SC 2.5.8 measures pointer targets and checks spacing before other exceptions", () => {
+  const procedure = procedureFor("WCAG-2.2-SC-2.5.8");
+  assert.deepEqual(procedure.primary_sources, [
+    "https://www.w3.org/TR/WCAG22/#target-size-minimum",
+    "https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html"
+  ]);
+  assert.deepEqual(procedure.required_evidence_types, ["browser_inspection", "manual_observation"]);
+  assert.match(procedure.procedure_steps.join(" "), /24 by 24 CSS pixel square.*24 CSS pixel diameter circle.*same-page control/u);
+  assert.match(procedure.procedure_steps.join(" "), /inline.*unmodified user-agent.*essential-presentation.*legal-presentation/u);
+  assert.match(procedure.counterexamples.fail.join(" "), /keyboard shortcut/u);
+  assert.ok(procedure.cant_tell_when.length && procedure.counterexamples.cant_tell.length);
+});
+
 test("new focus and input-error procedures keep their criterion boundaries and primary sources", () => {
   const focus = procedureFor("WCAG-2.2-SC-2.4.11");
   assert.ok(focus.primary_sources.includes("https://www.w3.org/TR/WCAG22/#focus-not-obscured-minimum"));
