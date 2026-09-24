@@ -14,6 +14,8 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { loadAuditResources, registerArtifact, sha256File, validateArtifact, validateAuditRun } from "../codex/skills/information-accessibility-practice/scripts/lib/audit-run.mjs";
 import { lookupRequirement } from "../codex/skills/information-accessibility-practice/scripts/show-requirement.mjs";
+import { auditStatus } from "../codex/skills/information-accessibility-practice/scripts/show-audit-status.mjs";
+import { validateJsonSchema } from "../codex/skills/information-accessibility-practice/scripts/lib/json-schema.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const skillRoot = path.join(root, "codex/skills/information-accessibility-practice");
@@ -1493,6 +1495,26 @@ test("authorized fix transaction module exports the single target-write API", as
   const module = await import(pathToFileURL(fixTransactionLib));
   assert.equal(typeof module.applyAuthorizedFix, "function");
 });
+
+test("legacy change-record status does not mistake its AI handoff producer for the executor", async (t) => withTemp(t, async (roots) => {
+  const prepared = prepareTransaction(roots, { operation: "modify" });
+  const authorized = registerArtifact(prepared.run, undefined, {
+    runFile: prepared.runFile, artifactFile: prepared.authorizationFile
+  });
+  writeJson(prepared.runFile, authorized);
+  const execution = runNode(applyAuthorizedFixScript, prepared.args);
+  assert.equal(execution.status, 0, runOutput(execution));
+  const completed = registerArtifact(authorized, undefined, {
+    runFile: prepared.runFile, artifactFile: prepared.output
+  });
+  writeJson(prepared.runFile, completed);
+  const status = auditStatus(prepared.runFile);
+  assert.equal(status.valid, true, status.errors.join("\n"));
+  assert.deepEqual(validateJsonSchema(status, JSON.parse(fs.readFileSync(path.join(references, "audit-status.schema.json"), "utf8"))), []);
+  assert.deepEqual(status.warnings.filter((item) => item.code === "legacy_change_provenance"),
+    [{ code: "legacy_change_provenance", artifact_id: JSON.parse(fs.readFileSync(prepared.output, "utf8")).artifact_id,
+      detail: "The AI handoff role in this legacy record does not identify who executed the target change." }]);
+}));
 
 for (const operation of ["create", "modify", "delete"]) {
   test(`authorized fix transaction records measured ${operation} and consumes authorization once`, async (t) => withTemp(t, async (roots) => {

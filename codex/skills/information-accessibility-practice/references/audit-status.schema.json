@@ -207,7 +207,8 @@
     "warning": {
       "type": "object", "additionalProperties": false, "required": ["code"],
       "properties": {
-        "code": {"enum": ["invalid_related_run", "divergent_run", "superseded_run", "legacy_read_only", "merge_blocked"]},
+        "code": {"enum": ["invalid_related_run", "divergent_run", "superseded_run", "legacy_read_only", "legacy_change_provenance", "merge_blocked"]},
+        "artifact_id": {"type": "string"},
         "file": {"type": "string"}, "files": {"type": "array", "items": {"type": "string"}}, "detail": {"type": "string"}
       }
     }

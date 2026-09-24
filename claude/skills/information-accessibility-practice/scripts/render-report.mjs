@@ -304,6 +304,18 @@ function renderRunBacked(options) {
     rendered.report = decorate(rendered.report);
     if (rendered.appendix) rendered.appendix = decorate(rendered.appendix);
   }
+  const legacyChange = run.artifacts.some((entry) => entry.artifact_type === "change-record"
+    && entry.producer_role === "authorized_fixer");
+  if (legacyChange) {
+    const note = options.locale === "ja"
+      ? "旧変更記録のAI producer欄は引継ぎroleを示します。実際の変更実行者はこの記録から特定できません。"
+      : "The AI producer in a legacy change record names the handoff role; this record does not identify the actual executor.";
+    const decorate = (text) => options.format === "html"
+      ? text.replace("</main>", `<p class="provenance-note">${note}</p>\n</main>`)
+      : `${text}\n\n${note}\n`;
+    rendered.report = decorate(rendered.report);
+    if (rendered.appendix) rendered.appendix = decorate(rendered.appendix);
+  }
   const artifactSnapshots = [...runValidation.envelopesById.values()]
     .map((record) => record.snapshot)
     .filter(Boolean);

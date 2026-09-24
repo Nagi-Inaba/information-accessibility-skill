@@ -102,6 +102,10 @@ export function auditStatus(runFile, { skillRoot = defaultSkillRoot, retestOf, l
     recovery: validation.valid ? [] : ["Restore the original registered evidence and matching package resources; validate-run again. Do not edit hashes to silence a mismatch."]
   };
   if (validation.valid) {
+    for (const entry of run.artifacts.filter((item) => item.artifact_type === "change-record" && item.producer_role === "authorized_fixer")) {
+      result.warnings.push({ code: "legacy_change_provenance", artifact_id: entry.artifact_id,
+        detail: "The AI handoff role in this legacy record does not identify who executed the target change." });
+    }
     if (lifecycleFiles.length) result.lifecycle = [];
     const lifecycleIds = new Set();
     for (const file of lifecycleFiles) {
