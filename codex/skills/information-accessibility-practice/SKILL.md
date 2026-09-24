@@ -88,7 +88,8 @@ Choose the target before reviewing. Load only the relevant reference when detail
 - **A report contains unresolved checks or a screening pass for text resizing or skip links**: read `references/report-review-details.md` and record optional `review_details` in a standalone assessment result or a registered screening observation. Run-backed reports ignore extra details on merged assessment rows. Do not invent a reason or infer a completed test from markup alone.
 - **Documents, PDFs, reports, Word files, slide decks, lecture materials, handouts, announcement graphics, or presentation scripts**: read `references/document-slide-accessibility.md`.
 - **Events, meetings, seminars, community operations, community onboarding, public participation, or civic information**: read `references/event-community-accessibility.md`.
-- **WCAG, JIS, ATAG, standards-based assessment, procurement evidence, or any conformance wording**: read `references/standards-assessment.md` and `references/standards-registry.json`. For a specific registered requirement, run `node <skill_root>/scripts/show-requirement.mjs --profile <profile-id> --id <requirement-id>`; when it returns a criterion-specific procedure, use it as the human-review procedure. When it reports `not_available`, retain the generic playbook and primary-source boundary. Do not load the full criteria and method catalogs into context.
+- **WCAG, JIS, standards-based assessment, procurement evidence, or conformance wording**: read `references/standards-assessment.md` and `references/standards-registry.json`. For a specific active Web requirement, run `node <skill_root>/scripts/show-requirement.mjs --profile <profile-id> --id <requirement-id>`; when it returns a criterion-specific procedure, use it as the human-review procedure. When it reports `not_available`, retain the generic playbook and primary-source boundary. Do not load the full criteria and method catalogs into context.
+- **ATAG 2.0 or authoring-tool support**: use `references/standards-assessment.md` only for reference guidance. `authoring-agent` is inactive, so no ATAG assessment ledger, ATAG report, or ATAG conformance result is available. Keep Part A host UI separate; within Part B distinguish authoring-support features from automatically generated content.
 - **HTML that uses ARIA**: also read `references/aria-html-review.md` and `references/aria-review-rules.json`. Record these only as `SCREEN-ARIA-*` supporting checks until a person maps evidence to a profile requirement.
 - **Common Web screening candidates**: read `references/common-web-failure-patterns.json`. Use the records only for `SCREEN-*` observations and human-review questions; never turn a match or an absent signal into a profile outcome.
 - **Source provenance or maintenance from new research**: read `references/source-basis.md`.
@@ -141,7 +142,8 @@ The optional development request template is for custom scope, named environment
 
 1. Resolve the inspection level and intended report above, then choose the review mode:
    - Use participation review by default.
-   - When the request names WCAG, JIS, ATAG, a standards profile, or asks for a standards-based inspection, use standards assessment from the start and produce the report format in this skill.
+   - When the request names WCAG, JIS, an active standards profile, or asks for an applicable Web standards inspection, use standards assessment from the start and produce the report format in this skill.
+   - When the request names ATAG, explain that the current `authoring-agent` profile is reference-only and provide scoped guidance for the named Part B authoring process component. Do not select a Web WCAG profile as a substitute or generate an ATAG assessment.
    - Use the Short Web/CLI Request Defaults for a Web URL or local Web target paired with an accessibility inspection or CLI request.
    - Use standards assessment when the user names a standards profile or when the Short Web/CLI defaults supply the missing profile, scope, operations, and evidence boundary.
 
@@ -292,7 +294,7 @@ For standards assessment, return the validated JSON record and the full report i
 - Do not call the skill, agent, or an unchecked artifact "WCAG compliant", "JIS certified", or "ATAG conformant". Standards apply only to explicitly scoped targets and applicable requirements.
 - Keep `not_tested` and `cant_tell` visible. Never convert uncertainty into `pass`.
 - Formal WCAG or JIS wording requires complete scope, complete-process review, criterion-level results, suitable interaction evidence, and human sign-off. JIS wording must also follow the applicable WAIC publication and testing conditions.
-- ATAG evaluation of this skill is limited to the named authoring process component; do not imply that the host UI or Part A was evaluated.
+- ATAG reference guidance concerns the named Part B authoring process component only. Do not imply that the host UI, Part A, or ATAG conformance was evaluated.
 - Legal compliance, procurement suitability, WCAG/JIS conformance, and election-law safety require qualified responsibility and evidence.
 - Automated accessibility tools are supporting evidence; combine them with structure checks, real-device checks, and user/staff workflow checks.
 - Treat accessibility broadly: include permanent, temporary, situational, language, age, digital literacy, cognitive load, and care-giving contexts.

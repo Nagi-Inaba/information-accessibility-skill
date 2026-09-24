@@ -50,7 +50,7 @@ The package also includes eleven source-backed [common Web screening patterns](c
 | PDF, Word document, or slide deck | Supported | Guidance-oriented | No active dedicated profile or formal claim path |
 | Video or audio | Supported | Relevant Web requirements inside a named Web scope | No standalone media profile |
 | Event, meeting, or community process | Supported | Review through five information-use perspectives | No dedicated structured assessment yet |
-| ATAG or authoring process | Reference guidance | Partial reference information | The `authoring-agent` profile is currently inactive |
+| ATAG or authoring process | Reference guidance | No structured assessment | `authoring-agent` is inactive. Keep Part A host UI separate; distinguish support features and automatic outputs within Part B |
 
 Choose the profile for the standard or policy your assessment uses:
 

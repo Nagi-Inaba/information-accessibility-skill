@@ -50,7 +50,7 @@ AIと自動検査が作るものは、原則として問題候補やE0／E1のsc
 | PDF／Word／スライド | 対応 | ガイダンス中心 | 専用のactive profileと正式なclaim経路は未実装 |
 | 動画／音声 | 対応 | Web範囲内の関連条項確認 | 単独media profileは未実装 |
 | イベント／会議／コミュニティ | 対応 | 情報利用の5観点によるレビュー | 専用の構造化assessmentは未実装 |
-| ATAG／authoring process | 参照ガイダンス | 一部の参照情報 | `authoring-agent` profileは現在inactive |
+| ATAG／authoring process | 参照ガイダンス | 構造化assessmentなし | `authoring-agent`はinactive。Part Aのhost UIを分け、Part B内の作者支援機能と自動生成物を区別する |
 
 評価に使う規格・方針に合わせて、次のプロファイルを選びます。
 

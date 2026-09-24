@@ -1,6 +1,6 @@
 # Standards Assessment
 
-Use this reference when the user asks for a WCAG/JIS/ATAG inspection, standards-based evaluation, evidence records, procurement support, or conformance wording. A request to inspect from a WCAG perspective includes criterion-level and overall report judgements; do not answer that no WCAG judgement is being made and then provide a WCAG findings report.
+Use this reference for WCAG/JIS assessment and for ATAG reference guidance, evidence records, procurement support, or conformance wording. A request to inspect from a WCAG perspective includes criterion-level and overall report judgements; do not answer that no WCAG judgement is being made and then provide a WCAG findings report. ATAG currently has no active assessment route.
 
 ## 1. Select The Profile
 
@@ -8,10 +8,12 @@ Read `standards-registry.json` and select a profile:
 
 - `web-modern`: web pages and web applications evaluated against WCAG 2.2 Level A and AA. Apply WAI-ARIA requirements only where ARIA is used.
 - `jp-public-web`: Japanese public-facing web content evaluated against JIS X 8341-3:2016 Level A and AA plus the 18 WCAG 2.2 A/AA criteria not included in that JIS edition. Keep the JIS and added-WCAG results distinguishable.
-- `authoring-agent`: planned profile for this skill or another authoring process component against applicable ATAG 2.0 Part B Level A and AA criteria. In the current release it is reference-only because the criterion catalog and feature mapping are not bundled.
+- `authoring-agent`: inactive, reference-only entry for a named authoring process component. Do not pass it to assessment, requirement lookup, report, or claim commands. Scope guidance to ATAG Part B; keep Part A host UI separate and distinguish authoring-support features from automatically generated content within Part B. The Part B criterion catalog and feature mapping are not bundled.
 - `participation-practice`: the five-gate model only. It is not a formal conformance profile.
 
-The current release contains complete A/AA criterion metadata for `web-modern` (55 records) and `jp-public-web` (38 JIS records plus 18 separately identified additions). It does not contain a complete executable test procedure for every criterion. Its maximum claim tier is therefore `evaluated_subset` for active Web profiles and `reference_only` for `authoring-agent`. Treat all planned profiles as guidance-only.
+The current release contains complete A/AA criterion metadata for `web-modern` (55 records) and `jp-public-web` (38 JIS records plus 18 separately identified additions). It does not contain a complete executable test procedure for every criterion. The claim ceiling is `evaluated_subset` for active Web profiles. `authoring-agent` is not selectable; its `reference_only` ceiling describes guidance, not an available assessment.
+
+For an ATAG request, name the authoring process component and output technology, list the support features and automatically generated outputs separately, and link the relevant [ATAG Part B source](https://www.w3.org/TR/ATAG20/#part_b). Record observations and unanswered questions as reference guidance only. A separate Web WCAG assessment may evaluate generated Web content when requested, but it does not become an ATAG result. The registry's `formal_conformance_target` describes an intended future scope; `assessment_configuration.active: false` controls current CLI availability. The assessment steps below apply only to active Web profiles.
 
 ## 2. Fix The Scope Before Testing
 
