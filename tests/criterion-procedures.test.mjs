@@ -510,6 +510,18 @@ test("orientation and input-purpose procedures retain essential and user-data bo
   assert.match(purpose.procedure_steps.join(" "), /type='email'.*autofill success.*two different listed purposes/u);
 });
 
+test("text-spacing and transient-content procedures retain their exact conditions", () => {
+  const spacing = procedureFor("WCAG-2.2-SC-1.4.12");
+  assert.ok(spacing.primary_sources.includes("https://www.w3.org/TR/WCAG22/#text-spacing"));
+  assert.match(spacing.procedure_steps.join(" "), /all applicable properties together.*1\.5.*2 times.*0\.12.*0\.16/u);
+  assert.match(spacing.applicability_steps.join(" "), /language or script.*images of text/u);
+
+  const transient = procedureFor("WCAG-2.2-SC-1.4.13");
+  assert.ok(transient.primary_sources.includes("https://www.w3.org/TR/WCAG22/#content-on-hover-or-focus"));
+  assert.match(transient.procedure_steps.join(" "), /input error or neither obscures nor replaces.*If hover triggers.*information becomes invalid/u);
+  assert.match(transient.applicability_steps.join(" "), /unmodified user-agent tooltips/u);
+});
+
 test("new focus and input-error procedures keep their criterion boundaries and primary sources", () => {
   const focus = procedureFor("WCAG-2.2-SC-2.4.11");
   assert.ok(focus.primary_sources.includes("https://www.w3.org/TR/WCAG22/#focus-not-obscured-minimum"));
