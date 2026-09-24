@@ -55,6 +55,8 @@ Release preparation uses [the release runbook](docs/releasing.md). A local archi
 
 Changes to WCAG, JIS/WAIC, ARIA, Digital Agency-derived metadata, procedures, or profile composition must identify the upstream source and distinguish normative standards from organization-specific policy. Do not silently broaden a source's scope.
 
+The weekly `source-monitor.yml` workflow and its manual trigger fetch nine fixed official pages. Its artifact contains URL, redirect, HTTP metadata and SHA-256 observations, a short review sheet, and a review-only catalog candidate with a structural diff when parsing succeeds. A changed hash, redirect, or failed fetch fails the workflow for maintainer review; a failed fetch retains the previous baseline. The candidate's date is an observation date, not approval or a renewed `last_verified_at`. The monitored page list and initial hashes are in `scripts/monitor-official-sources.mjs` and `scripts/source-monitor-baseline.json`. After checking the actual upstream changes and terms, update the baseline in a reviewed commit; update the canonical source register or CHANGELOG only when the adopted source or product behavior actually changes. The workflow never modifies tracked sources or opens Issues automatically.
+
 The canonical source register is `codex/skills/information-accessibility-practice/references/third-party-sources.json`. Before adopting changed metadata:
 
 1. Check the exact upstream version, its own terms link, attribution, modifications and any applicable share-alike obligations. W3C documents can refer to different license editions. Record unknown terms explicitly; never substitute MIT or assume legal clearance.

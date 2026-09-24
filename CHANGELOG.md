@@ -8,6 +8,8 @@ This project uses a Keep a Changelog-style structure. Until a tagged release is 
 
 ### Added
 
+- Weekly official-source monitoring records URL, HTTP metadata and content hashes for nine WCAG, WAIC, Digital Agency, ACT and ARIA pages; it publishes a review-only catalog candidate and diff without updating canonical sources.
+
 - Profile discovery now reports criterion-specific procedure coverage by count and percentage. Human procedures for WCAG 2.2 SC 2.4.11 and 3.3.1 include primary-source links, applicability, exceptions and uncertainty boundaries in English and Japanese.
 
 - Cross-platform Codex installation and shared Codex/Claude lifecycle commands for dry-run, backed-up upgrade, reversible uninstall and backup restore. Installed CLI, skill and manifest-selected agents come from one verified source revision.
