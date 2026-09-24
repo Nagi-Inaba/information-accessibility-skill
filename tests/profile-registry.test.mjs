@@ -240,12 +240,10 @@ test("package verification rejects a registry that violates active profile requi
     ]) {
       copyTree(path.join(root, relativePath), path.join(temporaryRoot, relativePath));
     }
-    for (const platform of ["codex", "claude"]) {
-      const registryPath = path.join(temporaryRoot, platform, "skills", "information-accessibility-practice", "references", "standards-registry.json");
-      const invalidRegistry = JSON.parse(fs.readFileSync(registryPath, "utf8"));
-      delete invalidRegistry.profiles.find((item) => item.id === "web-modern").assessment_configuration.requires_web_interaction_evidence;
-      fs.writeFileSync(registryPath, `${JSON.stringify(invalidRegistry, null, 2)}\n`, "utf8");
-    }
+    const registryPath = path.join(temporaryRoot, "shared", "skill", "references", "standards-registry.json");
+    const invalidRegistry = JSON.parse(fs.readFileSync(registryPath, "utf8"));
+    delete invalidRegistry.profiles.find((item) => item.id === "web-modern").assessment_configuration.requires_web_interaction_evidence;
+    fs.writeFileSync(registryPath, `${JSON.stringify(invalidRegistry, null, 2)}\n`, "utf8");
 
     const result = verifyPackage(temporaryRoot);
     assert.equal(result.status, "FAIL");

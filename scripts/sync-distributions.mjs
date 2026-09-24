@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 
 const scriptRoot = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const agentPrefix = "information-accessibility-";
-const excludedSkillFiles = new Set(["agents/openai.yaml"]);
+const codexOverlayFiles = new Set(["agents/openai.yaml"]);
 const supportedSchemaKeywords = new Set([
   "$schema", "$id", "title", "description", "type", "additionalProperties", "required",
   "properties", "const", "enum", "minItems", "uniqueItems", "items", "minLength", "pattern"
@@ -371,6 +371,8 @@ export function validateDistribution(root) {
   const roots = {
     packageRoot,
     sharedAgents: path.join(packageRoot, "shared", "agents"),
+    sharedSkill: path.join(packageRoot, "shared", "skill"),
+    codexOverlay: path.join(packageRoot, "platform", "codex", "agents"),
     codexAgents: path.join(packageRoot, "codex", "agents"),
     claudeAgents: path.join(packageRoot, "claude", "agents"),
     codexSkill: path.join(packageRoot, "codex", "skills", "information-accessibility-practice"),
@@ -379,8 +381,12 @@ export function validateDistribution(root) {
 
   try {
     inspectConfinedPath(packageRoot, packageRoot, { mustExist: true, expectedType: "directory", label: "package root" });
-    for (const [name, declaredRoot] of Object.entries(roots).filter(([name]) => name !== "packageRoot")) {
+    for (const [name, declaredRoot] of Object.entries(roots).filter(([name]) => !["packageRoot", "codexSkill", "claudeSkill"].includes(name))) {
       inspectDeclaredRoot(packageRoot, declaredRoot, name);
+    }
+    for (const name of ["codexSkill", "claudeSkill"]) {
+      const inspected = inspectConfinedPath(packageRoot, roots[name], { label: name });
+      if (inspected.exists && !inspected.stats.isDirectory()) throw new Error(`Expected directory for ${name}: ${roots[name]}`);
     }
   } catch (error) {
     return validationFailure([error.message]);
@@ -461,13 +467,25 @@ export function validateDistribution(root) {
 
   let sharedSkillFiles = [];
   try {
-    sharedSkillFiles = walkConfined(roots.codexSkill).filter((file) => !excludedSkillFiles.has(file));
+    sharedSkillFiles = walkConfined(roots.sharedSkill);
+    const overlays = walkConfined(roots.codexOverlay);
+    if (overlays.length !== 1 || !codexOverlayFiles.has(`agents/${overlays[0]}`)) errors.push("Unexpected Codex skill overlay files");
     const sharedSkillFileSet = new Set(sharedSkillFiles);
-    for (const relative of walkConfined(roots.claudeSkill)) {
-      if (!sharedSkillFileSet.has(relative)) errors.push(`Undeclared Claude skill mirror file: ${relative}`);
+    for (const overlay of codexOverlayFiles) {
+      if (sharedSkillFileSet.has(overlay)) errors.push(`Shared skill overlaps Codex overlay: ${overlay}`);
+    }
+    for (const name of ["codexSkill", "claudeSkill"]) {
+      if (!lstatIfPresent(roots[name])) continue;
+      for (const relative of walkConfined(roots[name])) {
+        if (!sharedSkillFileSet.has(relative) && !(name === "codexSkill" && codexOverlayFiles.has(relative))) {
+          errors.push(`Undeclared ${name} generated file: ${relative}`);
+        }
+      }
     }
     for (const relative of sharedSkillFiles) {
-      inspectConfinedPath(roots.claudeSkill, path.join(roots.claudeSkill, ...relative.split("/")), { label: "Claude skill mirror target" });
+      for (const name of ["codexSkill", "claudeSkill"]) {
+        inspectConfinedPath(packageRoot, path.join(roots[name], ...relative.split("/")), { label: `${name} generated target` });
+      }
     }
   } catch (error) {
     errors.push(error.message);
@@ -781,6 +799,34 @@ function writeTransaction(packageRoot, changed, generated, hooks = {}) {
   return { errors, entries: capturedEntries };
 }
 
+function prepareGeneratedRoots(packageRoot, roots) {
+  const created = [];
+  try {
+    for (const target of [roots.codexSkill, roots.claudeSkill]) {
+      let current = packageRoot;
+      for (const part of path.relative(packageRoot, target).split(path.sep).filter(Boolean)) {
+        const parentIdentity = capturePathIdentity(current, "generated root parent", "directory");
+        const child = path.join(current, part);
+        const inspected = inspectConfinedPath(packageRoot, child, { label: "generated root" });
+        if (!inspected.exists) {
+          assertPathIdentity(current, parentIdentity, "generated root parent", "directory");
+          fs.mkdirSync(child);
+          assertPathIdentity(current, parentIdentity, "generated root parent", "directory");
+          created.push({ path: child, identity: capturePathIdentity(child, "created generated root", "directory") });
+        } else if (!inspected.stats.isDirectory()) {
+          throw new Error(`Expected generated root directory: ${child}`);
+        }
+        current = child;
+      }
+    }
+    return created;
+  } catch (error) {
+    const cleanupErrors = [];
+    cleanupCreatedDirectories(created, cleanupErrors);
+    throw new Error([error.message, ...cleanupErrors].join("; "));
+  }
+}
+
 export function buildDistribution(root, { write = false, hooks = {} } = {}) {
   const validation = validateDistribution(root);
   if (validation.status !== "PASS") return buildFailure(validation);
@@ -806,14 +852,22 @@ export function buildDistribution(root, { write = false, hooks = {} } = {}) {
     });
   }
   for (const relative of validation.sharedSkillFiles) {
-    const source = path.join(validation.roots.codexSkill, ...relative.split("/"));
-    const destination = path.join(validation.roots.claudeSkill, ...relative.split("/"));
-    generated.set(`claude/skills/information-accessibility-practice/${relative}`, {
-      declaredRoot: validation.roots.claudeSkill,
-      target: destination,
-      expected: readConfinedFile(validation.roots.codexSkill, source, undefined, `Codex skill source ${relative}`)
-    });
+    const source = path.join(validation.roots.sharedSkill, ...relative.split("/"));
+    const expected = readConfinedFile(validation.roots.sharedSkill, source, undefined, `shared skill source ${relative}`);
+    for (const name of ["codexSkill", "claudeSkill"]) {
+      const platform = name === "codexSkill" ? "codex" : "claude";
+      generated.set(`${platform}/skills/information-accessibility-practice/${relative}`, {
+        declaredRoot: validation.roots[name],
+        target: path.join(validation.roots[name], ...relative.split("/")),
+        expected
+      });
+    }
   }
+  generated.set("codex/skills/information-accessibility-practice/agents/openai.yaml", {
+    declaredRoot: validation.roots.codexSkill,
+    target: path.join(validation.roots.codexSkill, "agents", "openai.yaml"),
+    expected: readConfinedFile(validation.roots.codexOverlay, path.join(validation.roots.codexOverlay, "openai.yaml"), undefined, "Codex overlay")
+  });
 
   const errors = [];
   const changed = [];
@@ -835,8 +889,15 @@ export function buildDistribution(root, { write = false, hooks = {} } = {}) {
   if (errors.length) return buildFailure(validation, errors);
 
   if (write && changed.length) {
+    let createdRoots;
+    try {
+      createdRoots = prepareGeneratedRoots(validation.roots.packageRoot, validation.roots);
+    } catch (error) {
+      return buildFailure(validation, [error.message]);
+    }
     const transaction = writeTransaction(validation.roots.packageRoot, changed, generated, hooks);
     errors.push(...transaction.errors);
+    if (transaction.errors.length) cleanupCreatedDirectories(createdRoots, errors);
     if (!transaction.errors.length) {
       for (const relative of changed) actual.set(relative, generated.get(relative).expected);
     } else {

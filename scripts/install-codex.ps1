@@ -369,6 +369,12 @@ function Remove-CreatedEmptyDirectories {
     }
 }
 
+if (-not (Test-Path -LiteralPath $sourceSkill)) {
+    if ($WhatIfPreference) { throw 'Run node scripts/sync-distributions.mjs --write before -WhatIf on a source checkout.' }
+    if (-not (Get-Command node -ErrorAction SilentlyContinue)) { throw 'Node.js is required to generate the package.' }
+    $generated = & node (Join-Path $PSScriptRoot 'sync-distributions.mjs') --write 2>&1
+    if ($LASTEXITCODE -ne 0) { throw "Distribution generation failed: $($generated -join [Environment]::NewLine)" }
+}
 foreach ($required in @($packageRoot, $sourceSkill, $sourceAgentsRoot, $manifestPath, $featurePath, $verifyScript)) {
     if ($null -eq (Get-ItemIfPresent $required)) { throw "Required package path is missing: $required" }
 }

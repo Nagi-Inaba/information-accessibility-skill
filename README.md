@@ -42,7 +42,7 @@ AIと自動検査が作るものは、原則として問題候補やE0／E1のsc
 
 ## 対応対象と現在の制限
 
-出典付きの[Webスクリーニング11パターン](codex/skills/information-accessibility-practice/references/common-web-failure-patterns.json)と、[証拠・対象の識別情報を扱うライブラリ](docs/evidence-identity.md)も利用できます。
+出典付きの[Webスクリーニング11パターン](shared/skill/references/common-web-failure-patterns.json)と、[証拠・対象の識別情報を扱うライブラリ](docs/evidence-identity.md)も利用できます。
 
 | 対象 | 自然言語レビュー | 構造化screening／規格台帳 | 現在の制限 |
 | --- | --- | --- | --- |
@@ -76,13 +76,13 @@ CLIの台帳作成・登録・統合・レポート機能は、ブラウザな�
 
 ホスト固有のbrowser toolは自動検出しません。別の統合を使う場合は、その実測結果を記録してください。能力不足の確認項目は未確認として次のテストを示し、profileは`not_tested`を維持します。
 
-run-backedの実通信には、[具体的な通信方針と非公開ログ](codex/skills/information-accessibility-practice/references/network-policy.md)が必要です。対象と規格資料の許可先を分け、実行時にも呼出側の許可を照合します。別originのiframeなど、現在のadapterで強制を確認できない経路は停止します。
+run-backedの実通信には、[具体的な通信方針と非公開ログ](shared/skill/references/network-policy.md)が必要です。対象と規格資料の許可先を分け、実行時にも呼出側の許可を照合します。別originのiframeなど、現在のadapterで強制を確認できない経路は停止します。
 
-監督付きの入力操作には、[操作範囲・承認者・期限と実行時の承認](codex/skills/information-accessibility-practice/references/interaction-policy.md)が必要です。承認者情報と操作履歴は内部に保存し、公開レポートには出しません。現在はスクリプトと追加通信を停止したページでのTab／Shift+Tabに対応し、実行時の承認がないCLI処理はread-onlyになります。
+監督付きの入力操作には、[操作範囲・承認者・期限と実行時の承認](shared/skill/references/interaction-policy.md)が必要です。承認者情報と操作履歴は内部に保存し、公開レポートには出しません。現在はスクリプトと追加通信を停止したページでのTab／Shift+Tabに対応し、実行時の承認がないCLI処理はread-onlyになります。
 
-[人手レビューの署名検証CLI](codex/skills/information-accessibility-practice/references/reviewer-assurance.md)は、自己申告・自己署名・受領者の信頼方針で認められた署名を区別します。新しいassessment 2.0.0の結果行に元のレビュー記録を結び付け、検証・レポート生成のたびに保証水準を再計算します。旧形式の`human_verified`は「旧形式の自己申告」と表示します。署名はレビュー内容の正しさや最終bundle全体の完全性を証明しません。
+[人手レビューの署名検証CLI](shared/skill/references/reviewer-assurance.md)は、自己申告・自己署名・受領者の信頼方針で認められた署名を区別します。新しいassessment 2.0.0の結果行に元のレビュー記録を結び付け、検証・レポート生成のたびに保証水準を再計算します。旧形式の`human_verified`は「旧形式の自己申告」と表示します。署名はレビュー内容の正しさや最終bundle全体の完全性を証明しません。
 
-[audit-bundle CLI](codex/skills/information-accessibility-practice/references/audit-bundle-attestation.md)は、保存したrun・登録artifact・証拠・assessment・レポートの実ファイルと、前段の署名への連結をオフラインで照合します。外部で署名した記録と受領者の信頼方針を使い、未署名・自己署名・組織署名等を区別します。保存した全対象ソース、過去ファイルの保存状態、信頼できる時刻、報告内容の正しさは別途確認が必要です。
+[audit-bundle CLI](shared/skill/references/audit-bundle-attestation.md)は、保存したrun・登録artifact・証拠・assessment・レポートの実ファイルと、前段の署名への連結をオフラインで照合します。外部で署名した記録と受領者の信頼方針を使い、未署名・自己署名・組織署名等を区別します。保存した全対象ソース、過去ファイルの保存状態、信頼できる時刻、報告内容の正しさは別途確認が必要です。
 
 ### Codex
 
@@ -133,7 +133,7 @@ accessibility-audit preflight-web --browser-channel chrome --locale ja --format 
 
 `--locale ja`と`--locale en`は、CLI help、profile、条項一覧・検索・表示、legacy requirement表示、スクリーンリーダーチェックリスト、レポートの人向け文字列だけを切り替えます。内部ID、schema key、enum、証拠型、claim tierは変更しません。
 
-スクリーンリーダーの`--pattern all`は同梱8パターンと指定した`--extension <file.json>`の範囲です。実機の読み上げは人が確認し、未掲載のUIは別途評価してください。拡張ファイルの形式は[状態付きUIの手順](codex/skills/information-accessibility-practice/references/screen-reader-stateful-ui.md)に記載しています。
+スクリーンリーダーの`--pattern all`は同梱8パターンと指定した`--extension <file.json>`の範囲です。実機の読み上げは人が確認し、未掲載のUIは別途評価してください。拡張ファイルの形式は[状態付きUIの手順](shared/skill/references/screen-reader-stateful-ui.md)に記載しています。
 
 探索系commandはread-onlyです。`non-web-review`は指定した新規記録ファイルだけを書き、監査対象を変更しません。非Web対象は`non-web-review init`で文書・スライド、動画・音声、イベント、参加導線のいずれかを選び、5観点の未実施記録を作れます。`validate`、`report`、`compare`で人手確認・改善案・再確認を扱います。出力は`audit-runs/`などの非公開フォルダに保存してください。これはWCAG／JISの評価台帳ではなく、根拠ファイルの実バイト照合も行いません。
 
@@ -212,9 +212,9 @@ https://example.com/
 - [レポート形式、HTMLアクセシビリティ、検証境界](docs/report-formats.md)
 - [アーキテクチャ、役割、成果物、日英用語集](docs/architecture-and-glossary.md)
 - [実Web検査とbrowser／network境界](docs/web-inspection.md)
-- [Codex向けagent orchestration](codex/skills/information-accessibility-practice/references/agent-orchestration.md)
+- [Codex向けagent orchestration](shared/skill/references/agent-orchestration.md)
 - [Claude向けagent orchestration](claude/skills/information-accessibility-practice/references/agent-orchestration.md)
-- [規格assessmentと証拠レベル](codex/skills/information-accessibility-practice/references/standards-assessment.md)
+- [規格assessmentと証拠レベル](shared/skill/references/standards-assessment.md)
 - [セキュリティ方針](SECURITY.md)
 - [コントリビューション手順](CONTRIBUTING.md)
 - [変更履歴](CHANGELOG.md)
@@ -235,7 +235,7 @@ AIエージェントが作成または更新するプロファイル要件行は
 
 ## 開発と保守
 
-変更前に[CONTRIBUTING.md](CONTRIBUTING.md)を確認してください。現在はCodex側のskillが編集元、Claude側は同期生成物です。`shared/skill`への移行は[#51](https://github.com/Nagi-Inaba/information-accessibility-skill/issues/51)で追跡します。通常の完全検証は次です。
+変更前に[CONTRIBUTING.md](CONTRIBUTING.md)を確認してください。共通skillは`shared/skill`が編集元で、Codex／Claude向けskillは同期生成物です。通常の完全検証は次です。
 
 ```powershell
 node .\scripts\verify-all.mjs
@@ -249,10 +249,10 @@ node .\scripts\verify-all.mjs
 
 オリジナルのコードと文書は[MIT License](LICENSE)です。第三者規格メタデータには各提供元の条件が残ります。詳細は[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)を確認してください。
 
-出典・採用版・利用条件・加工内容は[機械可読の出典台帳](codex/skills/information-accessibility-practice/references/third-party-sources.json)に記録しています。Markdown／HTMLレポートにも帰属表示を付け、カタログ更新候補には利用条件の再確認待ちを示す付属ファイルを生成します。利用条件が未確認の資料をMITで補完せず、商用利用や再配布の権利確認が完了したとも扱いません。
+出典・採用版・利用条件・加工内容は[機械可読の出典台帳](shared/skill/references/third-party-sources.json)に記録しています。Markdown／HTMLレポートにも帰属表示を付け、カタログ更新候補には利用条件の再確認待ちを示す付属ファイルを生成します。利用条件が未確認の資料をMITで補完せず、商用利用や再配布の権利確認が完了したとも扱いません。
 
-対象箇所に結び付いた確認候補は `review-queue` で作成できます。[人手確認queueの作成・登録・旧形式の扱い](codex/skills/information-accessibility-practice/references/human-review-queue.md)を参照してください。
+対象箇所に結び付いた確認候補は `review-queue` で作成できます。[人手確認queueの作成・登録・旧形式の扱い](shared/skill/references/human-review-queue.md)を参照してください。
 
-記入済みのpayloadから4種類の標準artifactを作る場合は `artifact init`、編集後の登録前確認には `artifact validate` を使います。ID・版・日時・入力hashはCLIが設定します。[エージェントなしでの作成手順](codex/skills/information-accessibility-practice/references/agent-orchestration.md#authoring-without-agent-dispatch)を参照してください。
+記入済みのpayloadから4種類の標準artifactを作る場合は `artifact init`、編集後の登録前確認には `artifact validate` を使います。ID・版・日時・入力hashはCLIが設定します。[エージェントなしでの作成手順](shared/skill/references/agent-orchestration.md#authoring-without-agent-dispatch)を参照してください。
 
-登録済みのキューは `human-review export` でCSV・Markdown・Excelへ出力し、確認者の記入後に `human-review import` でレビュー候補へ変換できます。[入力方法、一部提出、複数の確認者、再提出の扱い](codex/skills/information-accessibility-practice/references/human-review-worksheet.md)を確認してください。取り込みでは本人性を認証せず、runも自動更新しません。
+登録済みのキューは `human-review export` でCSV・Markdown・Excelへ出力し、確認者の記入後に `human-review import` でレビュー候補へ変換できます。[入力方法、一部提出、複数の確認者、再提出の扱い](shared/skill/references/human-review-worksheet.md)を確認してください。取り込みでは本人性を認証せず、runも自動更新しません。

@@ -125,10 +125,10 @@ test("new catalog sources cannot omit report attribution or their resource bindi
 
 test("human-readable notice drift is rejected even when the source register is valid", t => {
   const directory = temp(t), manifest = loadSourceProvenance();
-  const canonical = path.join(directory, "codex/skills/information-accessibility-practice");
+  const canonical = path.join(directory, "shared/skill");
   copyResources(canonical, manifest);
   write(path.join(canonical, "references/third-party-sources.json"), manifest);
-  for (const relative of ["THIRD_PARTY_NOTICES.md", "codex/skills/information-accessibility-practice/references/third-party-notices.md", "claude/skills/information-accessibility-practice/references/third-party-notices.md"]) {
+  for (const relative of ["THIRD_PARTY_NOTICES.md", "shared/skill/references/third-party-notices.md", "codex/skills/information-accessibility-practice/references/third-party-notices.md", "claude/skills/information-accessibility-practice/references/third-party-notices.md"]) {
     const file = path.join(directory, relative);
     fs.mkdirSync(path.dirname(file), { recursive: true });
     fs.writeFileSync(file, thirdPartyNoticeMarkdown(manifest), "utf8");

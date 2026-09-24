@@ -42,7 +42,7 @@ See the [architecture and glossary](docs/architecture-and-glossary.md) for the c
 
 ## Supported targets and current limits
 
-The package also includes eleven source-backed [common Web screening patterns](codex/skills/information-accessibility-practice/references/common-web-failure-patterns.json) and a tested [evidence and target identity library](docs/evidence-identity.md).
+The package also includes eleven source-backed [common Web screening patterns](shared/skill/references/common-web-failure-patterns.json) and a tested [evidence and target identity library](docs/evidence-identity.md).
 
 | Target | Natural-language review | Structured screening or standards ledger | Current limit |
 | --- | --- | --- | --- |
@@ -76,13 +76,13 @@ The CLI can create ledgers, register artifacts, merge, and report without a brow
 
 Host-native browser tools are not automatically detected. Record measured capabilities separately when using another integration. Missing capabilities leave affected checks unconfirmed with a next test, and profile rows remain `not_tested`.
 
-Run-backed network access requires a [concrete policy and private request logs](codex/skills/information-accessibility-practice/references/network-policy.md). Target and standards-source destinations remain separate, and each request also needs caller authorization. Paths this adapter cannot enforce, including cross-origin iframes, stop the capture.
+Run-backed network access requires a [concrete policy and private request logs](shared/skill/references/network-policy.md). Target and standards-source destinations remain separate, and each request also needs caller authorization. Paths this adapter cannot enforce, including cross-origin iframes, stop the capture.
 
-Supervised input requires [concrete operations, a supervisor, expiry and live approval](codex/skills/information-accessibility-practice/references/interaction-policy.md). Supervisor details and operation trails stay private. The current adapter supports native Tab/Shift+Tab with page scripts and further network access disabled; CLI capture without live supervision remains read-only.
+Supervised input requires [concrete operations, a supervisor, expiry and live approval](shared/skill/references/interaction-policy.md). Supervisor details and operation trails stay private. The current adapter supports native Tab/Shift+Tab with page scripts and further network access disabled; CLI capture without live supervision remains read-only.
 
-The [human review signature CLI](codex/skills/information-accessibility-practice/references/reviewer-assurance.md) distinguishes declarations, self-signed records, and signatures recognized by a recipient-selected trust policy. Assessment 2.0.0 binds declared rows to portable review records and rederives assurance during validation and reporting. Old `human_verified` rows are displayed as legacy self-declarations. Signatures do not prove review correctness or final-bundle integrity.
+The [human review signature CLI](shared/skill/references/reviewer-assurance.md) distinguishes declarations, self-signed records, and signatures recognized by a recipient-selected trust policy. Assessment 2.0.0 binds declared rows to portable review records and rederives assurance during validation and reporting. Old `human_verified` rows are displayed as legacy self-declarations. Signatures do not prove review correctness or final-bundle integrity.
 
-The [audit-bundle CLI](codex/skills/information-accessibility-practice/references/audit-bundle-attestation.md) verifies saved run, registered artifact, evidence, assessment and report files, plus linked predecessor signatures, offline. It uses externally signed records and recipient-selected trust to distinguish unsigned, self-signed, organizational and other assurances. Complete target-source retention, historical file retention, trusted time and report correctness require separate verification.
+The [audit-bundle CLI](shared/skill/references/audit-bundle-attestation.md) verifies saved run, registered artifact, evidence, assessment and report files, plus linked predecessor signatures, offline. It uses externally signed records and recipient-selected trust to distinguish unsigned, self-signed, organizational and other assurances. Complete target-source retention, historical file retention, trusted time and report correctness require separate verification.
 
 ### Codex
 
@@ -133,7 +133,7 @@ The npm installation is audit-only as well. Install the optional fixer through t
 
 `--locale ja` and `--locale en` change only human-readable CLI help, profile metadata, requirement list/search/show output, the legacy requirement view, the screen-reader checklist, and reports. Internal IDs, schema keys, enum values, evidence types, and claim tiers remain stable.
 
-`--pattern all` covers the eight bundled screen-reader patterns and any `--extension <file.json>`, not every UI pattern. A person must verify actual speech on the target device. See the [stateful UI guide](codex/skills/information-accessibility-practice/references/screen-reader-stateful-ui.md) for the extension format.
+`--pattern all` covers the eight bundled screen-reader patterns and any `--extension <file.json>`, not every UI pattern. A person must verify actual speech on the target device. See the [stateful UI guide](shared/skill/references/screen-reader-stateful-ui.md) for the extension format.
 
 Discovery commands are read-only. `non-web-review` writes only requested new records and does not modify the audited target. Use `non-web-review init` for a document/slide, media item, event, or participation workflow. It creates five initially untested perspectives. `validate`, `report`, and `compare` support human observations, improvements, and later review. Store outputs in a private directory such as `audit-runs/`. This is separate from WCAG/JIS assessment and does not verify the bytes of referenced evidence files.
 
@@ -212,9 +212,9 @@ For a new run, use `init` with `--inspection-mode quick|detailed --inspection-pu
 - [Report formats, HTML accessibility, and verification boundaries](docs/report-formats.md)
 - [Architecture, responsibilities, artifacts, and bilingual glossary](docs/architecture-and-glossary.md)
 - [Browser-based Web inspection and network boundaries](docs/web-inspection.md)
-- [Agent orchestration for Codex](codex/skills/information-accessibility-practice/references/agent-orchestration.md)
+- [Agent orchestration for Codex](shared/skill/references/agent-orchestration.md)
 - [Agent orchestration for Claude](claude/skills/information-accessibility-practice/references/agent-orchestration.md)
-- [Standards assessment and evidence levels](codex/skills/information-accessibility-practice/references/standards-assessment.md)
+- [Standards assessment and evidence levels](shared/skill/references/standards-assessment.md)
 - [Security policy](SECURITY.md)
 - [Contribution guide](CONTRIBUTING.md)
 - [Changelog](CHANGELOG.md)
@@ -235,7 +235,7 @@ AI agents that create or update profile requirement rows keep `mapping_status: "
 
 ## Development and maintenance
 
-Read [CONTRIBUTING.md](CONTRIBUTING.md) before changing the package. Currently the Codex skill is the editing source and the Claude skill is generated by synchronization. The move to `shared/skill` is tracked in [#51](https://github.com/Nagi-Inaba/information-accessibility-skill/issues/51). Run the full verification command:
+Read [CONTRIBUTING.md](CONTRIBUTING.md) before changing the package. The common skill is edited in `shared/skill`; Codex and Claude skills are generated by synchronization. Run the full verification command:
 
 ```powershell
 node .\scripts\verify-all.mjs
@@ -249,10 +249,10 @@ Package `0.1.0` is a development version. Record the full commit SHA for reprodu
 
 Original code and documentation use the [MIT License](LICENSE). Third-party standards metadata remains subject to its source terms. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
-The [machine-readable source register](codex/skills/information-accessibility-practice/references/third-party-sources.json) records sources, adopted versions, terms and modifications. Markdown/HTML reports retain attribution, and catalog refresh candidates include a companion record requiring renewed source/terms review. Unknown terms are never replaced with MIT; these records do not establish legal clearance for commercial use or redistribution.
+The [machine-readable source register](shared/skill/references/third-party-sources.json) records sources, adopted versions, terms and modifications. Markdown/HTML reports retain attribution, and catalog refresh candidates include a companion record requiring renewed source/terms review. Unknown terms are never replaced with MIT; these records do not establish legal clearance for commercial use or redistribution.
 
-Use `review-queue` to create target-bound review candidates. See [human-review queue generation, registration and historical formats](codex/skills/information-accessibility-practice/references/human-review-queue.md).
+Use `review-queue` to create target-bound review candidates. See [human-review queue generation, registration and historical formats](shared/skill/references/human-review-queue.md).
 
-Use `artifact init` to wrap a completed payload for any of the four standard review artifacts, then `artifact validate` after editing and before registration. The CLI supplies IDs, versions, timestamps and input hashes. See [authoring without agent dispatch](codex/skills/information-accessibility-practice/references/agent-orchestration.md#authoring-without-agent-dispatch).
+Use `artifact init` to wrap a completed payload for any of the four standard review artifacts, then `artifact validate` after editing and before registration. The CLI supplies IDs, versions, timestamps and input hashes. See [authoring without agent dispatch](shared/skill/references/agent-orchestration.md#authoring-without-agent-dispatch).
 
-Use `human-review export` for CSV, Markdown or Excel worksheets, then `human-review import` to turn the person's answers into a review candidate. See [input fields, partial submissions, multiple reviewers and resubmission (Japanese)](codex/skills/information-accessibility-practice/references/human-review-worksheet.md). Import does not authenticate reviewer identity or update the run automatically.
+Use `human-review export` for CSV, Markdown or Excel worksheets, then `human-review import` to turn the person's answers into a review candidate. See [input fields, partial submissions, multiple reviewers and resubmission (Japanese)](shared/skill/references/human-review-worksheet.md). Import does not authenticate reviewer identity or update the run automatically.

@@ -122,4 +122,4 @@ web-modernの55基準をそれぞれ1行に記載します。「未確認」行�
 - [W3C: SC 1.4.4 Resize Text](https://www.w3.org/WAI/WCAG22/Understanding/resize-text.html): 200%まで拡大したときの内容・機能の保持。
 - [W3C: G1](https://www.w3.org/WAI/WCAG22/Techniques/general/G1): スキップリンクの起動後のフォーカス移動を含む確認。
 - [W3C: SC 2.5.8 Target Size (Minimum)](https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html): 操作領域のサイズ・間隔と例外。
-- [スキルのE1定義](../../codex/skills/information-accessibility-practice/references/standards-assessment.md#4-grade-evidence-separately)と[レポート判定の契約](../../codex/skills/information-accessibility-practice/SKILL.md#report-judgement-contract)。
+- [スキルのE1定義](../../shared/skill/references/standards-assessment.md#4-grade-evidence-separately)と[レポート判定の契約](../../shared/skill/SKILL.md#report-judgement-contract)。

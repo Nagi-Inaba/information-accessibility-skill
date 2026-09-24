@@ -356,13 +356,13 @@ Web監査runと独立した`non-web-review`を追加した。`init`は文書／�
 | P2 | #28、#26、#27 | 3件ともローカル実装・対象検証済み。#28は旧run再レポート、#26は内部出力先、#27は版固定と3 OS向け導入・更新・削除を整備。macOS／Linux実機とリモートCI、公開releaseは未確認。 |
 | P3 | #14 → #32 | #14は14/55（WCAG）まで段階拡充し、残りは未整備。#32は一覧・任意拡張・主要3パターンをローカル実装し、対象テストが成功。 |
 | P3 | #30、#66 | #66はATAGを参照ガイダンスへ統一し、inactive profileとWeb評価を分離。#30は非Webの5観点記録・報告・前後比較をローカル実装。規格profileや根拠ファイル検証は未対応。 |
-| P3 | #51 → #46 | #51は既存247共有ファイルを第三のtreeへ複製せず、導入互換性と配布物の追跡方法を設計してから進める。#46は週次の公式資料監視、候補生成、差分artifactをローカル実装・検証済み。リモートCIは未実行。 |
+| P3 | #51 → #46 | 両件ともローカル実装・対象検証済み。#51は共通正本を一本化し、導入先とrelease内の両配布物を生成。#46は週次の公式資料監視と差分候補を実装。リモートCIは未実行。 |
 
 ## #51・#46の進捗（2026-09-25）
 
-#51では現行のCodex編集元・Claude同期・CIでの同期検査を確認した。独立した共通treeを加えるだけでは共有247ファイルが三重管理になるため、生成配布物をGit／release／既存installerでどう扱うかの移行設計を残す。現状の同期機構をIssue全件完了とは扱わない。
+#51では`shared/skill`を共通本文の追跡対象とし、Codex固有の`agents/openai.yaml`を`platform/codex/agents`へ分離した。既存の`codex/skills/...`と`claude/skills/...`はGitの追跡対象から外して同期生成し、従来の導入先pathは維持する。sourceだけのcloneから両配布物を生成でき、installerと検証器は不足分を生成する。release生成器はcommitに固定したsourceから一時領域で両配布物を生成し、実バイトのhashと展開後のpackageを確認する。CIは生成後にE2Eを実行する。247の共通ファイルを重複追跡せずに済む。
 
-移行方針は、`shared/skill`を唯一の追跡対象となる共通本文とし、Codex固有の`agents/openai.yaml`などをoverlayとして分けること。既存の`codex/skills/...`と`claude/skills/...`は生成先として維持するが、共通ファイルをGitで三重追跡しない。新規cloneでは同期器が両方を生成し、installer・検証器は生成前のsource checkoutと生成済みreleaseの両方を扱う。release生成器はcommitに固定したsourceから一時領域で両配布物を生成し、現行の導入先pathを含むarchiveを検証してから保存する。CIは生成の再現性とsourceとの差を調べる。実装時には現行の同期器の安全な書込み・rollback、agent生成、source noticeの拘束を維持し、既存runと原本を移動しない。新規clone、Codex／Claude installer dry-run、release展開、Windows／Ubuntu CIが通るまで生成物の追跡を外さない。
+同期器の生成・rollbackテスト28件（2件スキップ）、Codex／Claude導入テスト22件、releaseテスト3件、移行で変わったCLI／registryテスト22件が成功。package・catalog・同期checkも成功した。全体テストは`exceljs`欠落と実ブラウザー能力不足のため対象外を分けて確認した。Ubuntu／WindowsのリモートCI、実ブラウザーE2E、release公開は未実行であり、GitHub上のIssueもopenのまま維持する。
 
 #46ではW3CのWCAG 2.2本体・errata・Understanding・Techniques・ACT・ARIA 1.2、WAICのJISチェックリスト・解説、デジタル庁の方針ページの9件を固定し、週次または手動でURL・転送先・HTTP情報・本文hashを監視する。変更・取得失敗はレビュー対象としてCIを失敗させ、成果物に保持する。既存のcatalog候補生成と差分比較を接続し、正本や`last_verified_at`は自動更新しない。ローカル実行では9件を取得でき、初期baselineとの差は0件。catalog候補の構造差分は0件だが、デジタル庁ページの本文hashだけが保存済みcatalogから変化しており、人手確認が必要。リモートのschedule・artifact uploadは未実行。baseline更新と正本への採用は出典・内容の確認後に別commitで行う。
 

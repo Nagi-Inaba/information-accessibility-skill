@@ -6,6 +6,7 @@ import path from "node:path";
 import process from "node:process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { verifyPackage } from "./verify-package.mjs";
+import { buildDistribution } from "./sync-distributions.mjs";
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(scriptDir, "..");
@@ -140,7 +141,7 @@ function usage(target = "claude") {
     "",
     "Options:",
     `  --${target}-home <path>  Install under this ${target} home directory.`,
-    "  --dry-run             Validate and print the installation plan without writing files.",
+    "  --dry-run             Validate and print the plan without changing the installation target; a source checkout may generate local skill files.",
     "  --upgrade             Back up and replace the current managed installation.",
     "  --uninstall           Move managed files to a backup without deleting them.",
     "  --restore <path>      Restore a previous backup; save the current installation first.",
@@ -481,6 +482,13 @@ export function runInstaller(argv, target = "claude") {
   if (options.help) {
     process.stdout.write(`${usage(target)}\n`);
     return;
+  }
+
+  const codexSkill = path.join(root, "codex/skills/information-accessibility-practice");
+  const claudeSkill = path.join(root, "claude/skills/information-accessibility-practice");
+  if (!pathExists(codexSkill) && !pathExists(claudeSkill)) {
+    const prepared = buildDistribution(root, { write: true });
+    if (prepared.status !== "PASS") throw new Error(`Distribution generation failed: ${prepared.errors.join("; ")}`);
   }
 
   const plan = buildPlan(options);

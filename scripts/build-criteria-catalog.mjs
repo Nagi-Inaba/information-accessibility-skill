@@ -3,8 +3,8 @@ import path from "node:path";
 import process from "node:process";
 import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
-import { assertNewOutputPath, writeNewText } from "../codex/skills/information-accessibility-practice/scripts/lib/audit-run.mjs";
-import { catalogCandidateProvenance } from "../codex/skills/information-accessibility-practice/scripts/lib/source-provenance.mjs";
+import { assertNewOutputPath, writeNewText } from "../shared/skill/scripts/lib/audit-run.mjs";
+import { catalogCandidateProvenance } from "../shared/skill/scripts/lib/source-provenance.mjs";
 import { verifySourceNotices } from "./verify-source-provenance.mjs";
 
 const sourceUrls = {
@@ -218,9 +218,10 @@ export function buildCatalogFromSources({ wcagHtml, jisHtml, japanHtml, verified
 
 function catalogPaths(root) {
   return {
+    source: path.join(root, "shared", "skill", "references", "criteria-catalog.json"),
     codex: path.join(root, "codex", "skills", "information-accessibility-practice", "references", "criteria-catalog.json"),
     claude: path.join(root, "claude", "skills", "information-accessibility-practice", "references", "criteria-catalog.json"),
-    registry: path.join(root, "codex", "skills", "information-accessibility-practice", "references", "standards-registry.json")
+    registry: path.join(root, "shared", "skill", "references", "standards-registry.json")
   };
 }
 
@@ -235,12 +236,13 @@ function catalogRecords(catalog) {
 export function verifyStoredCatalog(root) {
   verifySourceNotices(root);
   const paths = catalogPaths(root);
+  const sourceBytes = fs.readFileSync(paths.source);
   const codexBytes = fs.readFileSync(paths.codex);
   const claudeBytes = fs.readFileSync(paths.claude);
-  if (!codexBytes.equals(claudeBytes)) throw new Error("Stored Codex and Claude catalogs differ");
+  if (!sourceBytes.equals(codexBytes) || !sourceBytes.equals(claudeBytes)) throw new Error("Stored source, Codex, and Claude catalogs differ");
 
   const registry = JSON.parse(fs.readFileSync(paths.registry, "utf8"));
-  for (const [label, bytes] of [["Codex", codexBytes], ["Claude", claudeBytes]]) {
+  for (const [label, bytes] of [["Source", sourceBytes], ["Codex", codexBytes], ["Claude", claudeBytes]]) {
     const catalog = JSON.parse(bytes.toString("utf8"));
     try {
       assertCatalogIntegrity({ ...catalogRecords(catalog), registry });

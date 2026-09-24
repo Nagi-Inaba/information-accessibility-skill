@@ -68,7 +68,7 @@ node codex/skills/information-accessibility-practice/scripts/accessibility-audit
 
 同じディレクトリのJSONに後続runがある場合は警告します。同じrun IDの登録履歴と成果物が包含関係にある版、または`supersedes_run_id`が一致する再検査の候補を示します。複数の候補から最新版を自動選択しません。別ディレクトリや外部サービスにあるコピーは検索しないため、警告がないことは全体の最新版である保証にはなりません。
 
-JSON出力は[version 1.0.0のschema](../codex/skills/information-accessibility-practice/references/audit-status.schema.json)に従います。これは内部運用の出力で、run ID・hash・ファイル名を含みます。外部配布にはレポートのpublic出力を使ってください。
+JSON出力は[version 1.0.0のschema](../shared/skill/references/audit-status.schema.json)に従います。これは内部運用の出力で、run ID・hash・ファイル名を含みます。外部配布にはレポートのpublic出力を使ってください。
 
 ## 既存記録との互換性
 

@@ -90,9 +90,9 @@ node .\codex\skills\information-accessibility-practice\scripts\accessibility-aud
 
 The complete control-plane contract is documented in:
 
-- [`agent-orchestration.md`](../codex/skills/information-accessibility-practice/references/agent-orchestration.md)
-- [`standards-assessment.md`](../codex/skills/information-accessibility-practice/references/standards-assessment.md)
-- [`development-web-audit-request.template.md`](../codex/skills/information-accessibility-practice/assets/development-web-audit-request.template.md)
+- [`agent-orchestration.md`](../shared/skill/references/agent-orchestration.md)
+- [`standards-assessment.md`](../shared/skill/references/standards-assessment.md)
+- [`development-web-audit-request.template.md`](../shared/skill/assets/development-web-audit-request.template.md)
 - [`architecture-and-glossary.md`](architecture-and-glossary.md)
 - [`reporting.md`](reporting.md)
 

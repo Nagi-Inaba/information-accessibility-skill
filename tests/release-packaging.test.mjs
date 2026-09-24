@@ -41,7 +41,7 @@ function fixture(t) {
   const base = fs.mkdtempSync(path.join(os.tmpdir(), "a11y-release-")), checkout = path.join(base, "checkout");
   t.after(() => fs.rmSync(base, { recursive: true, force: true }));
   fs.mkdirSync(checkout);
-  for (const directory of ["codex", "claude", "shared", "scripts", "examples", "tests", ".github"]) copyTree(path.join(root, directory), path.join(checkout, directory));
+  for (const directory of ["codex", "claude", "shared", "platform", "scripts", "examples", "tests", ".github"]) copyTree(path.join(root, directory), path.join(checkout, directory));
   for (const file of ["README.md", "README.en.md", "LICENSE", "SECURITY.md", "CONTRIBUTING.md", "CHANGELOG.md", "THIRD_PARTY_NOTICES.md", "release-files.json", ".gitattributes", ".gitignore"]) fs.copyFileSync(path.join(root, file), path.join(checkout, file));
   for (const file of fs.readdirSync(path.join(root, "docs")).filter(file => file.endsWith(".md"))) write(path.join(checkout, "docs", file), fs.readFileSync(path.join(root, "docs", file)));
   copyTree(path.join(root, "docs/releases"), path.join(checkout, "docs/releases"));
@@ -98,7 +98,7 @@ test("release archive pins the source, preserves every manifest byte and exclude
 
 test("release preparation refuses hidden inputs inside packaged code trees", t => {
   const { base, checkout } = fixture(t);
-  write(path.join(checkout, "codex/skills/information-accessibility-practice/.private-key"), "DO_NOT_SHIP");
+  write(path.join(checkout, "shared/skill/.private-key"), "DO_NOT_SHIP");
   commitFixture(checkout);
   assert.throws(() => buildRelease({ root: checkout, outputDir: path.join(base, "candidate") }), /Package verification failed|Excluded content inside a release source tree/);
   assert.equal(fs.existsSync(path.join(base, "candidate")), false);

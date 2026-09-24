@@ -55,7 +55,7 @@ target context and environment. Registration, validation, status, merge and
 run-backed reports verify the saved bytes. `compare-evidence` provides a private
 before/after comparison with byte and context changes reported separately. E1
 requires saved evidence; E0 may document unavailable capture. See the installed
-[saved-evidence contract](../codex/skills/information-accessibility-practice/references/saved-evidence.md)
+[saved-evidence contract](../shared/skill/references/saved-evidence.md)
 for examples, minimum evidence, privacy and historical read-only behavior.
 
 Live target drift checks remain tracked by #54, and tool scan import by #65.

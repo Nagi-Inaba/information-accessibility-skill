@@ -3,7 +3,7 @@ import path from "node:path";
 import process from "node:process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import { validateStandardsRegistry } from "../codex/skills/information-accessibility-practice/scripts/lib/profile-registry.mjs";
+import { validateStandardsRegistry } from "../shared/skill/scripts/lib/profile-registry.mjs";
 import { buildDistribution } from "./sync-distributions.mjs";
 import { verifySourceNotices } from "./verify-source-provenance.mjs";
 
@@ -44,9 +44,8 @@ export function verifyPackage(root = defaultRoot) {
 
   const registryPath = path.join(
     packageRoot,
-    "codex",
-    "skills",
-    "information-accessibility-practice",
+    "shared",
+    "skill",
     "references",
     "standards-registry.json"
   );

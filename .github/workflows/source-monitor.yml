@@ -24,7 +24,7 @@ jobs:
       - name: Build review-only catalog candidate and diff
         run: |
           if node scripts/build-criteria-catalog.mjs --refresh --output "$RUNNER_TEMP/source-monitor/catalog-candidate.json" --verified-at "$(date -u +%F)" > "$RUNNER_TEMP/source-monitor/catalog-refresh.log" 2>&1; then
-            node scripts/compare-criteria-catalog.mjs --current codex/skills/information-accessibility-practice/references/criteria-catalog.json --candidate "$RUNNER_TEMP/source-monitor/catalog-candidate.json" > "$RUNNER_TEMP/source-monitor/catalog-diff.json"
+            node scripts/compare-criteria-catalog.mjs --current shared/skill/references/criteria-catalog.json --candidate "$RUNNER_TEMP/source-monitor/catalog-candidate.json" > "$RUNNER_TEMP/source-monitor/catalog-diff.json"
           fi
       - name: Show review summary
         if: always()

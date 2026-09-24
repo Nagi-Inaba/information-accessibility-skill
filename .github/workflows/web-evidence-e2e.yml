@@ -3,12 +3,9 @@ name: Web evidence E2E
 on:
   pull_request:
     paths:
-      - "codex/skills/information-accessibility-practice/scripts/capture-web-evidence.mjs"
-      - "claude/skills/information-accessibility-practice/scripts/capture-web-evidence.mjs"
-      - "codex/skills/information-accessibility-practice/scripts/scan-web.mjs"
-      - "claude/skills/information-accessibility-practice/scripts/scan-web.mjs"
-      - "codex/skills/information-accessibility-practice/scripts/lib/automated-web-scan.mjs"
-      - "claude/skills/information-accessibility-practice/scripts/lib/automated-web-scan.mjs"
+      - "shared/skill/scripts/capture-web-evidence.mjs"
+      - "shared/skill/scripts/scan-web.mjs"
+      - "shared/skill/scripts/lib/automated-web-scan.mjs"
       - "tests/web-evidence-*.test.mjs"
       - "**/scripts/preflight-web.mjs"
       - "**/scripts/lib/web-capabilities.mjs"
@@ -42,6 +39,8 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
+      - name: Generate Codex and Claude skills
+        run: node scripts/sync-distributions.mjs --write
       - name: Install exact browser scan dependencies
         run: npm install --no-save --package-lock=false playwright@1.62.1 axe-core@4.13.0
       - name: Install Chromium

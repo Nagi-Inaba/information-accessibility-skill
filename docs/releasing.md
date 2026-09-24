@@ -4,7 +4,7 @@
 
 ## ローカルで候補を作る
 
-1. [変更履歴](../CHANGELOG.md)、[対応版](version-support.md)、package版に対応する `docs/releases/<version>.md` を更新します。`release-files.json` はレビュー済みの収録パス一覧です。新しいファイルは内容と公開範囲を確認してから追加し、実監査証拠をfixtureとして登録しないでください。
+1. [変更履歴](../CHANGELOG.md)、[対応版](version-support.md)、package版に対応する `docs/releases/<version>.md` を更新します。`release-files.json` はレビュー済みsourceパス一覧です。新しいsourceファイルは内容と公開範囲を確認してから追加し、実監査証拠をfixtureとして登録しないでください。Codex／Claude skillの生成物はこの一覧に重複登録せず、生成後の実バイトをmanifestへ記録します。
 2. 配布物同期・出典確認・関連テストを実行します。全体検証は `node scripts/verify-all.mjs` です。必要な実ブラウザ検査とリモートCIの結果は区別して記録します。
 3. 対象変更をcommitし、worktreeをcleanにします。元の監査証拠や無関係な変更を配布のために削除しません。
 4. 候補を生成します。出力先の既存ファイルは上書きしません。
@@ -13,7 +13,7 @@
 node .\scripts\build-release.mjs --output-dir .\audit-runs\release-candidate
 ```
 
-アーカイブは現在のHEADに固定され、配布対象として許可したGit管理ファイルだけから生成します。ローカルのnode_modules、.git、audit-runs、研究用原本、内部レビュー・作業計画は収録しません。導入に必要なCodex／Claude、agent定義、installer、検証用スクリプト、サンプル、テスト、利用者向け文書、第三者noticeを含みます。
+アーカイブは現在のHEADに固定され、許可したGit管理sourceから一時領域でCodex／Claude skillを生成します。ローカルのnode_modules、.git、audit-runs、研究用原本、内部レビュー・作業計画は収録しません。導入に必要なCodex／Claude、agent定義、installer、検証用スクリプト、サンプル、テスト、利用者向け文書、第三者noticeを含みます。
 
 配布対象ディレクトリに未知のファイルが増えた場合は停止します。パス一覧は内容が安全であることの自動判定ではありません。既存ファイルへ秘密情報を追記していないかも、公開前のdiff reviewで確認してください。生成器はアーカイブを一時展開し、収録ファイルの実バイトとpackage検証を確認してから候補を保存します。Git、Node.js、gzip対応tarが必要です。
 

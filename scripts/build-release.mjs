@@ -6,12 +6,14 @@ import { gzipSync } from "node:zlib";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { verifyPackage } from "./verify-package.mjs";
-import { assertNewOutputPath, writeNewText } from "../codex/skills/information-accessibility-practice/scripts/lib/audit-run.mjs";
+import { buildDistribution } from "./sync-distributions.mjs";
+import { assertNewOutputPath, writeNewText } from "../shared/skill/scripts/lib/audit-run.mjs";
 
 const defaultRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const rootFiles = new Set(["README.md", "README.en.md", "LICENSE", "SECURITY.md", "CONTRIBUTING.md", "CHANGELOG.md", "THIRD_PARTY_NOTICES.md", "release-files.json", ".gitattributes", ".gitignore"]);
-const archiveTrees = ["codex/skills", "codex/agents", "claude/skills", "claude/agents", "shared/agents", "scripts", "examples", "tests"];
-const underArchiveTree = file => archiveTrees.some(tree => file.startsWith(tree + "/"));
+const sourceTrees = ["shared/skill", "platform/codex", "codex/agents", "claude/agents", "shared/agents", "scripts", "examples", "tests"];
+const underSourceTree = file => sourceTrees.some(tree => file.startsWith(tree + "/"));
+const generatedSkillPath = file => /^(?:codex|claude)\/skills\/information-accessibility-practice\//u.test(file);
 const hash = value => crypto.createHash("sha256").update(value).digest("hex");
 const textJson = value => JSON.stringify(value, null, 2) + "\n";
 function git(root, args, input) {
@@ -22,10 +24,10 @@ function git(root, args, input) {
 }
 export function isReleasePath(file) {
   if (rootFiles.has(file)) return true;
-  if (/^(?:codex|claude)\/skills\/information-accessibility-practice\/\.npmignore$/u.test(file)) return true;
+  if (file === "shared/skill/.npmignore") return true;
   if (file === ".github/PULL_REQUEST_TEMPLATE.md" || /^\.github\/(?:workflows|ISSUE_TEMPLATE)\/[A-Za-z0-9._-]+\.ya?ml$/u.test(file)) return true;
   if (!/^[A-Za-z0-9][A-Za-z0-9._/-]*$/u.test(file) || file.split("/").some(part => part.startsWith(".") || ["node_modules", "audit-runs", "sources", "superpowers", "reviews", "audits"].includes(part))) return false;
-  return /^(?:codex\/(?:skills|agents)|claude\/(?:skills|agents)|shared\/agents|scripts|examples|tests)\//u.test(file)
+  return /^(?:codex\/agents|claude\/agents|shared\/(?:agents|skill)|platform\/codex|scripts|examples|tests)\//u.test(file)
     || /^docs\/[^/]+\.md$/u.test(file) || /^docs\/releases\/[0-9][A-Za-z0-9.-]*\.md$/u.test(file);
 }
 function committedFiles(root, commit) {
@@ -37,7 +39,7 @@ function committedFiles(root, commit) {
   const entries = git(root, ["ls-tree", "-r", "-z", commit]).toString("utf8").split("\0").filter(Boolean).map(entry => {
     const match = /^(\d+) (\w+) ([a-f0-9]{40,64})\t(.+)$/u.exec(entry);
     if (!match) throw new Error("Unsupported Git tree entry.");
-    if (underArchiveTree(match[4]) && !isReleasePath(match[4])) throw new Error(`Excluded content inside a release source tree: ${match[4]}`);
+    if ((underSourceTree(match[4]) || generatedSkillPath(match[4])) && !isReleasePath(match[4])) throw new Error(`Excluded content inside a release source tree: ${match[4]}`);
     return { mode: match[1], kind: match[2], object: match[3], path: match[4] };
   }).filter(entry => isReleasePath(entry.path)).sort((a, b) => a.path < b.path ? -1 : a.path > b.path ? 1 : 0);
   for (const entry of entries) if (!reviewedFiles.has(entry.path)) throw new Error(`Unreviewed release input; inspect before adding to release-files.json: ${entry.path}`);
@@ -96,7 +98,7 @@ function verifyArchive(archive, stem, files) {
     if (JSON.stringify(actual.sort()) !== JSON.stringify(files.map(file => file.path).sort())) throw new Error("Archive inventory differs from the committed source manifest.");
     for (const file of files) {
       const bytes = fs.readFileSync(path.join(extractedRoot, file.path));
-      if (bytes.length !== file.size || hash(bytes) !== file.sha256) throw new Error(`Archive bytes differ from committed source: ${file.path}`);
+      if (bytes.length !== file.size || hash(bytes) !== file.sha256) throw new Error(`Archive bytes differ from committed source: ${file.path} (${bytes.length}/${file.size}, ${hash(bytes)}/${file.sha256})`);
     }
     const verified = verifyPackage(extractedRoot);
     if (verified.status !== "PASS") throw new Error(`Archived package verification failed: ${verified.errors.join("; ")}`);
@@ -106,26 +108,84 @@ function verifyArchive(archive, stem, files) {
     fs.rmSync(temporary, { recursive: true, force: true });
   }
 }
+function archiveCommittedSource(root, commit, sourceFiles, stem) {
+  const temporary = fs.mkdtempSync(path.join(os.tmpdir(), "a11y-release-stage-"));
+  const temporaryIdentity = fs.statSync(temporary, { bigint: true });
+  const temporaryReal = fs.realpathSync.native(temporary);
+  const tempRoot = fs.realpathSync.native(os.tmpdir());
+  if (!temporaryReal.startsWith(`${tempRoot}${path.sep}`)) throw new Error("Release stage escaped the temporary directory.");
+  try {
+    const sourcePaths = [
+      ...sourceTrees.filter(tree => sourceFiles.some(file => file.path.startsWith(`${tree}/`))),
+      ...sourceFiles.filter(file => !underSourceTree(file.path)).map(file => file.path)
+    ];
+    const sourceArchive = git(root, ["-c", "core.autocrlf=false", "archive", "--format=tar", "--prefix=source/", commit, "--", ...sourcePaths]);
+    const inputArchive = path.join(temporary, "source.tar");
+    fs.writeFileSync(inputArchive, sourceArchive, { flag: "wx" });
+    const extraction = spawnSync("tar", ["-xf", inputArchive, "-C", temporary], { maxBuffer: 1024 * 1024, timeout: 30_000, windowsHide: true });
+    if (extraction.error) throw extraction.error;
+    if (extraction.status !== 0) throw new Error("Committed source extraction failed.");
+    const stageRoot = path.join(temporary, "source");
+    for (const file of sourceFiles) {
+      const bytes = fs.readFileSync(path.join(stageRoot, file.path));
+      if (bytes.length !== file.size || hash(bytes) !== file.sha256) throw new Error(`Committed source bytes differ in release stage: ${file.path}`);
+    }
+    const generation = buildDistribution(stageRoot, { write: true });
+    if (generation.status !== "PASS") throw new Error(`Release distribution generation failed: ${generation.errors.join("; ")}`);
+    const verified = verifyPackage(stageRoot);
+    if (verified.status !== "PASS") throw new Error(`Release stage package verification failed: ${verified.errors.join("; ")}`);
+    const sourcePathsSet = new Set(sourceFiles.map(file => file.path));
+    const paths = [];
+    const walk = directory => {
+      for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+        if (directory === stageRoot && entry.name === ".git") continue;
+        const absolute = path.join(directory, entry.name);
+        if (entry.isSymbolicLink()) throw new Error(`Unexpected symbolic link in release stage: ${absolute}`);
+        if (entry.isDirectory()) walk(absolute);
+        else if (entry.isFile()) paths.push(path.relative(stageRoot, absolute).split(path.sep).join("/"));
+        else throw new Error(`Unsupported release stage entry: ${absolute}`);
+      }
+    };
+    walk(stageRoot);
+    paths.sort();
+    if (paths.some(file => !sourcePathsSet.has(file) && !generatedSkillPath(file))) throw new Error("Unexpected generated release file outside distribution paths.");
+    const files = paths.map(file => {
+      const bytes = fs.readFileSync(path.join(stageRoot, file));
+      return { path: file, size: bytes.length, sha256: hash(bytes) };
+    });
+    git(stageRoot, ["init", "-q"]);
+    git(stageRoot, ["-c", "core.autocrlf=false", "add", "-f", "-A"]);
+    const tree = git(stageRoot, ["write-tree"]).toString("ascii").trim();
+    const timestamp = git(root, ["show", "-s", "--format=%ct", commit]).toString("ascii").trim();
+    const archive = gzipSync(git(stageRoot, ["-c", "core.autocrlf=false", "-c", "core.eol=lf", "archive", "--format=tar", `--mtime=@${timestamp}`, `--prefix=${stem}/`, tree]), { level: 9 });
+    verifyArchive(archive, stem, files);
+    return { archive, files };
+  } finally {
+    const actual = fs.statSync(temporary, { bigint: true });
+    if (fs.realpathSync.native(temporary) !== temporaryReal || actual.dev !== temporaryIdentity.dev || actual.ino !== temporaryIdentity.ino) {
+      throw new Error("Release stage identity changed; refusing cleanup.");
+    }
+    fs.rmSync(temporary, { recursive: true, force: true });
+  }
+}
 export function buildRelease({ root = defaultRoot, outputDir } = {}) {
   if (!outputDir) throw new Error("--output-dir is required. Use a new or empty directory outside the checkout or under ignored audit-runs/.");
   root = path.resolve(root);
   if (git(root, ["status", "--porcelain", "--untracked-files=normal"]).length) throw new Error("Release preparation requires a clean committed checkout; commit or preserve pending work first.");
   const commit = git(root, ["rev-parse", "--verify", "HEAD^{commit}"]).toString("ascii").trim();
-  const packageJson = JSON.parse(git(root, ["show", `${commit}:codex/skills/information-accessibility-practice/package.json`]).toString("utf8"));
+  const packageJson = JSON.parse(git(root, ["show", `${commit}:shared/skill/package.json`]).toString("utf8"));
   if (!/^\d+\.\d+\.\d+(?:-[A-Za-z0-9.-]+)?$/u.test(packageJson.version)) throw new Error("Release package version must be a safe semantic version.");
   const version = packageJson.version, stem = `information-accessibility-skill-${version}-${commit.slice(0, 12)}`, archiveName = stem + ".tar.gz";
-  const files = committedFiles(root, commit);
+  const sourceFiles = committedFiles(root, commit);
   const notesPath = `docs/releases/${version}.md`;
-  if (!files.some(file => file.path === notesPath)) throw new Error(`Missing versioned release notes: ${notesPath}`);
+  if (!sourceFiles.some(file => file.path === notesPath)) throw new Error(`Missing versioned release notes: ${notesPath}`);
   if (fs.existsSync(outputDir) && fs.readdirSync(outputDir).length) throw new Error("Release output directory must be empty; existing candidates are never overwritten.");
   const outputs = [archiveName, "source-manifest.json", "release-notes.md", "SHA256SUMS"].map(name => path.resolve(outputDir, name));
   for (const output of outputs) assertNewOutputPath(output);
-  const archivePaths = [...archiveTrees.filter(tree => files.some(file => file.path.startsWith(tree + "/"))), ...files.filter(file => !underArchiveTree(file.path)).map(file => file.path)];
-  const tar = git(root, ["-c", "core.autocrlf=false", "-c", "core.eol=lf", "archive", "--format=tar", `--prefix=${stem}/`, commit, "--", ...archivePaths]);
-  const archive = gzipSync(tar, { level: 9 });
-  verifyArchive(archive, stem, files);
+  const { archive, files } = archiveCommittedSource(root, commit, sourceFiles, stem);
   const manifest = { schema_version: "1.0.0", package_version: version, source_commit: commit, publication_status: "local_candidate",
-    archive: { name: archiveName, sha256: hash(archive), size: archive.length }, files };
+    archive: { name: archiveName, sha256: hash(archive), size: archive.length }, source_file_count: sourceFiles.length,
+    generated_file_count: files.length - sourceFiles.length, files };
   const notes = `Source commit: ${commit}\nPackage: ${version}\nStatus: local candidate; publication and remote CI are not implied.\n\n${git(root, ["show", `${commit}:${notesPath}`]).toString("utf8")}`;
   const manifestText = textJson(manifest);
   // A final checksum file is the completion marker. Partial candidates are kept

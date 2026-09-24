@@ -18,7 +18,7 @@ accessibility-audit preflight-web --browser-channel chrome --format json
 
 ## 検査前の機能確認 / Capability preflight
 
-`doctor` only checks package and dependency presence. `preflight-web` starts an isolated browser process and measures the following capabilities on a fixed fixture. Both scanner and capture adapter repeat this probe before resolving the target hostname or opening the target. The machine-readable source is the installed [capability contract](../codex/skills/information-accessibility-practice/references/web-capabilities.json), referenced by the skill package and shared agent manifest; the latter path is relative to the installed skill root.
+`doctor` only checks package and dependency presence. `preflight-web` starts an isolated browser process and measures the following capabilities on a fixed fixture. Both scanner and capture adapter repeat this probe before resolving the target hostname or opening the target. The machine-readable source is the installed [capability contract](../shared/skill/references/web-capabilities.json), referenced by the skill package and shared agent manifest; the latter path is relative to the installed skill root.
 
 | Capability | Fixed-fixture measurement | What still needs target evidence |
 | --- | --- | --- |
@@ -102,4 +102,4 @@ It captures rendered DOM, Chromium accessibility tree, focus path, viewport/brow
 
 ## Current integration seam
 
-The compact context is a standalone review aid. For immutable run registration, export the raw axe results and evidence bundle with paired `--axe-output` and `--evidence-output`, measure and bind that saved target, and use the [scanner importer](../codex/skills/information-accessibility-practice/references/scanner-import.md). It preserves raw hashes, configuration, snapshot identity, unknown rules and human-review requirements without generating profile pass/fail outcomes.
+The compact context is a standalone review aid. For immutable run registration, export the raw axe results and evidence bundle with paired `--axe-output` and `--evidence-output`, measure and bind that saved target, and use the [scanner importer](../shared/skill/references/scanner-import.md). It preserves raw hashes, configuration, snapshot identity, unknown rules and human-review requirements without generating profile pass/fail outcomes.
