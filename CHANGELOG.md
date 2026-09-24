@@ -8,6 +8,8 @@ This project uses a Keep a Changelog-style structure. Until a tagged release is 
 
 ### Added
 
+- WCAG 2.2 SC 2.4.2 and 2.4.4 have English and Japanese procedures for descriptive page titles and link purpose in programmatic context.
+
 - WCAG 2.2 SC 2.5.4 has English and Japanese procedures for motion alternatives, disabling motion response, and specific exceptions.
 
 - WCAG 2.2 SC 2.5.3 has English and Japanese procedures for comparing visible labels with computed accessible names, including symbols and secondary text.

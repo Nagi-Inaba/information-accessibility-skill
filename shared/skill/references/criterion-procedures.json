@@ -1080,6 +1080,70 @@
         "cant_tell": ["A demo says hand gestures navigate a gallery, but the permitted test device has no working camera and the controls and disable setting cannot be exercised."]
       },
       "ai_boundary": "AI may identify candidate motion handlers, alternate controls, and settings, but it must not infer their runtime behavior or an exception from code or documentation alone, or record a profile outcome, human_verified mapping, or E2+ claim without human review on a suitable permitted device."
+    },
+    {
+      "id": "wcag22-sc-2-4-2-page-titled",
+      "requirement_id": "WCAG-2.2-SC-2.4.2",
+      "procedure_version": "1.0.0",
+      "procedure_kind": "human_manual_or_hybrid",
+      "automation_role": "supporting_only",
+      "primary_sources": ["https://www.w3.org/TR/WCAG22/#page-titled", "https://www.w3.org/WAI/WCAG22/Understanding/page-titled.html"],
+      "applicability_steps": [
+        "Inventory the web pages and distinct application views in the fixed scope, including relevant navigation or state changes that alter their topic or purpose.",
+        "Record the page's actual topic or purpose and the title exposed by the user agent in each tested state; include a suitable browser or document viewer in the environment record."
+      ],
+      "procedure_steps": [
+        "Open each scoped page or view and inspect the title presented by the browser tab, window, or equivalent viewer, as well as the underlying document title where available.",
+        "Compare that title with the current page topic or purpose. For a distinct single-page application view, navigate to it and recheck whether the title still describes the current view; do not require an exact match with its heading or incoming link.",
+        "Record the page or view identifier, observed title, topic or purpose, and mismatch. A title's mere presence, site branding alone, or a heading visible only inside the page does not establish a descriptive page title."
+      ],
+      "expected_results": [
+        "Each tested web page exposes a non-empty title that describes its current topic or purpose in the user agent.",
+        "When an application changes to a distinct view, the title remains descriptive of that view; it need not use a prescribed wording or duplicate a heading."
+      ],
+      "required_evidence_types": ["browser_inspection", "manual_observation"],
+      "cant_tell_when": [
+        "The page, distinct view, or its user-agent title cannot be reached and inspected in the permitted environment.",
+        "The current topic or purpose cannot be established from available content, so title descriptiveness cannot be judged."
+      ],
+      "counterexamples": {
+        "pass": ["The team directory page exposes 'Team directory | Example' as its browser title."],
+        "fail": ["An account statement page exposes only 'Untitled' in the browser tab, although a heading inside the page names the statement."],
+        "cant_tell": ["A screenshot shows a page heading but omits the browser title, and the page cannot be opened."]
+      },
+      "ai_boundary": "AI may extract candidate titles and page topics, but it must not conclude that a title describes the rendered page or current view from source markup or a heading alone, or record a profile outcome, human_verified mapping, or E2+ claim without human review of the user-agent title and page purpose."
+    },
+    {
+      "id": "wcag22-sc-2-4-4-link-purpose-in-context",
+      "requirement_id": "WCAG-2.2-SC-2.4.4",
+      "procedure_version": "1.0.0",
+      "procedure_kind": "human_manual_or_hybrid",
+      "automation_role": "supporting_only",
+      "primary_sources": ["https://www.w3.org/TR/WCAG22/#link-purpose-in-context", "https://www.w3.org/WAI/WCAG22/Understanding/link-purpose-in-context.html"],
+      "applicability_steps": [
+        "Inventory links in the fixed scope, including image-only links, repeated short labels, and links revealed in relevant states; record each link's action or destination purpose.",
+        "Identify the link text or accessible name and any context that is programmatically related to the link, such as its enclosing sentence, paragraph, list item, table cell and associated headers, or explicit accessible association."
+      ],
+      "procedure_steps": [
+        "For each in-scope link, inspect its rendered text, computed name, semantic relationships, and purpose in a browser or equivalent accessible viewer; use keyboard focus or assistive-technology navigation when needed to verify the available context.",
+        "Determine whether the purpose is clear from the link text alone or together with programmatically determinable context without moving focus to unrelated content. Do not count a visually nearby but unrelated heading, inaccessible image text, or a non-exposed href as sufficient context.",
+        "Where the purpose remains unclear, assess the narrow exception only if that purpose would be ambiguous to users in general. Record the link, purpose, exact text and context used, association, tested state, and any exception reason; evaluate missing names under SC 4.1.2 separately."
+      ],
+      "expected_results": [
+        "The purpose of each applicable link can be determined from its link text alone or from that text plus programmatically determined link context.",
+        "Any claimed ambiguity exception is supported by the destination or action genuinely being ambiguous to users in general, not by missing or poorly associated text."
+      ],
+      "required_evidence_types": ["browser_inspection", "manual_observation"],
+      "cant_tell_when": [
+        "The link's action or destination purpose cannot be established in a permitted state, even after available target and context evidence is reviewed.",
+        "The link's computed name or programmatic relationship to its claimed context cannot be inspected, so the claimed context cannot be verified."
+      ],
+      "counterexamples": {
+        "pass": ["A 'Read more' link in a list item headed 'Accessibility policy' opens that policy; the list item's text supplies its programmatic context."],
+        "fail": ["An isolated 'Read more' link has no related text identifying the destination; only a visually nearby, unrelated heading gives a clue."],
+        "cant_tell": ["A recording shows a 'Details' link but omits its destination and semantic context, and the live page is unavailable."]
+      },
+      "ai_boundary": "AI may collect links and candidate semantic context, but it must not infer a clear purpose from visual proximity or URL patterns alone, or record a profile outcome, human_verified mapping, or E2+ claim without human review of the rendered link, its programmatic context, and its actual purpose."
     }
   ]
 }

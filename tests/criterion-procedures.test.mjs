@@ -432,6 +432,17 @@ test("SC 2.5.4 checks both alternate controls and motion-response disablement", 
   assert.ok(procedure.cant_tell_when.length && procedure.counterexamples.fail.length);
 });
 
+test("page title and link purpose procedures preserve their distinct navigation evidence", () => {
+  const title = procedureFor("WCAG-2.2-SC-2.4.2");
+  const link = procedureFor("WCAG-2.2-SC-2.4.4");
+  assert.ok(title.primary_sources.includes("https://www.w3.org/TR/WCAG22/#page-titled"));
+  assert.match(title.procedure_steps.join(" "), /browser tab.*single-page application view.*site branding alone/u);
+  assert.ok(link.primary_sources.includes("https://www.w3.org/TR/WCAG22/#link-purpose-in-context"));
+  assert.match(link.procedure_steps.join(" "), /computed name.*programmatically determinable context.*ambiguous to users in general/u);
+  assert.match(link.applicability_steps.join(" "), /image-only links.*table cell and associated headers/u);
+  assert.ok(title.cant_tell_when.length && link.cant_tell_when.length);
+});
+
 test("new focus and input-error procedures keep their criterion boundaries and primary sources", () => {
   const focus = procedureFor("WCAG-2.2-SC-2.4.11");
   assert.ok(focus.primary_sources.includes("https://www.w3.org/TR/WCAG22/#focus-not-obscured-minimum"));
