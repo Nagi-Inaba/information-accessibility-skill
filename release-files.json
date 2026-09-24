@@ -214,6 +214,7 @@
     "shared/skill/scripts/lib/browser-network-gateway.mjs",
     "shared/skill/scripts/lib/canonical-json.mjs",
     "shared/skill/scripts/lib/cli-command-registry.mjs",
+    "shared/skill/scripts/lib/criterion-procedure-resolution.mjs",
     "shared/skill/scripts/lib/date-time.mjs",
     "shared/skill/scripts/lib/declared-change.mjs",
     "shared/skill/scripts/lib/evidence-identity-validation.mjs",
