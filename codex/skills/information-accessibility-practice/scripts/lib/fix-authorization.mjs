@@ -4,7 +4,7 @@ import path from "node:path";
 import { loadAuditResources, validateArtifact, validateAuditRun } from "./audit-run.mjs";
 import { targetBindingErrors } from "./run-targets.mjs";
 
-const EXACT_RUN_VERSION = "16.0.0";
+const EXACT_RUN_VERSION = "17.0.0";
 const EXACT_AUTH_PAYLOAD_VERSION = "2.0.0";
 const FIX_AUTH_ARTIFACT_TYPE = "fix-authorization";
 const REQUIRED_FIX_AUTH_PRODUCER_ROLE = "declared_authorizer";
@@ -317,7 +317,7 @@ function validateRunCompliance(runValidation, run, errors, warnings) {
   if (run?.schema_version !== EXACT_RUN_VERSION) {
     addError(errors, `run.schema_version must be exactly ${EXACT_RUN_VERSION}`);
   }
-  if (runValidation.resources?.orchestrationRegistry?.schema_version !== "15.0.0") {
+  if (runValidation.resources?.orchestrationRegistry?.schema_version !== "16.0.0") {
     addError(errors, "run must use orchestration registry version 15.0.0");
   }
   if (runValidation.resources?.currentPayloadVersions?.get(FIX_AUTH_ARTIFACT_TYPE) !== REQUIRED_FIX_AUTH_PAYLOAD_DISPATCH) {

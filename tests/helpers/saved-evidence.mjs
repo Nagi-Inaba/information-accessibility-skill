@@ -14,7 +14,7 @@ export function saveFixtureEvidence(root, run) {
   if (!fs.existsSync(file)) fs.writeFileSync(file, run ? fixtureEvidenceBytes(run) : fixtureBytes);
 }
 export function bindFixtureEvidence(artifact, run, root) {
-  artifact.payload.schema_version = ["12.0.0", "13.0.0", "14.0.0", "15.0.0", "16.0.0"].includes(run.schema_version) ? "4.0.0" : "3.0.0";
+  artifact.payload.schema_version = ["12.0.0", "13.0.0", "14.0.0", "15.0.0", "16.0.0", "17.0.0"].includes(run.schema_version) ? "4.0.0" : "3.0.0";
   for (const observation of artifact.payload.observations) observation.evidence_refs = [fixtureReference(run, observation.captured_at)];
   if (root) saveFixtureEvidence(root, run);
   return artifact;

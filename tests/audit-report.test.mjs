@@ -133,7 +133,7 @@ function reportRunFixture(temp, { declaredFinding = false, withoutPlan = false, 
   const target = { name: targetName, version_or_commit: "fixture-v1", urls_or_files: ["https://example.invalid/checkout"] };
   const scope = { included: ["Checkout"], excluded: [], complete_processes: [], third_party_content: [], full_pages_reviewed: false };
   const environment = { os: ["not_declared"], browsers: [], assistive_technologies: [], input_modes: [] };
-  const targetContext = { schema_version: "16.0.0", run_id: runId, target, environment };
+  const targetContext = { schema_version: "17.0.0", run_id: runId, target, environment };
   targetContext.target_inventory = fixtureInventory(targetContext, artifactRoot);
   const created = [
     "2026-07-17T12:00:01Z",
@@ -272,7 +272,7 @@ function reportRunFixture(temp, { declaredFinding = false, withoutPlan = false, 
   const artifacts = withoutPlan ? [screen, queue, human] : [screen, queue, human, remediation];
   if (withoutPlan) artifactFiles.delete(remediation.artifact_id);
   const run = {
-    schema_version: "16.0.0",
+    schema_version: "17.0.0",
     target_inventory: targetContext.target_inventory,
     inspection_request: createInspectionRequest("quick", "Identify the next investigation"),
     run_id: runId,

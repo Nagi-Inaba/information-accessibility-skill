@@ -153,8 +153,8 @@ test("frozen orchestration contracts retain their normalized hashes across line-
   assert.equal(readJson(path.join(references, "audit-run-5.0.0.schema.json")).properties.schema_version.const, "5.0.0");
   assert.equal(readJson(path.join(references, "screening-observations-1.0.0.schema.json")).properties.schema_version.const, "1.0.0");
   assert.equal(readJson(path.join(references, "audit-artifact-envelope-1.0.0.schema.json")).properties.schema_version.const, "1.0.0");
-  assert.equal(readJson(path.join(references, "orchestration-registry.json")).schema_version, "15.0.0");
-  assert.equal(readJson(path.join(references, "audit-run.schema.json")).properties.schema_version.const, "16.0.0");
+  assert.equal(readJson(path.join(references, "orchestration-registry.json")).schema_version, "16.0.0");
+  assert.equal(readJson(path.join(references, "audit-run.schema.json")).properties.schema_version.const, "17.0.0");
   assert.equal(readJson(path.join(references, "audit-artifact-envelope.schema.json")).properties.schema_version.const, "3.0.0");
 });
 

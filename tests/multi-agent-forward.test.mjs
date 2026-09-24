@@ -133,7 +133,7 @@ test("installed CLIs carry a local public-like fixture through the read-only age
   runFiles[0] = path.join(temp, "audit-run.bound.json");
   assertSucceeded(runNode(cli.bind, ["--run", unboundFile, "--targets", inventoryFile, "--output", runFiles[0]]));
   const run0 = readJson(runFiles[0]);
-  assert.equal(run0.schema_version, "16.0.0");
+  assert.equal(run0.schema_version, "17.0.0");
   assert.equal(run0.permissions.network, "allowlisted");
   assert.equal(run0.permissions.interaction, "read_only");
   assert.equal(run0.permissions.source_write, "denied");
@@ -273,7 +273,7 @@ test("installed CLIs carry a local public-like fixture through the read-only age
   assert.ok(profileRows.every((item) => item.mapping_status === "unverified" && item.outcome === "not_tested"));
   assert.ok(screeningRows.every((item) => item.mapping_status === "unverified" && item.outcome === "cant_tell"));
   assert.equal(merged.assessment.evidence_level, "E1");
-  assert.equal(JSON.stringify(merged).includes("E2"), false);
+  assert.ok(merged.assessment.results.every((item) => item.evidence_level !== "E2"));
   assert.equal(JSON.stringify(merged).includes("human_verified"), false);
   assert.equal(merged.assessment.results.some((item) => ["pass", "fail", "not_applicable"].includes(item.outcome)), false);
 

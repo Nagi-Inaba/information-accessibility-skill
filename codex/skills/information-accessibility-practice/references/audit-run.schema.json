@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:information-accessibility:audit-run:16.0.0",
+  "$id": "urn:information-accessibility:audit-run:17.0.0",
   "title": "Immutable Information Accessibility Audit Run",
   "type": "object",
   "additionalProperties": false,
@@ -24,7 +24,7 @@
   ],
   "properties": {
     "schema_version": {
-      "const": "16.0.0"
+      "const": "17.0.0"
     },
     "target_inventory": {
       "type": [

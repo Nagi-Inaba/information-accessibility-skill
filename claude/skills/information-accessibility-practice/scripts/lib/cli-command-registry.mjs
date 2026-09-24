@@ -13,9 +13,10 @@ const definitions = [
       "accessibility-audit artifact init --run <run.json> --type <type> --payload <payload.json> [--input <registered-ART-id>] [--artifact-id <ART-id>] --output <artifacts/new-candidate.json>",
       "accessibility-audit artifact validate --run <run.json> --artifact <artifacts/candidate.json>"
     ],
-    notes: ["Types: screening-observations, human-review-queue, declared-human-review, remediation-plan, audit-context, participant-usability-observation. --input is repeatable.",
+    notes: ["Types: screening-observations, human-review-queue, declared-human-review, remediation-plan, audit-context, participant-usability-observation, declared-change-record. --input is repeatable.",
       "For audit-context, also provide --role <declared_context_reviewer|declared_context_owner> --evidence-file <saved-file> --target-ref <declared-target> --captured-at <RFC3339>. See references/audit-context.md.",
       "For participant-usability-observation, use --role declared_participant_facilitator with the same saved-evidence options. See references/participant-usability-observation.md.",
+      "For declared-change-record, use --input <remediation-plan-id>, --role declared_change_reviewer|declared_change_owner, --after-inventory <captured.json>, and the same saved-evidence options. See references/declared-change-record.md.",
       "The CLI fills envelope metadata and omitted payload schema_version. Supply actual observations, review declarations or proposals in --payload; none are invented.",
       "Human review payloads must be the reviewer's actual declaration; AI agents must not write human outcomes or evidence on their behalf. Metadata does not authenticate identity.",
       "Creates a private candidate only; register performs live target checks. Prefer review-queue and human-review export/import for guided authoring. See references/agent-orchestration.md."]
@@ -94,10 +95,10 @@ const definitions = [
     name: "capture-targets",
     script: "capture-run-targets.mjs",
     summary: "Measure file, Git, HTTP or saved web-state identities into a private run companion.",
-    usage: ["accessibility-audit capture-targets --run <run.json> --specs <target-specs.json> [--allow-origin <origin>] [--allow-url <exact-URL>] [--allow-localhost true] [--network-log-output <artifacts/network.json>] --output <artifacts/new-targets.json>"],
+    usage: ["accessibility-audit capture-targets --run <run.json> --specs <target-specs.json> [--after-version <new-version>] [--allow-origin <origin>] [--allow-url <exact-URL>] [--allow-localhost true] [--network-log-output <artifacts/network.json>] --output <artifacts/new-targets.json>"],
     notes: ["Target specifications must cover exactly the declared run references. Local relative paths resolve beside the run manifest.",
       "HTTP requires a concrete run policy, explicit caller origin/URL authorization and --network-log-output. Every redirect is checked. No credentials, cookies or JavaScript are used.",
-      "This creates an unregistered private companion. Use bind-targets before registering observations. See references/measured-targets.md."]
+      "This creates an unregistered private companion. Use bind-targets before registering observations; --after-version instead measures a declared external change. See references/measured-targets.md."]
   },
   {
     name: "bind-evidence",
@@ -342,7 +343,7 @@ const definitions = [
   {
     name: "retest",
     script: "create-audit-run.mjs",
-    summary: "Create a fresh audit run from a completed authorized-change predecessor.",
+    summary: "Create a fresh audit run from a registered authorized or externally declared change.",
     usage: ["accessibility-audit retest --supersedes-run <old-run.json> [all init options for the new target version]"],
     requiredFlag: "--supersedes-run",
     notes: ["Prior evidence and outcomes are not silently inherited."]

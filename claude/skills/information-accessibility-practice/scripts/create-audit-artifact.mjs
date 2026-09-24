@@ -6,13 +6,13 @@ import { parseAttestationJson } from "./lib/attestation-canonical.mjs";
 import { createRunEvidenceReference } from "./lib/run-evidence.mjs";
 
 const types = ["screening-observations", "human-review-queue", "declared-human-review", "remediation-plan",
-  "audit-context", "participant-usability-observation"];
+  "audit-context", "participant-usability-observation", "declared-change-record"];
 
 export function main(argv = process.argv.slice(2)) {
   const [action, ...args] = argv;
   if (!["init", "validate"].includes(action)) throw new Error("Use artifact init or artifact validate; see accessibility-audit artifact --help.");
   const allowed = action === "init" ? ["run", "type", "payload", "input", "artifact-id", "output", "role",
-    "evidence-file", "target-ref", "captured-at"] : ["run", "artifact"];
+    "evidence-file", "target-ref", "captured-at", "after-inventory"] : ["run", "artifact"];
   const options = { input: [] }, seen = new Set();
   for (let i = 0; i < args.length; i += 2) {
     const key = args[i].replace(/^--/u, "");
@@ -44,10 +44,16 @@ export function main(argv = process.argv.slice(2)) {
     if (!types.includes(options.type)) throw new Error(`--type must be one of: ${types.join(", ")}`);
     const payload = read(options.payload);
     if (!payload || typeof payload !== "object" || Array.isArray(payload)) throw new Error("Payload must be a JSON object.");
+    if (options.type === "declared-change-record") {
+      if (!options["after-inventory"]) throw new Error("declared-change-record requires --after-inventory from capture-targets --after-version.");
+      payload.after_target_inventory = read(options["after-inventory"]);
+    } else if (options["after-inventory"]) throw new Error("--after-inventory requires declared-change-record.");
     if (!Object.hasOwn(payload, "schema_version")) payload.schema_version = validation.resources.currentPayloadVersions.get(options.type);
-    if (["audit-context", "participant-usability-observation"].includes(options.type)) {
+    if (["audit-context", "participant-usability-observation", "declared-change-record"].includes(options.type)) {
       const roles = options.type === "audit-context"
-        ? ["declared_context_reviewer", "declared_context_owner"] : ["declared_participant_facilitator"];
+        ? ["declared_context_reviewer", "declared_context_owner"]
+        : options.type === "declared-change-record"
+          ? ["declared_change_reviewer", "declared_change_owner"] : ["declared_participant_facilitator"];
       if (!roles.includes(options.role)) {
         throw new Error(`${options.type} requires --role ${roles.join(" or ")}.`);
       }

@@ -44,7 +44,7 @@ export function validateReviewBindings(record, catalogRecords, auditMethods, pro
       }
       if (!exactSet(review.official_sources, procedure?.primary_sources ?? catalog.official_method_sources)) errors.push(`Human review official_sources must exactly match the registered procedure or catalog: ${id}`);
       const types = new Set((review.target_specific_evidence ?? []).map((entry) => entry?.type));
-      const nonPerformance = ["11.0.0", "12.0.0", "13.0.0", "14.0.0", "15.0.0", "16.0.0"].includes(options.run?.schema_version) && review.profile_outcome === "not_tested";
+      const nonPerformance = ["11.0.0", "12.0.0", "13.0.0", "14.0.0", "15.0.0", "16.0.0", "17.0.0"].includes(options.run?.schema_version) && review.profile_outcome === "not_tested";
       const requiredTypes = nonPerformance ? ["manual_observation"] : procedure?.required_evidence_types ?? method?.required_evidence_types ?? [];
       if (nonPerformance && [...types].some((type) => type !== "manual_observation")) errors.push(`Human review not_tested accepts only manual_observation non-performance notes: ${id}`);
       for (const type of requiredTypes) {

@@ -2,11 +2,12 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { assertNewOutputPath, assertStableFile, readStableFile, validateAuditRun, writeNewJson } from "./lib/audit-run.mjs";
 import { observeRunTargetsWithEvidence } from "./lib/run-targets.mjs";
+import { afterChangeRun } from "./lib/declared-change.mjs";
 import { networkPolicyHash } from "./lib/network-policy.mjs";
 
 function parse(argv) {
   const result = { origins: [], urls: [] };
-  const flags = new Map([["--run", "run"], ["--specs", "specs"], ["--output", "output"], ["--network-log-output", "networkOutput"], ["--allow-origin", "origins"], ["--allow-url", "urls"], ["--allow-localhost", "localhost"]]);
+  const flags = new Map([["--run", "run"], ["--specs", "specs"], ["--output", "output"], ["--after-version", "afterVersion"], ["--network-log-output", "networkOutput"], ["--allow-origin", "origins"], ["--allow-url", "urls"], ["--allow-localhost", "localhost"]]);
   for (let i = 0; i < argv.length; i += 2) {
     const key = flags.get(argv[i]);
     if (!key) throw new Error(`Unknown argument: ${argv[i]}`);
@@ -32,6 +33,11 @@ export async function main(argv = process.argv.slice(2)) {
   const run = json(runSnapshot);
   const validation = validateAuditRun(run, { runFile });
   if (!validation.valid) throw new Error(`Invalid audit run:\n- ${validation.errors.join("\n- ")}`);
+  if (args.afterVersion && (run.status !== "remediation_ready" || !run.target_inventory
+      || run.schema_version !== "17.0.0" || args.afterVersion === run.target.version_or_commit)) {
+    throw new Error("--after-version requires a measured current run in remediation_ready and a distinct target version.");
+  }
+  const measuredRun = args.afterVersion ? afterChangeRun(run, args.afterVersion) : run;
   const output = path.resolve(args.output);
   const relative = path.relative(validation.artifactRoot, output);
   if (!relative || path.isAbsolute(relative) || relative === ".." || relative.startsWith(`..${path.sep}`)) throw new Error("Target inventory output must remain inside the private artifact root.");
@@ -48,7 +54,7 @@ export async function main(argv = process.argv.slice(2)) {
     assertNewOutputPath(networkOutput);
   }
   let captured;
-  try { captured = await observeRunTargetsWithEvidence(run, specifications, {
+  try { captured = await observeRunTargetsWithEvidence(measuredRun, specifications, {
     baseDir: path.dirname(runFile),
     ...(args.origins.length || args.urls.length ? { networkPolicy: { network: "allowlisted", allowedOrigins: args.origins, exactUrls: args.urls, allowLocalhost: args.localhost === "true" } } : {})
   }); } catch (error) {

@@ -46,7 +46,7 @@ accessibility-audit bind-targets --run run.json --targets artifacts/targets-02.j
 accessibility-audit register --run run.bound.json --artifact artifacts/screening.json --allow-origin https://example.org --network-log-output artifacts/register-network.json --output run.1.json
 ```
 
-If a target changes, preserve the old run and capture the new state in a new run. Do not edit the old inventory or substitute a new ID in existing evidence. Registered `change-record` artifacts are the deliberate exception to live remeasurement: a completed authorized change has already modified its target. They retain the old inventory IDs and exact authorization/input bindings, and move the run to `retest_required`. The fresh retest starts without an inventory and must capture and bind its new state before observations.
+If a target changes, preserve the old run and capture the new state in a new run. Do not edit the old inventory or substitute a new ID in existing evidence. Registered `change-record` artifacts are the deliberate exception to live remeasurement: a completed authorized change has already modified its target. They retain the old inventory IDs and exact authorization/input bindings, and move the run to `retest_required`. For manual, vendor, CMS, design or normal pull-request changes, use a saved `declared-change-record` and `capture-targets --after-version` as described in [declared-change-record.md](declared-change-record.md). Registration remeasures the after state and rejects an unchanged target. The fresh retest starts without an inventory and must capture and bind its new state before observations.
 
 ## Identity and limitations
 

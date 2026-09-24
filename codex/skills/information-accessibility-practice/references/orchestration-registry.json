@@ -1,6 +1,6 @@
 {
   "$schema": "./orchestration-registry.schema.json",
-  "schema_version": "15.0.0",
+  "schema_version": "16.0.0",
   "roles": [
     {
       "id": "orchestrator",
@@ -14,7 +14,8 @@
         "fix-authorization",
         "change-record",
         "audit-context",
-        "participant-usability-observation"
+        "participant-usability-observation",
+        "declared-change-record"
       ],
       "output_type": "audit-run",
       "max_ai_evidence_level": "E1",
@@ -146,12 +147,34 @@
       "can_record_profile_outcome": false,
       "can_write_target": false,
       "install_by_default": false
+    },
+    {
+      "id": "declared_change_reviewer",
+      "agent_id": null,
+      "producer_kind": "external_human",
+      "input_types": ["remediation-plan"],
+      "output_type": "declared-change-record",
+      "max_ai_evidence_level": null,
+      "can_record_profile_outcome": false,
+      "can_write_target": false,
+      "install_by_default": false
+    },
+    {
+      "id": "declared_change_owner",
+      "agent_id": null,
+      "producer_kind": "external_requester",
+      "input_types": ["remediation-plan"],
+      "output_type": "declared-change-record",
+      "max_ai_evidence_level": null,
+      "can_record_profile_outcome": false,
+      "can_write_target": false,
+      "install_by_default": false
     }
   ],
   "artifact_types": [
     {
       "id": "audit-run",
-      "latest_schema_version": "16.0.0",
+      "latest_schema_version": "17.0.0",
       "schema_versions": [
         {
           "version": "1.0.0",
@@ -235,8 +258,14 @@
         },
         {
           "version": "16.0.0",
-          "schema_file": "audit-run.schema.json",
+          "schema_file": "audit-run-16.0.0.schema.json",
           "schema_sha256": "8bcde1ab78b5dffeb75112b31eb12aa7d8186275ea239f347ff87ea5551846fa",
+          "mode": "read_only"
+        },
+        {
+          "version": "17.0.0",
+          "schema_file": "audit-run.schema.json",
+          "schema_sha256": "d0743603d79d416ff454a9969bbe35dbbf11495dd6174884183417ccd8c740a7",
           "mode": "current"
         }
       ]
@@ -395,6 +424,18 @@
           "mode": "current"
         }
       ]
+    },
+    {
+      "id": "declared-change-record",
+      "latest_schema_version": "1.0.0",
+      "schema_versions": [
+        {
+          "version": "1.0.0",
+          "schema_file": "declared-change-record.schema.json",
+          "schema_sha256": "70053c9ccd8ec947604de5f9d8177d482a1b711e265abc18bfe8995285fa9094",
+          "mode": "current"
+        }
+      ]
     }
   ],
   "transitions": [
@@ -452,6 +493,13 @@
       "to": "retest_required",
       "required_artifact_types": [
         "change-record"
+      ]
+    },
+    {
+      "from": "remediation_ready",
+      "to": "retest_required",
+      "required_artifact_types": [
+        "declared-change-record"
       ]
     }
   ]

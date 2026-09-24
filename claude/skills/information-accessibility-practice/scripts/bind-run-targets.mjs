@@ -28,7 +28,7 @@ export async function main(argv = process.argv.slice(2)) {
   const run = JSON.parse(runSnapshot.bytes.toString("utf8").replace(/^\uFEFF/u, ""));
   const validation = validateAuditRun(run, { runFile });
   if (!validation.valid) throw new Error(`Invalid audit run:\n- ${validation.errors.join("\n- ")}`);
-  if (run.schema_version !== "16.0.0" || run.target_inventory !== null || run.status !== "initialized" || run.artifacts.length || run.history.length) {
+  if (run.schema_version !== "17.0.0" || run.target_inventory !== null || run.status !== "initialized" || run.artifacts.length || run.history.length) {
     throw new Error("Target binding requires a fresh, unbound current run before any artifact registration.");
   }
   const inventorySnapshot = readStableFile(resolveInside(validation.artifactRoot, path.resolve(options["--targets"])), { maxBytes: 10 * 1024 * 1024 });

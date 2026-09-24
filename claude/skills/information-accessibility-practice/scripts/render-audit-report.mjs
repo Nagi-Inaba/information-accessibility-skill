@@ -863,7 +863,7 @@ export function validateRunBackedAssessment({ run, assessment, envelopesById, re
   if (humanByRequirement.size > 0) {
     const expectedReviewers = [...new Set(evidence.humanReviewHistory.map((review) => review.reviewer_name))].sort().join(", ");
     const expectedDate = evidence.humanReviewHistory.map((review) => review.review_date).sort().at(-1);
-    const hasPerformedReview = !["11.0.0", "12.0.0", "13.0.0", "14.0.0", "15.0.0", "16.0.0"].includes(run.schema_version) || evidence.humanReviews.some((review) => review.profile_outcome !== "not_tested");
+    const hasPerformedReview = !["11.0.0", "12.0.0", "13.0.0", "14.0.0", "15.0.0", "16.0.0", "17.0.0"].includes(run.schema_version) || evidence.humanReviews.some((review) => review.profile_outcome !== "not_tested");
     const expectedLevel = hasPerformedReview ? "E2" : screeningByRequirement.size > 0 ? "E1" : "E0";
     if (record.evidence_level !== expectedLevel || record.evaluator !== expectedReviewers || record.evaluated_at !== expectedDate) {
       throw new Error("Assessment evaluation identity does not match the current run human review declarations.");
@@ -927,7 +927,7 @@ export function buildPublicReportModel({ run, assessment, envelopesById, resourc
   }));
   const reportProjection = buildReportProjection(profileResults, evidence.screeningObservations);
   const expectedProfileCount = registeredRequirementIds.length;
-  const performedReviews = evidence.humanReviews.filter((review) => !["11.0.0", "12.0.0", "13.0.0", "14.0.0", "15.0.0", "16.0.0"].includes(run.schema_version) || review.profile_outcome !== "not_tested");
+  const performedReviews = evidence.humanReviews.filter((review) => !["11.0.0", "12.0.0", "13.0.0", "14.0.0", "15.0.0", "16.0.0", "17.0.0"].includes(run.schema_version) || review.profile_outcome !== "not_tested");
   const reviewedIds = new Set(performedReviews.map((review) => review.requirement_id));
   const resultByRequirement = new Map(assessment.assessment.results.map((result) => [result.requirement_id, result]));
   const findingById = uniqueMap(assessment.assessment.findings ?? [], "id", "assessment finding ID");
@@ -1069,7 +1069,7 @@ export function buildPublicReportModel({ run, assessment, envelopesById, resourc
     reportOutcomeCounts: reportProjection.counts,
     catalogCoverage: { recorded: recordedProfileResults.length, expected: expectedProfileCount },
     evaluationCoverage: {
-      humanReviewed: profileResults.filter((result) => isHumanReviewMapping(result) && (!["11.0.0", "12.0.0", "13.0.0", "14.0.0", "15.0.0", "16.0.0"].includes(run.schema_version) || result.outcome !== "not_tested")).length,
+      humanReviewed: profileResults.filter((result) => isHumanReviewMapping(result) && (!["11.0.0", "12.0.0", "13.0.0", "14.0.0", "15.0.0", "16.0.0", "17.0.0"].includes(run.schema_version) || result.outcome !== "not_tested")).length,
       expected: expectedProfileCount
     }
   };

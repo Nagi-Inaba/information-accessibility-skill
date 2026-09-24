@@ -22,7 +22,7 @@ export function evidenceContext(run, targetRef) {
 // that a live target still has the captured content or authenticate a producer.
 export function createRunEvidenceReference({ run, targetRef, ...options }) {
   const context = evidenceContext(run, targetRef);
-  const measuredRun = ["8.0.0", "9.0.0", "10.0.0", "11.0.0", "12.0.0", "13.0.0", "14.0.0", "15.0.0", "16.0.0"].includes(run.schema_version);
+  const measuredRun = ["8.0.0", "9.0.0", "10.0.0", "11.0.0", "12.0.0", "13.0.0", "14.0.0", "15.0.0", "16.0.0", "17.0.0"].includes(run.schema_version);
   const measured = measuredRun ? run.target_inventory?.snapshots?.find((snapshot) => snapshot.target_ref === targetRef) : null;
   if (measuredRun && !measured) throw new Error("Bind a measured target inventory before adding saved observation evidence.");
   if (measured && options.targetSnapshotId !== undefined && options.targetSnapshotId !== measured.snapshot_id) throw new Error("Evidence snapshot ID must match the run target inventory.");
@@ -41,7 +41,7 @@ export function evidenceBindingErrors(reference, run) {
     for (const [key, expected] of Object.entries(evidenceContext(run, reference.target_ref))) {
       if (reference[key] !== expected) errors.push(`Evidence ${key} does not match the audit run.`);
     }
-    if (["8.0.0", "9.0.0", "10.0.0", "11.0.0", "12.0.0", "13.0.0", "14.0.0", "15.0.0", "16.0.0"].includes(run.schema_version)) {
+    if (["8.0.0", "9.0.0", "10.0.0", "11.0.0", "12.0.0", "13.0.0", "14.0.0", "15.0.0", "16.0.0", "17.0.0"].includes(run.schema_version)) {
       const measured = run.target_inventory?.snapshots?.find((snapshot) => snapshot.target_ref === reference.target_ref);
       if (!measured || reference.target_snapshot_id !== measured.snapshot_id) errors.push("Evidence target_snapshot_id does not match the measured run target.");
       else if (["dom_snapshot", "accessibility_tree"].includes(reference.evidence_type)) {

@@ -35,7 +35,7 @@ function schemaErrors(value, schemaName) {
 
 function validAuditRun() {
   return {
-    schema_version: "16.0.0",
+    schema_version: "17.0.0",
     target_inventory: null,
     inspection_request: createInspectionRequest("quick", "Identify the next investigation"),
     run_id: runId,
@@ -73,7 +73,7 @@ function validAuditRun() {
     },
     resource_versions: {
       standards_registry_version: "1.0.0",
-      orchestration_registry_version: "15.0.0",
+      orchestration_registry_version: "16.0.0",
       orchestration_registry_sha256: sha256,
       criteria_catalog_sha256: sha256,
       criterion_procedures_sha256: sha256,
@@ -253,9 +253,10 @@ test("current queue 3 and remediation 3 preserve frozen version 1 reading", asyn
   assert.notDeepEqual(await schemaErrors(legacyRemediationValue, "remediation-plan.schema.json"), []);
 });
 
-test("versioned contracts freeze prior runs while run 16, registry 15, and envelope 3 are current", async () => {
+test("versioned contracts freeze prior runs while run 17, registry 16, and envelope 3 are current", async () => {
   const versions = [
-    ["orchestration-registry.json", "schema_version", "15.0.0"],
+    ["orchestration-registry.json", "schema_version", "16.0.0"],
+    ["orchestration-registry-15.0.0.json", "schema_version", "15.0.0"],
     ["orchestration-registry-14.0.0.json", "schema_version", "14.0.0"],
     ["orchestration-registry-13.0.0.json", "schema_version", "13.0.0"],
     ["orchestration-registry-6.0.0.json", "schema_version", "6.0.0"],
@@ -263,14 +264,16 @@ test("versioned contracts freeze prior runs while run 16, registry 15, and envel
     ["orchestration-registry-4.0.0.json", "schema_version", "4.0.0"],
     ["orchestration-registry-3.0.0.json", "schema_version", "3.0.0"],
     ["orchestration-registry-2.0.0.json", "schema_version", "2.0.0"],
-    ["orchestration-registry.schema.json", "schema", "15.0.0"],
+    ["orchestration-registry.schema.json", "schema", "16.0.0"],
+    ["orchestration-registry-15.0.0.schema.json", "schema", "15.0.0"],
     ["orchestration-registry-14.0.0.schema.json", "schema", "14.0.0"],
     ["orchestration-registry-13.0.0.schema.json", "schema", "13.0.0"],
     ["orchestration-registry-6.0.0.schema.json", "schema", "6.0.0"],
     ["orchestration-registry-5.0.0.schema.json", "schema", "5.0.0"],
     ["orchestration-registry-4.0.0.schema.json", "schema", "4.0.0"],
     ["orchestration-registry-2.0.0.schema.json", "schema", "2.0.0"],
-    ["audit-run.schema.json", "schema", "16.0.0"],
+    ["audit-run.schema.json", "schema", "17.0.0"],
+    ["audit-run-16.0.0.schema.json", "schema", "16.0.0"],
     ["audit-run-15.0.0.schema.json", "schema", "15.0.0"],
     ["audit-run-14.0.0.schema.json", "schema", "14.0.0"],
     ["audit-run-7.0.0.schema.json", "schema", "7.0.0"],
@@ -629,7 +632,9 @@ test("the orchestration registry fixes the complete role, artifact, and transiti
     ["authorized_fixer", "information-accessibility-authorized-fixer", "ai_agent", "change-record", false, true, false],
     ["declared_context_reviewer", null, "external_human", "audit-context", false, false, false],
     ["declared_context_owner", null, "external_requester", "audit-context", false, false, false],
-    ["declared_participant_facilitator", null, "external_human", "participant-usability-observation", false, false, false]
+    ["declared_participant_facilitator", null, "external_human", "participant-usability-observation", false, false, false],
+    ["declared_change_reviewer", null, "external_human", "declared-change-record", false, false, false],
+    ["declared_change_owner", null, "external_requester", "declared-change-record", false, false, false]
   ];
   assert.deepEqual(registry.roles.map((role) => [
     role.id,
@@ -654,7 +659,7 @@ test("the orchestration registry fixes the complete role, artifact, and transiti
   assert.deepEqual(registry.artifact_types, [
     {
   "id": "audit-run",
-  "latest_schema_version": "16.0.0",
+  "latest_schema_version": "17.0.0",
   "schema_versions": [
     {
       "version": "1.0.0",
@@ -738,8 +743,14 @@ test("the orchestration registry fixes the complete role, artifact, and transiti
     },
     {
       "version": "16.0.0",
-      "schema_file": "audit-run.schema.json",
+      "schema_file": "audit-run-16.0.0.schema.json",
       "schema_sha256": "8bcde1ab78b5dffeb75112b31eb12aa7d8186275ea239f347ff87ea5551846fa",
+      "mode": "read_only"
+    },
+    {
+      "version": "17.0.0",
+      "schema_file": "audit-run.schema.json",
+      "schema_sha256": "d0743603d79d416ff454a9969bbe35dbbf11495dd6174884183417ccd8c740a7",
       "mode": "current"
     }
   ]
@@ -877,6 +888,14 @@ test("the orchestration registry fixes the complete role, artifact, and transiti
         { version: "1.0.0", schema_file: "participant-usability-observation.schema.json",
           schema_sha256: "01aa3142de8929e26dafbc290f323807ec9572364ef61591355b2ea4b0f21d75", mode: "current" }
       ]
+    },
+    {
+      id: "declared-change-record",
+      latest_schema_version: "1.0.0",
+      schema_versions: [
+        { version: "1.0.0", schema_file: "declared-change-record.schema.json",
+          schema_sha256: "70053c9ccd8ec947604de5f9d8177d482a1b711e265abc18bfe8995285fa9094", mode: "current" }
+      ]
     }
   ]);
   assert.deepEqual(registry.transitions, [
@@ -887,12 +906,13 @@ test("the orchestration registry fixes the complete role, artifact, and transiti
     { from: "human_queue_ready", to: "remediation_ready", required_artifact_types: ["remediation-plan"] },
     { from: "human_review_recorded", to: "remediation_ready", required_artifact_types: ["remediation-plan"] },
     { from: "remediation_ready", to: "fix_authorized", required_artifact_types: ["fix-authorization"] },
-    { from: "fix_authorized", to: "retest_required", required_artifact_types: ["change-record"] }
+    { from: "fix_authorized", to: "retest_required", required_artifact_types: ["change-record"] },
+    { from: "remediation_ready", to: "retest_required", required_artifact_types: ["declared-change-record"] }
   ]);
   for (const transition of registry.transitions) {
     for (const artifactType of transition.required_artifact_types) {
       const producers = registry.roles.filter((role) => role.output_type === artifactType);
-      assert.equal(producers.length, 1, `${artifactType} must have exactly one producer`);
+      assert.equal(producers.length, artifactType === "declared-change-record" ? 2 : 1, `${artifactType} has unexpected producers`);
       if (artifactType === "fix-authorization") assert.notEqual(producers[0].producer_kind, "ai_agent");
     }
   }

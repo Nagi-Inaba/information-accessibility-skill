@@ -21,6 +21,7 @@ import { declaredReviewMethod, isHumanReviewMapping, reviewRecordSha256 } from "
 import { collectScreeningEvidence } from "./run-evidence.mjs";
 import { validateContextBindings, collectContextEvidence, projectAuditContext } from "./audit-context.mjs";
 import { validateParticipantBindings, collectParticipantEvidence } from "./participant-observation.mjs";
+import { afterChangeRun, validateDeclaredChangeBindings, collectDeclaredChangeEvidence } from "./declared-change.mjs";
 import { targetInventoryErrors, targetBindingErrors, checkLocalRunTargets, consumeRunTargetCheck, checkRunTargets } from "./run-targets.mjs";
 export { canonicalJson } from "./canonical-json.mjs";
 
@@ -42,7 +43,8 @@ const auditRunRegistryCompatibility = new Map([
   ["13.0.0", "12.0.0"],
   ["14.0.0", "13.0.0"],
   ["15.0.0", "14.0.0"],
-  ["16.0.0", "15.0.0"]
+  ["16.0.0", "15.0.0"],
+  ["17.0.0", "16.0.0"]
 ]);
 const auditRunEnvelopeCompatibility = new Map([
   ["1.0.0", "1.0.0"],
@@ -60,11 +62,12 @@ const auditRunEnvelopeCompatibility = new Map([
   ["13.0.0", "3.0.0"],
   ["14.0.0", "3.0.0"],
   ["15.0.0", "3.0.0"],
-  ["16.0.0", "3.0.0"]
+  ["16.0.0", "3.0.0"],
+  ["17.0.0", "3.0.0"]
 ]);
 const currentAuditRunManifestContract = {
   "id": "audit-run",
-  "latest_schema_version": "16.0.0",
+  "latest_schema_version": "17.0.0",
   "schema_versions": [
     {
       "version": "1.0.0",
@@ -148,8 +151,14 @@ const currentAuditRunManifestContract = {
     },
     {
       "version": "16.0.0",
-      "schema_file": "audit-run.schema.json",
+      "schema_file": "audit-run-16.0.0.schema.json",
       "schema_sha256": "8bcde1ab78b5dffeb75112b31eb12aa7d8186275ea239f347ff87ea5551846fa",
+      "mode": "read_only"
+    },
+    {
+      "version": "17.0.0",
+      "schema_file": "audit-run.schema.json",
+      "schema_sha256": "d0743603d79d416ff454a9969bbe35dbbf11495dd6174884183417ccd8c740a7",
       "mode": "current"
     }
   ]
@@ -533,7 +542,7 @@ function validateOrchestrationRegistrySemantics(registry, canonicalRegistry) {
   for (const [roleId, canonicalRole] of canonicalRoles) {
     const installedRole = roleById.get(roleId);
     const expectedRole = roleId === "orchestrator"
-      ? { ...canonicalRole, input_types: [...canonicalRole.input_types, "audit-context", "participant-usability-observation"] }
+      ? { ...canonicalRole, input_types: [...canonicalRole.input_types, "audit-context", "participant-usability-observation", "declared-change-record"] }
       : canonicalRole;
     if (!installedRole) errors.push(`Missing canonical role: ${roleId}.`);
     else if (!isDeepStrictEqual(installedRole, expectedRole)) errors.push(`Canonical role contract changed: ${roleId}.`);
@@ -582,7 +591,15 @@ function validateOrchestrationRegistrySemantics(registry, canonicalRegistry) {
     if (role?.output_type === "fix-authorization" && roleId !== "declared_authorizer") {
       errors.push(`Only declared_authorizer may produce fix-authorization; received ${roleId}.`);
     }
-    if (role?.id === "declared_participant_facilitator") {
+    if (["declared_change_reviewer", "declared_change_owner"].includes(role?.id)) {
+      const kind = role.id === "declared_change_reviewer" ? "external_human" : "external_requester";
+      if (role.producer_kind !== kind || role.agent_id !== null || role.output_type !== "declared-change-record"
+          || role.can_record_profile_outcome !== false || role.can_write_target !== false
+          || role.install_by_default !== false || role.max_ai_evidence_level !== null
+          || !isDeepStrictEqual(role.input_types, ["remediation-plan"])) {
+        errors.push(`Invalid declared change producer contract: ${role.id}.`);
+      }
+    } else if (role?.id === "declared_participant_facilitator") {
       if (role.producer_kind !== "external_human" || role.agent_id !== null
           || role.output_type !== "participant-usability-observation"
           || role.can_record_profile_outcome !== false || role.can_write_target !== false
@@ -605,7 +622,7 @@ function validateOrchestrationRegistrySemantics(registry, canonicalRegistry) {
           || !['E0', 'E1'].includes(role?.max_ai_evidence_level)
           || role?.can_record_profile_outcome !== false
           || role?.can_write_target !== false
-          || ["audit-run", "fix-authorization", "change-record"].includes(role?.output_type)) {
+          || ["audit-run", "fix-authorization", "change-record", "declared-change-record"].includes(role?.output_type)) {
         errors.push(`Extension role ${roleId} must remain a safe read-only AI role without orchestration, authorization, or change output.`);
       }
     }
@@ -614,6 +631,10 @@ function validateOrchestrationRegistrySemantics(registry, canonicalRegistry) {
   if (!isDeepStrictEqual(writers, ["authorized_fixer"])) errors.push("The registry must contain exactly one target writer: authorized_fixer.");
   const authorizers = roles.filter((role) => role?.output_type === "fix-authorization").map((role) => role.id);
   if (!isDeepStrictEqual(authorizers, ["declared_authorizer"])) errors.push("The registry must contain exactly one fix authorizer: declared_authorizer.");
+  const changeDeclarants = roles.filter((role) => role?.output_type === "declared-change-record").map((role) => role.id);
+  if (!isDeepStrictEqual(changeDeclarants, ["declared_change_reviewer", "declared_change_owner"])) {
+    errors.push("Only the two external declaration roles may produce declared-change-record.");
+  }
 
   const transitionKeys = [];
   const routeKeys = [];
@@ -642,8 +663,13 @@ function validateOrchestrationRegistrySemantics(registry, canonicalRegistry) {
     if (["fix-authorization", "change-record"].includes(artifactType) && !isCanonicalTransition) {
       errors.push(`Privileged artifact type cannot define an extension transition: ${String(artifactType)}.`);
     }
-    if (!isCanonicalTransition && canonicalStates.has(transition?.to)) {
+    const declaredChangeTransition = transition?.from === "remediation_ready" && transition?.to === "retest_required"
+      && isDeepStrictEqual(required, ["declared-change-record"]);
+    if (!isCanonicalTransition && canonicalStates.has(transition?.to) && !declaredChangeTransition) {
       errors.push(`Extension transition cannot enter canonical orchestration state: ${String(transition?.to)}.`);
+    }
+    if (artifactType === "declared-change-record" && !declaredChangeTransition) {
+      errors.push("Declared change records may only advance remediation_ready to retest_required.");
     }
     transitionKeys.push(`${String(transition?.from)}\u0000${String(artifactType)}`);
     routeKeys.push(`${String(transition?.from)}\u0000${String(transition?.to)}`);
@@ -720,6 +746,8 @@ export function loadAuditResources(skillRoot = defaultSkillRoot) {
     orchestrationSchemaV13: "references/orchestration-registry-13.0.0.schema.json",
     orchestrationRegistryV14: "references/orchestration-registry-14.0.0.json",
     orchestrationSchemaV14: "references/orchestration-registry-14.0.0.schema.json",
+    orchestrationRegistryV15: "references/orchestration-registry-15.0.0.json",
+    orchestrationSchemaV15: "references/orchestration-registry-15.0.0.schema.json",
     envelopeSchema: "references/audit-artifact-envelope.schema.json",
     envelopeSchemaV1: "references/audit-artifact-envelope-1.0.0.schema.json",
     envelopeSchemaV2: "references/audit-artifact-envelope-2.0.0.schema.json",
@@ -744,7 +772,8 @@ export function loadAuditResources(skillRoot = defaultSkillRoot) {
     ["frozen 11.0.0", loaded.orchestrationRegistryV11, loaded.orchestrationSchemaV11],
     ["frozen 12.0.0", loaded.orchestrationRegistryV12, loaded.orchestrationSchemaV12],
     ["frozen 13.0.0", loaded.orchestrationRegistryV13, loaded.orchestrationSchemaV13],
-    ["frozen 14.0.0", loaded.orchestrationRegistryV14, loaded.orchestrationSchemaV14]
+    ["frozen 14.0.0", loaded.orchestrationRegistryV14, loaded.orchestrationSchemaV14],
+    ["frozen 15.0.0", loaded.orchestrationRegistryV15, loaded.orchestrationSchemaV15]
   ]) {
     const registryErrors = [];
     validateJsonSchema(registry.value, schema.value, "$", registryErrors);
@@ -826,6 +855,7 @@ export function loadAuditResources(skillRoot = defaultSkillRoot) {
     loaded.orchestrationRegistryV12,
     loaded.orchestrationRegistryV13,
     loaded.orchestrationRegistryV14,
+    loaded.orchestrationRegistryV15,
     loaded.orchestrationRegistry
   ];
   const orchestrationRegistries = new Map(registryFiles.map((registry) => [
@@ -1249,7 +1279,7 @@ function validateHumanQueueBindings(envelopesById, profileId, resources, errors,
 }
 
 function validateScreeningProfileBindings(run, envelopesById, resources, errors) {
-  if (!["12.0.0", "13.0.0", "14.0.0", "15.0.0", "16.0.0"].includes(run.schema_version) || errors.length) return;
+  if (!["12.0.0", "13.0.0", "14.0.0", "15.0.0", "16.0.0", "17.0.0"].includes(run.schema_version) || errors.length) return;
   const profileIds = new Set(resources.standardsRegistry.profiles.find((profile) => profile.id === run.profile.id).requirement_ids);
   const observedIds = new Set();
   for (const record of envelopesById.values()) {
@@ -1372,7 +1402,7 @@ function validateDeclaredHumanBindings(envelopesById, profileId, resources, erro
       const evidenceTypes = new Set((review.target_specific_evidence ?? []).map((item) => item?.type));
       // Current run 11 may explicitly record non-performance without inventing
       // keyboard/browser/AT results. Frozen run 10 keeps its original checks.
-      if (["10.0.0", "11.0.0", "12.0.0", "13.0.0", "14.0.0", "15.0.0"].includes(resources.orchestrationRegistry.schema_version) && review.profile_outcome === "not_tested") {
+      if (["10.0.0", "11.0.0", "12.0.0", "13.0.0", "14.0.0", "15.0.0", "16.0.0"].includes(resources.orchestrationRegistry.schema_version) && review.profile_outcome === "not_tested") {
         requiredEvidenceTypes.clear();
         requiredEvidenceTypes.add("manual_observation");
         if ([...evidenceTypes].some((type) => type !== "manual_observation")) errors.push(`Declared human review ${artifactId} not_tested accepts only manual_observation non-performance notes for ${requirementId}.`);
@@ -1417,14 +1447,16 @@ export function validateArtifactCandidate(run, artifact, validation) {
   validateRemediationBindings(envelopes, errors);
   validateContextBindings(envelopes, errors);
   validateParticipantBindings(envelopes, errors);
+  validateDeclaredChangeBindings(run, envelopes, errors);
   errors.push(...targetBindingErrors(run, [artifact]));
   const reader = (relativePath) => readStableFile(resolveInside(validation.artifactRoot, path.join(validation.artifactRoot, ...relativePath.split("/"))));
   const evidence = errors.length ? { errors: [], snapshots: new Map() } : collectScreeningEvidence(run, [artifact], reader);
   const contextEvidence = errors.length ? { errors: [], snapshots: new Map() } : collectContextEvidence(run, [artifact], reader);
   const participantEvidence = errors.length ? { errors: [], snapshots: new Map() } : collectParticipantEvidence(run, [artifact], reader);
-  errors.push(...evidence.errors, ...contextEvidence.errors, ...participantEvidence.errors);
+  const changeEvidence = errors.length ? { errors: [], snapshots: new Map() } : collectDeclaredChangeEvidence(run, [artifact], reader);
+  errors.push(...evidence.errors, ...contextEvidence.errors, ...participantEvidence.errors, ...changeEvidence.errors);
   return { valid: errors.length === 0, errors,
-    evidenceSnapshots: new Map([...evidence.snapshots, ...contextEvidence.snapshots, ...participantEvidence.snapshots]) };
+    evidenceSnapshots: new Map([...evidence.snapshots, ...contextEvidence.snapshots, ...participantEvidence.snapshots, ...changeEvidence.snapshots]) };
 }
 
 export function validateHumanReviewCandidate(run, artifact, validation) {
@@ -1603,7 +1635,7 @@ export function validateAuditRun(run, { skillRoot = defaultSkillRoot, runFile, r
   const currentSchemaVersion = resources.auditRunSchema.properties.schema_version.const;
   // Run 10 has the same target/permission/human-binding checks; freezing its
   // payload schema must not weaken validation of existing records.
-  const usesCurrentPolicy = ["10.0.0", "11.0.0", "12.0.0", "13.0.0", "14.0.0", "15.0.0", currentSchemaVersion].includes(runRecord.schema_version);
+  const usesCurrentPolicy = ["10.0.0", "11.0.0", "12.0.0", "13.0.0", "14.0.0", "15.0.0", "16.0.0", currentSchemaVersion].includes(runRecord.schema_version);
   if (usesCurrentPolicy) {
     errors.push(...inspectionRequestErrors(runRecord.inspection_request));
     const profile = resources.standardsRegistry.profiles.find((item) => item.id === runRecord.profile?.id);
@@ -1663,6 +1695,7 @@ export function validateAuditRun(run, { skillRoot = defaultSkillRoot, runFile, r
     validateRemediationBindings(envelopesById, errors);
     validateContextBindings(envelopesById, errors);
     validateParticipantBindings(envelopesById, errors);
+    validateDeclaredChangeBindings(runRecord, envelopesById, errors);
   }
   validateHistory(runRecord, runResources, artifactsById, errors);
   errors.push(...targetBindingErrors(runRecord, [...envelopesById.values()].map(({ envelope }) => envelope)));
@@ -1684,8 +1717,14 @@ export function validateAuditRun(run, { skillRoot = defaultSkillRoot, runFile, r
     (relativePath) => readArtifactFile(resolveInside(artifactRoot, path.join(artifactRoot, ...relativePath.split("/"))))
   );
   errors.push(...participantEvidence.errors);
+  const changeEvidence = errors.length ? { errors: [], snapshots: new Map() } : collectDeclaredChangeEvidence(
+    runRecord,
+    [...envelopesById.values()].map(({ envelope }) => envelope),
+    (relativePath) => readArtifactFile(resolveInside(artifactRoot, path.join(artifactRoot, ...relativePath.split("/"))))
+  );
+  errors.push(...changeEvidence.errors);
   return { valid: errors.length === 0, errors, resources: runResources, artifactRoot, envelopesById,
-    evidenceSnapshots: new Map([...evidence.snapshots, ...contextEvidence.snapshots, ...participantEvidence.snapshots]) };
+    evidenceSnapshots: new Map([...evidence.snapshots, ...contextEvidence.snapshots, ...participantEvidence.snapshots, ...changeEvidence.snapshots]) };
 }
 
 function normalizePermission(value, aliases, name) {
@@ -1748,8 +1787,8 @@ export function createAuditRun(options) {
     if (!options.supersedesRunFile) throw new Error("supersedesRunFile is required for fresh retest initialization.");
     const predecessorValidation = validateAuditRun(options.supersedesRun, { skillRoot, runFile: options.supersedesRunFile });
     if (!predecessorValidation.valid) throw new Error(`Invalid superseded audit run:\n- ${predecessorValidation.errors.join("\n- ")}`);
-    if (!["5.0.0", "6.0.0", "7.0.0", "8.0.0", "9.0.0", "10.0.0", "11.0.0", "12.0.0", "13.0.0", "14.0.0", "15.0.0", "16.0.0"].includes(options.supersedesRun.schema_version)) {
-      throw new Error("Fresh retest predecessor must use supported audit-run schema_version 5.0.0 through 16.0.0.");
+    if (!["5.0.0", "6.0.0", "7.0.0", "8.0.0", "9.0.0", "10.0.0", "11.0.0", "12.0.0", "13.0.0", "14.0.0", "15.0.0", "16.0.0", "17.0.0"].includes(options.supersedesRun.schema_version)) {
+      throw new Error("Fresh retest predecessor must use supported audit-run schema_version 5.0.0 through 17.0.0.");
     }
     if (options.supersedesRun.status !== "retest_required") throw new Error("Fresh retest predecessor status must be retest_required.");
     if (run.run_id === options.supersedesRun.run_id) throw new Error("Fresh retest run ID must differ from the predecessor run ID.");
@@ -1760,6 +1799,13 @@ export function createAuditRun(options) {
     if (rootsOverlap) throw new Error("Fresh retest artifact root must differ from and not overlap the predecessor artifact root.");
     if (run.target.name !== options.supersedesRun.target.name) throw new Error("Fresh retest target name must match the predecessor.");
     if (run.target.version_or_commit === options.supersedesRun.target.version_or_commit) throw new Error("Fresh retest target version must change from the predecessor.");
+    const declaredChange = options.supersedesRun.artifacts.find((entry) => entry.artifact_type === "declared-change-record");
+    if (declaredChange) {
+      const declaration = predecessorValidation.envelopesById.get(declaredChange.artifact_id)?.envelope;
+      if (run.target.version_or_commit !== declaration?.payload?.after_version) {
+        throw new Error("Fresh retest target version must match the registered declared change.");
+      }
+    }
     if (!isDeepStrictEqual(run.target.urls_or_files, options.supersedesRun.target.urls_or_files)) throw new Error("Fresh retest target references must match the predecessor.");
     if (!isDeepStrictEqual(run.profile, options.supersedesRun.profile)) throw new Error("Fresh retest profile must match the predecessor.");
     if (!isDeepStrictEqual(run.scope, options.supersedesRun.scope)) throw new Error("Fresh retest scope must match the predecessor.");
@@ -1805,10 +1851,13 @@ export async function registerArtifactChecked(run, artifact, options = {}) {
   const errors = [...validateArtifact(installed, validation.resources, { allowedPayloadVersions: validation.resources.currentPayloadVersions }).errors,
     ...targetBindingErrors(run, [installed])];
   if (errors.length) throw new Error(`Invalid artifact:\n- ${errors.join("\n- ")}`);
-  const targetCheck = run.target_inventory && installed.artifact_type !== "change-record"
+  const afterRun = installed.artifact_type === "declared-change-record" ? afterChangeRun(run, installed.payload.after_version) : null;
+  const afterTargetCheck = afterRun ? await checkRunTargets(afterRun, installed.payload.after_target_inventory,
+    { baseDir: path.dirname(path.resolve(options.runFile)), networkPolicy: options.networkPolicy, onNetworkEvidence: options.onNetworkEvidence }) : undefined;
+  const targetCheck = run.target_inventory && !["change-record", "declared-change-record"].includes(installed.artifact_type)
     ? await checkRunTargets(run, run.target_inventory, { baseDir: path.dirname(path.resolve(options.runFile)), networkPolicy: options.networkPolicy, onNetworkEvidence: options.onNetworkEvidence }) : undefined;
   assertStableFile(snapshot, "artifact file");
-  return registerArtifact(run, installed, { ...options, targetCheck });
+  return registerArtifact(run, installed, { ...options, targetCheck, afterTargetCheck });
 }
 
 export function registerArtifact(run, artifact, options = {}) {
@@ -1861,7 +1910,12 @@ export function registerArtifact(run, artifact, options = {}) {
   if (outgoing.length === 0 && !incomingCurrent && !supplementalContext) throw new Error(`Artifact type ${installedArtifact.artifact_type} is a future or invalid transition from ${run.status}`);
   const lastHistoryAt = run.history.at(-1)?.at;
   if (lastHistoryAt && compareInstants(installedArtifact.created_at, lastHistoryAt) < 0) throw new Error("Artifact created_at precedes the current run state.");
-  if (run.target_inventory && installedArtifact.artifact_type !== "change-record") {
+  if (installedArtifact.artifact_type === "declared-change-record") {
+    const afterRun = afterChangeRun(run, installedArtifact.payload.after_version);
+    const check = options.afterTargetCheck ?? checkLocalRunTargets(afterRun, installedArtifact.payload.after_target_inventory,
+      { baseDir: path.dirname(path.resolve(options.runFile)) });
+    consumeRunTargetCheck(check, afterRun, installedArtifact.payload.after_target_inventory);
+  } else if (run.target_inventory && installedArtifact.artifact_type !== "change-record") {
     const check = options.targetCheck ?? checkLocalRunTargets(run, run.target_inventory, { baseDir: path.dirname(path.resolve(options.runFile)) });
     consumeRunTargetCheck(check, run, run.target_inventory);
   }
