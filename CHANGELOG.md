@@ -8,6 +8,8 @@ This project uses a Keep a Changelog-style structure. Until a tagged release is 
 
 ### Added
 
+- Explicit WCAG-equivalent procedures now remain available for JIS and public-web additional criteria in discovery, review queues, and assessment validation.
+
 - WCAG 2.2 SC 3.3.7 has English and Japanese procedures for repeated entry within one process, available-value reuse, and item-specific exceptions.
 
 - WCAG 2.2 SC 3.3.4 has English and Japanese procedures for reversible, checked, or pre-confirmed consequential submissions, with safe review boundaries.

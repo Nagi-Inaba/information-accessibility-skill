@@ -6,6 +6,7 @@ import process from "node:process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { assertValidStandardsRegistry, groupForRequirement, recordsForProfile } from "./lib/profile-registry.mjs";
+import { resolveCriterionProcedure } from "./lib/criterion-procedure-resolution.mjs";
 import {
   normalizeRuntimeLocale,
   requirementsUi,
@@ -89,16 +90,6 @@ function parseArgs(argv) {
   return options;
 }
 
-function directOrEquivalentProcedure(record, procedures) {
-  const direct = procedures.procedures.find((item) => item.requirement_id === record.id);
-  if (direct) return { status: "available", ref: `criterion-procedures:${procedures.schema_version}#${direct.id}` };
-  if (record.web_modern_record_id) {
-    const equivalent = procedures.procedures.find((item) => item.requirement_id === record.web_modern_record_id);
-    if (equivalent) return { status: "available", ref: `criterion-procedures:${procedures.schema_version}#${equivalent.id}` };
-  }
-  return { status: "unavailable", ref: null };
-}
-
 function titleMetadata(record, recordsById, recordsByCriterion) {
   const relatedRecords = recordsByCriterion.get(record.success_criterion) ?? [];
   const webRecord = record.web_modern_record_id
@@ -163,7 +154,7 @@ export function buildRequirementsIndex(root = skillRoot) {
 
   const requirements = activeProfiles.flatMap((profile) => recordsForProfile({ profile, catalog }).map((record) => {
     const title = titleMetadata(record, recordsById, recordsByCriterion);
-    const procedure = directOrEquivalentProcedure(record, procedures);
+    const { procedure } = resolveCriterionProcedure(record, procedures);
     const sourceUrls = urlsFrom(record);
     for (const standard of profile.standards ?? []) if (standard.primary_url) sourceUrls.add(standard.primary_url);
     if (title.web_record) urlsFrom(title.web_record, sourceUrls);
@@ -183,8 +174,8 @@ export function buildRequirementsIndex(root = skillRoot) {
       profile_ids: [profile.id],
       profile_group: groupForRequirement(profile, record.id),
       method_key: record.method_key,
-      procedure_status: procedure.status,
-      procedure_ref: procedure.ref,
+      procedure_status: procedure ? "available" : "unavailable",
+      procedure_ref: procedure ? `criterion-procedures:${procedures.schema_version}#${procedure.id}` : null,
       normative_url: record.normative_url ?? title.web_record?.normative_url ?? null,
       understanding_url: record.understanding_url ?? title.web_record?.understanding_url ?? null,
       source_urls: [...sourceUrls].sort((left, right) => left.localeCompare(right, "en")),

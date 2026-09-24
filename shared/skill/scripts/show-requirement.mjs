@@ -5,6 +5,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { buildRequirementsIndex } from "./browse-requirements.mjs";
 import { profileConfiguration, recordsForProfile } from "./lib/profile-registry.mjs";
+import { resolveCriterionProcedure } from "./lib/criterion-procedure-resolution.mjs";
 import {
   localizeAuditMethod,
   localizeCriterionProcedure,
@@ -42,24 +43,11 @@ export function lookupRequirement(profileId, requirementId, root = skillRoot, lo
   const method = methods.methods.find((item) => item.id === criterion.method_key);
   if (!method) throw new Error(`Audit method is missing for ${requirementId}: ${criterion.method_key}`);
 
-  const directCriterionProcedure = criterionProcedures.procedures.find(
-    (item) => item.requirement_id === requirementId
-  );
-  const equivalentCriterionProcedure = !directCriterionProcedure && criterion.web_modern_record_id
-    ? criterionProcedures.procedures.find(
-      (item) => item.requirement_id === criterion.web_modern_record_id
-    )
-    : null;
-  const criterionProcedure = directCriterionProcedure ?? equivalentCriterionProcedure;
+  const { procedure: criterionProcedure, officialSources: procedureOfficialSources } =
+    resolveCriterionProcedure(criterion, criterionProcedures);
   const localizedMethod = localizeAuditMethod(method, selectedLocale, root);
   const localizedCriterionProcedure = criterionProcedure
     ? localizeCriterionProcedure(criterionProcedure, selectedLocale, root)
-    : null;
-  const procedureOfficialSources = criterionProcedure
-    ? [...new Set([
-      ...(equivalentCriterionProcedure ? (criterion.official_method_sources ?? []) : []),
-      ...criterionProcedure.primary_sources
-    ])]
     : null;
   const procedureBinding = localizedCriterionProcedure ? {
     procedure_availability: "available",

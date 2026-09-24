@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 
 import { validateAssessment } from "../validate-assessment.mjs";
 import { lookupRequirement } from "../show-requirement.mjs";
+import { resolveCriterionProcedure } from "./criterion-procedure-resolution.mjs";
 import { queueContextErrors } from "./human-review-queue.mjs";
 import { screeningMappings } from "./review-details.mjs";
 import { validateJsonSchema } from "./json-schema.mjs";
@@ -1493,7 +1494,7 @@ function validateDeclaredHumanBindings(envelopesById, profileId, resources, erro
         errors.push(`Declared human review ${artifactId} requirement is not registered in profile ${String(profileId)}: ${String(requirementId)}.`);
         continue;
       }
-      const procedure = resources.criterionProcedures.procedures.find((item) => item.requirement_id === requirementId);
+      const { procedure, officialSources } = resolveCriterionProcedure(catalog, resources.criterionProcedures);
       const requiredEvidenceTypes = new Set(queueItem.required_evidence_types ?? []);
       if (procedure) {
         const expectedProcedureRef = `criterion-procedures:${resources.criterionProcedures.schema_version}#${procedure.id}`;
@@ -1502,8 +1503,8 @@ function validateDeclaredHumanBindings(envelopesById, profileId, resources, erro
           errors.push(`Declared human review ${artifactId} must use the current registered procedure ${expectedProcedureRef} for ${requirementId}.`);
         }
         if (review.generic_method_ref !== null) errors.push(`Declared human review ${artifactId} generic_method_ref must be null when a criterion procedure is available for ${requirementId}.`);
-        if (!exactStringSet(review.official_sources, procedure.primary_sources)) {
-          errors.push(`Declared human review ${artifactId} official_sources must exactly match the registered procedure primary sources for ${requirementId}.`);
+        if (!exactStringSet(review.official_sources, officialSources)) {
+          errors.push(`Declared human review ${artifactId} official_sources must exactly match the registered official sources for ${requirementId}.`);
         }
         for (const evidenceType of procedure.required_evidence_types ?? []) requiredEvidenceTypes.add(evidenceType);
       } else {

@@ -2362,6 +2362,29 @@ test("declared human review is bound to its registered queue, current procedure,
   assert.match(missingEvidenceType.errors.join("\n"), /required evidence|manual_observation/i);
 }));
 
+test("public-web additional criterion keeps its WCAG procedure binding through run validation", (t) => withTemp(t, ({ temp, artifactRoot }) => {
+  const id = "WCAG-2.2-ADDITIONAL-SC-3.3.7";
+  const fixture = makeHumanReviewRun(artifactRoot);
+  fixture.run.profile.id = "jp-public-web";
+  const queue = readJson(fixture.queueFile);
+  queue.payload = createHumanReviewQueue({ run: fixture.run, manualRequirements: [id], skillRoot });
+  writeJson(fixture.queueFile, queue);
+  const binding = queue.payload.items[0];
+  const review = fixture.human.payload.reviews[0];
+  review.review_id = "HR-FIXTURE-ADDITIONAL-337";
+  review.requirement_id = id;
+  review.procedure_availability = binding.procedure_availability;
+  review.criterion_procedure_ref = binding.procedure_ref;
+  review.official_sources = binding.official_sources;
+  fixture.human.inputs[0].sha256 = sha256File(fixture.queueFile);
+  writeJson(fixture.humanFile, fixture.human);
+  for (const [artifactId, file] of [[queue.artifact_id, fixture.queueFile], [fixture.human.artifact_id, fixture.humanFile]]) {
+    fixture.run.artifacts.find((entry) => entry.artifact_id === artifactId).sha256 = sha256File(file);
+  }
+  const validation = validateAuditRun(fixture.run, { skillRoot, runFile: path.join(temp, "run.json") });
+  assert.equal(validation.valid, true, validation.errors.join("\n"));
+}));
+
 test("unavailable declared review uses the queued criterion's current generic method and catalog sources", (t) => withTemp(t, ({ temp, artifactRoot }) => {
   const fixture = makeHumanReviewRun(artifactRoot);
   const queue = readJson(fixture.queueFile);

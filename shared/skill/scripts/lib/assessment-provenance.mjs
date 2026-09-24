@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { attestationDigest, canonicalAttestationJson, parseAttestationJson } from "./attestation-canonical.mjs";
+import { resolveCriterionProcedure } from "./criterion-procedure-resolution.mjs";
 import { humanReviewContext, humanReviewRunContext, humanReviewSigningSubject, verifyHumanReviewRecord } from "./human-review-provenance.mjs";
 import { declaredFindings, declaredFindingErrors } from "./run-findings.mjs";
 import { reviewEntries, resolveHumanReviews } from "./human-review-consensus.mjs";
@@ -33,7 +34,7 @@ export function validateReviewBindings(record, catalogRecords, auditMethods, pro
       const id = review?.requirement_id;
       const catalog = catalogRecords.find((entry) => entry.id === id);
       if (!catalog) { errors.push(`Human review requirement is not in the assessment profile: ${id}`); continue; }
-      const procedure = procedures.procedures.find((entry) => entry.requirement_id === id);
+      const { procedure, officialSources } = resolveCriterionProcedure(catalog, procedures);
       const method = auditMethods?.methods?.find((entry) => entry.id === catalog.method_key);
       if (procedure) {
         const ref = `criterion-procedures:${procedures.schema_version}#${procedure.id}`;
@@ -42,7 +43,7 @@ export function validateReviewBindings(record, catalogRecords, auditMethods, pro
         const ref = method ? `web-audit-methods:${auditMethods.schema_version}#${method.id}` : null;
         if (!ref || review.procedure_availability !== "unavailable" || review.criterion_procedure_ref !== null || review.generic_method_ref !== ref) errors.push(`Human review must preserve the unavailable criterion procedure and registered generic method: ${id}`);
       }
-      if (!exactSet(review.official_sources, procedure?.primary_sources ?? catalog.official_method_sources)) errors.push(`Human review official_sources must exactly match the registered procedure or catalog: ${id}`);
+      if (!exactSet(review.official_sources, officialSources)) errors.push(`Human review official_sources must exactly match the registered procedure or catalog: ${id}`);
       const types = new Set((review.target_specific_evidence ?? []).map((entry) => entry?.type));
       const nonPerformance = ["11.0.0", "12.0.0", "13.0.0", "14.0.0", "15.0.0", "16.0.0", "17.0.0"].includes(options.run?.schema_version) && review.profile_outcome === "not_tested";
       const requiredTypes = nonPerformance ? ["manual_observation"] : procedure?.required_evidence_types ?? method?.required_evidence_types ?? [];
