@@ -362,7 +362,9 @@ Web監査runと独立した`non-web-review`を追加した。`init`は文書／�
 
 #51では`shared/skill`を共通本文の追跡対象とし、Codex固有の`agents/openai.yaml`を`platform/codex/agents`へ分離した。既存の`codex/skills/...`と`claude/skills/...`はGitの追跡対象から外して同期生成し、従来の導入先pathは維持する。sourceだけのcloneから両配布物を生成でき、installerと検証器は不足分を生成する。release生成器はcommitに固定したsourceから一時領域で両配布物を生成し、実バイトのhashと展開後のpackageを確認する。CIは生成後にE2Eを実行する。247の共通ファイルを重複追跡せずに済む。
 
-同期器の生成・rollbackテスト28件（2件スキップ）、Codex／Claude導入テスト22件、releaseテスト3件、移行で変わったCLI／registryテスト22件が成功。package・catalog・同期checkも成功した。全体テストは`exceljs`欠落と実ブラウザー能力不足のため対象外を分けて確認した。Ubuntu／WindowsのリモートCI、実ブラウザーE2E、release公開は未実行であり、GitHub上のIssueもopenのまま維持する。
+同期器の生成・rollback、Codex／Claude導入、release、移行で変わったCLI／registryの対象テストが成功。symlinkを作れない環境の2件はスキップした。package・catalog・同期checkも成功した。全体テストは`exceljs`欠落と実ブラウザー能力不足のため対象外を分けて確認した。Ubuntu／WindowsのリモートCI、実ブラウザーE2E、release公開は未実行であり、GitHub上のIssueもopenのまま維持する。
+
+commit済みのsourceだけを展開した環境で両installerのdry-runを実行し、既存の導入先に書き込まず生成できることを確認した。実HEADからの一時release候補はsource 424件と生成配布物495件を収録し、CLIの実行権限とアーカイブの検証が成功。候補は検証後に削除した。
 
 #46ではW3CのWCAG 2.2本体・errata・Understanding・Techniques・ACT・ARIA 1.2、WAICのJISチェックリスト・解説、デジタル庁の方針ページの9件を固定し、週次または手動でURL・転送先・HTTP情報・本文hashを監視する。変更・取得失敗はレビュー対象としてCIを失敗させ、成果物に保持する。既存のcatalog候補生成と差分比較を接続し、正本や`last_verified_at`は自動更新しない。ローカル実行では9件を取得でき、初期baselineとの差は0件。catalog候補の構造差分は0件だが、デジタル庁ページの本文hashだけが保存済みcatalogから変化しており、人手確認が必要。リモートのschedule・artifact uploadは未実行。baseline更新と正本への採用は出典・内容の確認後に別commitで行う。
 
