@@ -784,6 +784,39 @@
         "cant_tell": ["A cropped image shows red and green field borders, but the labels and validation messages outside the crop are unavailable."]
       },
       "ai_boundary": "AI may flag color-coded candidates and provisional luminance comparisons, but it must not infer that a visible alternative conveys the same meaning or record a profile outcome, human_verified mapping, or E2+ claim from CSS or an accessibility-tree label alone; a human reviewer checks the rendered context."
+    },
+    {
+      "id": "wcag22-sc-3-3-4-error-prevention-legal-financial-data",
+      "requirement_id": "WCAG-2.2-SC-3.3.4",
+      "procedure_version": "1.0.0",
+      "procedure_kind": "human_manual_or_hybrid",
+      "automation_role": "supporting_only",
+      "primary_sources": ["https://www.w3.org/TR/WCAG22/#error-prevention-legal-financial-data", "https://www.w3.org/WAI/WCAG22/Understanding/error-prevention-legal-financial-data.html"],
+      "applicability_steps": [
+        "Identify scoped pages and final actions that create a legal commitment or financial transaction, modify or delete stored user-controllable data, or submit a user's test responses; record what becomes final and who can control the affected data.",
+        "Use a permitted test account or non-production fixture to inspect consequential actions. If no safe path exists, review pre-final states and available records without submitting a real transaction, deletion, or test response."
+      ],
+      "procedure_steps": [
+        "For each applicable action, trace the user flow up to finalization and identify whether it offers a reversible submission, checks entered data for input errors with an opportunity to correct them, or provides review, confirmation, and correction before finalization.",
+        "For a reversible route, verify the usable undo or cancellation method and its applicable time or conditions in a safe test flow; a vague claim that staff may help later is not sufficient without an effective reversal path.",
+        "For a checked route, use safe values to trigger representative rejected input and confirm that the user can correct it before the consequential action completes. Record error identification under SC 3.3.1 and suggestions under SC 3.3.3 separately.",
+        "For a confirmed route, inspect the information or action presented before finalization, then verify that the user can review and confirm it and has a way to correct it before the final action."
+      ],
+      "expected_results": [
+        "Each applicable consequential submission has at least one working safeguard: reversible, checked with correction, or reviewable and correctable before final confirmation.",
+        "The safeguard operates at the point where the action becomes consequential, and the reviewer records which of the three routes supports the finding."
+      ],
+      "required_evidence_types": ["browser_inspection", "manual_observation"],
+      "cant_tell_when": [
+        "The consequence of the final action or whether affected stored data is user-controllable cannot be established from the permitted target and records.",
+        "No safe path or adequate evidence is available to verify the claimed reversal, correction, or pre-final review mechanism without causing a real transaction, deletion, or test submission."
+      ],
+      "counterexamples": {
+        "pass": ["Before placing a test order, a summary shows the items, quantity, and payment choice; the user can return to correct them or cancel before final confirmation."],
+        "fail": ["Submitting an account deletion immediately removes stored user-controllable records, with no effective undo, checked correction path, or pre-final review and correction."],
+        "cant_tell": ["A live purchase page promises later cancellation, but the cancellation terms and a safe test path are unavailable."]
+      },
+      "ai_boundary": "AI may identify candidate consequential flows and safeguards, but it must not infer that a transaction is reversible or a correction mechanism works from labels alone, or record a profile outcome, human_verified mapping, or E2+ claim without a human review of the permitted flow."
     }
   ]
 }
