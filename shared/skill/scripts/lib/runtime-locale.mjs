@@ -41,7 +41,7 @@ const englishRequirements = Object.freeze({
     criterion_cant_tell: "Criterion-specific cannot tell",
     ai_boundary: "AI boundary",
     primary_sources: "Primary sources",
-    procedure_unavailable: "No criterion-specific procedure is bundled for this requirement. Use the routed generic playbook and primary sources; do not infer that this partial procedure catalog covers the requirement.",
+    procedure_unavailable: "No criterion-specific procedure is bundled for this requirement. Use the routed generic playbook and primary sources; do not infer that this catalog covers the requirement.",
     usage_boundary: "Open the criterion's primary sources before evaluating it. This lookup is a reproducibility aid, not a conformance determination."
   },
   procedure_status: { available: "available", unavailable: "unavailable" }
