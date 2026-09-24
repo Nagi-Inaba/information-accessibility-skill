@@ -123,11 +123,22 @@ const definitions = [
     notes: ["Both runs and their saved files are revalidated. Results describe byte changes, not accessibility outcomes."]
   },
   {
+    name: "lifecycle",
+    script: "manage-finding-lifecycle.mjs",
+    summary: "Create immutable private finding-management revisions linked to registered audit findings.",
+    usage: ["accessibility-audit lifecycle init --run <run.json> --finding <finding-id> --output <artifacts/lifecycle-1.json> [--updated-at <RFC3339>]",
+      "accessibility-audit lifecycle advance --run <run.json> --before <prior-lifecycle.json> --input <state-patch.json> --output <artifacts/lifecycle-next.json>"],
+    notes: ["Patch JSON may update status, assignee, accountable_owner, due_on, target_release, blocked_by, external_issues, decision, closure and updated_at.",
+      "Each new file links the prior file hash. Accepted risk or exception never changes a human profile result into pass."]
+  },
+  {
     name: "status",
     script: "show-audit-status.mjs",
     summary: "Read run state, evidence coverage, validation, successor warnings and next operations.",
-    usage: ["accessibility-audit status --run <run.json> [--retest-of <predecessor-run.json>] [--format text|json] [--locale ja|en]"],
+    usage: ["accessibility-audit status --run <run.json> [--retest-of <predecessor-run.json>] [--lifecycle <latest-lifecycle.json> ...] [--as-of YYYY-MM-DD] [--format text|json] [--locale ja|en]"],
     options: [option("--run", "<run.json>", "Run manifest to inspect without modification."),
+      option("--lifecycle", "<latest-record.json>", "Validate one finding-management chain; repeatable."),
+      option("--as-of", "<YYYY-MM-DD>", "Date for overdue and exception checks; default is the host local date."),
       option("--format", "<text|json>", "Text or versioned JSON output. Default: text."),
       option("--locale", "<ja|en>", "Human-readable locale. JSON field names stay stable.")],
     notes: ["Read-only: no transition, target interaction or artifact write is performed.",
@@ -331,12 +342,14 @@ const definitions = [
     summary: "Render a profile-aware, provenance-explicit Markdown report from a validated standalone or run-backed assessment.",
     usage: [
       "accessibility-audit report --input <assessment.json> [--locale ja|en] [--output <report.md>]",
-      "accessibility-audit report --run <audit-run.json> --assessment <assessment.json> --output <new-report.md> [--locale ja|en]"
+      "accessibility-audit report --run <audit-run.json> --assessment <assessment.json> --output <new-report.md> [--lifecycle <latest-lifecycle.json> ...] [--as-of YYYY-MM-DD] [--locale ja|en]"
     ],
     options: [
       option("--input", "<assessment.json>", "Standalone interface."),
       option("--run", "<audit-run.json>", "Run-backed interface; requires --assessment and --output."),
       option("--assessment", "<assessment.json>", "Merged run-backed assessment."),
+      option("--lifecycle", "<latest-lifecycle.json>", "Add a validated private lifecycle status summary for a registered finding; repeatable."),
+      option("--as-of", "<YYYY-MM-DD>", "Date for overdue and exception-expiry checks; default is the host local date."),
       option("--trust-policy", "<recipient-selected.json>", "Reverify reviewer signatures under an external policy; requires its independent pin."),
       option("--trust-policy-sha256", "<canonical SHA-256>", "Independent policy pin. Omitting both trust flags leaves valid signatures self-signed."),
       option("--locale", "<ja|en>", "Human-readable report locale; default ja. IDs and enum values do not change."),

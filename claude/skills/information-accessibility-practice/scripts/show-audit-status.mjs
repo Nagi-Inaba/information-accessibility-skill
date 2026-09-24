@@ -9,6 +9,7 @@ import { validateRunBackedAssessment } from "./render-audit-report.mjs";
 import { networkScopeSummary } from "./lib/network-policy.mjs";
 import { interactionScopeSummary } from "./lib/interaction-policy.mjs";
 import { findingRelations, findingRetestSummary, remediationPlanItems } from "./lib/run-findings.mjs";
+import { lifecycleSummary, loadLifecycle } from "./lib/finding-lifecycle.mjs";
 import { reviewEntries, resolveHumanReviews, consensusReviewRows, consensusRemediationItems } from "./lib/human-review-consensus.mjs";
 import { assertStableFile, defaultSkillRoot, mergeArtifacts, readStableFile, validateAuditRun } from "./lib/audit-run.mjs";
 
@@ -67,7 +68,7 @@ function discoverSuccessors(run, runFile, artifactRoot, skillRoot) {
   return { search_scope: "sibling_json_files_only", successors: candidates, warnings };
 }
 
-export function auditStatus(runFile, { skillRoot = defaultSkillRoot, retestOf } = {}) {
+export function auditStatus(runFile, { skillRoot = defaultSkillRoot, retestOf, lifecycleFiles = [], asOf } = {}) {
   const absolute = path.resolve(runFile);
   const snapshot = readStableFile(absolute, { label: "audit run" });
   const run = parse(snapshot);
@@ -101,6 +102,14 @@ export function auditStatus(runFile, { skillRoot = defaultSkillRoot, retestOf } 
     recovery: validation.valid ? [] : ["Restore the original registered evidence and matching package resources; validate-run again. Do not edit hashes to silence a mismatch."]
   };
   if (validation.valid) {
+    if (lifecycleFiles.length) result.lifecycle = [];
+    const lifecycleIds = new Set();
+    for (const file of lifecycleFiles) {
+      const loaded = loadLifecycle(path.resolve(file), { run, validation, runFile: absolute });
+      if (lifecycleIds.has(loaded.record.finding_id)) throw new Error(`Duplicate lifecycle finding: ${loaded.record.finding_id}.`);
+      lifecycleIds.add(loaded.record.finding_id);
+      result.lifecycle.push({ ...lifecycleSummary(loaded.record, asOf), revision: loaded.record.revision, history: loaded.history });
+    }
     if (!current) result.warnings.push({ code: "legacy_read_only" });
     const blockedReason = current ? null : "legacy_read_only";
     const registry = resources.orchestrationRegistry;
@@ -192,6 +201,11 @@ export function statusText(result, locale = "en") {
     ...(result.finding_retest ? ["", ja ? "指摘・条項ごとの再確認（申告に基づく。指摘の解消確定ではありません）" : "Finding/criterion retest declarations (not confirmation of finding resolution)",
       ...result.finding_retest.findings.map((item) => `- ${item.finding_id}: ${item.status} / ${item.requirement_ids.join(", ")}`),
       ...result.finding_retest.requirements.map((item) => `- ${item.requirement_id}: ${item.status}`)] : []),
+    ...(result.lifecycle?.length ? ["", ja ? "改善管理（規格判定とは別）" : "Finding management (separate from conformance outcomes)",
+      ...result.lifecycle.map((item) => `- ${item.finding_id}: ${item.status} / assignee ${item.assignee ?? "unset"} / owner ${item.accountable_owner ?? "unset"} / due ${item.due_on ?? "unset"} / ${[
+        item.overdue ? "overdue" : null, item.owner_missing ? "owner_missing" : null,
+        item.exception_expired ? "exception_expired" : null, item.exception_review_due ? "exception_review_due" : null
+      ].filter(Boolean).join(", ") || "no_alert"}`)] : []),
     "", ja ? "後続runの検索範囲: 同じディレクトリ内のJSONのみ。外部のコピーは未確認です。" : "Successor search: sibling JSON files only; copies elsewhere are not checked.",
     ...result.warnings.map((warning) => `${ja ? "注意" : "Warning"}: ${JSON.stringify(warning)}`),
     ...result.errors.map((error) => `${ja ? "エラー" : "Error"}: ${error}`),
@@ -201,18 +215,20 @@ export function statusText(result, locale = "en") {
 }
 
 export function main(argv = process.argv.slice(2)) {
-  const options = { format: "text", locale: "en" };
+  const options = { format: "text", locale: "en", lifecycleFiles: [] };
   const seen = new Set();
   for (let i = 0; i < argv.length; i += 2) {
-    const key = { "--run": "run", "--format": "format", "--locale": "locale", "--retest-of": "retestOf" }[argv[i]];
-    if (!key || seen.has(key) || !argv[i + 1] || argv[i + 1].startsWith("--")) throw new Error(`Invalid or duplicate argument: ${argv[i]}`);
+    const key = { "--run": "run", "--format": "format", "--locale": "locale", "--retest-of": "retestOf",
+      "--as-of": "asOf", "--lifecycle": "lifecycleFiles" }[argv[i]];
+    if (!key || (key !== "lifecycleFiles" && seen.has(key)) || !argv[i + 1] || argv[i + 1].startsWith("--")) throw new Error(`Invalid or duplicate argument: ${argv[i]}`);
     seen.add(key);
-    options[key] = argv[i + 1];
+    if (key === "lifecycleFiles") options.lifecycleFiles.push(argv[i + 1]);
+    else options[key] = argv[i + 1];
   }
   if (!options.run) throw new Error("--run is required");
   if (!["text", "json"].includes(options.format)) throw new Error("--format must be text or json");
   if (!["ja", "en"].includes(options.locale)) throw new Error("--locale must be ja or en");
-  const result = auditStatus(options.run, { retestOf: options.retestOf });
+  const result = auditStatus(options.run, { retestOf: options.retestOf, lifecycleFiles: options.lifecycleFiles, asOf: options.asOf });
   process.stdout.write(options.format === "json" ? `${JSON.stringify(result, null, 2)}\n` : statusText(result, options.locale));
   return result.valid ? 0 : 1;
 }

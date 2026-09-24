@@ -7,6 +7,8 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { cli, pass, read } from "./helpers/scanner-import.mjs";
+import { createHumanReviewQueue } from "../codex/skills/information-accessibility-practice/scripts/lib/human-review-queue.mjs";
+import { targetSnapshotIds } from "../codex/skills/information-accessibility-practice/scripts/lib/run-targets.mjs";
 
 const example = fileURLToPath(new URL("../examples/run-backed-web-audit/run.mjs", import.meta.url));
 const save = (file, value) => fs.writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`, "utf8");
@@ -99,5 +101,69 @@ test("core-only manual, vendor and pull-request changes require measured target 
       "--report", path.join(retestRoot, "wrong.md")]), /successor/);
     rejected(cli(["compare-runs", "--before", after, "--after", retest, "--output", path.join(scenario, "outside-delta.json"),
       "--report", path.join(retestRoot, "inside-report.md")]), /private artifact root/);
+
+    const retestBundle = path.join(retestRoot, "retest-state.json"), retestSpecs = path.join(retestRoot, "retest-specs.json");
+    save(retestBundle, bundle); save(retestSpecs, [{ ...spec, bundle_path: retestBundle }]);
+    const retestInventory = path.join(retestRoot, "retest-inventory.json"), boundRetest = path.join(scenario, "retest-bound.json");
+    pass(cli(["capture-targets", "--run", retest, "--specs", retestSpecs, "--output", retestInventory]));
+    pass(cli(["bind-targets", "--run", retest, "--targets", retestInventory, "--output", boundRetest]));
+    const bound = read(boundRetest), ids = targetSnapshotIds(bound);
+    const hash = (file) => crypto.createHash("sha256").update(fs.readFileSync(file)).digest("hex");
+    const sourceScreen = read(path.join(artifacts, "screening-observations.json"));
+    const screen = structuredClone(sourceScreen), screenFile = path.join(retestRoot, "retest-screen.json");
+    screen.artifact_id = "ART-RETEST-SCREEN"; screen.run_id = bound.run_id; screen.target_snapshot_ids = ids;
+    screen.created_at = "2026-09-25T02:00:01Z";
+    screen.payload.observations[0].captured_at = screen.created_at;
+    screen.payload.observations[0].evidence_level = "E0";
+    screen.payload.observations[0].evidence_refs = [];
+    screen.payload.observations[0].report_outcome = "not_tested";
+    save(screenFile, screen);
+    const screenedRetest = path.join(scenario, "retest-screened.json");
+    pass(cli(["register", "--run", boundRetest, "--artifact", screenFile, "--output", screenedRetest]));
+    const queue = read(path.join(artifacts, "human-review-queue.json")), queueFile = path.join(retestRoot, "retest-queue.json");
+    queue.artifact_id = "ART-RETEST-QUEUE"; queue.run_id = bound.run_id; queue.target_snapshot_ids = ids;
+    queue.created_at = "2026-09-25T02:00:02Z";
+    queue.inputs = [{ artifact_id: screen.artifact_id, run_id: bound.run_id, sha256: hash(screenFile) }];
+    queue.payload = createHumanReviewQueue({ run: bound, screenings: [screen] });
+    save(queueFile, queue);
+    const queuedRetest = path.join(scenario, "retest-queued.json");
+    pass(cli(["register", "--run", screenedRetest, "--artifact", queueFile, "--output", queuedRetest]));
+    const human = read(path.join(artifacts, "declared-human-review.json")), humanFile = path.join(retestRoot, "retest-human.json");
+    human.artifact_id = "ART-RETEST-HUMAN"; human.run_id = bound.run_id; human.target_snapshot_ids = ids;
+    human.created_at = "2026-09-25T02:00:03Z";
+    human.inputs = [{ artifact_id: queue.artifact_id, run_id: bound.run_id, sha256: hash(queueFile) }];
+    human.payload.reviews[0].review_id = "HR-RETEST-PASS";
+    human.payload.reviews[0].profile_outcome = "pass";
+    human.payload.reviews[0].rationale = "External human verification of the repaired fixture.";
+    human.payload.reviews[0].target_specific_evidence.forEach((item) => { item.captured_at = human.created_at; });
+    save(humanFile, human);
+    const reviewedRetest = path.join(scenario, "retest-reviewed.json");
+    pass(cli(["register", "--run", queuedRetest, "--artifact", humanFile, "--output", reviewedRetest]));
+
+    const lifePatch = path.join(artifacts, "lifecycle-patch.json");
+    let priorLife = path.join(artifacts, "lifecycle-1.json");
+    const lifeBase = Date.now();
+    const lifeAt = (step) => new Date(lifeBase + step).toISOString();
+    pass(cli(["lifecycle", "init", "--run", after, "--finding", plan.payload.items[0].remediation_id,
+      "--updated-at", lifeAt(1), "--output", priorLife]));
+    const advance = (number, patch) => {
+      const next = path.join(artifacts, `lifecycle-${number}.json`);
+      save(lifePatch, patch);
+      pass(cli(["lifecycle", "advance", "--run", after, "--before", priorLife, "--input", lifePatch, "--output", next]));
+      priorLife = next;
+    };
+    advance(2, { status: "planned", updated_at: lifeAt(2) });
+    advance(3, { status: "in_progress", updated_at: lifeAt(3) });
+    advance(4, { status: "fixed", updated_at: lifeAt(4) });
+    const verificationFile = path.join(retestRoot, "verification.txt");
+    fs.writeFileSync(verificationFile, "External human checked the repaired image alternative.\n", "utf8");
+    const closure = { change_artifact_id: recorded.artifact_id,
+      retest_run_file: path.relative(scenario, reviewedRetest), retest_run_sha256: hash(reviewedRetest),
+      verification_file: path.basename(verificationFile), verification_sha256: hash(verificationFile) };
+    advance(5, { status: "verified", closure, updated_at: lifeAt(5) });
+    advance(6, { status: "closed", updated_at: lifeAt(6) });
+    const closedStatus = cli(["status", "--run", after, "--lifecycle", priorLife, "--as-of", "2026-09-26", "--format", "json"]);
+    pass(closedStatus);
+    assert.equal(JSON.parse(closedStatus.stdout).lifecycle[0].resolution_claim, "verified_closure");
   }
 });

@@ -36,6 +36,8 @@ import { validateAssessment } from "./validate-assessment.mjs";
 import { parseAttestationJson } from "./lib/attestation-canonical.mjs";
 import { reviewerVerificationOptions } from "./lib/assessment-provenance.mjs";
 import { loadReviewTrust } from "./lib/review-trust-input.mjs";
+import { lifecycleSummary, loadLifecycle, renderLifecycleHtml, renderLifecycleReport } from "./lib/finding-lifecycle.mjs";
+import { isCalendarDate } from "./lib/date-time.mjs";
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.dirname(scriptDir);
@@ -57,7 +59,7 @@ function hardenMarkdownOutput(value) {
 }
 
 function parseArgs(argv) {
-  const options = { locale: "ja", detail: "full", visibility: "internal", format: "markdown" };
+  const options = { locale: "ja", detail: "full", visibility: "internal", format: "markdown", lifecycleFiles: [] };
   const supported = new Map([
     ["--input", "input"],
     ["--run", "run"],
@@ -71,7 +73,9 @@ function parseArgs(argv) {
     ["--redaction-manifest", "redactionManifest"],
     ["--format", "format"],
     ["--trust-policy", "trustPolicy"],
-    ["--trust-policy-sha256", "trustPolicySha256"]
+    ["--trust-policy-sha256", "trustPolicySha256"],
+    ["--lifecycle", "lifecycleFiles"],
+    ["--as-of", "asOf"]
   ]);
   const seen = new Set();
   for (let index = 0; index < argv.length; index += 1) {
@@ -82,17 +86,19 @@ function parseArgs(argv) {
     }
     const key = supported.get(arg);
     if (!key) throw new Error(`Unknown argument: ${arg}`);
-    if (seen.has(arg)) throw new Error(`Duplicate argument: ${arg}`);
+    if (key !== "lifecycleFiles" && seen.has(arg)) throw new Error(`Duplicate argument: ${arg}`);
     seen.add(arg);
     const value = argv[index + 1];
     if (!value || value.startsWith("--")) throw new Error(`Missing value for ${arg}`);
-    options[key] = value;
+    if (key === "lifecycleFiles") options.lifecycleFiles.push(value);
+    else options[key] = value;
     index += 1;
   }
   options.locale = normalizeReportLocale(options.locale);
   if (!["summary", "full"].includes(options.detail)) throw new Error("--detail must be summary or full");
   if (!["markdown", "html"].includes(options.format)) throw new Error("--format must be markdown or html");
   options.visibility = normalizeReportVisibility(options.visibility);
+  if (options.asOf && !isCalendarDate(options.asOf)) throw new Error("--as-of must be a valid YYYY-MM-DD date.");
   if (options.reviewerDisclosure !== undefined) {
     options.reviewerDisclosure = normalizeReviewerDisclosure(options.reviewerDisclosure);
   }
@@ -138,6 +144,8 @@ export function usage() {
     "  --reviewer-disclosure <include|redact>   Required for public output.",
     "  --redaction-manifest <manifest.json>     Required internal review record for public output.",
     "  --output <report.md|html>                New output. Existing files are never overwritten.",
+    "  --lifecycle <latest-record.json>         Include validated finding management; repeatable for run-backed reports.",
+    "  --as-of <YYYY-MM-DD>                     Date for overdue and exception alerts; default is the host local date.",
     "  --trust-policy <file> --trust-policy-sha256 <hash>  Recipient-selected reviewer key policy and independently selected pin.",
     "",
     "Public redaction is not publication approval. Human publication review remains required.",
@@ -281,6 +289,21 @@ function renderRunBacked(options) {
     locale: options.locale
   });
   const rendered = renderOutputs(rawPresentation, options);
+  const lifecycleSnapshots = [], lifecycleIds = new Set();
+  const lifecycle = options.lifecycleFiles.map((file) => {
+    const loaded = loadLifecycle(path.resolve(file), { run, validation: runValidation, runFile: runSnapshot.path });
+    if (lifecycleIds.has(loaded.record.finding_id)) throw new Error(`Duplicate lifecycle finding: ${loaded.record.finding_id}.`);
+    lifecycleIds.add(loaded.record.finding_id);
+    lifecycleSnapshots.push(...loaded.snapshots);
+    return lifecycleSummary(loaded.record, options.asOf);
+  });
+  if (lifecycle.length) {
+    const decorate = (text) => options.format === "html"
+      ? text.replace("</main>", `${renderLifecycleHtml(lifecycle, options.locale)}\n</main>`)
+      : `${text}${renderLifecycleReport(lifecycle, options.locale)}`;
+    rendered.report = decorate(rendered.report);
+    if (rendered.appendix) rendered.appendix = decorate(rendered.appendix);
+  }
   const artifactSnapshots = [...runValidation.envelopesById.values()]
     .map((record) => record.snapshot)
     .filter(Boolean);
@@ -289,6 +312,7 @@ function renderRunBacked(options) {
     assertStableFile(assessmentSnapshot, "run-backed assessment");
     for (const snapshot of artifactSnapshots) assertStableFile(snapshot, "registered artifact");
     for (const snapshot of runValidation.evidenceSnapshots.values()) assertStableFile(snapshot, "raw evidence");
+    for (const snapshot of lifecycleSnapshots) assertStableFile(snapshot, "lifecycle input");
     for (const snapshot of trustInput.snapshots) assertStableFile(snapshot, "external reviewer trust policy");
   };
   const written = writeRequestedOutputs(options, rendered, assertInputsStable);
@@ -311,6 +335,7 @@ export function main(argv = process.argv.slice(2)) {
   }
   validateOptionCombinations(options);
   const runBacked = Boolean(options.run || options.assessment);
+  if (!runBacked && (options.lifecycleFiles.length || options.asOf)) throw new Error("Lifecycle status requires a run-backed report.");
   if (options.input && runBacked) throw new Error("Use either --input or the --run/--assessment interface, not both.");
   if (!options.input && !runBacked) throw new Error("--input or --run/--assessment is required.");
   if (runBacked && (!options.run || !options.assessment || !options.output)) {
