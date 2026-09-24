@@ -77,6 +77,7 @@ test("release archive pins the source, preserves every manifest byte and exclude
   assert.ok(manifest.files.some(file => file.path === "docs/releases/0.1.0.md"));
   assert.ok(manifest.files.some(file => file.path === ".github/workflows/report-nvda-smoke.yml"));
   assert.equal(manifest.files.some(file => /(?:^\.(?!github\/)|docs\/sources\/|docs\/reviews\/|audit-runs\/)/u.test(file.path) && ![".gitattributes", ".gitignore"].includes(file.path)), false);
+  assert.ok(manifest.files.some(file => file.path === "codex/skills/information-accessibility-practice/.npmignore"));
   const packageCheck = JSON.parse(run(process.execPath, ["scripts/verify-package.mjs"], packageRoot));
   assert.equal(packageCheck.status, "PASS");
   assert.equal(JSON.parse(run(process.execPath, ["scripts/build-criteria-catalog.mjs", "--check"], packageRoot)).status, "PASS");

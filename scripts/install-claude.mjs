@@ -9,9 +9,11 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(scriptDir, "..");
 const manifestPath = path.join(root, "shared/agents/agent-manifest.json");
+const featurePath = path.join(root, "shared/agents/authorized-fixer-feature.json");
 const sourceSkill = path.join(root, "claude/skills/information-accessibility-practice");
 const sourceAgents = path.join(root, "claude/agents");
 const reviewerId = "information-accessibility-reviewer";
+const fixerId = "information-accessibility-authorized-fixer";
 
 function pathExists(candidate) {
   try {
@@ -77,6 +79,7 @@ function parseArgs(argv) {
     claudeHome: null,
     dryRun: false,
     reviewerOnly: false,
+    includeAuthorizedFixer: false,
     help: false
   };
 
@@ -92,6 +95,10 @@ function parseArgs(argv) {
     }
     if (argument === "--reviewer-only") {
       options.reviewerOnly = true;
+      continue;
+    }
+    if (argument === "--include-authorized-fixer") {
+      options.includeAuthorizedFixer = true;
       continue;
     }
     if (argument === "--claude-home") {
@@ -116,6 +123,7 @@ function usage() {
     "  --claude-home <path>  Install under this Claude home directory.",
     "  --dry-run             Validate and print the installation plan without writing files.",
     "  --reviewer-only       Install only the reviewer for hosts without specialist dispatch.",
+    "  --include-authorized-fixer  Include the optional authorized fixer agent and runtime.",
     "  --help, -h            Show this help.",
     "",
     "Claude home resolution: --claude-home, then CLAUDE_HOME, then ~/.claude.",
@@ -140,9 +148,26 @@ function assertSourceFile(filePath) {
 
 function buildPlan(options) {
   const manifest = readJson(manifestPath);
+  const feature = readJson(featurePath);
   const { defaults, reviewer } = validateManifest(manifest);
   const claudeHome = resolveClaudeHome(options);
-  const selectedAgents = options.reviewerOnly ? [reviewer] : defaults;
+  const registryVersion = readJson(path.join(sourceSkill, "references/orchestration-registry.json")).schema_version;
+  if (feature.schema_version !== "1.0.0" || feature.core_registry_version !== registryVersion || feature.fixer_registry_version !== registryVersion) {
+    throw new Error("Authorized fixer feature is incompatible with the installed orchestration registry.");
+  }
+  const optionalFiles = feature.optional_skill_files;
+  if (!Array.isArray(optionalFiles) || optionalFiles.length === 0 || new Set(optionalFiles).size !== optionalFiles.length) {
+    throw new Error("Invalid authorized fixer feature file list.");
+  }
+  for (const relative of optionalFiles) {
+    if (typeof relative !== "string" || !/^(?:scripts|references)\/[a-z0-9./-]+$/u.test(relative) || relative.split("/").includes("..")) {
+      throw new Error(`Unsafe optional feature path: ${String(relative)}`);
+    }
+    assertSourceFile(path.join(sourceSkill, ...relative.split("/")));
+  }
+  const fixer = manifest.agents.find((agent) => agent.id === fixerId);
+  if (!fixer || fixer.install_by_default) throw new Error("Authorized fixer agent must be an opt-in manifest entry.");
+  const selectedAgents = [...(options.reviewerOnly ? [reviewer] : defaults), ...(options.includeAuthorizedFixer ? [fixer] : [])];
   const skillDestination = path.join(claudeHome, "skills/information-accessibility-practice");
   const agents = selectedAgents.map((agent) => ({
     id: agent.id,
@@ -163,12 +188,14 @@ function buildPlan(options) {
     status: options.dryRun ? "DRY_RUN" : "INSTALLED",
     mode: options.reviewerOnly ? "reviewer-only" : "multi-agent",
     specialist_dispatch: options.reviewerOnly ? "local-fallback-only" : "available",
+    authorized_fixer: options.includeAuthorizedFixer,
     claude_home: claudeHome,
     skill: {
       source: sourceSkill,
       destination: skillDestination
     },
-    agents
+    agents,
+    optionalFiles: options.includeAuthorizedFixer ? [] : optionalFiles
   };
 }
 
@@ -195,18 +222,20 @@ function ensureDirectory(directory, createdDirectories) {
   }
 }
 
-function copyDirectoryExclusive(source, destination) {
+function copyDirectoryExclusive(source, destination, excluded = new Set(), prefix = "") {
   const sourceStat = fs.lstatSync(source);
   if (!sourceStat.isDirectory()) throw new Error(`Expected staged directory: ${source}`);
 
   fs.mkdirSync(destination);
   try {
     for (const entry of fs.readdirSync(source, { withFileTypes: true })) {
+      const relative = prefix ? `${prefix}/${entry.name}` : entry.name;
+      if (excluded.has(relative)) continue;
       const sourceEntry = path.join(source, entry.name);
       const destinationEntry = path.join(destination, entry.name);
 
       if (entry.isDirectory()) {
-        copyDirectoryExclusive(sourceEntry, destinationEntry);
+        copyDirectoryExclusive(sourceEntry, destinationEntry, excluded, relative);
         continue;
       }
       if (entry.isFile()) {
@@ -245,7 +274,7 @@ function install(plan) {
   const createdDirectories = [];
 
   try {
-    copyDirectoryExclusive(plan.skill.source, stagedSkill);
+    copyDirectoryExclusive(plan.skill.source, stagedSkill, new Set(plan.optionalFiles));
     fs.mkdirSync(stagedAgentsDirectory);
     for (const agent of plan.agents) {
       fs.copyFileSync(agent.source, path.join(stagedAgentsDirectory, path.basename(agent.destination)));

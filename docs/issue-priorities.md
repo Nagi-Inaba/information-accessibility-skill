@@ -291,6 +291,12 @@ registry 17／envelope 4でAIの `authorized_fixer` を書込み不可の `fix-h
 
 旧registry 16／envelope 3／change-record 2を凍結して読取りを保持し、旧runへの新規登録を拒否する。AI引継ぎだけでは対象が変わらないこと、create／modify／delete、rollbackと認可再利用拒否、手書き変更記録の登録拒否、旧記録の状態表示、現行runのstatusと配布同期を対象テストで確認した。パッケージ検証とcatalog照合も成功。一括テストはこのworktreeに `exceljs` がないため `human-review-worksheet.test.mjs` のimportで停止し、全テスト成功とは記録しない。未push・未PR・未merge。次は#33の任意fixer分離を進める。
 
+## #33 任意authorized fixerの導入境界（ローカル実装・対象検証済み）
+
+Codex／Claudeの既定installerは監査専用skillを配置し、修正用agent・CLI・実行module・payload schemaの15ファイルを省く。Codexの`-IncludeAuthorizedFixer`とClaudeの`--include-authorized-fixer`は、agentと15ファイルを同じ導入処理で追加する。npmの標準CLI packageも同じ15ファイルを除外する。監査専用runtimeは修正schemaが全て存在しない構成を許し、一部だけある不完全な構成は拒否する。両構成のregistry 17.0.0との対応をfeature manifestで固定した。
+
+監査専用のClaude導入からrunを作成・検証し、同じrunが全機能構成でも検証できることを確認した。Codex既定・任意導入とrollback、Claude既定・任意導入、npm pack内容、配布同期、関連する監査・fixer・README・releaseの対象テストが成功した。修正用schema・CLIを省いても監査runを使えるが、修正artifactを含むrunの読取りには対応版の修正機能が必要。ソースリポジトリとローカルrelease archiveは両構成の元ファイルを保つ方式で、独立した2つのソースpackageへの移動は行っていない。リモートCIは未確認。未push・未PR・未merge。次は#28・#26・#27の既存記録と導入更新を確認する。
+
 以下の未着手Issueも継続目標に含む。技術的な前提や外部判断が必要な項目は、具体的な残課題を記録して実行可能な作業を進める。
 
 同じ行でも、前提となるIssueから順に実装する。P1は証拠・権限・日時の信頼性、P2は人手作業と再検査、P3は対象拡張と保守性を優先する区分であり、指摘の重大度とは異なる。
@@ -306,7 +312,7 @@ registry 17／envelope 4でAIの `authorized_fixer` を書込み不可の `fix-h
 | P2 | #42 → #55 → #43 | 3件ともローカル実装・検証済み。観測・指摘の多対多対応と、複数確認者の一致・不一致・訂正履歴を接続済み。 |
 | P2 | #41 → #60 | 2件ともローカル実装・検証済み。run補足情報と、規格判定から分離した同意付き当事者テストを接続済み。 |
 | P2 | #48 → #49 → #59 | 3件ともローカル実装・検証済み。外部変更、再検査比較、指摘の状態・期限・例外を接続済み。 |
-| P2 | #53 → #33 | #53はローカル実装・対象検証済み。旧change-recordの読取りを保持し、新版のAI handoffと実行runtimeを分離。全体テストは`exceljs`欠落による環境上の未確認が残る。次は#33。 |
+| P2 | #53 → #33 | 両件ともローカル実装・対象検証済み。#53はAI handoffと実行runtime、#33は監査専用の既定導入と任意修正機能を分離。ソースpackageの物理分割とリモートCIは未実施。全体テストは`exceljs`欠落による環境上の未確認が残る。 |
 | P2 | #28、#26、#27 | 過去run、私的な成果物、導入・更新・削除を一貫して扱う。既存データを上書きしない。 |
 | P3 | #14 → #32 | 条項別手順を一次資料と照合し、状態付きUIの確認パターンを増やす。 |
 | P3 | #30、#66 | 非Web記録とATAGの専用経路。現行READMEの未対応範囲を維持し、Web評価へ自動転用しない。 |

@@ -22,6 +22,7 @@ function git(root, args, input) {
 }
 export function isReleasePath(file) {
   if (rootFiles.has(file)) return true;
+  if (/^(?:codex|claude)\/skills\/information-accessibility-practice\/\.npmignore$/u.test(file)) return true;
   if (file === ".github/PULL_REQUEST_TEMPLATE.md" || /^\.github\/(?:workflows|ISSUE_TEMPLATE)\/[A-Za-z0-9._-]+\.ya?ml$/u.test(file)) return true;
   if (!/^[A-Za-z0-9][A-Za-z0-9._/-]*$/u.test(file) || file.split("/").some(part => part.startsWith(".") || ["node_modules", "audit-runs", "sources", "superpowers", "reviews", "audits"].includes(part))) return false;
   return /^(?:codex\/(?:skills|agents)|claude\/(?:skills|agents)|shared\/agents|scripts|examples|tests)\//u.test(file)

@@ -91,7 +91,7 @@ powershell -ExecutionPolicy Bypass -File ".\scripts\install-codex.ps1" -WhatIf
 powershell -ExecutionPolicy Bypass -File ".\scripts\install-codex.ps1"
 ```
 
-認可済み修正を明示的に導入する場合だけ`-IncludeAuthorizedFixer`を指定します。認可済み修正agentは読み取り専用のhandoffを作成し、対象を直接変更しません。実際の変更、検証、rollbackは、外部許可を確認した信頼された運用者が行います。
+既定導入は監査専用で、修正用agent・CLI・schemaを含みません。認可済み修正が必要な場合だけ`-IncludeAuthorizedFixer`を指定します。agentは読み取り専用のhandoffを作成し、対象の変更・検証・rollbackは、外部許可を確認した信頼された運用者が行います。両構成はregistry 17.0.0を共有し、異なるregistry版の修正機能は導入を拒否します。
 
 macOS／Linuxでは`codex/skills/information-accessibility-practice/`とmanifestで既定指定されたagentを配置します。詳細は[はじめに](docs/getting-started.md)を参照してください。
 
@@ -110,6 +110,7 @@ node .\scripts\install-claude.mjs
 ```
 
 multi-agent構成はCodex版と同じrole artifact contractを維持します。specialist agentをdispatchできない場合だけ`--reviewer-only`を使用します。
+Claudeも既定は監査専用です。修正機能の明示導入には`--include-authorized-fixer`を指定します。
 
 ### CLI
 
@@ -123,6 +124,8 @@ accessibility-audit screen-reader-checklist --pattern modal-dialog --locale ja -
 accessibility-audit doctor --locale ja
 accessibility-audit preflight-web --browser-channel chrome --locale ja --format json
 ```
+
+このnpm導入も監査専用です。修正機能はCodex／Claude installerの明示オプションから導入してください。
 
 `--locale ja`と`--locale en`は、CLI help、profile、条項一覧・検索・表示、legacy requirement表示、スクリーンリーダーチェックリスト、レポートの人向け文字列だけを切り替えます。内部ID、schema key、enum、証拠型、claim tierは変更しません。
 

@@ -91,7 +91,7 @@ powershell -ExecutionPolicy Bypass -File ".\scripts\install-codex.ps1" -WhatIf
 powershell -ExecutionPolicy Bypass -File ".\scripts\install-codex.ps1"
 ```
 
-Specify `-IncludeAuthorizedFixer` only when deliberately installing authorized remediation. The authorized fixer is a read-only handoff agent and does not modify the target. A trusted operator performs the actual bounded change, verification, and rollback after checking external authorization.
+The default installation contains only the audit workflow; fixer agents, commands, and schemas are omitted. Specify `-IncludeAuthorizedFixer` only when deliberately installing authorized remediation. The fixer agent prepares a read-only handoff; a trusted operator performs the bounded change, verification, and rollback after checking external authorization. Both profiles use registry 17.0.0; the installer rejects a mismatched fixer registry version.
 
 On macOS or Linux, copy `codex/skills/information-accessibility-practice/` and the manifest-default agents. See [Getting started](docs/getting-started.md).
 
@@ -110,6 +110,7 @@ node .\scripts\install-claude.mjs
 ```
 
 The multi-agent installation preserves the same role artifact contract as Codex. Use `--reviewer-only` only when the Claude host cannot dispatch specialist agents.
+Claude also defaults to the audit-only profile. Specify `--include-authorized-fixer` to install the optional fixer.
 
 ### CLI
 
@@ -123,6 +124,8 @@ accessibility-audit screen-reader-checklist --pattern modal-dialog --locale en -
 accessibility-audit doctor --locale en
 accessibility-audit preflight-web --browser-channel chrome --locale en --format json
 ```
+
+The npm installation is audit-only as well. Install the optional fixer through the explicit Codex or Claude installer flag.
 
 `--locale ja` and `--locale en` change only human-readable CLI help, profile metadata, requirement list/search/show output, the legacy requirement view, the screen-reader checklist, and reports. Internal IDs, schema keys, enum values, evidence types, and claim tiers remain stable.
 

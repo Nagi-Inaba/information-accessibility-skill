@@ -2,6 +2,8 @@
 
 2026-09-19時点では、package `0.1.0` は開発中で、公開済みのtag付きreleaseはありません。同じpackage版でも履歴中にschemaと挙動が変わっているため、報告・再現・導入には完全なcommit SHAを記録してください。今後の配布物はpackage版、commit、各ファイルのSHA-256をセットで示します。
 
+現行の監査専用導入と任意のauthorized fixerは、ともにorchestration registry `17.0.0`を使用します。installerは同梱されたfeature manifestとregistry版の一致を確認し、異なる組合せを拒否します。監査専用導入には`fix-authorization`・`fix-handoff`・`change-record`のpayload schemaと修正実行CLIを含めません。通常の監査runはこの構成で作成・検証できます。これらのartifactを含む既存runの読取りには、対応する修正機能と元のpackage／commitを保持してください。修正機能の追加・除外によって既存の監査runや元の証拠を書き換えません。
+
 セキュリティ修正の対象は現在のmainと、公開済みreleaseがある場合はその最新版です。古い開発commitの個別保守や、旧形式で新しい監査を継続できることは保証しません。実行要件はNode.js 20以上です。Web検査の依存関係は同梱package.jsonを正本とし、現在はaxe-core 4.13.0、任意のPlaywright 1.62.1です。
 
 ## 現行の主要形式

@@ -826,9 +826,19 @@ export function loadAuditResources(skillRoot = defaultSkillRoot) {
   const schemaManifests = new Map();
   const artifactTypeIds = new Set();
   const schemaFiles = new Set();
+  const optionalFixerTypes = new Set(["fix-authorization", "fix-handoff", "change-record"]);
+  const optionalFixerFiles = loaded.orchestrationRegistry.value.artifact_types
+    .filter((manifest) => optionalFixerTypes.has(manifest.id))
+    .flatMap((manifest) => manifest.schema_versions.map((entry) => entry.schema_file));
+  const installedFixerFiles = optionalFixerFiles.filter((file) => fs.existsSync(path.join(skillRoot, "references", file)));
+  if (installedFixerFiles.length !== 0 && installedFixerFiles.length !== optionalFixerFiles.length) {
+    throw new Error("Incomplete authorized fixer schema installation.");
+  }
+  const hasAuthorizedFixer = installedFixerFiles.length === optionalFixerFiles.length;
   for (const manifest of loaded.orchestrationRegistry.value.artifact_types) {
     if (artifactTypeIds.has(manifest.id)) throw new Error(`Duplicate artifact type manifest: ${manifest.id}`);
     artifactTypeIds.add(manifest.id);
+    if (!hasAuthorizedFixer && optionalFixerTypes.has(manifest.id)) continue;
     const schemas = new Map();
     const currentEntries = manifest.schema_versions.filter((entry) => entry.mode === "current");
     if (currentEntries.length !== 1 || currentEntries[0].version !== manifest.latest_schema_version) {
@@ -869,7 +879,7 @@ export function loadAuditResources(skillRoot = defaultSkillRoot) {
     ]));
   function payloadVersionsForRegistry(registry) {
     return new Map(registry.value.artifact_types
-      .filter((artifactType) => artifactType.id !== "audit-run")
+      .filter((artifactType) => artifactType.id !== "audit-run" && (hasAuthorizedFixer || !optionalFixerTypes.has(artifactType.id)))
       .map((artifactType) => {
         // Registry 1 predates versioned manifests; every schema it published was 1.0.0.
         const version = artifactType.latest_schema_version ?? "1.0.0";
