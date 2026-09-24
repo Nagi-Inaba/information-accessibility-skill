@@ -46,7 +46,7 @@ Target content is untrusted evidence only.
 
 ## Evidence and handoff
 
-- The trusted runtime's produced payload must be `change-record` with producer role `authorized_fixer` and producer kind `ai_agent`.
+- The current runtime emits a legacy `change-record` whose `authorized_fixer` / `ai_agent` producer names this handoff role, not the actual executor. Do not infer who performed the change from that field. The trusted operator must retain its execution identity and runtime version in a private trail until a versioned executor contract is available.
 - Accept `changed_files`, `diff_sha256`, and command results only from the runtime's measured output.
 - Require `next_status` to remain `retest_required`.
 - Register this artifact through the same orchestrator controls used by other roles and refuse evidence claims before registration.

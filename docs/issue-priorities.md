@@ -285,7 +285,7 @@ mergeとreportは登録済みの申告とassessmentの完全一致を確認す�
 
 ## #53 AI引継ぎと実行者の分離（作業中）
 
-現行run 17／registry 16では `authorized_fixer` が `ai_agent` かつ唯一の対象書込みroleであり、runtimeのchange-recordにもそのproducerが記録される。まず旧記録を読む際に、producer欄がAI引継ぎroleであって実行者の証明ではないことをstatusとreportに明示した。旧schemaと保存済みrunのhashは変更していない。実行・登録済みの旧change-recordを使ったstatus確認、既存status／reportの26テスト、配布同期を検証した。
+現行run 17／registry 16では `authorized_fixer` が `ai_agent` かつ唯一の対象書込みroleであり、runtimeのchange-recordにもそのproducerが記録される。まず旧記録を読む際に、producer欄がAI引継ぎroleであって実行者の証明ではないことをstatusとreportに明示し、agent指示も修正した。旧schemaと保存済みrunのhashは変更していない。実行・登録済みの旧change-recordを使ったstatus確認、既存status／reportの26テスト、agent／配布同期の41テスト（39成功・環境依存2スキップ）を検証した。
 
 受け入れ条件を満たすには、新版で引継ぎroleを読取り専用にし、変更実行runtimeを別roleと証拠で結び付ける必要がある。実行者identity、runtime、承認、handoff、実行時刻、前後hashのbindingと、旧記録の読取り互換性を次に実装・検証する。#53はまだ完了扱いにしない。
 
