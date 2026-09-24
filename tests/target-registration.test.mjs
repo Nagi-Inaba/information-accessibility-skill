@@ -40,7 +40,7 @@ function screening(f, run, { id = "ART-TARGET-SCREEN", e0 = false, bytes = Buffe
     fs.writeFileSync(path.join(f.artifactRoot, rawPath), bytes);
     refs.push(createRunEvidenceReference({ run, targetRef: run.target.urls_or_files[0], evidenceType, relativePath: rawPath, bytes, capturedAt: at }));
   }
-  return { schema_version: "3.0.0", artifact_id: id, artifact_type: "screening-observations", run_id: run.run_id,
+  return { schema_version: "4.0.0", artifact_id: id, artifact_type: "screening-observations", run_id: run.run_id,
     target_snapshot_ids: targetSnapshotIds(run), producer: { role_id: "e1_inspector", producer_kind: "ai_agent", origin: "target registration fixture" }, created_at: at, inputs: [],
     payload: { schema_version: "4.0.0", observations: [{ requirement_id: `SCREEN-${id.slice(4)}`, evidence_level: e0 ? "E0" : "E1", evidence_refs: refs,
       method: "Fixture inspection", location: "main", observation: e0 ? "Capture unavailable" : "Saved observation", captured_at: at,

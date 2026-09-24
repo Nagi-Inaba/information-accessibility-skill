@@ -32,7 +32,7 @@ function fixture(t, { suffix = "0001", version = "release-1", bytes = Buffer.fro
   const rawFile = path.join(artifactRoot, "private-dom.html");
   fs.writeFileSync(rawFile, bytes);
   const reference = createRunEvidenceReference({ run, targetRef: run.target.urls_or_files[0], evidenceType: "dom_snapshot", relativePath: "private-dom.html", bytes, capturedAt: at });
-  const artifact = { schema_version: "3.0.0", target_snapshot_ids: run.target_inventory.snapshots.map((snapshot) => snapshot.snapshot_id), artifact_id: "ART-SCREEN-EVIDENCE", artifact_type: "screening-observations", run_id: run.run_id,
+  const artifact = { schema_version: "4.0.0", target_snapshot_ids: run.target_inventory.snapshots.map((snapshot) => snapshot.snapshot_id), artifact_id: "ART-SCREEN-EVIDENCE", artifact_type: "screening-observations", run_id: run.run_id,
     producer: { role_id: "e1_inspector", producer_kind: "ai_agent", origin: "saved evidence test" }, created_at: at, inputs: [],
     payload: { schema_version: "4.0.0", observations: [{ requirement_id: "SCREEN-DOM", evidence_level: "E1", method: "DOM inspection", location: "main", observation: "An observed structure requires human review.", captured_at: at,
       profile_requirement_id: null, report_outcome: null, applicability: "undetermined", report_rationale: "Unmapped observation.", evidence_refs: [reference] }] } };

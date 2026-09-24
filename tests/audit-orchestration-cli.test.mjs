@@ -180,7 +180,7 @@ function legacyV6InitialRun(artifactRoot) {
 
 function screeningEnvelope({ artifactId, requirementId, capturedAt = "2026-07-17T12:00:01Z" }) {
   return {
-    schema_version: "3.0.0",
+    schema_version: "4.0.0",
     target_snapshot_ids: fixtureTargetIds(),
     artifact_id: artifactId,
     artifact_type: "screening-observations",
@@ -240,7 +240,7 @@ function artifactEnvelope({
   envelopeRunId = runId
 }) {
   return {
-    schema_version: "3.0.0",
+    schema_version: "4.0.0",
     target_snapshot_ids: fixtureTargetIds(),
     artifact_id: artifactId,
     artifact_type: artifactType,
@@ -580,7 +580,25 @@ function makeRetestRequiredRun(artifactRoot) {
     { from: "remediation_ready", to: "fix_authorized", at: authorization.created_at, actor_role: "declared_authorizer", artifact_ids: [authorization.artifact_id] },
     { from: "fix_authorized", to: "retest_required", at: change.created_at, actor_role: "authorized_fixer", artifact_ids: [change.artifact_id] }
   );
-  return { ...fixture, authorization, authorizationFile, change, changeFile };
+  const frozenRegistry = loadAuditResources(skillRoot).orchestrationRegistries.get("16.0.0");
+  fixture.run.resource_versions.orchestration_registry_version = "16.0.0";
+  fixture.run.resource_versions.orchestration_registry_sha256 = frozenRegistry.sha256;
+  const frozen = new Map();
+  for (const entry of [...fixture.run.artifacts].sort((left, right) => left.created_at.localeCompare(right.created_at))) {
+    const artifact = readJson(path.join(artifactRoot, entry.path));
+    artifact.schema_version = "3.0.0";
+    for (const input of artifact.inputs) if (frozen.has(input.artifact_id)) input.sha256 = frozen.get(input.artifact_id).sha256;
+    if (artifact.artifact_type === "fix-authorization") artifact.payload.remediation_artifact.sha256 = frozen.get(fixture.remediation.artifact_id).sha256;
+    if (artifact.artifact_type === "change-record") artifact.payload.authorization_artifact.sha256 = frozen.get(authorization.artifact_id).sha256;
+    const file = path.join(artifactRoot, `frozen-${entry.artifact_id}.json`);
+    writeJson(file, artifact);
+    entry.path = path.basename(file);
+    entry.sha256 = sha256File(file);
+    frozen.set(entry.artifact_id, { artifact, file, sha256: entry.sha256 });
+  }
+  return { ...fixture, authorization: frozen.get(authorization.artifact_id).artifact,
+    authorizationFile: frozen.get(authorization.artifact_id).file,
+    change: frozen.get(change.artifact_id).artifact, changeFile: frozen.get(change.artifact_id).file };
 }
 
 function rewriteFixtureArtifact(fixture, artifact, file) {
@@ -939,33 +957,16 @@ test("fresh retest initialization rejects invalid predecessor and scope/root reu
   assertRejected(runNode(createRun, [...baseArgs, "--artifact-root", invalidRoot, "--output", path.join(temp, "invalid-predecessor.json")]), /retest_required|predecessor.*status/i);
 }));
 
-test("change-record registration enforces the referenced authorization change binding", (t) => withTemp(t, ({ temp, artifactRoot }) => {
+test("frozen registry 16 cannot register another change record", (t) => withTemp(t, ({ temp, artifactRoot }) => {
   const fixture = makeRetestRequiredRun(artifactRoot);
   fixture.run.status = "fix_authorized";
   fixture.run.artifacts = fixture.run.artifacts.filter((entry) => entry.artifact_id !== fixture.change.artifact_id);
   fixture.run.history = fixture.run.history.slice(0, -1);
   const runFile = path.join(temp, "fix-authorized-run.json");
   writeJson(runFile, fixture.run);
-  const cases = [
-    ["path", (value) => { value.payload.changed_files[0].path = "other.html"; }],
-    ["operation", (value) => { value.payload.changed_files[0].operation = "delete"; value.payload.changed_files[0].after_sha256 = null; }],
-    ["before hash", (value) => { value.payload.changed_files[0].before_sha256 = "d".repeat(64); }],
-    ["after hash", (value) => { value.payload.changed_files[0].after_sha256 = "e".repeat(64); }],
-    ["authorization id", (value) => { value.payload.authorization_id = "AUTH-20260717-OTHER001"; }],
-    ["command id", (value) => { value.payload.command_results[0].command_id = "VERIFY-OTHER"; }],
-    ["command args", (value) => { value.payload.command_results[0].args = ["run", "other"]; }]
-  ];
-  for (const [label, mutate] of cases) {
-    const forged = structuredClone(fixture.change);
-    mutate(forged);
-    const file = path.join(artifactRoot, `forged-${label.replaceAll(" ", "-")}.json`);
-    writeJson(file, forged);
-    assert.throws(
-      () => registerArtifactRecord(fixture.run, forged, { skillRoot, runFile, artifactFile: file }),
-      /authorization|change binding|authorized command|changed_files/i,
-      label
-    );
-  }
+  assert.throws(() => registerArtifactRecord(fixture.run, fixture.change, {
+    skillRoot, runFile, artifactFile: fixture.changeFile
+  }), /read.only|frozen|legacy/i);
 }));
 
 test("audit-run dispatch maps runs 1/2 to registry 1 through run 7 to registry 6", (t) => withTemp(t, ({ temp, artifactRoot }) => {
@@ -988,7 +989,7 @@ test("audit-run dispatch maps runs 1/2 to registry 1 through run 7 to registry 6
   const registryV2 = readJson(path.join(references, "orchestration-registry-2.0.0.json"));
   const registryV3 = readJson(path.join(references, "orchestration-registry-3.0.0.json"));
   const registryV4 = readJson(path.join(references, "orchestration-registry-4.0.0.json"));
-  assert.equal(currentRegistry.schema_version, "16.0.0");
+  assert.equal(currentRegistry.schema_version, "17.0.0");
   assert.equal(registryV1.schema_version, "1.0.0");
   assert.equal(registryV2.schema_version, "2.0.0");
   assert.equal(registryV3.schema_version, "3.0.0");
@@ -1407,7 +1408,7 @@ test("schema manifest loader rejects same-version schema swaps and duplicate sch
       const authorization = registry.artifact_types.find((item) => item.id === "fix-authorization");
       const change = registry.artifact_types.find((item) => item.id === "change-record");
       change.schema_versions[0].schema_file = authorization.schema_versions[0].schema_file;
-    }, /canonical artifact type manifest changed|artifact_types.*must equal|duplicate.*schema.*file|schema.*file.*duplicate/i]
+    }, /canonical artifact type manifest changed|canonical change-record manifest changed|artifact_types.*must equal|duplicate.*schema.*file|schema.*file.*duplicate/i]
   ]) {
     const copiedSkill = path.join(temp, label.replaceAll(" ", "-"));
     copyDirectory(path.join(skillRoot, "references"), path.join(copiedSkill, "references"));
@@ -1500,6 +1501,7 @@ test("each registry derives its own exact per-artifact payload compatibility pol
   expected.set("14.0.0", { ...expected.get("13.0.0"), "audit-context": "1.0.0" });
   expected.set("15.0.0", { ...expected.get("14.0.0"), "participant-usability-observation": "1.0.0" });
   expected.set("16.0.0", { ...expected.get("15.0.0"), "declared-change-record": "1.0.0" });
+  expected.set("17.0.0", { ...expected.get("16.0.0"), "fix-handoff": "1.0.0", "change-record": "3.0.0" });
   assert.deepEqual([...resources.orchestrationRegistries.keys()], [...expected.keys()]);
   for (const [registryVersion, payloadVersions] of expected) {
     assert.deepEqual(
@@ -1643,12 +1645,12 @@ test("registry 2 rejects remediation artifact payload 2 while registry 3 rejects
   for (const artifact of legacyArtifacts) {
     const validation = validateArtifact(artifact, resources, { allowedPayloadVersions: currentPolicy });
     assert.equal(validation.valid, false, `${artifact.artifact_type} v1 unexpectedly passed registry 3`);
-    assert.match(validation.errors.join("\n"), /payload schema_version.*2\.0\.0|allowed.*2\.0\.0/i);
+    assert.match(validation.errors.join("\n"), /payload schema_version.*(?:2|3)\.0\.0|allowed.*(?:2|3)\.0\.0|cannot output/i);
     const artifactFile = path.join(artifactRoot, `${artifact.artifact_id}.json`);
     writeJson(artifactFile, artifact);
     assert.throws(
       () => registerArtifactRecord(fixture.run, artifact, { skillRoot, runFile: path.join(temp, "run.json"), artifactFile }),
-      /payload schema_version.*2\.0\.0|allowed.*2\.0\.0/i
+      /payload schema_version.*(?:2|3)\.0\.0|allowed.*(?:2|3)\.0\.0|cannot output/i
     );
   }
 }));
@@ -1681,7 +1683,7 @@ test("denied run cannot register, validate, or merge fix authorization and chang
   });
   const changeFile = path.join(artifactRoot, "change.json");
   writeJson(changeFile, change);
-  const permissionPattern = /source_write.*authorized_only[^]*command_execution.*authorized_verification_only|remediation artifact.*permissions/i;
+  const permissionPattern = /source_write.*authorized_only[^]*command_execution.*authorized_verification_only|remediation artifact.*permissions|change-record payload schema_version|cannot output change-record/i;
 
   for (const [artifact, artifactFile] of [[authorization, authorizationFile], [change, changeFile]]) {
     assert.throws(
@@ -2498,68 +2500,21 @@ test("merge rejects unregistered and duplicate declared-human profile rows", (t)
   assertRejected(duplicateResult, /duplicate.*WCAG-2\.2-SC-1\.1\.1|profile.*conflict/i);
 }));
 
-test("queue, remediation, authorization, and change records never alter profile outcomes", (t) => withTemp(t, ({ temp, artifactRoot }) => {
-  const screen = screeningEnvelope({ artifactId: "ART-SCREEN-001", requirementId: "SCREEN-FIRST" });
-  const screenFile = path.join(artifactRoot, "screen.json");
-  writeJson(screenFile, screen);
-  const queue = queueEnvelope({ inputs: [{ artifact_id: screen.artifact_id, run_id: runId, sha256: sha256File(screenFile) }] });
-  const queueFile = path.join(artifactRoot, "queue.json");
-  writeJson(queueFile, queue);
-  const remediation = artifactEnvelope({
-    artifactId: "ART-REMEDIATION-001", artifactType: "remediation-plan", roleId: "remediation_planner",
-    createdAt: "2026-07-17T12:00:04Z",
-    inputs: [{ artifact_id: screen.artifact_id, run_id: runId, sha256: sha256File(screenFile) }],
-    payload: remediationPayload(screen.artifact_id)
-  });
-  const remediationFile = path.join(artifactRoot, "remediation.json");
-  writeJson(remediationFile, remediation);
-  const authorizationPayload = fixAuthorizationPayload();
-  authorizationPayload.remediation_artifact.sha256 = sha256File(remediationFile);
-  const authorization = artifactEnvelope({
-    artifactId: "ART-AUTHORIZATION-001", artifactType: "fix-authorization", roleId: "declared_authorizer",
-    producerKind: "external_requester", createdAt: "2026-07-17T12:00:05Z",
-    inputs: [{ artifact_id: remediation.artifact_id, run_id: runId, sha256: sha256File(remediationFile) }],
-    payload: authorizationPayload
-  });
-  const authorizationFile = path.join(artifactRoot, "authorization.json");
-  writeJson(authorizationFile, authorization);
-  const change = artifactEnvelope({
-    artifactId: "ART-CHANGE-001", artifactType: "change-record", roleId: "authorized_fixer",
-    createdAt: "2026-07-17T12:00:06Z",
-    inputs: [
-      { artifact_id: remediation.artifact_id, run_id: runId, sha256: sha256File(remediationFile) },
-      { artifact_id: authorization.artifact_id, run_id: runId, sha256: sha256File(authorizationFile) }
-    ],
-    payload: changePayload(authorization.artifact_id, sha256File(authorizationFile))
-  });
-  const changeFile = path.join(artifactRoot, "change.json");
-  writeJson(changeFile, change);
-  const artifacts = [[screenFile, screen], [queueFile, queue], [remediationFile, remediation], [authorizationFile, authorization], [changeFile, change]];
-  const run = authorizedInitialRun(artifactRoot);
-  run.status = "retest_required";
-  run.artifacts = artifacts.map(([file, artifact]) => registerEntry(artifactRoot, file, artifact)).sort((left, right) => left.artifact_id.localeCompare(right.artifact_id));
-  run.history = [
-    { from: "initialized", to: "screened", at: screen.created_at, actor_role: "e1_inspector", artifact_ids: [screen.artifact_id] },
-    { from: "screened", to: "human_queue_ready", at: queue.created_at, actor_role: "human_queue_planner", artifact_ids: [queue.artifact_id] },
-    { from: "human_queue_ready", to: "remediation_ready", at: remediation.created_at, actor_role: "remediation_planner", artifact_ids: [remediation.artifact_id] },
-    { from: "remediation_ready", to: "fix_authorized", at: authorization.created_at, actor_role: "declared_authorizer", artifact_ids: [authorization.artifact_id] },
-    { from: "fix_authorized", to: "retest_required", at: change.created_at, actor_role: "authorized_fixer", artifact_ids: [change.artifact_id] }
-  ];
+test("frozen change records cannot be merged into a current assessment", (t) => withTemp(t, ({ temp, artifactRoot }) => {
+  const { run } = makeRetestRequiredRun(artifactRoot);
   const runFile = path.join(temp, "run.json");
   const assessmentFile = path.join(temp, "assessment.json");
   const output = path.join(temp, "merged.json");
   const assessment = assessmentFixture();
-  const before = assessment.assessment.results.filter((item) => item.requirement_kind === "profile_requirement").map(({ requirement_id, outcome, mapping_status }) => ({ requirement_id, outcome, mapping_status }));
   writeJson(runFile, run);
   writeJson(assessmentFile, assessment);
   const result = runNode(mergeArtifactsCli, [
     "--run", runFile, "--assessment", assessmentFile,
-    "--artifact", screenFile, "--artifact", queueFile, "--artifact", remediationFile, "--artifact", authorizationFile, "--artifact", changeFile,
+    ...run.artifacts.flatMap((entry) => ["--artifact", path.join(artifactRoot, entry.path)]),
     "--output", output
   ]);
-  assert.equal(result.status, 0, result.stderr || result.stdout);
-  const after = readJson(output).assessment.results.filter((item) => item.requirement_kind === "profile_requirement").map(({ requirement_id, outcome, mapping_status }) => ({ requirement_id, outcome, mapping_status }));
-  assert.deepEqual(after, before);
+  assertRejected(result, /read.only|resource_versions|current resource/i);
+  assert.equal(fs.existsSync(output), false);
 }));
 
 test("registration and merge refuse existing output files", (t) => withTemp(t, ({ temp, artifactRoot }) => {

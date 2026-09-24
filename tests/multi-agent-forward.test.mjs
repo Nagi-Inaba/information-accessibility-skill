@@ -53,7 +53,7 @@ function dynamicRunId() {
 
 function envelope({ artifactId, artifactType, runId, roleId, createdAt, inputs, payload }) {
   return {
-    schema_version: "3.0.0",
+    schema_version: "4.0.0",
     target_snapshot_ids: [],
     artifact_id: artifactId,
     artifact_type: artifactType,
@@ -319,6 +319,8 @@ test("installed CLIs carry a local public-like fixture through the read-only age
   const changeOutput = path.join(artifactRoot, "unauthorized-change.json");
   const unauthorized = runNode(cli.fix, [
     "--authorization", missingAuthorization,
+    "--handoff", path.join(artifactRoot, "missing-fix-handoff.json"),
+    "--operator-id", "fixture-operator",
     "--run", runFiles[3],
     "--source-root", targetRoot,
     "--operation", "modify",

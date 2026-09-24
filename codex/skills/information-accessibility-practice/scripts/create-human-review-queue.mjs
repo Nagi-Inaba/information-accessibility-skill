@@ -28,7 +28,7 @@ export function main(argv = process.argv.slice(2)) {
   assertNewOutputPath(output);
   const screenings = [...validation.envelopesById.values()].map((record) => record.envelope).filter((artifact) => artifact.artifact_type === "screening-observations");
   const profileIds = validation.resources.standardsRegistry.profiles.find((profile) => profile.id === run.profile.id).requirement_ids;
-  const artifact = { schema_version: "3.0.0", artifact_id: options["artifact-id"], artifact_type: "human-review-queue", run_id: run.run_id,
+  const artifact = { schema_version: "4.0.0", artifact_id: options["artifact-id"], artifact_type: "human-review-queue", run_id: run.run_id,
     producer: { role_id: "human_queue_planner", producer_kind: "ai_agent", origin: "accessibility-audit review-queue candidate" },
     created_at: new Date().toISOString(), target_snapshot_ids: run.target_inventory?.snapshots.map((target) => target.snapshot_id) ?? [],
     inputs: screenings.map((source) => ({ artifact_id: source.artifact_id, run_id: run.run_id, sha256: run.artifacts.find((record) => record.artifact_id === source.artifact_id).sha256 })),

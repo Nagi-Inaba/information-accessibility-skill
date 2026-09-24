@@ -49,6 +49,8 @@ Use the reviewer as the orchestrator when a review needs registered role artifac
 
 The default artifact sequence is `screening-observations` -> `human-review-queue` -> `remediation-plan`. The orchestrator materializes and registers each candidate before using it as an input. Read [`references/agent-orchestration.md`](references/agent-orchestration.md) for schemas, transitions, CLI usage, authorization boundaries, and recovery behavior; do not duplicate the role prompts in a run plan.
 
+The optional authorized fixer prepares a registered `fix-handoff` after external authorization. It cannot write the target. A trusted operator runs `apply-authorized-fix.mjs` with that handoff and a declared operator ID; the runtime alone produces `change-record` 3 and its internal execution receipts. Older change records remain readable with a legacy provenance warning.
+
 For run-backed participation perspectives, target-specific limitations, next review dates and conditions, or declared independent-audit/dossier information, use a registered `audit-context` artifact with saved evidence. See [`references/audit-context.md`](references/audit-context.md). Only the declared external reviewer or requester may produce the appropriate fields. These declarations do not authenticate a person or elevate E4/E5.
 
 For participant task testing, use a registered `participant-usability-observation` artifact. See [`references/participant-usability-observation.md`](references/participant-usability-observation.md). Keep participant observations separate from profile outcomes and publish only consented aggregate themes.

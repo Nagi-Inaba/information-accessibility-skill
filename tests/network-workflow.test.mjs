@@ -59,7 +59,7 @@ test("policy proposal is offline; HTTP capture, bind and register persist logs b
   const at = new Date().toISOString();
   const reference = createRunEvidenceReference({ run: bound, targetRef: url, evidenceType: "network_log",
     relativePath: "capture-network.json", bytes: fs.readFileSync(captureLog), capturedAt: at });
-  const artifact = { schema_version: "3.0.0", artifact_id: "ART-NETWORK-OBS", artifact_type: "screening-observations", run_id: run.run_id,
+  const artifact = { schema_version: "4.0.0", artifact_id: "ART-NETWORK-OBS", artifact_type: "screening-observations", run_id: run.run_id,
     target_snapshot_ids: bound.target_inventory.snapshots.map((item) => item.snapshot_id),
     producer: { role_id: "e1_inspector", producer_kind: "ai_agent", origin: "Network fixture" }, created_at: at, inputs: [],
     payload: { schema_version: "4.0.0", observations: [{ requirement_id: "SCREEN-NETWORK", evidence_level: "E1", evidence_refs: [reference],

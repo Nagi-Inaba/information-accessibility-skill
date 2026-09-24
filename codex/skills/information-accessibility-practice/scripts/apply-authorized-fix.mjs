@@ -7,7 +7,8 @@ import { applyAuthorizedFix } from "./lib/fix-transaction.mjs";
 function parseArgs(argv) {
   const options = { commandIds: [] };
   const flags = new Map([
-    ["--authorization", "authorizationFile"], ["--run", "runFile"], ["--source-root", "sourceRoot"],
+    ["--authorization", "authorizationFile"], ["--handoff", "handoffFile"], ["--operator-id", "operatorId"],
+    ["--run", "runFile"], ["--source-root", "sourceRoot"],
     ["--operation", "operation"], ["--target", "target"], ["--description", "description"],
     ["--command-id", "commandIds"], ["--lock-dir", "lockDir"], ["--output", "output"],
     ["--content-file", "contentFile"], ["--expected-before-sha256", "expectedBeforeSha256"]
@@ -35,7 +36,7 @@ function parseArgs(argv) {
 
 export function main(argv = process.argv.slice(2)) {
   const result = applyAuthorizedFix(parseArgs(argv));
-  process.stdout.write(`${JSON.stringify({ status: "PASS", output: result.output, diff_output: result.diffOutput, consumption_marker: result.consumptionMarker, global_consumption_marker: result.globalConsumptionMarker })}\n`);
+  process.stdout.write(`${JSON.stringify({ status: "PASS", output: result.output, diff_output: result.diffOutput, execution_receipt: result.executionReceipt, consumption_marker: result.consumptionMarker, global_consumption_marker: result.globalConsumptionMarker })}\n`);
   return result;
 }
 

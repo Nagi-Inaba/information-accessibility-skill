@@ -22,6 +22,7 @@ import { collectScreeningEvidence } from "./run-evidence.mjs";
 import { validateContextBindings, collectContextEvidence, projectAuditContext } from "./audit-context.mjs";
 import { validateParticipantBindings, collectParticipantEvidence } from "./participant-observation.mjs";
 import { afterChangeRun, validateDeclaredChangeBindings, collectDeclaredChangeEvidence } from "./declared-change.mjs";
+import { collectFixExecutionEvidence } from "./fix-execution-evidence.mjs";
 import { targetInventoryErrors, targetBindingErrors, checkLocalRunTargets, consumeRunTargetCheck, checkRunTargets } from "./run-targets.mjs";
 export { canonicalJson } from "./canonical-json.mjs";
 
@@ -263,9 +264,17 @@ const currentHumanReviewManifestContract = {
 // Additive timestamp support in the current payloads. Keep every other
 // manifest field, especially frozen versions and role bindings, pinned.
 const currentTimestampPayloadSchemaHashes = new Map([
-  ["fix-authorization", "13579db07d5c0f86f70fd41bb490ad61167051372072ad633ed0c9c1775a5e62"],
-  ["change-record", "0e7318a19b0a7e8b69ab2c30ab613866666cd4892f04721c419cb128a10fcb84"]
+  ["fix-authorization", "13579db07d5c0f86f70fd41bb490ad61167051372072ad633ed0c9c1775a5e62"]
 ]);
+const currentChangeManifestContract = {
+  id: "change-record", latest_schema_version: "3.0.0", schema_versions: [
+    { version: "1.0.0", schema_file: "change-record-1.0.0.schema.json", mode: "read_only" },
+    { version: "2.0.0", schema_file: "change-record-2.0.0.schema.json",
+      schema_sha256: "0e7318a19b0a7e8b69ab2c30ab613866666cd4892f04721c419cb128a10fcb84", mode: "read_only" },
+    { version: "3.0.0", schema_file: "change-record.schema.json",
+      schema_sha256: "bc6ff9de4c38ffc6a0dbe936b1469663f0674cb8d397889daa57a539f4d40407", mode: "current" }
+  ]
+};
 
 function pathKey(value) {
   const normalized = path.normalize(path.resolve(value));
@@ -526,6 +535,7 @@ function canonicalComparableManifest(installedManifest, canonicalManifest) {
 
 function validateOrchestrationRegistrySemantics(registry, canonicalRegistry) {
   const errors = [];
+  const executorContract = registry?.schema_version === "17.0.0";
   const roles = Array.isArray(registry?.roles) ? registry.roles : [];
   const artifactTypes = Array.isArray(registry?.artifact_types) ? registry.artifact_types : [];
   const transitions = Array.isArray(registry?.transitions) ? registry.transitions : [];
@@ -543,6 +553,8 @@ function validateOrchestrationRegistrySemantics(registry, canonicalRegistry) {
     const installedRole = roleById.get(roleId);
     const expectedRole = roleId === "orchestrator"
       ? { ...canonicalRole, input_types: [...canonicalRole.input_types, "audit-context", "participant-usability-observation", "declared-change-record"] }
+      : roleId === "authorized_fixer" && executorContract
+        ? { ...canonicalRole, output_type: "fix-handoff", can_write_target: false }
       : canonicalRole;
     if (!installedRole) errors.push(`Missing canonical role: ${roleId}.`);
     else if (!isDeepStrictEqual(installedRole, expectedRole)) errors.push(`Canonical role contract changed: ${roleId}.`);
@@ -561,6 +573,8 @@ function validateOrchestrationRegistrySemantics(registry, canonicalRegistry) {
       if (!isDeepStrictEqual(installedArtifactType, currentRemediationManifestContract)) errors.push("Canonical remediation-plan manifest changed.");
     } else if (canonicalArtifactType.id === "declared-human-review") {
       if (!isDeepStrictEqual(installedArtifactType, currentHumanReviewManifestContract)) errors.push("Canonical declared-human-review manifest changed.");
+    } else if (canonicalArtifactType.id === "change-record" && executorContract) {
+      if (!isDeepStrictEqual(installedArtifactType, currentChangeManifestContract)) errors.push("Canonical change-record manifest changed.");
     } else {
       const currentHash = currentTimestampPayloadSchemaHashes.get(canonicalArtifactType.id);
       const expected = currentHash ? {
@@ -586,12 +600,20 @@ function validateOrchestrationRegistrySemantics(registry, canonicalRegistry) {
     if (role?.can_record_profile_outcome && roleId !== "declared_external_human") {
       errors.push(`Only declared_external_human may record profile outcomes; received ${roleId}.`);
     }
-    if (role?.can_write_target && roleId !== "authorized_fixer") errors.push(`Only authorized_fixer may write the target; received ${roleId}.`);
+    if (role?.can_write_target && roleId !== (executorContract ? "trusted_fix_executor" : "authorized_fixer")) {
+      errors.push(`Only the designated executor may write the target; received ${roleId}.`);
+    }
     if (role?.can_write_target && role?.install_by_default) errors.push(`A target-writing role cannot be installed by default: ${roleId}.`);
     if (role?.output_type === "fix-authorization" && roleId !== "declared_authorizer") {
       errors.push(`Only declared_authorizer may produce fix-authorization; received ${roleId}.`);
     }
-    if (["declared_change_reviewer", "declared_change_owner"].includes(role?.id)) {
+    if (role?.id === "trusted_fix_executor" && executorContract) {
+      if (role.agent_id !== null || role.producer_kind !== "trusted_runtime"
+          || !isDeepStrictEqual(role.input_types, ["remediation-plan", "fix-authorization", "fix-handoff"])
+          || role.output_type !== "change-record" || role.max_ai_evidence_level !== null
+          || role.can_record_profile_outcome !== false || role.can_write_target !== true
+          || role.install_by_default !== false) errors.push("Invalid trusted fix executor contract.");
+    } else if (["declared_change_reviewer", "declared_change_owner"].includes(role?.id)) {
       const kind = role.id === "declared_change_reviewer" ? "external_human" : "external_requester";
       if (role.producer_kind !== kind || role.agent_id !== null || role.output_type !== "declared-change-record"
           || role.can_record_profile_outcome !== false || role.can_write_target !== false
@@ -622,18 +644,31 @@ function validateOrchestrationRegistrySemantics(registry, canonicalRegistry) {
           || !['E0', 'E1'].includes(role?.max_ai_evidence_level)
           || role?.can_record_profile_outcome !== false
           || role?.can_write_target !== false
-          || ["audit-run", "fix-authorization", "change-record", "declared-change-record"].includes(role?.output_type)) {
+          || ["audit-run", "fix-authorization", "fix-handoff", "change-record", "declared-change-record"].includes(role?.output_type)) {
         errors.push(`Extension role ${roleId} must remain a safe read-only AI role without orchestration, authorization, or change output.`);
       }
     }
   }
   const writers = roles.filter((role) => role?.can_write_target).map((role) => role.id);
-  if (!isDeepStrictEqual(writers, ["authorized_fixer"])) errors.push("The registry must contain exactly one target writer: authorized_fixer.");
+  if (!isDeepStrictEqual(writers, [executorContract ? "trusted_fix_executor" : "authorized_fixer"])) {
+    errors.push("The registry must contain exactly one trusted target writer.");
+  }
   const authorizers = roles.filter((role) => role?.output_type === "fix-authorization").map((role) => role.id);
   if (!isDeepStrictEqual(authorizers, ["declared_authorizer"])) errors.push("The registry must contain exactly one fix authorizer: declared_authorizer.");
+  if (executorContract && !isDeepStrictEqual(roles.filter((role) => role?.output_type === "fix-handoff").map((role) => role.id), ["authorized_fixer"])) {
+    errors.push("Only the AI handoff role may produce fix-handoff.");
+  }
   const changeDeclarants = roles.filter((role) => role?.output_type === "declared-change-record").map((role) => role.id);
   if (!isDeepStrictEqual(changeDeclarants, ["declared_change_reviewer", "declared_change_owner"])) {
     errors.push("Only the two external declaration roles may produce declared-change-record.");
+  }
+  if (executorContract) {
+    const handoff = installedArtifactTypes.get("fix-handoff");
+    const expected = { id: "fix-handoff", latest_schema_version: "1.0.0", schema_versions: [
+      { version: "1.0.0", schema_file: "fix-handoff.schema.json",
+        schema_sha256: "bf68ce1f29a71b342590c0c7fe3b05ba2b14092c8f1787571efd4675bb7f87a7", mode: "current" }
+    ] };
+    if (!isDeepStrictEqual(handoff, expected)) errors.push("Invalid fix-handoff manifest.");
   }
 
   const transitionKeys = [];
@@ -681,7 +716,7 @@ function validateOrchestrationRegistrySemantics(registry, canonicalRegistry) {
   }
   for (const duplicate of duplicateValues(transitionKeys)) errors.push(`Ambiguous transition for state and artifact type: ${duplicate.replace("\u0000", " + ")}.`);
   for (const duplicate of duplicateValues(routeKeys)) errors.push(`Duplicate transition route: ${duplicate.replace("\u0000", " -> ")}.`);
-  for (const artifactType of artifactTypeIds.filter((id) => !["audit-run", "audit-context", "participant-usability-observation"].includes(id))) {
+  for (const artifactType of artifactTypeIds.filter((id) => !["audit-run", "audit-context", "participant-usability-observation", "fix-handoff"].includes(id))) {
     if (!roles.some((role) => role?.output_type === artifactType)) errors.push(`Registered artifact type has no producer role: ${artifactType}.`);
     if (!transitionArtifactTypes.has(artifactType)) errors.push(`Registered artifact type has no transition: ${artifactType}.`);
   }
@@ -748,9 +783,12 @@ export function loadAuditResources(skillRoot = defaultSkillRoot) {
     orchestrationSchemaV14: "references/orchestration-registry-14.0.0.schema.json",
     orchestrationRegistryV15: "references/orchestration-registry-15.0.0.json",
     orchestrationSchemaV15: "references/orchestration-registry-15.0.0.schema.json",
+    orchestrationRegistryV16: "references/orchestration-registry-16.0.0.json",
+    orchestrationSchemaV16: "references/orchestration-registry-16.0.0.schema.json",
     envelopeSchema: "references/audit-artifact-envelope.schema.json",
     envelopeSchemaV1: "references/audit-artifact-envelope-1.0.0.schema.json",
     envelopeSchemaV2: "references/audit-artifact-envelope-2.0.0.schema.json",
+    envelopeSchemaV3: "references/audit-artifact-envelope-3.0.0.schema.json",
     assessmentSchema: "references/assessment-record.schema.json",
     criteriaCatalog: "references/criteria-catalog.json",
     criterionProcedures: "references/criterion-procedures.json",
@@ -773,7 +811,8 @@ export function loadAuditResources(skillRoot = defaultSkillRoot) {
     ["frozen 12.0.0", loaded.orchestrationRegistryV12, loaded.orchestrationSchemaV12],
     ["frozen 13.0.0", loaded.orchestrationRegistryV13, loaded.orchestrationSchemaV13],
     ["frozen 14.0.0", loaded.orchestrationRegistryV14, loaded.orchestrationSchemaV14],
-    ["frozen 15.0.0", loaded.orchestrationRegistryV15, loaded.orchestrationSchemaV15]
+    ["frozen 15.0.0", loaded.orchestrationRegistryV15, loaded.orchestrationSchemaV15],
+    ["frozen 16.0.0", loaded.orchestrationRegistryV16, loaded.orchestrationSchemaV16]
   ]) {
     const registryErrors = [];
     validateJsonSchema(registry.value, schema.value, "$", registryErrors);
@@ -856,6 +895,7 @@ export function loadAuditResources(skillRoot = defaultSkillRoot) {
     loaded.orchestrationRegistryV13,
     loaded.orchestrationRegistryV14,
     loaded.orchestrationRegistryV15,
+    loaded.orchestrationRegistryV16,
     loaded.orchestrationRegistry
   ];
   const orchestrationRegistries = new Map(registryFiles.map((registry) => [
@@ -870,7 +910,8 @@ export function loadAuditResources(skillRoot = defaultSkillRoot) {
   const envelopeSchemas = new Map([
     ["1.0.0", loaded.envelopeSchemaV1.value],
     ["2.0.0", loaded.envelopeSchemaV2.value],
-    ["3.0.0", loaded.envelopeSchema.value]
+    ["3.0.0", loaded.envelopeSchemaV3.value],
+    ["4.0.0", loaded.envelopeSchema.value]
   ]);
   return {
     skillRoot,
@@ -979,14 +1020,14 @@ export function validateArtifact(artifact, resources = loadAuditResources(), { a
   }
   const commandRecords = artifact?.artifact_type === "fix-authorization" && payloadVersion === "2.0.0"
     ? artifact?.payload?.verification_commands
-    : artifact?.artifact_type === "change-record" && payloadVersion === "2.0.0"
+    : artifact?.artifact_type === "change-record" && ["2.0.0", "3.0.0"].includes(payloadVersion)
       ? artifact?.payload?.command_results
       : undefined;
   if (Array.isArray(commandRecords)) {
     const commandIds = commandRecords.map((command) => command?.command_id);
     if (new Set(commandIds).size !== commandIds.length) errors.push(`${String(artifact.artifact_type)} command_id values must be unique.`);
   }
-  if (artifact?.artifact_type === "change-record" && payloadVersion === "2.0.0" && Array.isArray(artifact?.payload?.changed_files)) {
+  if (artifact?.artifact_type === "change-record" && ["2.0.0", "3.0.0"].includes(payloadVersion) && Array.isArray(artifact?.payload?.changed_files)) {
     const changedPaths = artifact.payload.changed_files.map((changedFile) => changedFile?.path);
     if (new Set(changedPaths).size !== changedPaths.length) errors.push("change-record changed_files path values must be unique.");
   }
@@ -1065,13 +1106,13 @@ function canonicalPermissions(permissions) {
   };
 }
 
-const remediationArtifactTypes = new Set(["fix-authorization", "change-record"]);
+const remediationArtifactTypes = new Set(["fix-authorization", "fix-handoff", "change-record"]);
 
 function remediationPermissionError(run, artifacts) {
   if (!artifacts.some((artifact) => remediationArtifactTypes.has(artifact?.artifact_type))) return null;
   if (run?.permissions?.source_write === "authorized_only"
       && run?.permissions?.command_execution === "authorized_verification_only") return null;
-  return "fix-authorization and change-record artifacts require permissions.source_write authorized_only and permissions.command_execution authorized_verification_only.";
+  return "fix-authorization, fix-handoff and change-record artifacts require permissions.source_write authorized_only and permissions.command_execution authorized_verification_only.";
 }
 
 function normalizedArtifactPath(value) {
@@ -1105,6 +1146,43 @@ function validateRegisteredArtifactEntries(run, errors, { requireNormalizedPaths
 
 function envelopeFromRecord(record) {
   return record?.envelope ?? record;
+}
+
+function validateFixHandoffBinding(handoff, artifactsById, envelopesById, errors) {
+  if (handoff?.artifact_type !== "fix-handoff") return;
+  const payload = handoff.payload ?? {}, authorizationRef = payload.authorization_artifact ?? {};
+  const entry = artifactsById.get(authorizationRef.artifact_id);
+  const authorization = envelopeFromRecord(envelopesById.get(authorizationRef.artifact_id));
+  if (entry?.artifact_type !== "fix-authorization" || authorization?.artifact_type !== "fix-authorization"
+      || entry.sha256 !== authorizationRef.sha256) {
+    errors.push("fix-handoff requires a registered exact fix-authorization input.");
+    return;
+  }
+  const remediationRef = payload.remediation_artifact ?? {};
+  const remediation = artifactsById.get(remediationRef.artifact_id);
+  if (remediation?.artifact_type !== "remediation-plan" || remediation.sha256 !== remediationRef.sha256
+      || !isDeepStrictEqual(remediationRef, authorization.payload?.remediation_artifact)) {
+    errors.push("fix-handoff remediation must match the authorized registered plan.");
+  }
+  for (const ref of [authorizationRef, remediationRef]) {
+    const matching = (handoff.inputs ?? []).filter((input) => input.artifact_id === ref.artifact_id && input.sha256 === ref.sha256);
+    if (matching.length !== 1) errors.push(`fix-handoff must include exact input ${String(ref.artifact_id)}.`);
+  }
+  if ((handoff.inputs ?? []).length !== 2 || payload.run_id !== handoff.run_id
+      || payload.run_id !== authorization.payload?.run_id
+      || payload.source_root !== authorization.payload?.source_root
+      || compareInstants(handoff.created_at, authorization.payload?.approved_at) < 0) {
+    errors.push("fix-handoff run, source root, time and input set must match authorization.");
+  }
+  const binding = (authorization.payload?.change_bindings ?? []).find((item) =>
+    item.path === payload.target && item.operation === payload.operation
+    && item.expected_before_sha256 === payload.expected_before_sha256
+    && item.expected_after_sha256 === payload.expected_after_sha256);
+  if (!binding) errors.push("fix-handoff must select one exact authorized change binding.");
+  const allowedCommands = new Set((authorization.payload?.verification_commands ?? []).map((item) => item.command_id));
+  if (!payload.command_ids?.length || payload.command_ids.some((id) => !allowedCommands.has(id))) {
+    errors.push("fix-handoff command IDs must be authorized verification commands.");
+  }
 }
 
 function validateChangeRecordAuthorizationBinding(changeRecord, artifactsById, envelopesById, errors) {
@@ -1148,6 +1226,37 @@ function validateChangeRecordAuthorizationBinding(changeRecord, artifactsById, e
       errors.push(`change-record command_results[${index}] executable, args, and cwd must match the authorized verification command.`);
     }
   }
+  if (payload.schema_version === "3.0.0") {
+    const handoffRef = payload.handoff_artifact ?? {};
+    const entry = artifactsById.get(handoffRef.artifact_id);
+    const handoff = envelopeFromRecord(envelopesById.get(handoffRef.artifact_id));
+    if (entry?.artifact_type !== "fix-handoff" || handoff?.artifact_type !== "fix-handoff"
+        || entry.sha256 !== handoffRef.sha256) {
+      errors.push("change-record requires an exact registered fix-handoff.");
+      return;
+    }
+    const handoffInputs = (changeRecord.inputs ?? []).filter((input) =>
+      input.artifact_id === handoffRef.artifact_id && input.sha256 === handoffRef.sha256);
+    if (handoffInputs.length !== 1 || (changeRecord.inputs ?? []).length !== 3
+        || !isDeepStrictEqual(handoff.payload.authorization_artifact, authorizationRef)
+        || !isDeepStrictEqual(handoff.payload.remediation_artifact, authorization.payload?.remediation_artifact)) {
+      errors.push("change-record input set and handoff must match its authorization and plan.");
+    }
+    const changed = payload.changed_files ?? [];
+    if (changed.length !== 1 || changed[0]?.path !== handoff.payload.target
+        || changed[0]?.operation !== handoff.payload.operation
+        || changed[0]?.before_sha256 !== handoff.payload.expected_before_sha256
+        || changed[0]?.after_sha256 !== handoff.payload.expected_after_sha256
+        || changed[0]?.description !== handoff.payload.description
+        || !isDeepStrictEqual((payload.command_results ?? []).map((item) => item.command_id), handoff.payload.command_ids)) {
+      errors.push("change-record measured change and commands must match the registered handoff.");
+    }
+    if (compareInstants(payload.execution.started_at, handoff.created_at) < 0
+        || compareInstants(payload.execution.completed_at, payload.execution.started_at) < 0
+        || compareInstants(changeRecord.created_at, payload.execution.completed_at) < 0) {
+      errors.push("change-record execution times must follow handoff and remain ordered.");
+    }
+  }
 }
 
 function validateArtifactEnvelopeSemantics(run, resources, artifactsById, envelopesById, errors) {
@@ -1175,6 +1284,7 @@ function validateArtifactEnvelopeSemantics(run, resources, artifactsById, envelo
       if (!allowedInputTypes.has(registered.artifact_type)) errors.push(`Producer role ${String(role?.id)} does not allow input type ${registered.artifact_type}.`);
       if (compareInstants(registered.created_at, artifact?.created_at) > 0) errors.push(`Artifact input was created after its consumer: ${artifactId} -> ${String(input?.artifact_id)}.`);
     }
+    validateFixHandoffBinding(artifact, artifactsById, envelopesById, errors);
     validateChangeRecordAuthorizationBinding(artifact, artifactsById, envelopesById, errors);
   }
 }
@@ -1402,7 +1512,7 @@ function validateDeclaredHumanBindings(envelopesById, profileId, resources, erro
       const evidenceTypes = new Set((review.target_specific_evidence ?? []).map((item) => item?.type));
       // Current run 11 may explicitly record non-performance without inventing
       // keyboard/browser/AT results. Frozen run 10 keeps its original checks.
-      if (["10.0.0", "11.0.0", "12.0.0", "13.0.0", "14.0.0", "15.0.0", "16.0.0"].includes(resources.orchestrationRegistry.schema_version) && review.profile_outcome === "not_tested") {
+      if (["10.0.0", "11.0.0", "12.0.0", "13.0.0", "14.0.0", "15.0.0", "16.0.0", "17.0.0"].includes(resources.orchestrationRegistry.schema_version) && review.profile_outcome === "not_tested") {
         requiredEvidenceTypes.clear();
         requiredEvidenceTypes.add("manual_observation");
         if ([...evidenceTypes].some((type) => type !== "manual_observation")) errors.push(`Declared human review ${artifactId} not_tested accepts only manual_observation non-performance notes for ${requirementId}.`);
@@ -1432,8 +1542,8 @@ export function validateArtifactCandidate(run, artifact, validation) {
   if (permissionError) errors.push(permissionError);
   const outgoing = resources.orchestrationRegistry.transitions.filter((transition) => transition.from === run.status && transition.required_artifact_types.includes(artifact.artifact_type));
   const incoming = resources.orchestrationRegistry.transitions.some((transition) => transition.to === run.status && transition.required_artifact_types.includes(artifact.artifact_type));
-  const supplementalContext = ["audit-context", "participant-usability-observation"].includes(artifact.artifact_type)
-    && run.status !== "retest_required";
+  const supplementalContext = (["audit-context", "participant-usability-observation"].includes(artifact.artifact_type)
+    && run.status !== "retest_required") || (artifact.artifact_type === "fix-handoff" && run.status === "fix_authorized");
   if (outgoing.length > 1 || (!outgoing.length && !incoming && !supplementalContext)) errors.push(`Artifact type ${artifact.artifact_type} is not registerable from ${run.status}.`);
   if (run.history.at(-1)?.at && compareInstants(artifact.created_at, run.history.at(-1).at) < 0) errors.push("Artifact created_at precedes the current run state.");
   const envelopes = new Map([...validation.envelopesById, [artifact.artifact_id, artifact]]);
@@ -1588,7 +1698,7 @@ function validateHistory(run, resources, artifactsById, errors) {
   }
   if (run?.status !== current) errors.push(`Run status/history continuity error: status is ${String(run?.status)} but history ends at ${current}.`);
   for (const artifact of Array.isArray(run?.artifacts) ? run.artifacts : []) {
-    if (!["audit-context", "participant-usability-observation"].includes(artifact?.artifact_type)
+    if (!["audit-context", "participant-usability-observation", "fix-handoff"].includes(artifact?.artifact_type)
         && !representedTypes.has(artifact?.artifact_type)) errors.push(`Registered artifact type is not represented by run history: ${String(artifact?.artifact_type)} (${String(artifact?.artifact_id)}).`);
   }
 }
@@ -1615,10 +1725,12 @@ export function validateAuditRun(run, { skillRoot = defaultSkillRoot, runFile, r
     ? { ...resources, orchestrationRegistry: registryRecord.value }
     : resources;
   const expectedRegistryVersion = auditRunRegistryCompatibility.get(runRecord.schema_version);
-  if (!expectedRegistryVersion) {
+  const compatibleRegistryVersions = runRecord.schema_version === "17.0.0"
+    ? ["16.0.0", "17.0.0"] : expectedRegistryVersion ? [expectedRegistryVersion] : [];
+  if (!compatibleRegistryVersions.length) {
     errors.push(`Unsupported audit-run registry compatibility: ${String(runRecord.schema_version)}.`);
-  } else if (registryVersion !== expectedRegistryVersion) {
-    errors.push(`audit-run ${runRecord.schema_version} requires orchestration registry ${expectedRegistryVersion}; received ${String(registryVersion)}.`);
+  } else if (!compatibleRegistryVersions.includes(registryVersion)) {
+    errors.push(`audit-run ${runRecord.schema_version} requires orchestration registry ${compatibleRegistryVersions.join(" or ")}; received ${String(registryVersion)}.`);
   }
   const expectedResourceVersions = {
     ...resources.resourceVersions,
@@ -1675,7 +1787,8 @@ export function validateAuditRun(run, { skillRoot = defaultSkillRoot, runFile, r
       if (snapshot.sha256 !== entry?.sha256) errors.push(`Registered artifact current hash mismatch: ${String(entry?.artifact_id)}.`);
       const envelope = parseJsonBytes(snapshot.bytes, `registered artifact ${String(entry?.artifact_id)}`);
       envelopesById.set(entry?.artifact_id, { envelope, snapshot });
-      const envelopeVersion = auditRunEnvelopeCompatibility.get(runRecord.schema_version);
+      const envelopeVersion = registryVersion === "17.0.0" ? "4.0.0"
+        : auditRunEnvelopeCompatibility.get(runRecord.schema_version);
       const envelopeSchema = resources.envelopeSchemas.get(envelopeVersion);
       if (!envelopeSchema) errors.push(`Unsupported artifact envelope schema for audit-run ${String(runRecord.schema_version)}.`);
       const validation = validateArtifact(envelope, runResources, {
@@ -1723,8 +1836,15 @@ export function validateAuditRun(run, { skillRoot = defaultSkillRoot, runFile, r
     (relativePath) => readArtifactFile(resolveInside(artifactRoot, path.join(artifactRoot, ...relativePath.split("/"))))
   );
   errors.push(...changeEvidence.errors);
+  const fixEvidence = errors.length ? { errors: [], snapshots: new Map() } : collectFixExecutionEvidence(
+    runRecord,
+    [...envelopesById.values()].map(({ envelope, snapshot }) => ({ envelope, sha256: snapshot.sha256 })),
+    readArtifactFile,
+    { artifactRoot }
+  );
+  errors.push(...fixEvidence.errors);
   return { valid: errors.length === 0, errors, resources: runResources, artifactRoot, envelopesById,
-    evidenceSnapshots: new Map([...evidence.snapshots, ...contextEvidence.snapshots, ...participantEvidence.snapshots, ...changeEvidence.snapshots]) };
+    evidenceSnapshots: new Map([...evidence.snapshots, ...contextEvidence.snapshots, ...participantEvidence.snapshots, ...changeEvidence.snapshots, ...fixEvidence.snapshots]) };
 }
 
 function normalizePermission(value, aliases, name) {
@@ -1896,17 +2016,26 @@ export function registerArtifact(run, artifact, options = {}) {
     if (!allowedInputTypes.has(registered.artifact_type)) throw new Error(`Producer role ${role.id} does not allow input type ${registered.artifact_type}`);
   }
   const authorizationBindingErrors = [];
+  validateFixHandoffBinding(installedArtifact, artifactsById, validation.envelopesById, authorizationBindingErrors);
   validateChangeRecordAuthorizationBinding(installedArtifact, artifactsById, validation.envelopesById, authorizationBindingErrors);
   if (authorizationBindingErrors.length > 0) {
     throw new Error(`Invalid change-record authorization binding:\n- ${authorizationBindingErrors.join("\n- ")}`);
+  }
+  if (installedArtifact.artifact_type === "change-record" && installedArtifact.payload.schema_version === "3.0.0") {
+    const fixEvidence = collectFixExecutionEvidence(run, [
+      ...[...validation.envelopesById.values()].map(({ envelope, snapshot: prior }) => ({ envelope, sha256: prior.sha256 })),
+      { envelope: installedArtifact, sha256: snapshot.sha256 }
+    ], readStableFile, { artifactRoot: validation.artifactRoot, requireGlobal: true });
+    if (fixEvidence.errors.length) throw new Error(`Invalid fix execution evidence:\n- ${fixEvidence.errors.join("\n- ")}`);
+    for (const evidenceSnapshot of fixEvidence.snapshots.values()) assertStableFile(evidenceSnapshot, "fix execution receipt");
   }
   const outgoing = validation.resources.orchestrationRegistry.transitions.filter((transition) => transition.from === run.status && transition.required_artifact_types.includes(installedArtifact.artifact_type));
   const targetErrors = targetBindingErrors(run, [installedArtifact]);
   if (targetErrors.length) throw new Error(`Invalid artifact target binding:\n- ${targetErrors.join("\n- ")}`);
   const incomingCurrent = validation.resources.orchestrationRegistry.transitions.some((transition) => transition.to === run.status && transition.required_artifact_types.includes(installedArtifact.artifact_type));
   if (outgoing.length > 1) throw new Error(`Ambiguous transition for ${run.status} and ${installedArtifact.artifact_type}`);
-  const supplementalContext = ["audit-context", "participant-usability-observation"].includes(installedArtifact.artifact_type)
-    && run.status !== "retest_required";
+  const supplementalContext = (["audit-context", "participant-usability-observation"].includes(installedArtifact.artifact_type)
+    && run.status !== "retest_required") || (installedArtifact.artifact_type === "fix-handoff" && run.status === "fix_authorized");
   if (outgoing.length === 0 && !incomingCurrent && !supplementalContext) throw new Error(`Artifact type ${installedArtifact.artifact_type} is a future or invalid transition from ${run.status}`);
   const lastHistoryAt = run.history.at(-1)?.at;
   if (lastHistoryAt && compareInstants(installedArtifact.created_at, lastHistoryAt) < 0) throw new Error("Artifact created_at precedes the current run state.");

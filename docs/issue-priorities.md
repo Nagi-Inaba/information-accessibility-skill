@@ -283,17 +283,13 @@ mergeとreportは登録済みの申告とassessmentの完全一致を確認す�
 
 実runでのopenからclosedまでの再検査・根拠照合、無効遷移、期限不足、前版改変、公開情報の除外を専用テストで確認した。既存status／reportの26テスト、配布物237共有ファイル・226 JSONの同期検証、criteria catalog検証が成功。支援技術実機とリモートCIは未確認。未push・未PR・未merge。次は#53のAI修正引継ぎと実行主体の分離を進める。
 
-## #53 AI引継ぎと実行者の分離（作業中）
+## #53 AI引継ぎと実行者の分離（ローカル実装・対象検証済み）
 
-現行run 17／registry 16では `authorized_fixer` が `ai_agent` かつ唯一の対象書込みroleであり、runtimeのchange-recordにもそのproducerが記録される。まず旧記録を読む際に、producer欄がAI引継ぎroleであって実行者の証明ではないことをstatusとreportに明示し、agent指示も修正した。旧schemaと保存済みrunのhashは変更していない。実行・登録済みの旧change-recordを使ったstatus確認、既存status／reportの26テスト、agent／配布同期の41テスト（39成功・環境依存2スキップ）を検証した。
+旧run 17／registry 16では `authorized_fixer` が `ai_agent` かつ唯一の対象書込みroleであり、runtimeのchange-recordにもそのproducerが記録される。まず旧記録を読む際に、producer欄がAI引継ぎroleであって実行者の証明ではないことをstatusとreportに明示し、agent指示も修正した。旧schemaと保存済みrunのhashは変更していない。実行・登録済みの旧change-recordを使ったstatus確認、既存status／reportの26テスト、agent／配布同期の41テスト（39成功・環境依存2スキップ）を検証した。
 
-受け入れ条件を満たすには、新版で引継ぎroleを読取り専用にし、変更実行runtimeを別roleと証拠で結び付ける必要がある。実行者identity、runtime、承認、handoff、実行時刻、前後hashのbindingと、旧記録の読取り互換性を次に実装・検証する。#53はまだ完了扱いにしない。
+registry 17／envelope 4でAIの `authorized_fixer` を書込み不可の `fix-handoff` 作成roleとし、実行runtimeを唯一の書込みrole `trusted_fix_executor` に分離した。`fix-handoff` は外部認可と改善計画の登録済みhash、変更対象・前後hash・検証commandを固定する。`change-record` 3はhandoff、宣言されたoperator ID、runtime／command brokerのhash、実行時刻、実測の前後hashを結び、登録時にrun内のレシートとホスト側の完了レシートを照合する。operator IDは本人認証ではなく、同一アカウントの管理者を防ぐ証明でもない。
 
-### 新版の実装境界
-
-run 17の既存schemaはresource versionとregistry hashを保持できるため、run schema自体は増やさず、registry 16を凍結してregistry 17を追加する方針とする。検証時にはrun 17とregistry 16／17の組だけを許し、旧registry 16のrunは読取り専用にする。新registry 17に、書込み不可のAI handoff role、登録済み `fix-handoff`、唯一の書込み主体となる `trusted_fix_executor` を定義する。handoffは承認後の補助成果物として登録し、状態遷移を増やさない。実行runtimeはそのID・hashと承認を照合してから変更し、change-recordの新版へ実行者・runtime・時刻・前後hashを保存する。
-
-既存のenvelope 3とchange-record 2は旧run検証用に凍結し、新版だけにtrusted runtimeのproducer kindと追加bindingを許す。登録時にはhandoff、承認、runtimeの完了記録の一致を要求する。ホスト側の実行者identityは申告値であり、同じOSアカウントの干渉は現行runtimeの脅威境界外であることを明示する。専用確認はhandoffのみ、正常実行、rollback、旧run読取り、新版への手書きexecutor成果物の登録拒否に絞る。
+旧registry 16／envelope 3／change-record 2を凍結して読取りを保持し、旧runへの新規登録を拒否する。AI引継ぎだけでは対象が変わらないこと、create／modify／delete、rollbackと認可再利用拒否、手書き変更記録の登録拒否、旧記録の状態表示、現行runのstatusと配布同期を対象テストで確認した。パッケージ検証とcatalog照合も成功。一括テストはこのworktreeに `exceljs` がないため `human-review-worksheet.test.mjs` のimportで停止し、全テスト成功とは記録しない。未push・未PR・未merge。次は#33の任意fixer分離を進める。
 
 以下の未着手Issueも継続目標に含む。技術的な前提や外部判断が必要な項目は、具体的な残課題を記録して実行可能な作業を進める。
 
@@ -310,7 +306,7 @@ run 17の既存schemaはresource versionとregistry hashを保持できるため
 | P2 | #42 → #55 → #43 | 3件ともローカル実装・検証済み。観測・指摘の多対多対応と、複数確認者の一致・不一致・訂正履歴を接続済み。 |
 | P2 | #41 → #60 | 2件ともローカル実装・検証済み。run補足情報と、規格判定から分離した同意付き当事者テストを接続済み。 |
 | P2 | #48 → #49 → #59 | 3件ともローカル実装・検証済み。外部変更、再検査比較、指摘の状態・期限・例外を接続済み。 |
-| P2 | #53 → #33 | #53は旧change-recordのproducer誤読防止を先行実装中。実行主体の版付き分離とbindingを完了してから、#33の任意fixer分離へ進む。 |
+| P2 | #53 → #33 | #53はローカル実装・対象検証済み。旧change-recordの読取りを保持し、新版のAI handoffと実行runtimeを分離。全体テストは`exceljs`欠落による環境上の未確認が残る。次は#33。 |
 | P2 | #28、#26、#27 | 過去run、私的な成果物、導入・更新・削除を一貫して扱う。既存データを上書きしない。 |
 | P3 | #14 → #32 | 条項別手順を一次資料と照合し、状態付きUIの確認パターンを増やす。 |
 | P3 | #30、#66 | 非Web記録とATAGの専用経路。現行READMEの未対応範囲を維持し、Web評価へ自動転用しない。 |

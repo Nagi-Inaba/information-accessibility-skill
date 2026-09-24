@@ -253,9 +253,10 @@ test("current queue 3 and remediation 3 preserve frozen version 1 reading", asyn
   assert.notDeepEqual(await schemaErrors(legacyRemediationValue, "remediation-plan.schema.json"), []);
 });
 
-test("versioned contracts freeze prior runs while run 17, registry 16, and envelope 3 are current", async () => {
+test("versioned contracts freeze prior runs while run 17, registry 17, and envelope 4 are current", async () => {
   const versions = [
-    ["orchestration-registry.json", "schema_version", "16.0.0"],
+    ["orchestration-registry.json", "schema_version", "17.0.0"],
+    ["orchestration-registry-16.0.0.json", "schema_version", "16.0.0"],
     ["orchestration-registry-15.0.0.json", "schema_version", "15.0.0"],
     ["orchestration-registry-14.0.0.json", "schema_version", "14.0.0"],
     ["orchestration-registry-13.0.0.json", "schema_version", "13.0.0"],
@@ -264,7 +265,8 @@ test("versioned contracts freeze prior runs while run 17, registry 16, and envel
     ["orchestration-registry-4.0.0.json", "schema_version", "4.0.0"],
     ["orchestration-registry-3.0.0.json", "schema_version", "3.0.0"],
     ["orchestration-registry-2.0.0.json", "schema_version", "2.0.0"],
-    ["orchestration-registry.schema.json", "schema", "16.0.0"],
+    ["orchestration-registry.schema.json", "schema", "17.0.0"],
+    ["orchestration-registry-16.0.0.schema.json", "schema", "16.0.0"],
     ["orchestration-registry-15.0.0.schema.json", "schema", "15.0.0"],
     ["orchestration-registry-14.0.0.schema.json", "schema", "14.0.0"],
     ["orchestration-registry-13.0.0.schema.json", "schema", "13.0.0"],
@@ -277,7 +279,8 @@ test("versioned contracts freeze prior runs while run 17, registry 16, and envel
     ["audit-run-15.0.0.schema.json", "schema", "15.0.0"],
     ["audit-run-14.0.0.schema.json", "schema", "14.0.0"],
     ["audit-run-7.0.0.schema.json", "schema", "7.0.0"],
-    ["audit-artifact-envelope.schema.json", "schema", "3.0.0"],
+    ["audit-artifact-envelope.schema.json", "schema", "4.0.0"],
+    ["audit-artifact-envelope-3.0.0.schema.json", "schema", "3.0.0"],
     ["audit-artifact-envelope-2.0.0.schema.json", "schema", "2.0.0"],
     ["audit-run-6.0.0.schema.json", "schema", "6.0.0"],
     ["audit-run-5.0.0.schema.json", "schema", "5.0.0"],
@@ -285,7 +288,8 @@ test("versioned contracts freeze prior runs while run 17, registry 16, and envel
     ["audit-run-3.0.0.schema.json", "schema", "3.0.0"],
     ["fix-authorization.schema.json", "schema", "2.0.0"],
     ["fix-authorization-1.0.0.schema.json", "schema", "1.0.0"],
-    ["change-record.schema.json", "schema", "2.0.0"],
+    ["change-record.schema.json", "schema", "3.0.0"],
+    ["change-record-2.0.0.schema.json", "schema", "2.0.0"],
     ["change-record-1.0.0.schema.json", "schema", "1.0.0"]
   ];
   for (const [file, kind, expected] of versions) {
@@ -303,7 +307,7 @@ test("versioned contracts freeze prior runs while run 17, registry 16, and envel
 
   const currentChange = validChangeRecordPayload();
   const legacyChange = validLegacyChangeRecordPayload();
-  assert.deepEqual(await schemaErrors(currentChange, "change-record.schema.json"), []);
+  assert.deepEqual(await schemaErrors(currentChange, "change-record-2.0.0.schema.json"), []);
   assert.notDeepEqual(await schemaErrors(currentChange, "change-record-1.0.0.schema.json"), []);
   assert.deepEqual(await schemaErrors(legacyChange, "change-record-1.0.0.schema.json"), []);
   assert.notDeepEqual(await schemaErrors(legacyChange, "change-record.schema.json"), []);
@@ -427,11 +431,11 @@ function validEnvelope(artifactType = "screening-observations") {
     "declared-human-review": ["declared_external_human", "external_human", "declared-reviewer"],
     "remediation-plan": ["remediation_planner", "ai_agent", "information-accessibility-remediation-planner"],
     "fix-authorization": ["declared_authorizer", "external_requester", "declared-requester"],
-    "change-record": ["authorized_fixer", "ai_agent", "information-accessibility-authorized-fixer"]
+    "change-record": ["trusted_fix_executor", "trusted_runtime", "local_authorized_fix_runtime"]
   };
   const [role_id, producer_kind, origin] = producerByType[artifactType];
   return {
-    schema_version: "3.0.0",
+    schema_version: "4.0.0",
     target_snapshot_ids: [],
     artifact_id: "ART-SCREENING-001",
     artifact_type: artifactType,
@@ -629,7 +633,8 @@ test("the orchestration registry fixes the complete role, artifact, and transiti
     ["declared_external_human", null, "external_human", "declared-human-review", true, false, false],
     ["remediation_planner", "information-accessibility-remediation-planner", "ai_agent", "remediation-plan", false, false, true],
     ["declared_authorizer", null, "external_requester", "fix-authorization", false, false, false],
-    ["authorized_fixer", "information-accessibility-authorized-fixer", "ai_agent", "change-record", false, true, false],
+    ["authorized_fixer", "information-accessibility-authorized-fixer", "ai_agent", "fix-handoff", false, false, false],
+    ["trusted_fix_executor", null, "trusted_runtime", "change-record", false, true, false],
     ["declared_context_reviewer", null, "external_human", "audit-context", false, false, false],
     ["declared_context_owner", null, "external_requester", "audit-context", false, false, false],
     ["declared_participant_facilitator", null, "external_human", "participant-usability-observation", false, false, false],
@@ -653,7 +658,7 @@ test("the orchestration registry fixes the complete role, artifact, and transiti
     assert.notEqual(role.output_type, "fix-authorization", role.id);
   }
   const writers = registry.roles.filter((role) => role.can_write_target);
-  assert.deepEqual(writers.map((role) => role.id), ["authorized_fixer"]);
+  assert.deepEqual(writers.map((role) => role.id), ["trusted_fix_executor"]);
   assert.equal(writers[0].install_by_default, false);
 
   assert.deepEqual(registry.artifact_types, [
@@ -861,14 +866,24 @@ test("the orchestration registry fixes the complete role, artifact, and transiti
       ]
     },
     {
+      id: "fix-handoff", latest_schema_version: "1.0.0",
+      schema_versions: [{ version: "1.0.0", schema_file: "fix-handoff.schema.json",
+        schema_sha256: "bf68ce1f29a71b342590c0c7fe3b05ba2b14092c8f1787571efd4675bb7f87a7", mode: "current" }]
+    },
+    {
       id: "change-record",
-      latest_schema_version: "2.0.0",
+      latest_schema_version: "3.0.0",
       schema_versions: [
         { version: "1.0.0", schema_file: "change-record-1.0.0.schema.json", mode: "read_only" },
         {
           version: "2.0.0",
-          schema_file: "change-record.schema.json",
+          schema_file: "change-record-2.0.0.schema.json",
           schema_sha256: "0e7318a19b0a7e8b69ab2c30ab613866666cd4892f04721c419cb128a10fcb84",
+          mode: "read_only"
+        },
+        {
+          version: "3.0.0", schema_file: "change-record.schema.json",
+          schema_sha256: "bc6ff9de4c38ffc6a0dbe936b1469663f0674cb8d397889daa57a539f4d40407",
           mode: "current"
         }
       ]
@@ -1095,7 +1110,7 @@ test("audit-run rejects malformed IDs, hashes, paths, artifacts, and transition 
   }
 });
 
-test("frozen envelopes remain readable while envelope 3 binds measured target IDs", async () => {
+test("frozen envelopes remain readable while envelope 4 binds measured target IDs", async () => {
   for (const type of [
     "screening-observations",
     "human-review-queue",
@@ -1105,6 +1120,9 @@ test("frozen envelopes remain readable while envelope 3 binds measured target ID
     "change-record"
   ]) {
     const legacy = validEnvelope(type);
+    if (type === "change-record") legacy.producer = {
+      role_id: "authorized_fixer", producer_kind: "ai_agent", origin: "information-accessibility-authorized-fixer"
+    };
     legacy.schema_version = "1.0.0";
     delete legacy.target_snapshot_ids;
     assert.deepEqual(await schemaErrors(legacy, "audit-artifact-envelope-1.0.0.schema.json"), [], type);
@@ -1155,7 +1173,7 @@ test("type-specific payload schemas accept complete bounded records", async () =
     [validDeclaredHumanReviewPayload("unavailable"), "declared-human-review.schema.json"],
     [validRemediationPayload(), "remediation-plan.schema.json"],
     [validFixAuthorizationPayload(), "fix-authorization.schema.json"],
-    [validChangeRecordPayload(), "change-record.schema.json"]
+    [validChangeRecordPayload(), "change-record-2.0.0.schema.json"]
   ];
   for (const [value, schemaName] of fixtures) {
     assert.deepEqual(await schemaErrors(value, schemaName), [], schemaName);
@@ -1293,24 +1311,24 @@ test("change record 2 enforces operation hashes, structured command results, lea
   const create = validChangeRecordPayload();
   create.changed_files[0].operation = "create";
   create.changed_files[0].before_sha256 = null;
-  assert.deepEqual(await schemaErrors(create, "change-record.schema.json"), []);
+  assert.deepEqual(await schemaErrors(create, "change-record-2.0.0.schema.json"), []);
 
   const deleted = validChangeRecordPayload();
   deleted.changed_files[0].operation = "delete";
   deleted.changed_files[0].after_sha256 = null;
-  assert.deepEqual(await schemaErrors(deleted, "change-record.schema.json"), []);
+  assert.deepEqual(await schemaErrors(deleted, "change-record-2.0.0.schema.json"), []);
 
   const signaled = validChangeRecordPayload();
   signaled.command_results[0].status = "signaled";
   signaled.command_results[0].exit_code = null;
   signaled.command_results[0].signal = "SIGTERM";
-  assert.deepEqual(await schemaErrors(signaled, "change-record.schema.json"), []);
+  assert.deepEqual(await schemaErrors(signaled, "change-record-2.0.0.schema.json"), []);
 
   const spawnError = validChangeRecordPayload();
   spawnError.command_results[0].status = "spawn_error";
   spawnError.command_results[0].exit_code = null;
   spawnError.command_results[0].signal = null;
-  assert.deepEqual(await schemaErrors(spawnError, "change-record.schema.json"), []);
+  assert.deepEqual(await schemaErrors(spawnError, "change-record-2.0.0.schema.json"), []);
 
   const mutations = [
     ["absolute path", (value) => { value.changed_files[0].path = "C:\\target\\index.html"; }],
@@ -1337,7 +1355,7 @@ test("change record 2 enforces operation hashes, structured command results, lea
   for (const [label, mutate] of mutations) {
     const value = validChangeRecordPayload();
     mutate(value);
-    assert.notDeepEqual(await schemaErrors(value, "change-record.schema.json"), [], label);
+    assert.notDeepEqual(await schemaErrors(value, "change-record-2.0.0.schema.json"), [], label);
   }
 });
 

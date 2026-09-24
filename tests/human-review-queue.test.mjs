@@ -27,7 +27,7 @@ function fixture(t, targetRefs = ["https://example.com/product"], prepareScreeni
     inspectionMode: "quick", inspectionPurpose: "Find actionable review locations" });
   const run = bindTargetInventory(initial, fixtureInventory(initial, artifactRoot), { runFile });
   writeNewJson(runFile, run); saveFixtureEvidence(artifactRoot, run);
-  const screening = { schema_version: "3.0.0", artifact_id: "ART-QUEUE-SCREEN", artifact_type: "screening-observations", run_id: run.run_id,
+  const screening = { schema_version: "4.0.0", artifact_id: "ART-QUEUE-SCREEN", artifact_type: "screening-observations", run_id: run.run_id,
     producer: { role_id: "e1_inspector", producer_kind: "ai_agent", origin: "synthetic fixture" }, created_at: "2026-01-01T00:00:00Z", inputs: [],
     target_snapshot_ids: run.target_inventory.snapshots.map((snapshot) => snapshot.snapshot_id), payload: { schema_version: "4.0.0", observations: ["candidate_issue", "inconclusive", "no_automated_signal"].map((signal, index) => ({
       requirement_id: `SCREEN-IMAGE-${index}`, profile_requirement_id: requirement, evidence_level: "E1", method: "fixture DOM", location: index < 2 ? "Product image" : "Footer image",
@@ -141,9 +141,10 @@ test("queue locations and priority reasons survive public Japanese/English Markd
     const frozen = loadAuditResources().orchestrationRegistries.get(registryVersion);
     historical.resource_versions.orchestration_registry_version = registryVersion;
     historical.resource_versions.orchestration_registry_sha256 = frozen.sha256;
-    const oldScreen = structuredClone(f.screening); oldScreen.payload.schema_version = "3.0.0";
+    const oldScreen = structuredClone(f.screening); oldScreen.schema_version = "3.0.0"; oldScreen.payload.schema_version = "3.0.0";
     const oldScreenFile = path.join(f.artifactRoot, `screen-${version}.json`); writeNewJson(oldScreenFile, oldScreen);
     const oldQueue = structuredClone(q);
+    oldQueue.schema_version = "3.0.0";
     oldQueue.inputs.find((input) => input.artifact_id === oldScreen.artifact_id).sha256 = hash(oldScreenFile);
     if (version === "10.0.0") {
       oldQueue.payload.schema_version = "2.0.0";

@@ -317,8 +317,8 @@ function validateRunCompliance(runValidation, run, errors, warnings) {
   if (run?.schema_version !== EXACT_RUN_VERSION) {
     addError(errors, `run.schema_version must be exactly ${EXACT_RUN_VERSION}`);
   }
-  if (runValidation.resources?.orchestrationRegistry?.schema_version !== "16.0.0") {
-    addError(errors, "run must use orchestration registry version 15.0.0");
+  if (runValidation.resources?.orchestrationRegistry?.schema_version !== "17.0.0") {
+    addError(errors, "run must use orchestration registry version 17.0.0");
   }
   if (runValidation.resources?.currentPayloadVersions?.get(FIX_AUTH_ARTIFACT_TYPE) !== REQUIRED_FIX_AUTH_PAYLOAD_DISPATCH) {
     addError(errors, `fix-authorization dispatch must be ${REQUIRED_FIX_AUTH_PAYLOAD_DISPATCH}`);

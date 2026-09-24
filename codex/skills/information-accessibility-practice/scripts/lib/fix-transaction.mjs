@@ -6,7 +6,6 @@ import path from "node:path";
 import {
   assertNewOutputPath,
   assertStableFile,
-  canonicalJson,
   loadAuditResources,
   readStableFile,
   sha256Bytes,
@@ -17,14 +16,12 @@ import {
 import { authorizedChangeBinding, validateFixAuthorization } from "./fix-authorization.mjs";
 import { acquireFixLease, DEFAULT_FIX_LEASE_DIRECTORY, releaseFixLease } from "./fix-lease.mjs";
 import { executeAuthorizedVerificationCommands } from "./fix-verification.mjs";
+import { FIX_LEDGER_DIRECTORY, fixLedgerPaths } from "./fix-ledger-path.mjs";
+import { executionReceiptRelativePath, expectedExecutionReceipt } from "./fix-execution-evidence.mjs";
 
 const SHA256_PATTERN = /^[a-f0-9]{64}$/u;
 const MAX_TEXT_BYTES = 1024 * 1024;
-const SYSTEM_ACCOUNT_HOME = os.userInfo().homedir;
-if (typeof SYSTEM_ACCOUNT_HOME !== "string" || !path.isAbsolute(SYSTEM_ACCOUNT_HOME)) {
-  throw new Error("The operating system account home directory is unavailable for the fix consumption ledger.");
-}
-export const DEFAULT_FIX_CONSUMPTION_LEDGER_DIRECTORY = path.join(SYSTEM_ACCOUNT_HOME, ".information-accessibility-practice", "fix-authorization-ledger-v1");
+export const DEFAULT_FIX_CONSUMPTION_LEDGER_DIRECTORY = FIX_LEDGER_DIRECTORY;
 
 function pathKey(value) {
   const normalized = path.normalize(path.resolve(value));
@@ -112,17 +109,15 @@ function ensureGlobalConsumptionLedger() {
 }
 
 export function globalConsumptionMarkerPath({ authorizationSha256, sourceRoot, runId }) {
-  const canonicalSourceRoot = inspectDirectory(sourceRoot, "trusted source root");
-  const sourceRootSha256 = sha256Bytes(Buffer.from(pathKey(canonicalSourceRoot), "utf8"));
-  const ledgerKey = sha256Bytes(Buffer.from(canonicalJson({
-    authorization_sha256: authorizationSha256,
-    run_id: runId,
-    source_root_sha256: sourceRootSha256
-  }), "utf8"));
-  return {
-    markerPath: path.join(ensureGlobalConsumptionLedger(), `${ledgerKey}.json`),
-    sourceRootSha256
-  };
+  const paths = fixLedgerPaths({ authorizationSha256, sourceRoot, runId });
+  ensureGlobalConsumptionLedger();
+  return paths;
+}
+
+function executionDirectory(artifactRoot) {
+  const directory = path.join(artifactRoot, ".fix-execution");
+  if (!fs.existsSync(directory)) fs.mkdirSync(directory, { mode: 0o700 });
+  return inspectDirectory(directory, "fix execution directory");
 }
 
 function assertGlobalNotConsumed(record) {
@@ -367,13 +362,24 @@ function sameFileObject(left, right) {
   return left?.identity?.dev === right?.identity?.dev && left?.identity?.ino === right?.identity?.ino;
 }
 
-function changeEnvelope({ params, authorization, authorizationSnapshot, remediation, lease, before, after, diffSha256, commandResults, createdAt }) {
+function changeEnvelope({ params, authorization, authorizationSnapshot, handoff, handoffSnapshot, remediation, lease, before, after, diffSha256, commandResults, startedAt, completedAt, createdAt }) {
   const payload = {
-    schema_version: "2.0.0",
+    schema_version: "3.0.0",
     change_id: randomId("CHANGE", createdAt),
     run_id: authorization.payload.run_id,
     authorization_id: authorization.payload.authorization_id,
     authorization_artifact: { artifact_id: authorization.artifact_id, sha256: authorizationSnapshot.sha256 },
+    handoff_artifact: { artifact_id: handoff.artifact_id, sha256: handoffSnapshot.sha256 },
+    execution: {
+      operator_id: params.operatorId,
+      runtime_version: "1.0.0",
+      runtime_sha256: sha256Bytes(fs.readFileSync(new URL(import.meta.url))),
+      command_broker_version: "1.0.0",
+      command_broker_sha256: sha256Bytes(fs.readFileSync(new URL("./fix-verification.mjs", import.meta.url))),
+      platform: process.platform, arch: process.arch, node_version: process.version, host_id: os.hostname(),
+      started_at: timestamp(startedAt), completed_at: timestamp(completedAt),
+      receipt: { path: executionReceiptRelativePath(authorizationSnapshot.sha256) }
+    },
     changed_files: [{
       path: params.target,
       operation: params.operation,
@@ -393,16 +399,17 @@ function changeEnvelope({ params, authorization, authorizationSnapshot, remediat
     next_status: "retest_required"
   };
   return {
-    schema_version: "3.0.0",
+    schema_version: "4.0.0",
     target_snapshot_ids: [...authorization.target_snapshot_ids],
     artifact_id: randomId("ART-CHANGE", createdAt),
     artifact_type: "change-record",
     run_id: authorization.payload.run_id,
-    producer: { role_id: "authorized_fixer", producer_kind: "ai_agent", origin: "local_authorized_fix_runtime" },
+    producer: { role_id: "trusted_fix_executor", producer_kind: "trusted_runtime", origin: "local_authorized_fix_runtime" },
     created_at: timestamp(createdAt),
     inputs: [
       { artifact_id: remediation.artifact_id, run_id: authorization.payload.run_id, sha256: remediation.sha256 },
-      { artifact_id: authorization.artifact_id, run_id: authorization.payload.run_id, sha256: authorizationSnapshot.sha256 }
+      { artifact_id: authorization.artifact_id, run_id: authorization.payload.run_id, sha256: authorizationSnapshot.sha256 },
+      { artifact_id: handoff.artifact_id, run_id: authorization.payload.run_id, sha256: handoffSnapshot.sha256 }
     ],
     payload
   };
@@ -410,12 +417,34 @@ function changeEnvelope({ params, authorization, authorizationSnapshot, remediat
 
 export function applyAuthorizedFix(params = {}) {
   validateInputs(params);
+  if (!params.handoffFile) throw new Error("handoffFile is required for the trusted fix executor.");
+  if (typeof params.operatorId !== "string" || !params.operatorId.trim()) throw new Error("operatorId is required for the trusted fix executor.");
   const authorizationInput = parseStableJson(params.authorizationFile, "fix authorization");
+  const handoffInput = parseStableJson(params.handoffFile, "fix handoff");
   const runInput = parseStableJson(params.runFile, "audit run");
   const runValidation = validateAuditRun(runInput.value, { runFile: runInput.snapshot.path });
   if (!runValidation.valid) throw new Error(`Audit run validation failed:\n- ${runValidation.errors.join("\n- ")}`);
   if (runInput.value.schema_version !== "17.0.0") throw new Error("Authorized fixes require audit-run 17.0.0.");
+  if (runValidation.resources.orchestrationRegistry.schema_version !== "17.0.0") throw new Error("Trusted fix execution requires orchestration-registry 17.0.0.");
   const artifactRoot = artifactRootFor(runInput.value, runInput.snapshot.path);
+  const handoffEntry = runInput.value.artifacts.find((entry) => entry.artifact_id === handoffInput.value.artifact_id);
+  if (handoffEntry?.artifact_type !== "fix-handoff" || handoffEntry.sha256 !== handoffInput.snapshot.sha256
+      || !samePath(path.resolve(artifactRoot, ...(handoffEntry?.path ?? "").split("/")), handoffInput.snapshot.path)
+      || handoffInput.value.producer?.role_id !== "authorized_fixer") {
+    throw new Error("Fix handoff must be the exact registered authorized_fixer artifact.");
+  }
+  if (handoffInput.value.payload?.authorization_artifact?.artifact_id !== authorizationInput.value.artifact_id
+      || handoffInput.value.payload?.authorization_artifact?.sha256 !== authorizationInput.snapshot.sha256) {
+    throw new Error("Fix handoff must reference the exact supplied authorization.");
+  }
+  for (const [field, expected] of Object.entries({ source_root: authorizationInput.value.payload.source_root,
+    operation: params.operation, target: params.target, description: params.description,
+    expected_before_sha256: params.expectedBeforeSha256 ?? null })) {
+    if (handoffInput.value.payload[field] !== expected) throw new Error(`Fix handoff ${field} differs from the requested execution.`);
+  }
+  if (JSON.stringify(handoffInput.value.payload.command_ids) !== JSON.stringify(params.commandIds)) {
+    throw new Error("Fix handoff command IDs differ from requested execution.");
+  }
   const canonicalSourceRoot = inspectDirectory(params.sourceRoot, "trusted source root");
   if (pathsOverlap(artifactRoot, canonicalSourceRoot)) throw new Error("Run artifact root must be outside and must not overlap the trusted source root.");
   if (pathsOverlap(path.resolve(params.lockDir ?? DEFAULT_FIX_LEASE_DIRECTORY), artifactRoot)) throw new Error("Fix lease directory must be outside and must not overlap the run artifact root.");
@@ -428,7 +457,10 @@ export function applyAuthorizedFix(params = {}) {
     runId: runInput.value.run_id
   });
   assertGlobalNotConsumed(globalConsumption);
+  assertNewOutputPath(globalConsumption.completionPath);
   const markerPath = assertNotConsumed(artifactRoot, authorizationInput.snapshot.sha256);
+  const receiptOutput = path.join(executionDirectory(artifactRoot), `${authorizationInput.snapshot.sha256}.json`);
+  assertNewOutputPath(receiptOutput);
   const output = directNewArtifactOutput(params.output, artifactRoot, "change-record output");
   const parsedOutput = path.parse(output);
   const diffOutput = directNewArtifactOutput(path.join(parsedOutput.dir, `${parsedOutput.name}.diff.json`), artifactRoot, "diff output");
@@ -442,6 +474,9 @@ export function applyAuthorizedFix(params = {}) {
   if (content && samePath(content.snapshot.path, path.resolve(params.sourceRoot))) throw new Error("Replacement content must not be the source root.");
   const changeBinding = exactAuthorizedChange(params, authorizationInput.value);
   assertRequestedHashes(changeBinding, params, content);
+  if (handoffInput.value.payload.expected_after_sha256 !== (content?.snapshot.sha256 ?? null)) {
+    throw new Error("Fix handoff expected after SHA-256 differs from replacement content.");
+  }
 
   let lease = null;
   let released = false;
@@ -462,6 +497,7 @@ export function applyAuthorizedFix(params = {}) {
       runId: runInput.value.run_id
     });
     assertStableFile(authorizationInput.snapshot, "fix authorization");
+    assertStableFile(handoffInput.snapshot, "fix handoff");
     assertStableFile(runInput.snapshot, "audit run");
     if (content) assertStableFile(content.snapshot, "authorized replacement content");
     revalidateAuthorization(params, authorizationInput.value, runInput.value, runInput.snapshot);
@@ -492,6 +528,7 @@ export function applyAuthorizedFix(params = {}) {
     consumptionDirectory(artifactRoot);
     writeNewJson(markerPath, consumptionRecord);
 
+    const startedAt = typeof params.now === "function" ? params.now() : new Date();
     applyMutation({
       operation: params.operation,
       targetState: before,
@@ -525,24 +562,30 @@ export function applyAuthorizedFix(params = {}) {
       sourceRoot: params.sourceRoot,
       now: params.now
     });
+    const completedAt = typeof params.now === "function" ? params.now() : new Date();
     const remediation = authorizationInput.value.payload.remediation_artifact;
     const createdAt = typeof params.now === "function" ? params.now() : new Date();
     const envelope = changeEnvelope({
       params,
       authorization: authorizationInput.value,
       authorizationSnapshot: authorizationInput.snapshot,
+      handoff: handoffInput.value,
+      handoffSnapshot: handoffInput.snapshot,
       remediation,
       lease,
       before,
       after,
       diffSha256: diffSnapshot.sha256,
       commandResults,
+      startedAt,
+      completedAt,
       createdAt
     });
     const resources = loadAuditResources();
     const artifactValidation = validateArtifact(envelope, resources, { allowedPayloadVersions: resources.currentPayloadVersions });
     if (!artifactValidation.valid) throw new Error(`Generated change record is invalid:\n- ${artifactValidation.errors.join("\n- ")}`);
     assertStableFile(authorizationInput.snapshot, "fix authorization before evidence commit");
+    assertStableFile(handoffInput.snapshot, "fix handoff before evidence commit");
     assertStableFile(runInput.snapshot, "audit run before evidence commit");
     assertMeasuredAfterState(after, before.absolute, params.operation);
     writeNewJson(stagingOutput, envelope);
@@ -598,12 +641,17 @@ export function applyAuthorizedFix(params = {}) {
       throw error;
     }
     evidenceCommitted = true;
+    const receipt = expectedExecutionReceipt(envelope, outputSnapshot.sha256);
+    writeNewJson(receiptOutput, receipt);
+    writeNewJson(globalConsumption.completionPath, receipt);
     return {
       artifact: envelope,
       output,
       diffOutput,
       consumptionMarker: markerPath,
-      globalConsumptionMarker: globalConsumption.markerPath
+      globalConsumptionMarker: globalConsumption.markerPath,
+      executionReceipt: receiptOutput,
+      globalExecutionReceipt: globalConsumption.completionPath
     };
   } catch (error) {
     if (mutationState.started && !evidenceCommitted && !leaseReleaseAttempted && before) {

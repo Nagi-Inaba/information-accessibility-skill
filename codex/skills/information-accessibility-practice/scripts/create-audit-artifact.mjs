@@ -6,7 +6,7 @@ import { parseAttestationJson } from "./lib/attestation-canonical.mjs";
 import { createRunEvidenceReference } from "./lib/run-evidence.mjs";
 
 const types = ["screening-observations", "human-review-queue", "declared-human-review", "remediation-plan",
-  "audit-context", "participant-usability-observation", "declared-change-record"];
+  "audit-context", "participant-usability-observation", "declared-change-record", "fix-handoff"];
 
 export function main(argv = process.argv.slice(2)) {
   const [action, ...args] = argv;

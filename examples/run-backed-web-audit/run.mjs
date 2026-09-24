@@ -76,7 +76,7 @@ function inputRef(artifact, file) {
 
 function envelope({ artifactId, artifactType, runId, roleId, producerKind, createdAt, inputs, payload }) {
   return {
-    schema_version: "3.0.0",
+    schema_version: "4.0.0",
     target_snapshot_ids: [],
     artifact_id: artifactId,
     artifact_type: artifactType,

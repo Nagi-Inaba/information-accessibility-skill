@@ -60,7 +60,7 @@ export async function runWorksheetCommand(argv) {
   if (run.artifacts.some((entry) => entry.artifact_id === artifactId)) throw new Error("Artifact ID is already registered.");
   const now = new Date().toISOString();
   if (compareInstants(now, run.history.at(-1).at) < 0) throw new Error("System time precedes the current run state.");
-  const artifact = { schema_version: "3.0.0", artifact_id: artifactId, artifact_type: "declared-human-review", run_id: run.run_id,
+  const artifact = { schema_version: "4.0.0", artifact_id: artifactId, artifact_type: "declared-human-review", run_id: run.run_id,
     target_snapshot_ids: [...queue.target_snapshot_ids], producer: { role_id: "declared_external_human", producer_kind: "external_human", origin: "Human-completed worksheet imported by accessibility-audit (self-declared; identity not authenticated)" },
     created_at: now, inputs: [{ artifact_id: queue.artifact_id, run_id: run.run_id, sha256: selected.snapshot.sha256 }],
     payload: reviewFromWorksheet({ rows, expected, items, artifactId, now }) };

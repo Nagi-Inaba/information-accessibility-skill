@@ -212,7 +212,7 @@ export function importedScreeningArtifact({ run, record, artifactId, evidenceRef
         rule_id: known ? row.rule_id : "unsupported-rule", target_dom: `Private scanner item ${index + 1}`, viewport: null } };
   });
   requireValue(observations.length <= 10000, "Scanner import exceeds the 10000-observation limit.");
-  return { schema_version: "3.0.0", artifact_id: artifactId, artifact_type: "screening-observations", run_id: run.run_id,
+  return { schema_version: "4.0.0", artifact_id: artifactId, artifact_type: "screening-observations", run_id: run.run_id,
     target_snapshot_ids: targetSnapshotIds(run), producer: { role_id: "e1_inspector", producer_kind: "ai_agent", origin: `axe importer ${AXE_IMPORTER_VERSION}` },
     created_at: record.imported_at, inputs: [], payload: { schema_version: "4.0.0", observations } };
 }

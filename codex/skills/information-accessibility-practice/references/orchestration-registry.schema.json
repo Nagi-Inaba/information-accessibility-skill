@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:information-accessibility:orchestration-registry:16.0.0",
+  "$id": "urn:information-accessibility:orchestration-registry:17.0.0",
   "title": "Extensible Information Accessibility Audit Orchestration Registry",
   "type": "object",
   "additionalProperties": false,
@@ -16,7 +16,7 @@
       "const": "./orchestration-registry.schema.json"
     },
     "schema_version": {
-      "const": "16.0.0"
+      "const": "17.0.0"
     },
     "roles": {
       "type": "array",
@@ -160,7 +160,8 @@
           "enum": [
             "ai_agent",
             "external_human",
-            "external_requester"
+            "external_requester",
+            "trusted_runtime"
           ]
         },
         "input_types": {
@@ -255,7 +256,7 @@
           "then": {
             "properties": {
               "id": {
-                "const": "authorized_fixer"
+                "const": "trusted_fix_executor"
               },
               "output_type": {
                 "const": "change-record"
@@ -263,6 +264,20 @@
               "install_by_default": {
                 "const": false
               }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "output_type": { "const": "fix-handoff" } },
+            "required": ["output_type"]
+          },
+          "then": {
+            "properties": {
+              "id": { "const": "authorized_fixer" },
+              "producer_kind": { "const": "ai_agent" },
+              "can_write_target": { "const": false },
+              "install_by_default": { "const": false }
             }
           }
         },

@@ -1,6 +1,6 @@
 {
   "$schema": "./orchestration-registry.schema.json",
-  "schema_version": "17.0.0",
+  "schema_version": "16.0.0",
   "roles": [
     {
       "id": "orchestrator",
@@ -95,19 +95,8 @@
         "remediation-plan",
         "fix-authorization"
       ],
-      "output_type": "fix-handoff",
-      "max_ai_evidence_level": "E1",
-      "can_record_profile_outcome": false,
-      "can_write_target": false,
-      "install_by_default": false
-    },
-    {
-      "id": "trusted_fix_executor",
-      "agent_id": null,
-      "producer_kind": "trusted_runtime",
-      "input_types": ["remediation-plan", "fix-authorization", "fix-handoff"],
       "output_type": "change-record",
-      "max_ai_evidence_level": null,
+      "max_ai_evidence_level": "E1",
       "can_record_profile_outcome": false,
       "can_write_target": true,
       "install_by_default": false
@@ -396,20 +385,8 @@
       ]
     },
     {
-      "id": "fix-handoff",
-      "latest_schema_version": "1.0.0",
-      "schema_versions": [
-        {
-          "version": "1.0.0",
-          "schema_file": "fix-handoff.schema.json",
-          "schema_sha256": "bf68ce1f29a71b342590c0c7fe3b05ba2b14092c8f1787571efd4675bb7f87a7",
-          "mode": "current"
-        }
-      ]
-    },
-    {
       "id": "change-record",
-      "latest_schema_version": "3.0.0",
+      "latest_schema_version": "2.0.0",
       "schema_versions": [
         {
           "version": "1.0.0",
@@ -418,14 +395,8 @@
         },
         {
           "version": "2.0.0",
-          "schema_file": "change-record-2.0.0.schema.json",
-          "schema_sha256": "0e7318a19b0a7e8b69ab2c30ab613866666cd4892f04721c419cb128a10fcb84",
-          "mode": "read_only"
-        },
-        {
-          "version": "3.0.0",
           "schema_file": "change-record.schema.json",
-          "schema_sha256": "bc6ff9de4c38ffc6a0dbe936b1469663f0674cb8d397889daa57a539f4d40407",
+          "schema_sha256": "0e7318a19b0a7e8b69ab2c30ab613866666cd4892f04721c419cb128a10fcb84",
           "mode": "current"
         }
       ]

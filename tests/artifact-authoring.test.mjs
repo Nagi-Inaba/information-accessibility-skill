@@ -8,7 +8,7 @@ import test from "node:test";
 import crypto from "node:crypto";
 import { loadAuditResources } from "../codex/skills/information-accessibility-practice/scripts/lib/audit-run.mjs";
 import { findingRetestSummary } from "../codex/skills/information-accessibility-practice/scripts/lib/run-findings.mjs";
-import { createHumanReviewRecord } from "../codex/skills/information-accessibility-practice/scripts/lib/human-review-provenance.mjs";
+import { createHumanReviewRecord, humanReviewRunContext } from "../codex/skills/information-accessibility-practice/scripts/lib/human-review-provenance.mjs";
 import { reviewRecordSha256 } from "../codex/skills/information-accessibility-practice/scripts/lib/assessment-provenance.mjs";
 import { cli, pass, read } from "./helpers/scanner-import.mjs";
 
@@ -209,12 +209,23 @@ test("author four standard candidates, edit, validate, register, merge and repor
   pass(cli(["report", "--run", runFile, "--assessment", merged, "--output", report]));
   assert.ok(fs.statSync(report).size > 0);
   // Read a frozen singular plan without migrating or changing the current run.
-  const historical = read(runFile), oldPlan = read(path.join(artifacts, "authored-3.json"));
+  const historical = read(runFile), priorHashes = new Map();
+  for (const entry of [...historical.artifacts].sort((a, b) => a.created_at.localeCompare(b.created_at))) {
+    const envelope = read(path.join(artifacts, entry.path));
+    envelope.schema_version = "3.0.0";
+    for (const input of envelope.inputs) if (priorHashes.has(input.artifact_id)) input.sha256 = priorHashes.get(input.artifact_id);
+    const frozenFile = path.join(artifacts, `frozen-${entry.artifact_id}.json`);
+    write(frozenFile, envelope);
+    entry.path = path.basename(frozenFile);
+    entry.sha256 = crypto.createHash("sha256").update(fs.readFileSync(frozenFile)).digest("hex");
+    priorHashes.set(entry.artifact_id, entry.sha256);
+  }
+  const oldPlan = read(path.join(artifacts, historical.artifacts.find((entry) => entry.artifact_type === "remediation-plan").path));
   historical.schema_version = "12.0.0";
   const frozen = loadAuditResources().orchestrationRegistries.get("11.0.0");
   historical.resource_versions.orchestration_registry_version = "11.0.0";
   historical.resource_versions.orchestration_registry_sha256 = frozen.sha256;
-  const oldHuman = read(path.join(artifacts, "authored-2.json")); oldHuman.payload.schema_version = "1.0.0";
+  const oldHuman = read(path.join(artifacts, historical.artifacts.find((entry) => entry.artifact_type === "declared-human-review").path)); oldHuman.payload.schema_version = "1.0.0";
   delete oldHuman.payload.reviewer_id; delete oldHuman.payload.reviewer_role;
   for (const review of oldHuman.payload.reviews) { delete review.review_id; delete review.supersedes_review_id; }
   const oldHumanFile = path.join(artifacts, "old-human.json"); write(oldHumanFile, oldHuman);
@@ -228,8 +239,8 @@ test("author four standard candidates, edit, validate, register, merge and repor
   const oldRunFile = path.join(scenario, "old-run12.json"); write(oldRunFile, historical);
   const oldAssessment = read(merged), originalRecord = oldAssessment.assessment.human_review_records[0];
   assert.equal(originalRecord.attestation, null);
-  originalRecord.context.origin.artifact_sha256 = oldHumanHash;
-  const oldRecord = createHumanReviewRecord({ reviewerId: originalRecord.reviewer_id, review: oldHuman.payload, context: originalRecord.context });
+  const oldContext = humanReviewRunContext({ run: historical, artifact: oldHuman, artifactSha256: oldHumanHash });
+  const oldRecord = createHumanReviewRecord({ reviewerId: originalRecord.reviewer_id, review: oldHuman.payload, context: oldContext });
   oldAssessment.assessment.human_review_records = [oldRecord];
   for (const row of oldAssessment.assessment.results) if (row.review_record_sha256 || row.review_resolution) {
     delete row.review_resolution; row.review_record_sha256 = reviewRecordSha256(oldRecord);

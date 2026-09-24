@@ -142,7 +142,7 @@ function reportRunFixture(temp, { declaredFinding = false, withoutPlan = false, 
     "2026-07-17T12:00:04Z"
   ];
   const envelope = (artifactId, artifactType, roleId, inputs, payload, createdAt, producerKind = "ai_agent") => ({
-    schema_version: "3.0.0",
+    schema_version: "4.0.0",
     target_snapshot_ids: targetContext.target_inventory.snapshots.map((snapshot) => snapshot.snapshot_id),
     artifact_id: artifactId,
     artifact_type: artifactType,
@@ -350,7 +350,7 @@ test("registered audit context supplies participation, limitations and a review 
       const reference = createRunEvidenceReference({ run, targetRef: run.target.urls_or_files[0], evidenceType: "other",
         relativePath: sourcePath, bytes, capturedAt });
       const artifact = {
-        schema_version: "3.0.0",
+        schema_version: "4.0.0",
         target_snapshot_ids: run.target_inventory.snapshots.map((snapshot) => snapshot.snapshot_id),
         artifact_id: `ART-CONTEXT-${id}`,
         artifact_type: "audit-context",
@@ -493,7 +493,7 @@ test("participant observations stay separate from conformance and publish only c
       fs.writeFileSync(path.join(temp, "artifacts", sourcePath), bytes);
       const capturedAt = `2026-07-17T13:00:${seconds}Z`;
       const artifact = {
-        schema_version: "3.0.0",
+        schema_version: "4.0.0",
         artifact_id: `ART-PARTICIPANT-${id}`,
         artifact_type: "participant-usability-observation",
         run_id: run.run_id,

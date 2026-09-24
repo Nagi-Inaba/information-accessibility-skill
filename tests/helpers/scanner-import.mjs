@@ -35,7 +35,7 @@ export function importedReport(f, artifactFile) {
   pass(cli(["register", "--run", f.runFile, "--artifact", artifactFile, "--output", screenedFile]));
   const profileIds = [...new Set(screen.payload.observations.flatMap((row) => screeningMappings(row).map((mapping) => mapping.requirement_id)))];
   const items = profileIds.map((requirementId) => ({ requirement_id: requirementId, ...lookupRequirement("web-modern", requirementId).procedure_binding }));
-  const queue = { schema_version: "3.0.0", artifact_id: "ART-IMPORT-QUEUE", artifact_type: "human-review-queue", run_id: f.run.run_id,
+  const queue = { schema_version: "4.0.0", artifact_id: "ART-IMPORT-QUEUE", artifact_type: "human-review-queue", run_id: f.run.run_id,
     target_snapshot_ids: targetSnapshotIds(f.run), producer: { role_id: "human_queue_planner", producer_kind: "ai_agent", origin: "import integration fixture" },
     created_at: new Date().toISOString(), inputs: [{ artifact_id: screen.artifact_id, run_id: f.run.run_id, sha256: readStableFile(artifactFile).sha256 }],
     payload: { schema_version: "2.0.0", items, procedure_coverage: { total_requirements: items.length,
