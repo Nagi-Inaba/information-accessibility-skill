@@ -149,12 +149,13 @@ test("catalog procedures include the expected unique requirement IDs", () => {
     "WCAG-2.2-SC-4.1.3",
     "WCAG-2.2-SC-2.4.3",
     "WCAG-2.2-SC-2.4.7",
-    "WCAG-2.2-SC-2.1.2"
+    "WCAG-2.2-SC-2.1.2",
+    "WCAG-2.2-SC-3.3.3"
   ]);
 
   assert.equal(requirementIds.length, procedures.procedures.length);
   assert.equal(unique.size, procedures.procedures.length);
-  assert.ok(unique.size >= 15);
+  assert.ok(unique.size >= 16);
   for (const req of expected) {
     assert.equal(unique.has(req), true, `missing requirement ${req}`);
   }
@@ -260,6 +261,20 @@ test("SC 2.1.2 checks keyboard exit from contained focus without treating every 
   assert.match(procedure.procedure_steps.join(" "), /SC 2\.1\.1.*SC 2\.4\.3/u);
   assert.ok(procedure.counterexamples.pass.length && procedure.counterexamples.fail.length && procedure.counterexamples.cant_tell.length);
   assert.match(procedure.ai_boundary, /must not infer a profile outcome/u);
+});
+
+test("SC 3.3.3 requires known safe correction guidance after an automatically detected error", () => {
+  const procedure = procedureFor("WCAG-2.2-SC-3.3.3");
+  assert.deepEqual(procedure.primary_sources, [
+    "https://www.w3.org/TR/WCAG22/#error-suggestion",
+    "https://www.w3.org/WAI/WCAG22/Understanding/error-suggestion.html"
+  ]);
+  assert.deepEqual(procedure.required_evidence_types, ["browser_inspection", "manual_observation"]);
+  assert.match(procedure.applicability_steps.join(" "), /automatically detected.*security or content-purpose/u);
+  assert.match(procedure.procedure_steps.join(" "), /do not treat every sensitive form as exempt/u);
+  assert.match(procedure.procedure_steps.join(" "), /SC 3\.3\.1.*SC 3\.3\.2.*SC 3\.3\.4/u);
+  assert.ok(procedure.counterexamples.pass.length && procedure.counterexamples.fail.length && procedure.counterexamples.cant_tell.length);
+  assert.match(procedure.ai_boundary, /must not decide whether an exception applies/u);
 });
 
 test("new focus and input-error procedures keep their criterion boundaries and primary sources", () => {

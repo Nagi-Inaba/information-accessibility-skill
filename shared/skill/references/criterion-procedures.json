@@ -652,6 +652,39 @@
         "cant_tell": ["A screenshot shows an open modal, but no keyboard entry, exit attempt, or resulting focus position was observed."]
       },
       "ai_boundary": "AI may identify focusable components and candidate exit instructions, but it must not infer a profile outcome, human_verified mapping, or E2+ claim from markup alone; a human reviewer tests entry and exit with the relevant keyboard interface."
+    },
+    {
+      "id": "wcag22-sc-3-3-3-error-suggestion",
+      "requirement_id": "WCAG-2.2-SC-3.3.3",
+      "procedure_version": "1.0.0",
+      "procedure_kind": "human_manual_or_hybrid",
+      "automation_role": "supporting_only",
+      "primary_sources": ["https://www.w3.org/TR/WCAG22/#error-suggestion", "https://www.w3.org/WAI/WCAG22/Understanding/error-suggestion.html"],
+      "applicability_steps": [
+        "Identify user-input errors automatically detected in the fixed form or process, including omitted required values and values outside an accepted format or set.",
+        "For each detected error, determine whether a usable correction is known; record a specific security or content-purpose reason before applying the criterion's exception."
+      ],
+      "procedure_steps": [
+        "Using safe test values, trigger representative automatically detected errors and record the field, rejected input, validation state, and guidance shown to the user.",
+        "Compare each known correction rule with the post-error guidance; check whether it tells the user how to repair the input, such as an accepted format or valid choice, rather than only saying that the value is invalid.",
+        "For a claimed security or purpose exception, inspect the particular information that a suggestion would expose or the task it would defeat; do not treat every sensitive form as exempt.",
+        "Assess textual identification of the wrong item under SC 3.3.1, instructions available before input under SC 3.3.2, and prevention or confirmation under SC 3.3.4 separately."
+      ],
+      "expected_results": [
+        "When an input error is detected automatically and a safe correction is known, the user receives a suggestion that can guide a valid correction.",
+        "Withholding a known suggestion is limited to a demonstrated security or content-purpose conflict; an error label alone does not substitute for correction guidance."
+      ],
+      "required_evidence_types": ["browser_inspection", "manual_observation"],
+      "cant_tell_when": [
+        "The validation state cannot be triggered or the guidance after detection cannot be observed in the permitted target.",
+        "The accepted rule, availability of a safe correction, or the claimed security or purpose conflict cannot be established."
+      ],
+      "counterexamples": {
+        "pass": ["After a date in an unsupported format is rejected, the field's error guidance gives the accepted date format and the user can correct the value."],
+        "fail": ["A form rejects a known invalid date format but displays only 'Invalid value' although the accepted format could safely be stated."],
+        "cant_tell": ["A static form image shows a format hint, but no automatically detected error or resulting guidance was observed."]
+      },
+      "ai_boundary": "AI may list validation rules and candidate suggestions from captured evidence, but it must not decide whether an exception applies or record a profile outcome, human_verified mapping, or E2+ claim; a human reviewer tests the error state and its guidance."
     }
   ]
 }
