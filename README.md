@@ -124,6 +124,7 @@ accessibility-audit --version
 accessibility-audit profiles list --locale ja
 accessibility-audit requirements search "focus" --profile web-modern --level AA --locale ja
 accessibility-audit screen-reader-checklist --pattern modal-dialog --locale ja --format markdown
+accessibility-audit screen-reader-checklist --list-patterns --locale ja
 accessibility-audit doctor --locale ja
 accessibility-audit preflight-web --browser-channel chrome --locale ja --format json
 ```
@@ -131,6 +132,8 @@ accessibility-audit preflight-web --browser-channel chrome --locale ja --format 
 このnpm導入も監査専用です。修正機能はCodex／Claude installerの明示オプションから導入してください。
 
 `--locale ja`と`--locale en`は、CLI help、profile、条項一覧・検索・表示、legacy requirement表示、スクリーンリーダーチェックリスト、レポートの人向け文字列だけを切り替えます。内部ID、schema key、enum、証拠型、claim tierは変更しません。
+
+スクリーンリーダーの`--pattern all`は同梱8パターンと指定した`--extension <file.json>`の範囲です。実機の読み上げは人が確認し、未掲載のUIは別途評価してください。拡張ファイルの形式は[状態付きUIの手順](codex/skills/information-accessibility-practice/references/screen-reader-stateful-ui.md)に記載しています。
 
 これらのdiscovery commandはread-onlyです。標準CLIは監査対象を変更しません。
 

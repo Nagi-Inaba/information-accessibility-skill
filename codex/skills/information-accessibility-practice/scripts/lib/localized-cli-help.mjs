@@ -45,7 +45,7 @@ function withLocaleOption(definition) {
   } else if (localized.name === "doctor") {
     localized.usage = ["accessibility-audit doctor [--locale ja|en] [--format text|json]"];
   } else if (localized.name === "screen-reader-checklist") {
-    localized.usage = ["accessibility-audit screen-reader-checklist [--pattern modal-dialog|disclosure|menu-button|fragmented-text|in-page-links|all] [--locale ja|en] [--format json|markdown]"];
+    localized.usage = ["accessibility-audit screen-reader-checklist [--list-patterns] [--pattern id|all] [--extension file.json] [--locale ja|en] [--format json|markdown]"];
   }
   return localized;
 }

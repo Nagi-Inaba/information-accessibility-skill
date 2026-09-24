@@ -285,9 +285,11 @@ const definitions = [
     name: "screen-reader-checklist",
     script: "show-screen-reader-checklist.mjs",
     summary: "Show supporting checks for stateful UI and screen-reader behavior.",
-    usage: ["accessibility-audit screen-reader-checklist [--pattern modal-dialog|disclosure|menu-button|fragmented-text|in-page-links|all] [--format json|markdown]"],
+    usage: ["accessibility-audit screen-reader-checklist [--list-patterns] [--pattern id|all] [--extension file.json] [--format json|markdown]"],
     options: [
+      option("--list-patterns", "", "List available bundled and extension patterns."),
       option("--pattern", "<id|all>", "Checklist pattern; default all."),
+      option("--extension", "<file.json>", "Optional JSON file with additional patterns."),
       option("--format", "<json|markdown>", "Output format; default json.")
     ]
   },

@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0.0",
-  "verified_at": "2026-07-19",
+  "verified_at": "2026-09-25",
   "status": "screening_checks",
   "claim_effect": "supporting_only",
   "sources": [
@@ -10,7 +10,10 @@
     "https://www.w3.org/TR/wai-aria-1.2/#aria-hidden",
     "https://www.w3.org/WAI/WCAG22/Understanding/info-and-relationships.html",
     "https://www.w3.org/WAI/WCAG22/Techniques/general/G1.html",
-    "https://www.w3.org/WAI/WCAG22/Techniques/general/G124.html"
+    "https://www.w3.org/WAI/WCAG22/Techniques/general/G124.html",
+    "https://www.w3.org/WAI/ARIA/apg/patterns/tabs/",
+    "https://www.w3.org/WAI/ARIA/apg/patterns/combobox/",
+    "https://www.w3.org/WAI/WCAG22/Understanding/status-messages.html"
   ],
   "invariant": "Visual state, operability, accessibility-tree exposure, and focus must describe the same current UI state.",
   "patterns": [
@@ -275,6 +278,120 @@
             "No in-page reading position can be recorded in the available environment.",
             "AT output cannot be captured for security or policy reasons."
           ],
+          "human_review_required": true
+        }
+      ]
+    },
+    {
+      "id": "tabs",
+      "title": "Tab list and associated panels",
+      "applicability": "A tab list selects one visible panel from several associated panels.",
+      "source_urls": ["https://www.w3.org/WAI/ARIA/apg/patterns/tabs/"],
+      "checks": [
+        {
+          "id": "SCREEN-SR-TABS-STATE",
+          "title": "Selection, visibility, and relationships agree",
+          "expectation": "Exactly the active tab and panel appear selected and visible; tab, tablist, and tabpanel roles and relationships identify the same panel.",
+          "code_inspection": ["Inspect the rendered roles, accessible names, aria-selected, aria-controls, aria-labelledby, and hidden panel state after each selection."],
+          "runtime_verification": ["Switch tabs and compare visible panel, operable controls, and accessibility-tree exposure in each state."],
+          "evidence_types": ["rendered_dom", "accessibility_tree", "state_transition"],
+          "cant_tell_when": ["The selected and inactive panel states cannot be observed."],
+          "human_review_required": true
+        },
+        {
+          "id": "SCREEN-SR-TABS-KEYBOARD",
+          "title": "Focus and keyboard activation match the chosen model",
+          "expectation": "Tab enters at the active tab; arrow keys move among tabs, and automatic or manual activation follows the implemented model without trapping focus.",
+          "code_inspection": ["Trace roving focus, arrow keys, activation mode, and the next Tab destination; check vertical orientation separately."],
+          "runtime_verification": ["Use keyboard to move, activate, and leave the tablist; record focus and visible panel after each action."],
+          "evidence_types": ["active_element", "keyboard_test", "focus_sequence", "state_transition"],
+          "cant_tell_when": ["The activation mode or focus sequence cannot be established."],
+          "human_review_required": true
+        },
+        {
+          "id": "SCREEN-SR-TABS-ANNOUNCEMENT",
+          "title": "Screen reader identifies tab state and panel",
+          "expectation": "The target screen reader conveys tab name, selection, and reachable panel content in the tested browser and locale.",
+          "code_inspection": ["Record computed tab names and states without inferring spoken output from markup."],
+          "runtime_verification": ["Record actual announcements while moving tabs and entering the panel, with screen reader, browser, version, voice, and locale."],
+          "evidence_types": ["accessibility_tree", "assistive_technology_test", "spoken_output_note", "environment_record"],
+          "cant_tell_when": ["The target screen-reader combination cannot be tested."],
+          "human_review_required": true
+        }
+      ]
+    },
+    {
+      "id": "combobox",
+      "title": "Combobox and suggestions",
+      "applicability": "An editable or select-only combobox opens a popup of values or suggestions.",
+      "source_urls": ["https://www.w3.org/WAI/ARIA/apg/patterns/combobox/"],
+      "checks": [
+        {
+          "id": "SCREEN-SR-COMBOBOX-STATE",
+          "title": "Name, value, and popup state agree",
+          "expectation": "The visible value and popup match the combobox name, value, expanded state, and popup relationship exposed to assistive technology.",
+          "code_inspection": ["Inspect the rendered combobox name, value, aria-expanded, popup role, and relationship for open and closed states."],
+          "runtime_verification": ["Open and close the popup and compare visible options, operability, and accessibility-tree state."],
+          "evidence_types": ["rendered_dom", "accessibility_tree", "state_transition"],
+          "cant_tell_when": ["The popup or its computed relationship cannot be inspected."],
+          "human_review_required": true
+        },
+        {
+          "id": "SCREEN-SR-COMBOBOX-KEYBOARD",
+          "title": "Suggestion navigation and focus remain usable",
+          "expectation": "Arrow keys, selection, Escape, and editable text keys work according to the chosen popup model, while focus and active suggestion remain coherent.",
+          "code_inspection": ["Trace DOM focus or aria-activedescendant, suggestion selection, Escape, and native text editing keys."],
+          "runtime_verification": ["Type or open, navigate suggestions, accept one, and dismiss with Escape; record focus, value, and visual selection."],
+          "evidence_types": ["active_element", "keyboard_test", "focus_sequence", "state_transition"],
+          "cant_tell_when": ["Focus or accepted value cannot be observed."],
+          "human_review_required": true
+        },
+        {
+          "id": "SCREEN-SR-COMBOBOX-ANNOUNCEMENT",
+          "title": "Suggestions and selection are heard",
+          "expectation": "The target screen reader conveys the current value and active suggestion without losing text input context.",
+          "code_inspection": ["Record computed names, states, and active descendant separately from any claim about speech."],
+          "runtime_verification": ["Record actual suggestion and selected-value announcements with screen reader, browser, version, voice, and locale."],
+          "evidence_types": ["accessibility_tree", "assistive_technology_test", "spoken_output_note", "environment_record"],
+          "cant_tell_when": ["The target screen-reader combination cannot be tested."],
+          "human_review_required": true
+        }
+      ]
+    },
+    {
+      "id": "status-messages",
+      "title": "Status messages and live updates",
+      "applicability": "An action updates a success, progress, waiting, result, or error message without changing context.",
+      "source_urls": ["https://www.w3.org/WAI/WCAG22/Understanding/status-messages.html"],
+      "checks": [
+        {
+          "id": "SCREEN-SR-STATUS-EXPOSURE",
+          "title": "The visible status is programmatically exposed",
+          "expectation": "A visible status update has an appropriate role or property and enough context to be understood without moving focus.",
+          "code_inspection": ["Trace the update into the rendered status text and inspect its role, live property, and relevant context."],
+          "runtime_verification": ["Trigger representative success, waiting, and error updates; compare visible text with accessibility-tree changes."],
+          "evidence_types": ["rendered_dom", "accessibility_tree", "state_transition"],
+          "cant_tell_when": ["The update cannot be triggered or its accessibility-tree state cannot be captured."],
+          "human_review_required": true
+        },
+        {
+          "id": "SCREEN-SR-STATUS-FOCUS",
+          "title": "The update does not steal focus or block action",
+          "expectation": "The message is available while the user's focus and ongoing action remain stable; priority does not cause unnecessary interruption.",
+          "code_inspection": ["Inspect focus handlers and status or alert priority for the actual update path."],
+          "runtime_verification": ["Trigger the update with keyboard and verify focus, continued operability, and the visible state."],
+          "evidence_types": ["active_element", "keyboard_test", "focus_sequence", "state_transition"],
+          "cant_tell_when": ["Focus or the ongoing action cannot be observed."],
+          "human_review_required": true
+        },
+        {
+          "id": "SCREEN-SR-STATUS-ANNOUNCEMENT",
+          "title": "A meaningful update is announced",
+          "expectation": "The target screen reader conveys the status with sufficient context and without duplicate or stale announcements.",
+          "code_inspection": ["Check update timing and message text, but do not infer speech from the presence of a live region."],
+          "runtime_verification": ["Record actual announcements for repeated updates with screen reader, browser, version, voice, and locale."],
+          "evidence_types": ["accessibility_tree", "assistive_technology_test", "spoken_output_note", "environment_record"],
+          "cant_tell_when": ["The target screen-reader combination cannot be tested."],
           "human_review_required": true
         }
       ]

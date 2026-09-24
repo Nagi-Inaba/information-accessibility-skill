@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0.0",
   "locale": "ja",
-  "verified_at": "2026-07-19",
+  "verified_at": "2026-09-25",
   "status": "screening_checks",
   "claim_effect": "supporting_only",
   "sources": [
@@ -11,7 +11,10 @@
     "https://www.w3.org/TR/wai-aria-1.2/#aria-hidden",
     "https://www.w3.org/WAI/WCAG22/Understanding/info-and-relationships.html",
     "https://www.w3.org/WAI/WCAG22/Techniques/general/G1.html",
-    "https://www.w3.org/WAI/WCAG22/Techniques/general/G124.html"
+    "https://www.w3.org/WAI/WCAG22/Techniques/general/G124.html",
+    "https://www.w3.org/WAI/ARIA/apg/patterns/tabs/",
+    "https://www.w3.org/WAI/ARIA/apg/patterns/combobox/",
+    "https://www.w3.org/WAI/WCAG22/Understanding/status-messages.html"
   ],
   "invariant": "視覚状態、操作可能性、accessibility tree上の公開状態、focusは、同じ現在のUI状態を表していなければなりません。",
   "usage_boundary": "これは再現可能な補助スクリーニングchecklistです。画面読み上げの実行時結果やprofile outcomeをcode inspectionだけから推定しないでください。",
@@ -451,6 +454,99 @@
             "セキュリティやポリシーでAT出力取得が禁止される。"
           ],
           "human_review_required": true
+        }
+      ]
+    },
+    {
+      "id": "tabs",
+      "title": "タブと対応するパネル",
+      "applicability": "複数のパネルからタブで一つを表示する場合。",
+      "checks": [
+        {
+          "id": "SCREEN-SR-TABS-STATE",
+          "title": "選択状態・表示・関連付けが一致する",
+          "expectation": "選択中のタブとパネルだけが選択・表示状態となり、roleと関連付けが同じパネルを示します。",
+          "code_inspection": ["各選択後のrole、アクセシブルネーム、aria-selected、aria-controls、aria-labelledby、非表示状態を確認します。"],
+          "runtime_verification": ["タブを切り替え、表示パネル、操作可能なcontrol、accessibility treeを状態ごとに照合します。"],
+          "cant_tell_when": ["選択中と非選択のパネル状態を観測できない場合。"]
+        },
+        {
+          "id": "SCREEN-SR-TABS-KEYBOARD",
+          "title": "フォーカスとキー操作が採用した方式に合う",
+          "expectation": "Tabで選択中のタブに入り、矢印キーで移動でき、自動または手動の選択方式どおりに動きます。",
+          "code_inspection": ["フォーカス移動、矢印キー、選択方式、次のTab移動先を追跡し、縦向きも確認します。"],
+          "runtime_verification": ["キーで移動・選択・離脱し、各操作後のフォーカスと表示パネルを記録します。"],
+          "cant_tell_when": ["選択方式やフォーカス順序を確認できない場合。"]
+        },
+        {
+          "id": "SCREEN-SR-TABS-ANNOUNCEMENT",
+          "title": "タブ状態とパネルが読み上げられる",
+          "expectation": "対象のスクリーンリーダーでタブ名、選択状態、到達可能なパネル内容を確認します。",
+          "code_inspection": ["計算済みの名前と状態を記録し、マークアップだけで読み上げを推定しません。"],
+          "runtime_verification": ["タブ移動とパネル進入時の実際の読み上げを、支援技術、ブラウザ、版、音声、言語と共に記録します。"],
+          "cant_tell_when": ["対象のスクリーンリーダー環境で検証できない場合。"]
+        }
+      ]
+    },
+    {
+      "id": "combobox",
+      "title": "コンボボックスと候補",
+      "applicability": "入力可能または選択専用のコンボボックスが候補を開く場合。",
+      "checks": [
+        {
+          "id": "SCREEN-SR-COMBOBOX-STATE",
+          "title": "名前・値・候補の状態が一致する",
+          "expectation": "表示値と候補が、支援技術へ公開される名前、値、展開状態、候補との関連付けに一致します。",
+          "code_inspection": ["開閉時の名前、値、aria-expanded、候補のroleと関連付けを確認します。"],
+          "runtime_verification": ["候補を開閉し、表示、操作可能性、accessibility treeの状態を照合します。"],
+          "cant_tell_when": ["候補または計算済みの関連付けを確認できない場合。"]
+        },
+        {
+          "id": "SCREEN-SR-COMBOBOX-KEYBOARD",
+          "title": "候補移動とフォーカスが操作できる",
+          "expectation": "矢印キー、選択、Escape、文字編集キーが採用した候補方式に沿い、フォーカスと選択候補が一致します。",
+          "code_inspection": ["DOMフォーカスまたはaria-activedescendant、候補選択、Escape、標準の文字編集キーを追跡します。"],
+          "runtime_verification": ["入力または展開し、候補移動・確定・Escapeでの終了を試し、フォーカス、値、表示選択を記録します。"],
+          "cant_tell_when": ["フォーカスまたは確定値を観測できない場合。"]
+        },
+        {
+          "id": "SCREEN-SR-COMBOBOX-ANNOUNCEMENT",
+          "title": "候補と確定値が読み上げられる",
+          "expectation": "対象のスクリーンリーダーで現在値と選択候補が、入力の文脈を失わずに伝わるか確認します。",
+          "code_inspection": ["名前、状態、選択中の候補を記録し、読み上げの主張と分離します。"],
+          "runtime_verification": ["候補と確定値の実際の読み上げを、支援技術、ブラウザ、版、音声、言語と共に記録します。"],
+          "cant_tell_when": ["対象のスクリーンリーダー環境で検証できない場合。"]
+        }
+      ]
+    },
+    {
+      "id": "status-messages",
+      "title": "状態メッセージと動的な更新",
+      "applicability": "操作により、文脈を変えず成功、進行、待機、結果、エラーの表示が更新される場合。",
+      "checks": [
+        {
+          "id": "SCREEN-SR-STATUS-EXPOSURE",
+          "title": "表示された状態がプログラムから分かる",
+          "expectation": "表示された更新に適切なroleまたはpropertyがあり、フォーカスを移さず内容を理解できます。",
+          "code_inspection": ["更新後のテキスト、role、live property、必要な文脈を確認します。"],
+          "runtime_verification": ["成功、待機、エラーの代表例を起こし、表示とaccessibility treeの変化を照合します。"],
+          "cant_tell_when": ["更新を起こせない、またはaccessibility treeを取得できない場合。"]
+        },
+        {
+          "id": "SCREEN-SR-STATUS-FOCUS",
+          "title": "更新がフォーカスや操作を奪わない",
+          "expectation": "メッセージは現在のフォーカスと操作を保ったまま利用でき、不要な割込みを起こしません。",
+          "code_inspection": ["実際の更新経路でフォーカス処理とstatus・alertの優先度を確認します。"],
+          "runtime_verification": ["キー操作で更新を起こし、フォーカス、継続操作、表示状態を確かめます。"],
+          "cant_tell_when": ["フォーカスまたは継続操作を観測できない場合。"]
+        },
+        {
+          "id": "SCREEN-SR-STATUS-ANNOUNCEMENT",
+          "title": "意味のある更新が読み上げられる",
+          "expectation": "対象のスクリーンリーダーで文脈のある状態が、重複や古い内容なしに伝わるか確認します。",
+          "code_inspection": ["更新タイミングと文面を確認しますが、live regionの存在だけで読み上げを推定しません。"],
+          "runtime_verification": ["繰り返す更新時の実際の読み上げを、支援技術、ブラウザ、版、音声、言語と共に記録します。"],
+          "cant_tell_when": ["対象のスクリーンリーダー環境で検証できない場合。"]
         }
       ]
     }

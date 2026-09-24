@@ -36,7 +36,9 @@ Use the machine-readable checks in `screen-reader-ui-checks.json`, or run:
 accessibility-audit screen-reader-checklist --pattern modal-dialog --format markdown
 ```
 
-Available patterns are `modal-dialog`, `disclosure`, `menu-button`, `fragmented-text`, and `all`.
+Run `accessibility-audit screen-reader-checklist --list-patterns --locale ja` to see the bundled patterns. `--pattern all` covers those patterns plus any loaded extension, not every possible UI pattern. Tabs, comboboxes, and status messages have separate checks.
+
+For a local pattern, pass `--extension <file.json>`. The file has `{"schema_version":"1.0.0","patterns":[<pattern object>]}`; pattern objects follow `screen-reader-ui-checks.schema.json` and need W3C source URLs. Pattern and check IDs must not collide with bundled or other extension entries. Japanese output keeps extension text in English and lists untranslated IDs.
 
 ## Evidence Boundary
 

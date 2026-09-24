@@ -26,13 +26,9 @@ test("screen-reader checklist registry is schema-valid and supporting-only", () 
 
   assert.deepEqual(errors, []);
   assert.equal(registry.claim_effect, "supporting_only");
-  assert.deepEqual(registry.patterns.map((pattern) => pattern.id), [
-    "modal-dialog",
-    "disclosure",
-    "menu-button",
-    "fragmented-text",
-    "in-page-links"
-  ]);
+  for (const id of ["modal-dialog", "disclosure", "menu-button", "fragmented-text", "in-page-links", "tabs", "combobox", "status-messages"]) {
+    assert.ok(registry.patterns.some((pattern) => pattern.id === id), `missing ${id}`);
+  }
 
   const checks = registry.patterns.flatMap((pattern) => pattern.checks);
   assert.equal(new Set(checks.map((check) => check.id)).size, checks.length);
@@ -87,14 +83,63 @@ test("in-page-links pattern has required checks and evidence", () => {
   assert.ok(runtimeText.includes("version"));
 });
 
-test("screen-reader checklist semantic validation rejects duplicate and missing pattern IDs", () => {
+test("screen-reader checklist semantic validation rejects duplicate pattern IDs", () => {
   const registry = readJson("references/screen-reader-ui-checks.json");
   const schema = readJson("references/screen-reader-ui-checks.schema.json");
   registry.patterns[3] = structuredClone(registry.patterns[0]);
 
   const errors = validateScreenReaderRegistry(registry, schema);
 
-  assert.ok(errors.some((error) => /exactly these IDs in order/iu.test(error)));
+  assert.ok(errors.some((error) => /duplicate pattern IDs/iu.test(error)));
+});
+
+test("new stateful patterns expose distinct structure, keyboard, and spoken checks", () => {
+  for (const id of ["tabs", "combobox", "status-messages"]) {
+    const result = run(["--pattern", id, "--format", "json", "--locale", "ja"]);
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    const output = JSON.parse(result.stdout);
+    const checks = output.patterns[0].checks;
+    assert.equal(checks.length, 3);
+    assert.ok(checks.every((check) => check.human_review_required));
+    assert.ok(checks.some((check) => check.evidence_types.includes("accessibility_tree")));
+    assert.ok(checks.some((check) => check.evidence_types.includes("keyboard_test")));
+    assert.ok(checks.some((check) => check.evidence_types.includes("assistive_technology_test")));
+    assert.ok(checks.some((check) => check.evidence_types.includes("spoken_output_note")));
+    assert.ok(output.patterns[0].title.length > 0);
+  }
+});
+
+test("pattern listing and optional extension validate collisions and sources", (t) => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "a11y-screen-reader-extension-"));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const extensionFile = path.join(directory, "extension.json");
+  const pattern = structuredClone(readJson("references/screen-reader-ui-checks.json").patterns[0]);
+  pattern.id = "custom-dialog";
+  pattern.checks.forEach((check, index) => { check.id = `SCREEN-SR-CUSTOM-${index + 1}`; });
+  const writeExtension = () => fs.writeFileSync(extensionFile, JSON.stringify({ schema_version: "1.0.0", patterns: [pattern] }), "utf8");
+  writeExtension();
+
+  const listing = run(["--list-patterns", "--extension", extensionFile]);
+  assert.equal(listing.status, 0, listing.stderr || listing.stdout);
+  assert.ok(JSON.parse(listing.stdout).patterns.some((item) => item.id === "custom-dialog"));
+  const selected = run(["--pattern", "custom-dialog", "--extension", extensionFile, "--locale", "ja"]);
+  assert.equal(selected.status, 0, selected.stderr || selected.stdout);
+  assert.deepEqual(JSON.parse(selected.stdout).untranslated_extension_patterns, ["custom-dialog"]);
+  const all = run(["--extension", extensionFile]);
+  assert.equal(all.status, 0, all.stderr || all.stdout);
+  assert.equal(JSON.parse(all.stdout).patterns.length, readJson("references/screen-reader-ui-checks.json").patterns.length + 1);
+
+  pattern.id = "tabs";
+  writeExtension();
+  assert.match(run(["--extension", extensionFile]).stderr, /duplicate pattern ID/iu);
+  pattern.id = "custom-dialog";
+  pattern.source_urls = ["https://example.com/unknown"];
+  writeExtension();
+  assert.match(run(["--extension", extensionFile]).stderr, /Invalid screen-reader extension/iu);
+  pattern.source_urls = ["https://www.w3.org/WAI/ARIA/apg/patterns/dialog-modal/"];
+  pattern.checks[0].id = "SCREEN-SR-MODAL-NAMED";
+  writeExtension();
+  assert.match(run(["--extension", extensionFile]).stderr, /duplicate check ID/iu);
 });
 
 test("fragmented-text output includes only its directly related public sources", () => {

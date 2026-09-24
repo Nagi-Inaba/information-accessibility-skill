@@ -124,6 +124,7 @@ accessibility-audit --version
 accessibility-audit profiles list --locale en
 accessibility-audit requirements search "focus" --profile web-modern --level AA --locale en
 accessibility-audit screen-reader-checklist --pattern modal-dialog --locale en --format markdown
+accessibility-audit screen-reader-checklist --list-patterns --locale en
 accessibility-audit doctor --locale en
 accessibility-audit preflight-web --browser-channel chrome --locale en --format json
 ```
@@ -131,6 +132,8 @@ accessibility-audit preflight-web --browser-channel chrome --locale en --format 
 The npm installation is audit-only as well. Install the optional fixer through the explicit Codex or Claude installer flag.
 
 `--locale ja` and `--locale en` change only human-readable CLI help, profile metadata, requirement list/search/show output, the legacy requirement view, the screen-reader checklist, and reports. Internal IDs, schema keys, enum values, evidence types, and claim tiers remain stable.
+
+`--pattern all` covers the eight bundled screen-reader patterns and any `--extension <file.json>`, not every UI pattern. A person must verify actual speech on the target device. See the [stateful UI guide](codex/skills/information-accessibility-practice/references/screen-reader-stateful-ui.md) for the extension format.
 
 These discovery commands are read-only. The standard CLI does not modify the audited target.
 
