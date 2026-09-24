@@ -5,7 +5,8 @@ import { assertNewOutputPath, assertStableFile, readStableFile, resolveInside, v
 import { parseAttestationJson } from "./lib/attestation-canonical.mjs";
 import { createRunEvidenceReference } from "./lib/run-evidence.mjs";
 
-const types = ["screening-observations", "human-review-queue", "declared-human-review", "remediation-plan", "audit-context"];
+const types = ["screening-observations", "human-review-queue", "declared-human-review", "remediation-plan",
+  "audit-context", "participant-usability-observation"];
 
 export function main(argv = process.argv.slice(2)) {
   const [action, ...args] = argv;
@@ -44,12 +45,14 @@ export function main(argv = process.argv.slice(2)) {
     const payload = read(options.payload);
     if (!payload || typeof payload !== "object" || Array.isArray(payload)) throw new Error("Payload must be a JSON object.");
     if (!Object.hasOwn(payload, "schema_version")) payload.schema_version = validation.resources.currentPayloadVersions.get(options.type);
-    if (options.type === "audit-context") {
-      if (!["declared_context_reviewer", "declared_context_owner"].includes(options.role)) {
-        throw new Error("audit-context requires --role declared_context_reviewer or declared_context_owner.");
+    if (["audit-context", "participant-usability-observation"].includes(options.type)) {
+      const roles = options.type === "audit-context"
+        ? ["declared_context_reviewer", "declared_context_owner"] : ["declared_participant_facilitator"];
+      if (!roles.includes(options.role)) {
+        throw new Error(`${options.type} requires --role ${roles.join(" or ")}.`);
       }
       if (!options["evidence-file"] || !options["target-ref"] || !options["captured-at"]) {
-        throw new Error("audit-context requires --evidence-file, --target-ref, and --captured-at.");
+        throw new Error(`${options.type} requires --evidence-file, --target-ref, and --captured-at.`);
       }
       const evidenceFile = resolveInside(validation.artifactRoot, path.resolve(options["evidence-file"]));
       const evidenceSnapshot = readStableFile(evidenceFile, { maxBytes: 8 * 1024 * 1024 });
@@ -60,7 +63,7 @@ export function main(argv = process.argv.slice(2)) {
       payload.evidence_refs = [...(payload.evidence_refs ?? []), reference];
       payload.source_artifact_ids = payload.source_artifact_ids ?? [...options.input];
     } else if (options.role || options["evidence-file"] || options["target-ref"] || options["captured-at"]) {
-      throw new Error("Context producer and evidence options require --type audit-context.");
+      throw new Error("Producer and evidence options require a declared supplemental artifact type.");
     }
     const role = validation.resources.orchestrationRegistry.roles.find((item) => item.output_type === options.type
       && (!options.role || item.id === options.role));

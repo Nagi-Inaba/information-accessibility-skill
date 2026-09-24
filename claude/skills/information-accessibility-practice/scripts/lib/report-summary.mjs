@@ -176,6 +176,14 @@ export function renderReportSummaryMarkdown(presentation) {
     `- ${presentation.locale === "ja" ? "資料整備の申告" : "Dossier declared"}: ${presentation.audit_context?.dossier_prepared ? (presentation.locale === "ja" ? "はい" : "Yes") : (presentation.locale === "ja" ? "いいえ" : "No")}`,
     ...(presentation.audit_context?.dossier?.responsible_owner ? [`- ${presentation.locale === "ja" ? "資料担当者" : "Dossier owner"}: ${escapeCell(presentation.audit_context.dossier.responsible_owner)}`] : []),
     ...(presentation.audit_context?.dossier?.artifacts?.length ? [`- ${presentation.locale === "ja" ? "資料" : "Dossier artifacts"}: ${escapeCell(presentation.audit_context.dossier.artifacts.join(", "))}`] : []),
+    ...(presentation.participant_summary ? [
+      "",
+      presentation.locale === "ja" ? "## 当事者による利用テスト" : "## Participant usability testing",
+      "",
+      presentation.locale === "ja" ? "この観測は規格の適合判定ではありません。" : "These observations are not conformance outcomes.",
+      `- ${presentation.locale === "ja" ? "集計対象の参加者" : "Participants in aggregate"}: ${escapeCell(presentation.participant_summary.participant_count ?? (presentation.locale === "ja" ? "公表可能な集計なし" : "No publishable aggregate"))}`,
+      ...presentation.participant_summary.themes.map((theme) => `- ${escapeCell(theme.label)}: ${theme.participant_count}`)
+    ] : []),
     "",
     `## ${text.scope}`,
     "",

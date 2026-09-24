@@ -23,6 +23,7 @@ import { isHumanReviewMapping, publicReviewerAssurance, reviewerAssuranceText, r
 import { loadReviewTrust } from "./lib/review-trust-input.mjs";
 import { parseAttestationJson } from "./lib/attestation-canonical.mjs";
 import { contextArtifacts, projectAuditContext } from "./lib/audit-context.mjs";
+import { summarizeParticipantObservations } from "./lib/participant-observation.mjs";
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.dirname(scriptDir);
@@ -862,7 +863,7 @@ export function validateRunBackedAssessment({ run, assessment, envelopesById, re
   if (humanByRequirement.size > 0) {
     const expectedReviewers = [...new Set(evidence.humanReviewHistory.map((review) => review.reviewer_name))].sort().join(", ");
     const expectedDate = evidence.humanReviewHistory.map((review) => review.review_date).sort().at(-1);
-    const hasPerformedReview = !["11.0.0", "12.0.0", "13.0.0", "14.0.0", "15.0.0"].includes(run.schema_version) || evidence.humanReviews.some((review) => review.profile_outcome !== "not_tested");
+    const hasPerformedReview = !["11.0.0", "12.0.0", "13.0.0", "14.0.0", "15.0.0", "16.0.0"].includes(run.schema_version) || evidence.humanReviews.some((review) => review.profile_outcome !== "not_tested");
     const expectedLevel = hasPerformedReview ? "E2" : screeningByRequirement.size > 0 ? "E1" : "E0";
     if (record.evidence_level !== expectedLevel || record.evaluator !== expectedReviewers || record.evaluated_at !== expectedDate) {
       throw new Error("Assessment evaluation identity does not match the current run human review declarations.");
@@ -926,7 +927,7 @@ export function buildPublicReportModel({ run, assessment, envelopesById, resourc
   }));
   const reportProjection = buildReportProjection(profileResults, evidence.screeningObservations);
   const expectedProfileCount = registeredRequirementIds.length;
-  const performedReviews = evidence.humanReviews.filter((review) => !["11.0.0", "12.0.0", "13.0.0", "14.0.0", "15.0.0"].includes(run.schema_version) || review.profile_outcome !== "not_tested");
+  const performedReviews = evidence.humanReviews.filter((review) => !["11.0.0", "12.0.0", "13.0.0", "14.0.0", "15.0.0", "16.0.0"].includes(run.schema_version) || review.profile_outcome !== "not_tested");
   const reviewedIds = new Set(performedReviews.map((review) => review.requirement_id));
   const resultByRequirement = new Map(assessment.assessment.results.map((result) => [result.requirement_id, result]));
   const findingById = uniqueMap(assessment.assessment.findings ?? [], "id", "assessment finding ID");
@@ -1053,6 +1054,7 @@ export function buildPublicReportModel({ run, assessment, envelopesById, resourc
       next_review_at: publicContext.next_review_at,
       next_review_condition: publicContext.next_review_condition
     },
+    participantSummary: summarizeParticipantObservations(envelopesById, { visibility: "public" }),
     claim: {
       tier: publicClaimTier(assessment.assessment.claim.requested_tier),
       wording: validation.guard.assured_claim_wording.ja
@@ -1067,7 +1069,7 @@ export function buildPublicReportModel({ run, assessment, envelopesById, resourc
     reportOutcomeCounts: reportProjection.counts,
     catalogCoverage: { recorded: recordedProfileResults.length, expected: expectedProfileCount },
     evaluationCoverage: {
-      humanReviewed: profileResults.filter((result) => isHumanReviewMapping(result) && (!["11.0.0", "12.0.0", "13.0.0", "14.0.0", "15.0.0"].includes(run.schema_version) || result.outcome !== "not_tested")).length,
+      humanReviewed: profileResults.filter((result) => isHumanReviewMapping(result) && (!["11.0.0", "12.0.0", "13.0.0", "14.0.0", "15.0.0", "16.0.0"].includes(run.schema_version) || result.outcome !== "not_tested")).length,
       expected: expectedProfileCount
     }
   };
@@ -1210,7 +1212,15 @@ export function renderRunBackedReport(model) {
     `- 次回確認日: ${cell(model.auditContext?.next_review_at ?? "記録なし")}`,
     ...(model.auditContext?.next_review_condition ? [`- 再確認条件: ${cell(model.auditContext.next_review_condition)}`] : []),
     `- 独立監査の申告: ${model.auditContext?.independent_audit_performed ? "はい" : "いいえ"}`,
-    `- 資料整備の申告: ${model.auditContext?.dossier_prepared ? "はい" : "いいえ"}`
+    `- 資料整備の申告: ${model.auditContext?.dossier_prepared ? "はい" : "いいえ"}`,
+    ...(model.participantSummary ? [
+      "",
+      "## 9. 当事者による利用テスト",
+      "",
+      "この観測は規格の適合判定ではありません。",
+      `- 集計対象の参加者: ${model.participantSummary.participant_count ?? "公表可能な集計なし"}`,
+      ...model.participantSummary.themes.map((theme) => `- ${cell(theme.label)}: ${theme.participant_count}`)
+    ] : [])
   ];
   return `${lines.join("\n").trimEnd()}\n\n${renderSourceNoticesMarkdown("ja")}`;
 }

@@ -31,7 +31,7 @@ export async function runWorksheetCommand(argv) {
   const run = structuredClone(parseAttestationJson(snapshot.bytes));
   const validation = validateAuditRun(run, { runFile: snapshot.path });
   if (!validation.valid) throw new Error(`Audit run validation failed:\n- ${validation.errors.join("\n- ")}`);
-  if (run.schema_version !== "15.0.0") throw new Error("Worksheets require current run 15.0.0; legacy runs remain read-only.");
+  if (run.schema_version !== "16.0.0") throw new Error("Worksheets require current run 16.0.0; legacy runs remain read-only.");
   if (!["human_queue_ready", "human_review_recorded"].includes(run.status)) throw new Error("Worksheets require a registered queue before remediation planning.");
   for (const entry of validation.envelopesById.values()) parseAttestationJson(entry.snapshot.bytes);
   const selected = validation.envelopesById.get(options.queue);

@@ -174,7 +174,7 @@ function buildClaim({ assessment, validation, registry, locale, rows }) {
   };
 }
 
-function commonPresentation({ assessment, validation, registry, locale, rows, target, scope, environment, evaluator, limitations, findings, inspectionRequest, inspectionRecords, screeningSummary, findingSummary, auditContext, publicAuditContext, publicLimitations }) {
+function commonPresentation({ assessment, validation, registry, locale, rows, target, scope, environment, evaluator, limitations, findings, inspectionRequest, inspectionRecords, screeningSummary, findingSummary, auditContext, publicAuditContext, publicLimitations, participantSummary, publicParticipantSummary }) {
   const normalizedLocale = normalizeReportLocale(locale);
   const messages = reportMessages(normalizedLocale);
   const profileId = assessment.profile.id;
@@ -223,6 +223,8 @@ function commonPresentation({ assessment, validation, registry, locale, rows, ta
     }),
     ...(publicAuditContext ? { public_audit_context: clone(publicAuditContext) } : {}),
     ...(publicLimitations ? { public_limitations: clone(publicLimitations) } : {}),
+    ...(participantSummary ? { participant_summary: clone(participantSummary) } : {}),
+    ...(publicParticipantSummary ? { public_participant_summary: clone(publicParticipantSummary) } : {}),
     findings: clone(findings ?? []),
     has_screening_projection: rows.some((row) => row.source_kind === "screening"),
     messages
@@ -350,6 +352,8 @@ export function buildRunBackedPresentation({ run, assessment: assessmentRecord, 
     evaluator: null,
     auditContext: publicModel.auditContext,
     publicAuditContext: publicModel.publicAuditContext,
+    participantSummary: publicModel.participantSummary,
+    publicParticipantSummary: publicModel.publicParticipantSummary,
     publicLimitations: [...(publicModel.publicLimitations ?? []),
       ...(publicModel.networkScope ? [networkScopeText(publicModel.networkScope, normalizedLocale)] : []),
       ...(publicModel.interactionScope ? [interactionScopeText(publicModel.interactionScope, normalizedLocale)] : [])],
@@ -541,6 +545,14 @@ export function renderReportMarkdown(presentation) {
     ...(presentation.audit_context?.dossier?.responsible_owner ? [`- ${presentation.locale === "ja" ? "資料担当者" : "Dossier owner"}: ${markdownCell(presentation.audit_context.dossier.responsible_owner)}`] : []),
     ...(presentation.audit_context?.dossier?.artifacts?.length ? [`- ${presentation.locale === "ja" ? "資料" : "Dossier artifacts"}: ${markdownCell(presentation.audit_context.dossier.artifacts.join(", "))}`] : []),
     "",
+    ...(presentation.participant_summary ? [
+      presentation.locale === "ja" ? "## 当事者による利用テスト" : "## Participant usability testing",
+      "",
+      presentation.locale === "ja" ? "この観測は規格の適合判定ではありません。" : "These observations are not conformance outcomes.",
+      `- ${presentation.locale === "ja" ? "集計対象の参加者" : "Participants in aggregate"}: ${markdownCell(presentation.participant_summary.participant_count ?? (presentation.locale === "ja" ? "公表可能な集計なし" : "No publishable aggregate"))}`,
+      ...presentation.participant_summary.themes.map((theme) => `- ${markdownCell(theme.label)}: ${theme.participant_count}`),
+      ""
+    ] : []),
     `## ${messages.headings.limitations}`,
     "",
     ...(presentation.limitations?.length

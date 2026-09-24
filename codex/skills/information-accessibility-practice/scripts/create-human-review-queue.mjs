@@ -20,7 +20,7 @@ export function main(argv = process.argv.slice(2)) {
   const run = JSON.parse(snapshot.bytes.toString("utf8").replace(/^\uFEFF/u, ""));
   const validation = validateAuditRun(run, { runFile: path.resolve(options.run) });
   if (!validation.valid) throw new Error(validation.errors.join("\n"));
-  if (run.schema_version !== "15.0.0") throw new Error("Queue generation requires current run 15.0.0; old queues remain read-only.");
+  if (run.schema_version !== "16.0.0") throw new Error("Queue generation requires current run 16.0.0; old queues remain read-only.");
   if (!["initialized", "screened"].includes(run.status)) throw new Error("Create the queue before its registration; a registered queue is immutable.");
   const output = path.resolve(options.output);
   const relative = path.relative(validation.artifactRoot, output);

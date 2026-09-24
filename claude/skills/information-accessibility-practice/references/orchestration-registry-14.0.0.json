@@ -1,6 +1,6 @@
 {
   "$schema": "./orchestration-registry.schema.json",
-  "schema_version": "15.0.0",
+  "schema_version": "14.0.0",
   "roles": [
     {
       "id": "orchestrator",
@@ -13,8 +13,7 @@
         "remediation-plan",
         "fix-authorization",
         "change-record",
-        "audit-context",
-        "participant-usability-observation"
+        "audit-context"
       ],
       "output_type": "audit-run",
       "max_ai_evidence_level": "E1",
@@ -132,26 +131,12 @@
       "can_record_profile_outcome": false,
       "can_write_target": false,
       "install_by_default": false
-    },
-    {
-      "id": "declared_participant_facilitator",
-      "agent_id": null,
-      "producer_kind": "external_human",
-      "input_types": [
-        "declared-human-review",
-        "remediation-plan"
-      ],
-      "output_type": "participant-usability-observation",
-      "max_ai_evidence_level": null,
-      "can_record_profile_outcome": false,
-      "can_write_target": false,
-      "install_by_default": false
     }
   ],
   "artifact_types": [
     {
       "id": "audit-run",
-      "latest_schema_version": "16.0.0",
+      "latest_schema_version": "15.0.0",
       "schema_versions": [
         {
           "version": "1.0.0",
@@ -229,14 +214,8 @@
         },
         {
           "version": "15.0.0",
-          "schema_file": "audit-run-15.0.0.schema.json",
-          "schema_sha256": "41b6084e4fd0215e52513593002d0bed572a4a9d1ee664179b28a82a6a573bcc",
-          "mode": "read_only"
-        },
-        {
-          "version": "16.0.0",
           "schema_file": "audit-run.schema.json",
-          "schema_sha256": "8bcde1ab78b5dffeb75112b31eb12aa7d8186275ea239f347ff87ea5551846fa",
+          "schema_sha256": "41b6084e4fd0215e52513593002d0bed572a4a9d1ee664179b28a82a6a573bcc",
           "mode": "current"
         }
       ]
@@ -380,18 +359,6 @@
           "version": "1.0.0",
           "schema_file": "audit-context.schema.json",
           "schema_sha256": "d52cdbc6ea3d374402a15effce7135f7b15d6702714a6ff1ce108dfe9ebc0403",
-          "mode": "current"
-        }
-      ]
-    },
-    {
-      "id": "participant-usability-observation",
-      "latest_schema_version": "1.0.0",
-      "schema_versions": [
-        {
-          "version": "1.0.0",
-          "schema_file": "participant-usability-observation.schema.json",
-          "schema_sha256": "01aa3142de8929e26dafbc290f323807ec9572364ef61591355b2ea4b0f21d75",
           "mode": "current"
         }
       ]

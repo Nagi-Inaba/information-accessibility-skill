@@ -1,0 +1,341 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:information-accessibility:participant-usability-observation:1.0.0",
+  "title": "Participant Usability Observation",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "participant_id",
+    "facilitator_id",
+    "session_at",
+    "access_needs",
+    "assistive_technology",
+    "task_id",
+    "journey",
+    "perspectives",
+    "environment",
+    "outcome",
+    "duration_seconds",
+    "assistance_required",
+    "observations",
+    "themes",
+    "related_finding_ids",
+    "related_remediation_ids",
+    "consent",
+    "source_artifact_ids",
+    "evidence_refs"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "participant_id": {
+      "type": "string",
+      "pattern": "^P-[A-Z0-9]{8,32}$"
+    },
+    "facilitator_id": {
+      "type": "string",
+      "pattern": "^F-[A-Z0-9]{8,32}$"
+    },
+    "session_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "access_needs": {
+      "type": "array",
+      "uniqueItems": true,
+      "maxItems": 7,
+      "items": {
+        "enum": [
+          "vision",
+          "hearing",
+          "motor",
+          "cognitive",
+          "speech",
+          "multiple",
+          "other"
+        ]
+      }
+    },
+    "assistive_technology": {
+      "type": "array",
+      "uniqueItems": true,
+      "maxItems": 8,
+      "items": {
+        "enum": [
+          "screen_reader",
+          "magnifier",
+          "switch",
+          "voice_input",
+          "captions",
+          "keyboard",
+          "none",
+          "other"
+        ]
+      }
+    },
+    "task_id": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{1,63}$"
+    },
+    "journey": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
+    },
+    "perspectives": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "maxItems": 5,
+      "items": {
+        "enum": [
+          "find",
+          "receive",
+          "understand",
+          "participate",
+          "continue"
+        ]
+      }
+    },
+    "environment": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
+    },
+    "outcome": {
+      "enum": [
+        "completed",
+        "partial",
+        "blocked",
+        "abandoned"
+      ]
+    },
+    "duration_seconds": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 86400
+    },
+    "assistance_required": {
+      "type": "boolean"
+    },
+    "observations": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 32,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "text",
+          "severity"
+        ],
+        "properties": {
+          "kind": {
+            "enum": [
+              "behavior",
+              "barrier",
+              "workaround",
+              "expectation_gap",
+              "quote"
+            ]
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
+          },
+          "severity": {
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ]
+          }
+        }
+      }
+    },
+    "themes": {
+      "type": "array",
+      "uniqueItems": true,
+      "maxItems": 16,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "label"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^THM-[A-Z0-9_-]{3,32}$"
+          },
+          "label": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
+          }
+        }
+      }
+    },
+    "related_finding_ids": {
+      "type": "array",
+      "uniqueItems": true,
+      "maxItems": 32,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "\\S"
+      }
+    },
+    "related_remediation_ids": {
+      "type": "array",
+      "uniqueItems": true,
+      "maxItems": 32,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "\\S"
+      }
+    },
+    "consent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "participation",
+        "public_aggregate",
+        "quote_capture",
+        "quote_publication",
+        "recording_capture",
+        "recording_publication",
+        "recording_collected",
+        "retention_until",
+        "redaction_status"
+      ],
+      "properties": {
+        "participation": {
+          "const": true
+        },
+        "public_aggregate": {
+          "type": "boolean"
+        },
+        "quote_capture": {
+          "type": "boolean"
+        },
+        "quote_publication": {
+          "type": "boolean"
+        },
+        "recording_capture": {
+          "type": "boolean"
+        },
+        "recording_publication": {
+          "type": "boolean"
+        },
+        "recording_collected": {
+          "type": "boolean"
+        },
+        "retention_until": {
+          "type": "string",
+          "format": "date"
+        },
+        "redaction_status": {
+          "enum": [
+            "pending",
+            "verified"
+          ]
+        }
+      }
+    },
+    "source_artifact_ids": {
+      "type": "array",
+      "uniqueItems": true,
+      "maxItems": 32,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "\\S"
+      }
+    },
+    "evidence_refs": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 32,
+      "items": {
+        "$ref": "#/$defs/evidence_reference"
+      }
+    }
+  },
+  "$defs": {
+    "evidence_reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evidence_type",
+        "path",
+        "sha256",
+        "captured_at",
+        "environment_ref",
+        "target_snapshot_id",
+        "publication",
+        "run_id",
+        "target_version",
+        "target_ref",
+        "target_context_sha256"
+      ],
+      "properties": {
+        "evidence_type": {
+          "enum": [
+            "dom_snapshot",
+            "accessibility_tree",
+            "screenshot",
+            "interaction_log",
+            "network_log",
+            "other"
+          ]
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "captured_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "environment_ref": {
+          "type": "string",
+          "pattern": "^ENV-[a-f0-9]{64}$"
+        },
+        "target_snapshot_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "publication": {
+          "const": "private_by_default"
+        },
+        "run_id": {
+          "type": "string",
+          "pattern": "^RUN-[0-9]{8}T[0-9]{6}Z-[A-Z0-9]{8}$"
+        },
+        "target_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "target_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "target_context_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      }
+    }
+  }
+}

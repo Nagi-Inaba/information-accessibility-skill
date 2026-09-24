@@ -133,7 +133,7 @@ function reportRunFixture(temp, { declaredFinding = false, withoutPlan = false, 
   const target = { name: targetName, version_or_commit: "fixture-v1", urls_or_files: ["https://example.invalid/checkout"] };
   const scope = { included: ["Checkout"], excluded: [], complete_processes: [], third_party_content: [], full_pages_reviewed: false };
   const environment = { os: ["not_declared"], browsers: [], assistive_technologies: [], input_modes: [] };
-  const targetContext = { schema_version: "15.0.0", run_id: runId, target, environment };
+  const targetContext = { schema_version: "16.0.0", run_id: runId, target, environment };
   targetContext.target_inventory = fixtureInventory(targetContext, artifactRoot);
   const created = [
     "2026-07-17T12:00:01Z",
@@ -272,7 +272,7 @@ function reportRunFixture(temp, { declaredFinding = false, withoutPlan = false, 
   const artifacts = withoutPlan ? [screen, queue, human] : [screen, queue, human, remediation];
   if (withoutPlan) artifactFiles.delete(remediation.artifact_id);
   const run = {
-    schema_version: "15.0.0",
+    schema_version: "16.0.0",
     target_inventory: targetContext.target_inventory,
     inspection_request: createInspectionRequest("quick", "Identify the next investigation"),
     run_id: runId,
@@ -474,6 +474,128 @@ test("registered audit context supplies participation, limitations and a review 
       { skillRoot: skill, runFile: fixture.runFile, artifactFile: duplicate.file }), /Conflicting audit-context declaration/);
     const altered = Buffer.from("Tampered source\n");
     fs.writeFileSync(path.join(temp, "artifacts", declarations[0].sourcePath), altered);
+    assert.equal(validateAuditRun(run, { skillRoot: skill, runFile: fixture.runFile }).valid, false);
+  } finally {
+    fs.rmSync(temp, { recursive: true, force: true });
+  }
+});
+
+test("participant observations stay separate from conformance and publish only consented repeated themes", () => {
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), "a11y-participant-"));
+  try {
+    const fixture = reportRunFixture(temp);
+    let { run } = fixture;
+    const source = fixture.artifacts.find((item) => item.artifact_type === "remediation-plan");
+    const entry = run.artifacts.find((item) => item.artifact_id === source.artifact_id);
+    const participant = (id, seconds, publicAggregate, themeId = "THM-NAVIGATION", label = "Checkout navigation barrier") => {
+      const sourcePath = `participant-${id}.txt`;
+      const bytes = Buffer.from(`Private task notes for ${id}\n`);
+      fs.writeFileSync(path.join(temp, "artifacts", sourcePath), bytes);
+      const capturedAt = `2026-07-17T13:00:${seconds}Z`;
+      const artifact = {
+        schema_version: "3.0.0",
+        artifact_id: `ART-PARTICIPANT-${id}`,
+        artifact_type: "participant-usability-observation",
+        run_id: run.run_id,
+        target_snapshot_ids: run.target_inventory.snapshots.map((item) => item.snapshot_id),
+        producer: { role_id: "declared_participant_facilitator", producer_kind: "external_human", origin: "test declaration" },
+        created_at: `2026-07-17T13:01:${seconds}Z`,
+        inputs: [{ artifact_id: source.artifact_id, run_id: run.run_id, sha256: entry.sha256 }],
+        payload: {
+          schema_version: "1.0.0", participant_id: `P-${id}`, facilitator_id: "F-FACILITATOR1",
+          session_at: capturedAt, access_needs: ["vision"], assistive_technology: ["screen_reader"],
+          task_id: "checkout", journey: "Complete checkout", perspectives: ["find", "continue"],
+          environment: "Desktop browser and screen reader", outcome: "partial", duration_seconds: 300,
+          assistance_required: true,
+          observations: [{ kind: "barrier", text: "The next step needed a workaround.", severity: "medium" }],
+          themes: [{ id: themeId, label }], related_finding_ids: [], related_remediation_ids: ["REM-REPORT01"],
+          consent: { participation: true, public_aggregate: publicAggregate, quote_capture: false,
+            quote_publication: false, recording_capture: false, recording_publication: false,
+            recording_collected: false, retention_until: "2027-07-17", redaction_status: "verified" },
+          source_artifact_ids: [source.artifact_id],
+          evidence_refs: [createRunEvidenceReference({ run, targetRef: run.target.urls_or_files[0],
+            evidenceType: "other", relativePath: sourcePath, bytes, capturedAt })]
+        }
+      };
+      const file = path.join(temp, "artifacts", `participant-${id}.json`);
+      writeJson(file, artifact);
+      return { artifact, file, sourcePath, bytes };
+    };
+    const add = (item) => {
+      run = registerArtifact(run, item.artifact, { skillRoot: skill, runFile: fixture.runFile, artifactFile: item.file });
+      writeJson(fixture.runFile, run);
+      fixture.resources.artifact_snapshots_by_id.set(item.artifact.artifact_id,
+        { bytes: fs.readFileSync(item.file), sha256: resourcesSha256(item.file) });
+      fixture.resources.evidence_snapshots_by_path.set(item.sourcePath,
+        { bytes: item.bytes, sha256: sha256Bytes(item.bytes) });
+    };
+    const first = participant("ABCDEFGH", "05", true);
+    const second = participant("IJKLMNO9", "07", true);
+    const payloadFile = path.join(temp, "participant-payload.json");
+    writeJson(payloadFile, { ...first.artifact.payload, evidence_refs: [] });
+    const authoredFile = path.join(temp, "artifacts", "authored-participant.json");
+    const authored = spawnSync(process.execPath, [path.join(skill, "scripts/create-audit-artifact.mjs"), "init",
+      "--run", fixture.runFile, "--type", "participant-usability-observation",
+      "--role", "declared_participant_facilitator", "--payload", payloadFile,
+      "--input", source.artifact_id, "--evidence-file", path.join(temp, "artifacts", first.sourcePath),
+      "--target-ref", run.target.urls_or_files[0], "--captured-at", first.artifact.payload.session_at,
+      "--output", authoredFile], { encoding: "utf8" });
+    assert.equal(authored.status, 0, authored.stderr);
+    assert.equal(readJson(authoredFile).payload.evidence_refs.length, 1);
+    add(first);
+    add(second);
+    add(participant("PQRSTUVW", "09", false, "THM-PRIVATE", "Private personal theme"));
+    const expired = participant("QQQQQQQQ", "10", true, "THM-EXPIRED", "Expired personal theme");
+    expired.artifact.payload.consent.retention_until = "2026-08-01";
+    writeJson(expired.file, expired.artifact);
+    add(expired);
+    const merged = mergeArtifacts({ run, assessment: fixture.baseline,
+      artifacts: [...fixture.artifacts, ...run.artifacts.filter((item) => item.artifact_type === "participant-usability-observation")
+        .map((item) => readJson(path.join(temp, "artifacts", item.path)))], registries: fixture.resources });
+    assert.deepEqual(merged.assessment.results, fixture.assessment.assessment.results);
+    assert.equal(merged.assessment.evidence_level, fixture.assessment.assessment.evidence_level);
+    const assessmentFile = path.join(temp, "participant-assessment.json");
+    writeJson(assessmentFile, merged);
+    const output = path.join(temp, "participant-public.html");
+    const manifest = path.join(temp, "participant-redactions.json");
+    const rendered = spawnSync(process.execPath, [path.join(skill, "scripts/render-report.mjs"),
+      "--run", fixture.runFile, "--assessment", assessmentFile, "--output", output, "--format", "html",
+      "--detail", "summary", "--visibility", "public", "--reviewer-disclosure", "redact",
+      "--redaction-manifest", manifest], { encoding: "utf8" });
+    assert.equal(rendered.status, 0, rendered.stderr);
+    const html = fs.readFileSync(output, "utf8");
+    assert.match(html, /Checkout navigation barrier/u);
+    assert.match(html, /participant-usability/u);
+    const markdownFile = path.join(temp, "participant-public.md");
+    const markdownManifest = path.join(temp, "participant-markdown-redactions.json");
+    const markdown = spawnSync(process.execPath, [path.join(skill, "scripts/render-report.mjs"),
+      "--run", fixture.runFile, "--assessment", assessmentFile, "--output", markdownFile,
+      "--visibility", "public", "--reviewer-disclosure", "redact",
+      "--redaction-manifest", markdownManifest], { encoding: "utf8" });
+    assert.equal(markdown.status, 0, markdown.stderr);
+    const markdownText = fs.readFileSync(markdownFile, "utf8");
+    assert.match(markdownText, /Checkout navigation barrier/u);
+    for (const privateText of ["P-ABCDEFGH", "P-IJKLMNO9", "P-PQRSTUVW", "Private personal theme", "Expired personal theme",
+      "The next step needed a workaround", "participant-ABCDEFGH.txt"]) {
+      assert.ok(!html.includes(privateText), privateText);
+      assert.ok(!markdownText.includes(privateText), privateText);
+    }
+    const invalidConsent = participant("ZZZZZZZZ", "11", true);
+    invalidConsent.artifact.payload.consent.participation = false;
+    writeJson(invalidConsent.file, invalidConsent.artifact);
+    assert.throws(() => registerArtifact(run, invalidConsent.artifact,
+      { skillRoot: skill, runFile: fixture.runFile, artifactFile: invalidConsent.file }), /consent.participation|participation consent/);
+    const directIdentifier = participant("YYYYYYYY", "13", true);
+    directIdentifier.artifact.payload.observations[0].text = "Contact someone@example.com for help.";
+    writeJson(directIdentifier.file, directIdentifier.artifact);
+    assert.throws(() => registerArtifact(run, directIdentifier.artifact,
+      { skillRoot: skill, runFile: fixture.runFile, artifactFile: directIdentifier.file }), /direct contact identifier/);
+    const wrongRun = participant("XXXXXXXX", "15", true);
+    wrongRun.artifact.run_id = "RUN-OTHER";
+    writeJson(wrongRun.file, wrongRun.artifact);
+    assert.throws(() => registerArtifact(run, wrongRun.artifact,
+      { skillRoot: skill, runFile: fixture.runFile, artifactFile: wrongRun.file }), /same run|run_id/u);
+    fs.writeFileSync(path.join(temp, "artifacts", first.sourcePath), "Changed source bytes\n");
     assert.equal(validateAuditRun(run, { skillRoot: skill, runFile: fixture.runFile }).valid, false);
   } finally {
     fs.rmSync(temp, { recursive: true, force: true });

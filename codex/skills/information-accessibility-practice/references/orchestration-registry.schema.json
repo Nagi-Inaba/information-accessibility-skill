@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:information-accessibility:orchestration-registry:14.0.0",
+  "$id": "urn:information-accessibility:orchestration-registry:15.0.0",
   "title": "Extensible Information Accessibility Audit Orchestration Registry",
   "type": "object",
   "additionalProperties": false,
@@ -16,11 +16,11 @@
       "const": "./orchestration-registry.schema.json"
     },
     "schema_version": {
-      "const": "14.0.0"
+      "const": "15.0.0"
     },
     "roles": {
       "type": "array",
-      "minItems": 9,
+      "minItems": 10,
       "uniqueItems": true,
       "items": {
         "$ref": "#/$defs/role"
@@ -28,7 +28,7 @@
     },
     "artifact_types": {
       "type": "array",
-      "minItems": 8,
+      "minItems": 9,
       "uniqueItems": true,
       "items": {
         "$ref": "#/$defs/artifact_type_manifest"

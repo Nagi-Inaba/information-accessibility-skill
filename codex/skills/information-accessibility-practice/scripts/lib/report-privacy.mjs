@@ -2,6 +2,7 @@ import { isIP } from "node:net";
 import { declaredFindings, findingPlanMetadata, remediationPlanItems } from "./run-findings.mjs";
 import { groupScreeningProjections, screeningReviewRecord } from "./review-details.mjs";
 import { reviewEntries, resolveHumanReviews, consensusReviewRows, consensusRemediationItems, reviewHistoryForReport } from "./human-review-consensus.mjs";
+import { summarizeParticipantObservations } from "./participant-observation.mjs";
 
 const redacted = "[redacted]";
 const machineFields = new Set([
@@ -181,6 +182,8 @@ export function buildInternalRunBackedModel({ run, assessment, publicModel, enve
   model.limitations = structuredClone(assessment.assessment.limitations ?? []);
   model.publicLimitations = structuredClone(publicModel.limitations ?? []);
   model.publicAuditContext = structuredClone(publicModel.auditContext);
+  model.publicParticipantSummary = structuredClone(publicModel.participantSummary);
+  model.participantSummary = summarizeParticipantObservations(envelopesById);
   model.auditContext = {
     participation_coverage: structuredClone(assessment.assessment.participation_coverage),
     independent_audit_performed: assessment.assessment.assurance.independent_audit.performed,
@@ -267,6 +270,7 @@ export function applyReportVisibility(presentation, { visibility = "internal", r
   if (selectedVisibility === "internal") {
     delete copy.public_audit_context;
     delete copy.public_limitations;
+    delete copy.public_participant_summary;
     return {
       presentation: copy,
       manifest: {
@@ -296,8 +300,15 @@ export function applyReportVisibility(presentation, { visibility = "internal", r
   }
   if (copy.public_audit_context) copy.audit_context = copy.public_audit_context;
   if (copy.public_limitations) copy.limitations = copy.public_limitations;
+  if (copy.public_participant_summary) copy.participant_summary = copy.public_participant_summary;
   delete copy.public_audit_context;
   delete copy.public_limitations;
+  delete copy.public_participant_summary;
+  if (copy.participant_summary) {
+    copy.participant_summary.themes = copy.participant_summary.themes.map((theme, index) => ({
+      ...theme, label: sanitizeText(theme.label, `participant_summary.themes[${index}].label`, entries)
+    }));
+  }
   if (copy.audit_context) {
     if (copy.audit_context.independent_audit) addRedaction(entries, "audit_context.independent_audit", "audit_source_withheld", "removed");
     if (copy.audit_context.dossier) addRedaction(entries, "audit_context.dossier", "dossier_source_withheld", "removed");

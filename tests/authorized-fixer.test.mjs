@@ -145,7 +145,7 @@ function assertRejected(result, pattern) {
 
 function initialRun(artifactRoot) {
   const run = {
-    schema_version: "15.0.0",
+    schema_version: "16.0.0",
     inspection_request: createInspectionRequest("quick", "Identify the next investigation"),
     run_id: RUN_ID,
     supersedes_run_id: null,

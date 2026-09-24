@@ -8,8 +8,8 @@
 
 | 記録 | 新規作成する版 | 過去形式の扱い |
 | --- | --- | --- |
-| audit run | 15.0.0 | 1.0.0〜14.0.0は凍結schemaで読取り。継続操作には現行runが必要。 |
-| orchestration registry | 14.0.0 | runの版に対応する1.0.0〜13.0.0を保持。 |
+| audit run | 16.0.0 | 1.0.0〜15.0.0は凍結schemaで読取り。継続操作には現行runが必要。 |
+| orchestration registry | 15.0.0 | runの版に対応する1.0.0〜14.0.0を保持。 |
 | artifact envelope | 3.0.0 | runの版に対応する1.0.0／2.0.0を保持。 |
 | assessment | 2.0.0 | 1.0.0を読取り。旧human_verifiedは本人確認のない自己申告として表示。 |
 | screening observations | 4.0.0 | 1.0.0〜3.0.0を読取り。過去の不足証拠を自動補完しない。 |

@@ -309,6 +309,17 @@ function inspectionSection(presentation) {
   return `<section id="inspection-request"><h2>${escapeHtml(text.heading)}</h2><p>${escapeHtml(text.notice)}</p><h3>${escapeHtml(text.deliverables)}</h3>${items(request.deliverables)}<h3>${escapeHtml(text.criteria)}</h3><p>${escapeHtml(text.progressNotice)}</p><ul>${criteria}</ul><details><summary>${escapeHtml(text.records)} (${progress.records.length})</summary>${records}</details></section>`;
 }
 
+function participantSection(presentation) {
+  const summary = presentation.participant_summary;
+  if (!summary) return "";
+  const ja = presentation.locale === "ja";
+  const count = summary.participant_count ?? (ja ? "公表可能な集計なし" : "No publishable aggregate");
+  return `<section id="participant-usability"><h2>${ja ? "当事者による利用テスト" : "Participant usability testing"}</h2><p>${ja ? "この観測は規格の適合判定ではありません。" : "These observations are not conformance outcomes."}</p>${definitionList([
+    [ja ? "集計対象の参加者" : "Participants in aggregate", escapeHtml(count)],
+    ...summary.themes.map((theme) => [escapeHtml(theme.label), escapeHtml(theme.participant_count)])
+  ])}</section>`;
+}
+
 function fullSections(presentation, text) {
   const sections = [];
   sections.push(overviewSection(presentation, text));
@@ -364,6 +375,7 @@ function fullSections(presentation, text) {
     ...(context.dossier?.responsible_owner ? [[ja ? "資料担当者" : "Dossier owner", escapeHtml(context.dossier.responsible_owner)]] : []),
     ...(context.dossier?.artifacts?.length ? [[ja ? "資料" : "Dossier artifacts", escapeHtml(context.dossier.artifacts.join(", "))]] : [])
   ])}</section>`);
+  if (presentation.participant_summary) sections.push(participantSection(presentation));
   sections.push(`<section id="limitations"><h2>${escapeHtml(text.limitations)}</h2>${presentation.limitations?.length ? `<ul>${presentation.limitations.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>` : `<p>${escapeHtml(text.noLimitations)}</p>`}</section>`);
   return sections;
 }
@@ -392,6 +404,7 @@ function summarySections(presentation, text, appendixHref) {
       ...(context.dossier?.responsible_owner ? [[ja ? "資料担当者" : "Dossier owner", escapeHtml(context.dossier.responsible_owner)]] : []),
       ...(context.dossier?.artifacts?.length ? [[ja ? "資料" : "Dossier artifacts", escapeHtml(context.dossier.artifacts.join(", "))]] : [])
     ])}</section>`,
+    ...(presentation.participant_summary ? [participantSection(presentation)] : []),
     `<section id="scope"><h2>${escapeHtml(text.scope)}</h2>${definitionList([[text.included, list(presentation.scope?.included, text.noRecord)], [text.limitations, escapeHtml(presentation.limitations?.join("; ") || text.noRecord)]])}</section>`
   ];
   if (appendixHref) sections.push(`<section id="appendix"><h2>${escapeHtml(text.appendix)}</h2><p><a href="${escapeAttribute(appendixHref)}">${escapeHtml(text.appendixLink)}</a></p></section>`);
@@ -407,10 +420,12 @@ function tocEntries(detail, presentation, text, appendixHref) {
       ["group-counts", text.groups], ["provenance", text.provenance], ["claim", text.claim],
       ["audit-context", presentation.locale === "ja" ? "参加観点と次回確認" : "Participation and next review"], ["scope", text.scope]
     ];
+    if (presentation.participant_summary) entries.splice(entries.length - 1, 0,
+      ["participant-usability", presentation.locale === "ja" ? "当事者による利用テスト" : "Participant usability testing"]);
     if (appendixHref) entries.push(["appendix", text.appendix]);
     return entries;
   }
-  return [["overview", text.overview], ["findings", text.keyFindings], ["pending-checks", readerText(presentation.locale).pending], ...intake, ["legend", text.legend], ["claim", text.claim], ["target", text.target], ["criteria", text.criteria], ["scope", text.scope], ["coverage", text.coverage], ["audit-context", presentation.locale === "ja" ? "参加観点と次回確認" : "Participation and next review"], ["limitations", text.limitations]];
+  return [["overview", text.overview], ["findings", text.keyFindings], ["pending-checks", readerText(presentation.locale).pending], ...intake, ["legend", text.legend], ["claim", text.claim], ["target", text.target], ["criteria", text.criteria], ["scope", text.scope], ["coverage", text.coverage], ["audit-context", presentation.locale === "ja" ? "参加観点と次回確認" : "Participation and next review"], ...(presentation.participant_summary ? [["participant-usability", presentation.locale === "ja" ? "当事者による利用テスト" : "Participant usability testing"]] : []), ["limitations", text.limitations]];
 }
 
 export function renderReportHtml(presentation, { detail = "full", appendixHref = null } = {}) {
