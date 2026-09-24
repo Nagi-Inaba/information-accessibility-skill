@@ -8,6 +8,8 @@ This project uses a Keep a Changelog-style structure. Until a tagged release is 
 
 ### Added
 
+- WCAG 2.2 SC 3.3.7 has English and Japanese procedures for repeated entry within one process, available-value reuse, and item-specific exceptions.
+
 - WCAG 2.2 SC 3.3.4 has English and Japanese procedures for reversible, checked, or pre-confirmed consequential submissions, with safe review boundaries.
 
 - WCAG 2.2 SC 1.4.1 has English and Japanese procedures for checking visible alternatives to color-coded meaning, with distinct luminance and contrast boundaries.

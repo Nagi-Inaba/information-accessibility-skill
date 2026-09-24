@@ -154,12 +154,13 @@ test("catalog procedures include the expected unique requirement IDs", () => {
     "WCAG-2.2-SC-1.4.3",
     "WCAG-2.2-SC-1.4.11",
     "WCAG-2.2-SC-1.4.1",
-    "WCAG-2.2-SC-3.3.4"
+    "WCAG-2.2-SC-3.3.4",
+    "WCAG-2.2-SC-3.3.7"
   ]);
 
   assert.equal(requirementIds.length, procedures.procedures.length);
   assert.equal(unique.size, procedures.procedures.length);
-  assert.ok(unique.size >= 20);
+  assert.ok(unique.size >= 21);
   for (const req of expected) {
     assert.equal(unique.has(req), true, `missing requirement ${req}`);
   }
@@ -329,6 +330,18 @@ test("SC 3.3.4 checks one working safeguard for consequential submissions", () =
   assert.match(procedure.applicability_steps.join(" "), /legal commitment.*financial transaction.*user-controllable data.*test responses/u);
   assert.match(procedure.procedure_steps.join(" "), /reversible submission.*input errors.*review, confirmation, and correction.*SC 3\.3\.1.*SC 3\.3\.3/u);
   assert.match(procedure.cant_tell_when.join(" "), /without causing a real transaction/u);
+});
+
+test("SC 3.3.7 checks repeated entry in the same process and exact exceptions", () => {
+  const procedure = procedureFor("WCAG-2.2-SC-3.3.7");
+  assert.deepEqual(procedure.primary_sources, [
+    "https://www.w3.org/TR/WCAG22/#redundant-entry",
+    "https://www.w3.org/WAI/WCAG22/Understanding/redundant-entry.html"
+  ]);
+  assert.deepEqual(procedure.required_evidence_types, ["browser_inspection", "manual_observation"]);
+  assert.match(procedure.applicability_steps.join(" "), /another domain.*same activity.*later session/u);
+  assert.match(procedure.procedure_steps.join(" "), /auto-populates.*available for selection.*browser autocomplete alone.*essential, security, or invalid-value reason/u);
+  assert.ok(procedure.cant_tell_when.length && procedure.counterexamples.fail.length);
 });
 
 test("new focus and input-error procedures keep their criterion boundaries and primary sources", () => {

@@ -817,6 +817,39 @@
         "cant_tell": ["A live purchase page promises later cancellation, but the cancellation terms and a safe test path are unavailable."]
       },
       "ai_boundary": "AI may identify candidate consequential flows and safeguards, but it must not infer that a transaction is reversible or a correction mechanism works from labels alone, or record a profile outcome, human_verified mapping, or E2+ claim without a human review of the permitted flow."
+    },
+    {
+      "id": "wcag22-sc-3-3-7-redundant-entry",
+      "requirement_id": "WCAG-2.2-SC-3.3.7",
+      "procedure_version": "1.0.0",
+      "procedure_kind": "human_manual_or_hybrid",
+      "automation_role": "supporting_only",
+      "primary_sources": ["https://www.w3.org/TR/WCAG22/#redundant-entry", "https://www.w3.org/WAI/WCAG22/Understanding/redundant-entry.html"],
+      "applicability_steps": [
+        "Map each scoped multi-step process, including required steps on another domain, and identify information the user previously entered or the process provided that is requested again in the same activity.",
+        "Distinguish a continuous process from a later session or separate activity; record any item-specific claim that re-entry is essential, required for security, or necessary because the earlier value is no longer valid."
+      ],
+      "procedure_steps": [
+        "Using safe test values, move through the process and record the first entry or presentation of each item and the later point where the same information is required again.",
+        "At each repeated request, check whether the content auto-populates the value or makes the previous value available for selection on the current page, such as a same-address control or selectable text; do not count browser autocomplete alone.",
+        "If a repeated request remains, verify the specific essential, security, or invalid-value reason. Do not treat all password, personal, or payment fields as automatically exempt.",
+        "Record whether the repeated request is part of an error-recovery step or a third-party handoff within the same process; assess input instructions and error feedback under SC 3.3.2 and SC 3.3.1 separately."
+      ],
+      "expected_results": [
+        "Information previously entered or provided in the same process is not required again unless it is auto-populated or available for the user to select.",
+        "Each remaining re-entry requirement has an item-specific essential, security, or invalid-previous-value reason supported by the observed process."
+      ],
+      "required_evidence_types": ["browser_inspection", "manual_observation"],
+      "cant_tell_when": [
+        "The reviewer cannot reach the earlier and repeated request in one permitted process, including a required third-party step.",
+        "The earlier value, selection mechanism, or claimed essential, security, or invalid-value reason cannot be established from the available evidence."
+      ],
+      "counterexamples": {
+        "pass": ["A checkout form offers a selectable 'same as shipping address' option when billing address is requested later in the same process."],
+        "fail": ["The checkout repeats the corporate ID entered two steps earlier and requires typing it again, with no supplied value or applicable exception."],
+        "cant_tell": ["Only the final payment page is available; the earlier entry and whether the same value can be selected are unknown."]
+      },
+      "ai_boundary": "AI may map repeated prompts and candidate exceptions, but it must not infer that values can be selected or an exception applies from field names alone, or record a profile outcome, human_verified mapping, or E2+ claim without a human review of the same process."
     }
   ]
 }
