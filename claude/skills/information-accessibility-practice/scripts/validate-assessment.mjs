@@ -429,6 +429,13 @@ export function validateAssessment(record, registry, schema, criteriaCatalog, au
     if (assessment.next_review_at !== null && !isCalendarDate(assessment.next_review_at)) {
       errors.push(`next_review_at must be a real calendar date in ${calendarDateExample} or null`);
     }
+    const owner = assessment.next_review_owner ?? null;
+    const condition = assessment.next_review_condition ?? null;
+    if (("next_review_owner" in assessment || "next_review_condition" in assessment)
+        && ((assessment.next_review_at === null && (owner !== null || condition !== null))
+          || (assessment.next_review_at !== null && (!hasText(owner) || !hasText(condition))))) {
+      errors.push("next_review_at, next_review_owner, and next_review_condition must be set together.");
+    }
 
   const expectedRequirementIds = expectedRequirementIdsForClaim;
   const recordedRequirementIds = recordedRequirementIdsForClaim;

@@ -35,7 +35,7 @@ function schemaErrors(value, schemaName) {
 
 function validAuditRun() {
   return {
-    schema_version: "14.0.0",
+    schema_version: "15.0.0",
     target_inventory: null,
     inspection_request: createInspectionRequest("quick", "Identify the next investigation"),
     run_id: runId,
@@ -73,7 +73,7 @@ function validAuditRun() {
     },
     resource_versions: {
       standards_registry_version: "1.0.0",
-      orchestration_registry_version: "13.0.0",
+      orchestration_registry_version: "14.0.0",
       orchestration_registry_sha256: sha256,
       criteria_catalog_sha256: sha256,
       criterion_procedures_sha256: sha256,
@@ -253,20 +253,23 @@ test("current queue 3 and remediation 3 preserve frozen version 1 reading", asyn
   assert.notDeepEqual(await schemaErrors(legacyRemediationValue, "remediation-plan.schema.json"), []);
 });
 
-test("versioned contracts freeze prior runs while run 8, registry 7, and envelope 3 are current", async () => {
+test("versioned contracts freeze prior runs while run 15, registry 14, and envelope 3 are current", async () => {
   const versions = [
-    ["orchestration-registry.json", "schema_version", "13.0.0"],
+    ["orchestration-registry.json", "schema_version", "14.0.0"],
+    ["orchestration-registry-13.0.0.json", "schema_version", "13.0.0"],
     ["orchestration-registry-6.0.0.json", "schema_version", "6.0.0"],
     ["orchestration-registry-5.0.0.json", "schema_version", "5.0.0"],
     ["orchestration-registry-4.0.0.json", "schema_version", "4.0.0"],
     ["orchestration-registry-3.0.0.json", "schema_version", "3.0.0"],
     ["orchestration-registry-2.0.0.json", "schema_version", "2.0.0"],
-    ["orchestration-registry.schema.json", "schema", "13.0.0"],
+    ["orchestration-registry.schema.json", "schema", "14.0.0"],
+    ["orchestration-registry-13.0.0.schema.json", "schema", "13.0.0"],
     ["orchestration-registry-6.0.0.schema.json", "schema", "6.0.0"],
     ["orchestration-registry-5.0.0.schema.json", "schema", "5.0.0"],
     ["orchestration-registry-4.0.0.schema.json", "schema", "4.0.0"],
     ["orchestration-registry-2.0.0.schema.json", "schema", "2.0.0"],
-    ["audit-run.schema.json", "schema", "14.0.0"],
+    ["audit-run.schema.json", "schema", "15.0.0"],
+    ["audit-run-14.0.0.schema.json", "schema", "14.0.0"],
     ["audit-run-7.0.0.schema.json", "schema", "7.0.0"],
     ["audit-artifact-envelope.schema.json", "schema", "3.0.0"],
     ["audit-artifact-envelope-2.0.0.schema.json", "schema", "2.0.0"],
@@ -620,7 +623,9 @@ test("the orchestration registry fixes the complete role, artifact, and transiti
     ["declared_external_human", null, "external_human", "declared-human-review", true, false, false],
     ["remediation_planner", "information-accessibility-remediation-planner", "ai_agent", "remediation-plan", false, false, true],
     ["declared_authorizer", null, "external_requester", "fix-authorization", false, false, false],
-    ["authorized_fixer", "information-accessibility-authorized-fixer", "ai_agent", "change-record", false, true, false]
+    ["authorized_fixer", "information-accessibility-authorized-fixer", "ai_agent", "change-record", false, true, false],
+    ["declared_context_reviewer", null, "external_human", "audit-context", false, false, false],
+    ["declared_context_owner", null, "external_requester", "audit-context", false, false, false]
   ];
   assert.deepEqual(registry.roles.map((role) => [
     role.id,
@@ -645,7 +650,7 @@ test("the orchestration registry fixes the complete role, artifact, and transiti
   assert.deepEqual(registry.artifact_types, [
     {
   "id": "audit-run",
-  "latest_schema_version": "14.0.0",
+  "latest_schema_version": "15.0.0",
   "schema_versions": [
     {
       "version": "1.0.0",
@@ -717,8 +722,14 @@ test("the orchestration registry fixes the complete role, artifact, and transiti
     },
     {
       "version": "14.0.0",
-      "schema_file": "audit-run.schema.json",
+      "schema_file": "audit-run-14.0.0.schema.json",
       "schema_sha256": "8a5c491996266461da52a9adb87642b5899f1035b0755c8398e4f6b52898e92b",
+      "mode": "read_only"
+    },
+    {
+      "version": "15.0.0",
+      "schema_file": "audit-run.schema.json",
+      "schema_sha256": "41b6084e4fd0215e52513593002d0bed572a4a9d1ee664179b28a82a6a573bcc",
       "mode": "current"
     }
   ]
@@ -839,6 +850,14 @@ test("the orchestration registry fixes the complete role, artifact, and transiti
           schema_sha256: "0e7318a19b0a7e8b69ab2c30ab613866666cd4892f04721c419cb128a10fcb84",
           mode: "current"
         }
+      ]
+    },
+    {
+      id: "audit-context",
+      latest_schema_version: "1.0.0",
+      schema_versions: [
+        { version: "1.0.0", schema_file: "audit-context.schema.json",
+          schema_sha256: "d52cdbc6ea3d374402a15effce7135f7b15d6702714a6ff1ce108dfe9ebc0403", mode: "current" }
       ]
     }
   ]);

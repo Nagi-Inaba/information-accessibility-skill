@@ -8,12 +8,13 @@
 
 | 記録 | 新規作成する版 | 過去形式の扱い |
 | --- | --- | --- |
-| audit run | 14.0.0 | 1.0.0〜13.0.0は凍結schemaで読取り。継続操作には現行runが必要。 |
-| orchestration registry | 13.0.0 | runの版に対応する1.0.0〜12.0.0を保持。 |
+| audit run | 15.0.0 | 1.0.0〜14.0.0は凍結schemaで読取り。継続操作には現行runが必要。 |
+| orchestration registry | 14.0.0 | runの版に対応する1.0.0〜13.0.0を保持。 |
 | artifact envelope | 3.0.0 | runの版に対応する1.0.0／2.0.0を保持。 |
 | assessment | 2.0.0 | 1.0.0を読取り。旧human_verifiedは本人確認のない自己申告として表示。 |
 | screening observations | 4.0.0 | 1.0.0〜3.0.0を読取り。過去の不足証拠を自動補完しない。 |
 | declared human review | 3.0.0 | 凍結1.0.0／2.0.0を読取り。複数確認者の一致・不一致と訂正履歴を保持。署名付きreview recordとは別のartifact。 |
+| audit context | 1.0.0 | 現行runだけで登録。参加観点、制約、次回確認、独立監査・資料整備の申告を根拠付きで記録。旧runに暗黙適用しない。 |
 | human review queue | 3.0.0 | 凍結1.0.0／2.0.0を過去runで読取り。箇所・優先度・観測参照は自動補完しない。 |
 | remediation plan | 3.0.0 | 凍結1.0.0／2.0.0を対応する過去runで読取り。 |
 | fix authorization／change record | 各2.0.0 | 凍結1.0.0を対応する過去runで読取り。古い許可を現行の実行許可へ昇格しない。 |

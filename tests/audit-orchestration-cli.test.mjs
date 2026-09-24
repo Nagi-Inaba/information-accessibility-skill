@@ -74,7 +74,7 @@ function resourceVersions(registryFile = "orchestration-registry.json") {
 function initialRun(artifactRoot) {
   const resolvedRoot = path.isAbsolute(artifactRoot) ? artifactRoot : activeArtifactRoot;
   const run = {
-    schema_version: "14.0.0",
+    schema_version: "15.0.0",
     inspection_request: createInspectionRequest("quick", "Identify the next investigation"),
     run_id: runId,
     supersedes_run_id: null,
@@ -800,7 +800,7 @@ test("run initialization creates a schema-valid immutable manifest with installe
   ]);
   assert.equal(result.status, 0, result.stderr || result.stdout);
   const run = readJson(output);
-  assert.equal(run.schema_version, "14.0.0");
+  assert.equal(run.schema_version, "15.0.0");
   assert.equal(run.target_inventory, null);
   assert.equal(run.status, "initialized");
   assert.equal(run.artifact_root, "artifacts");
@@ -975,8 +975,8 @@ test("audit-run dispatch maps runs 1/2 to registry 1 through run 7 to registry 6
   const legacyV3SchemaFile = path.join(references, "audit-run-3.0.0.schema.json");
   const legacyV4SchemaFile = path.join(references, "audit-run-4.0.0.schema.json");
   const legacyV5SchemaFile = path.join(references, "audit-run-5.0.0.schema.json");
-  assert.equal(currentSchema.$id, "urn:information-accessibility:audit-run:14.0.0");
-  assert.equal(currentSchema.properties.schema_version.const, "14.0.0");
+  assert.equal(currentSchema.$id, "urn:information-accessibility:audit-run:15.0.0");
+  assert.equal(currentSchema.properties.schema_version.const, "15.0.0");
   assert.equal(readJson(legacyV1SchemaFile).properties.schema_version.const, "1.0.0");
   assert.equal(readJson(legacyV2SchemaFile).properties.schema_version.const, "2.0.0");
   assert.equal(readJson(legacyV3SchemaFile).properties.schema_version.const, "3.0.0");
@@ -988,7 +988,7 @@ test("audit-run dispatch maps runs 1/2 to registry 1 through run 7 to registry 6
   const registryV2 = readJson(path.join(references, "orchestration-registry-2.0.0.json"));
   const registryV3 = readJson(path.join(references, "orchestration-registry-3.0.0.json"));
   const registryV4 = readJson(path.join(references, "orchestration-registry-4.0.0.json"));
-  assert.equal(currentRegistry.schema_version, "13.0.0");
+  assert.equal(currentRegistry.schema_version, "14.0.0");
   assert.equal(registryV1.schema_version, "1.0.0");
   assert.equal(registryV2.schema_version, "2.0.0");
   assert.equal(registryV3.schema_version, "3.0.0");
@@ -1497,6 +1497,7 @@ test("each registry derives its own exact per-artifact payload compatibility pol
   expected.set("11.0.0", { ...expected.get("10.0.0"), "screening-observations": "4.0.0" });
   expected.set("12.0.0", { ...expected.get("11.0.0"), "remediation-plan": "3.0.0", "declared-human-review": "2.0.0" });
   expected.set("13.0.0", { ...expected.get("12.0.0"), "declared-human-review": "3.0.0" });
+  expected.set("14.0.0", { ...expected.get("13.0.0"), "audit-context": "1.0.0" });
   assert.deepEqual([...resources.orchestrationRegistries.keys()], [...expected.keys()]);
   for (const [registryVersion, payloadVersions] of expected) {
     assert.deepEqual(

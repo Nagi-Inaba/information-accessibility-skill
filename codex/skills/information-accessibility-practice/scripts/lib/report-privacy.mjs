@@ -179,6 +179,18 @@ export function buildInternalRunBackedModel({ run, assessment, publicModel, enve
   model.scope = structuredClone(run.scope);
   model.environment = structuredClone(run.environment);
   model.limitations = structuredClone(assessment.assessment.limitations ?? []);
+  model.publicLimitations = structuredClone(publicModel.limitations ?? []);
+  model.publicAuditContext = structuredClone(publicModel.auditContext);
+  model.auditContext = {
+    participation_coverage: structuredClone(assessment.assessment.participation_coverage),
+    independent_audit_performed: assessment.assessment.assurance.independent_audit.performed,
+    independent_audit: structuredClone(assessment.assessment.assurance.independent_audit),
+    dossier_prepared: assessment.assessment.assurance.legal_or_procurement_dossier.prepared,
+    dossier: structuredClone(assessment.assessment.assurance.legal_or_procurement_dossier),
+    next_review_at: assessment.assessment.next_review_at,
+    next_review_condition: assessment.assessment.next_review_condition ?? null,
+    next_review_owner: assessment.assessment.next_review_owner ?? null
+  };
 
   const screenings = [];
   const humanSources = [];
@@ -253,6 +265,8 @@ export function applyReportVisibility(presentation, { visibility = "internal", r
     notice: localizedPublication(copy.locale, selectedVisibility)
   };
   if (selectedVisibility === "internal") {
+    delete copy.public_audit_context;
+    delete copy.public_limitations;
     return {
       presentation: copy,
       manifest: {
@@ -279,6 +293,22 @@ export function applyReportVisibility(presentation, { visibility = "internal", r
       }
     };
     redactReviewers(copy);
+  }
+  if (copy.public_audit_context) copy.audit_context = copy.public_audit_context;
+  if (copy.public_limitations) copy.limitations = copy.public_limitations;
+  delete copy.public_audit_context;
+  delete copy.public_limitations;
+  if (copy.audit_context) {
+    if (copy.audit_context.independent_audit) addRedaction(entries, "audit_context.independent_audit", "audit_source_withheld", "removed");
+    if (copy.audit_context.dossier) addRedaction(entries, "audit_context.dossier", "dossier_source_withheld", "removed");
+    delete copy.audit_context.independent_audit;
+    delete copy.audit_context.dossier;
+    if (copy.audit_context.next_review_owner) addRedaction(entries, "audit_context.next_review_owner", "owner_identity_redacted", "removed");
+    delete copy.audit_context.next_review_owner;
+    if (copy.audit_context.next_review_condition) {
+      copy.audit_context.next_review_condition = sanitizeText(copy.audit_context.next_review_condition,
+        "audit_context.next_review_condition", entries);
+    }
   }
   copy.target.name = sanitizeText(copy.target.name, "target.name", entries);
   copy.target.version_or_commit = sanitizeVersion(copy.target.version_or_commit, "target.version_or_commit", entries);

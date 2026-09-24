@@ -1,6 +1,6 @@
 {
   "$schema": "./orchestration-registry.schema.json",
-  "schema_version": "14.0.0",
+  "schema_version": "13.0.0",
   "roles": [
     {
       "id": "orchestrator",
@@ -12,8 +12,7 @@
         "declared-human-review",
         "remediation-plan",
         "fix-authorization",
-        "change-record",
-        "audit-context"
+        "change-record"
       ],
       "output_type": "audit-run",
       "max_ai_evidence_level": "E1",
@@ -98,45 +97,12 @@
       "can_record_profile_outcome": false,
       "can_write_target": true,
       "install_by_default": false
-    },
-    {
-      "id": "declared_context_reviewer",
-      "agent_id": null,
-      "producer_kind": "external_human",
-      "input_types": [
-        "screening-observations",
-        "human-review-queue",
-        "declared-human-review",
-        "remediation-plan"
-      ],
-      "output_type": "audit-context",
-      "max_ai_evidence_level": null,
-      "can_record_profile_outcome": false,
-      "can_write_target": false,
-      "install_by_default": false
-    },
-    {
-      "id": "declared_context_owner",
-      "agent_id": null,
-      "producer_kind": "external_requester",
-      "input_types": [
-        "screening-observations",
-        "human-review-queue",
-        "declared-human-review",
-        "remediation-plan",
-        "audit-context"
-      ],
-      "output_type": "audit-context",
-      "max_ai_evidence_level": null,
-      "can_record_profile_outcome": false,
-      "can_write_target": false,
-      "install_by_default": false
     }
   ],
   "artifact_types": [
     {
       "id": "audit-run",
-      "latest_schema_version": "15.0.0",
+      "latest_schema_version": "14.0.0",
       "schema_versions": [
         {
           "version": "1.0.0",
@@ -208,14 +174,8 @@
         },
         {
           "version": "14.0.0",
-          "schema_file": "audit-run-14.0.0.schema.json",
-          "schema_sha256": "8a5c491996266461da52a9adb87642b5899f1035b0755c8398e4f6b52898e92b",
-          "mode": "read_only"
-        },
-        {
-          "version": "15.0.0",
           "schema_file": "audit-run.schema.json",
-          "schema_sha256": "41b6084e4fd0215e52513593002d0bed572a4a9d1ee664179b28a82a6a573bcc",
+          "schema_sha256": "8a5c491996266461da52a9adb87642b5899f1035b0755c8398e4f6b52898e92b",
           "mode": "current"
         }
       ]
@@ -347,18 +307,6 @@
           "version": "2.0.0",
           "schema_file": "change-record.schema.json",
           "schema_sha256": "0e7318a19b0a7e8b69ab2c30ab613866666cd4892f04721c419cb128a10fcb84",
-          "mode": "current"
-        }
-      ]
-    },
-    {
-      "id": "audit-context",
-      "latest_schema_version": "1.0.0",
-      "schema_versions": [
-        {
-          "version": "1.0.0",
-          "schema_file": "audit-context.schema.json",
-          "schema_sha256": "d52cdbc6ea3d374402a15effce7135f7b15d6702714a6ff1ce108dfe9ebc0403",
           "mode": "current"
         }
       ]

@@ -3,13 +3,15 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { assertNewOutputPath, assertStableFile, readStableFile, resolveInside, validateAuditRun, validateArtifactCandidate, writeNewJson } from "./lib/audit-run.mjs";
 import { parseAttestationJson } from "./lib/attestation-canonical.mjs";
+import { createRunEvidenceReference } from "./lib/run-evidence.mjs";
 
-const types = ["screening-observations", "human-review-queue", "declared-human-review", "remediation-plan"];
+const types = ["screening-observations", "human-review-queue", "declared-human-review", "remediation-plan", "audit-context"];
 
 export function main(argv = process.argv.slice(2)) {
   const [action, ...args] = argv;
   if (!["init", "validate"].includes(action)) throw new Error("Use artifact init or artifact validate; see accessibility-audit artifact --help.");
-  const allowed = action === "init" ? ["run", "type", "payload", "input", "artifact-id", "output"] : ["run", "artifact"];
+  const allowed = action === "init" ? ["run", "type", "payload", "input", "artifact-id", "output", "role",
+    "evidence-file", "target-ref", "captured-at"] : ["run", "artifact"];
   const options = { input: [] }, seen = new Set();
   for (let i = 0; i < args.length; i += 2) {
     const key = args[i].replace(/^--/u, "");
@@ -42,7 +44,27 @@ export function main(argv = process.argv.slice(2)) {
     const payload = read(options.payload);
     if (!payload || typeof payload !== "object" || Array.isArray(payload)) throw new Error("Payload must be a JSON object.");
     if (!Object.hasOwn(payload, "schema_version")) payload.schema_version = validation.resources.currentPayloadVersions.get(options.type);
-    const role = validation.resources.orchestrationRegistry.roles.find((item) => item.output_type === options.type);
+    if (options.type === "audit-context") {
+      if (!["declared_context_reviewer", "declared_context_owner"].includes(options.role)) {
+        throw new Error("audit-context requires --role declared_context_reviewer or declared_context_owner.");
+      }
+      if (!options["evidence-file"] || !options["target-ref"] || !options["captured-at"]) {
+        throw new Error("audit-context requires --evidence-file, --target-ref, and --captured-at.");
+      }
+      const evidenceFile = resolveInside(validation.artifactRoot, path.resolve(options["evidence-file"]));
+      const evidenceSnapshot = readStableFile(evidenceFile, { maxBytes: 8 * 1024 * 1024 });
+      snapshots.push(evidenceSnapshot);
+      const relativePath = path.relative(validation.artifactRoot, evidenceFile).split(path.sep).join("/");
+      const reference = createRunEvidenceReference({ run, targetRef: options["target-ref"], evidenceType: "other",
+        relativePath, bytes: evidenceSnapshot.bytes, capturedAt: options["captured-at"] });
+      payload.evidence_refs = [...(payload.evidence_refs ?? []), reference];
+      payload.source_artifact_ids = payload.source_artifact_ids ?? [...options.input];
+    } else if (options.role || options["evidence-file"] || options["target-ref"] || options["captured-at"]) {
+      throw new Error("Context producer and evidence options require --type audit-context.");
+    }
+    const role = validation.resources.orchestrationRegistry.roles.find((item) => item.output_type === options.type
+      && (!options.role || item.id === options.role));
+    if (!role) throw new Error("No registered producer role matches the requested artifact.");
     const inputs = options.input.map((id) => {
       const entry = run.artifacts.find((item) => item.artifact_id === id);
       if (!entry) throw new Error(`Input is not registered in this run: ${id}`);

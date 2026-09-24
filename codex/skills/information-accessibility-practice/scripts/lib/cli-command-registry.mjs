@@ -13,7 +13,8 @@ const definitions = [
       "accessibility-audit artifact init --run <run.json> --type <type> --payload <payload.json> [--input <registered-ART-id>] [--artifact-id <ART-id>] --output <artifacts/new-candidate.json>",
       "accessibility-audit artifact validate --run <run.json> --artifact <artifacts/candidate.json>"
     ],
-    notes: ["Types: screening-observations, human-review-queue, declared-human-review, remediation-plan. --input is repeatable.",
+    notes: ["Types: screening-observations, human-review-queue, declared-human-review, remediation-plan, audit-context. --input is repeatable.",
+      "For audit-context, also provide --role <declared_context_reviewer|declared_context_owner> --evidence-file <saved-file> --target-ref <declared-target> --captured-at <RFC3339>. See references/audit-context.md.",
       "The CLI fills envelope metadata and omitted payload schema_version. Supply actual observations, review declarations or proposals in --payload; none are invented.",
       "Human review payloads must be the reviewer's actual declaration; AI agents must not write human outcomes or evidence on their behalf. Metadata does not authenticate identity.",
       "Creates a private candidate only; register performs live target checks. Prefer review-queue and human-review export/import for guided authoring. See references/agent-orchestration.md."]

@@ -49,6 +49,8 @@ Use the reviewer as the orchestrator when a review needs registered role artifac
 
 The default artifact sequence is `screening-observations` -> `human-review-queue` -> `remediation-plan`. The orchestrator materializes and registers each candidate before using it as an input. Read [`references/agent-orchestration.md`](references/agent-orchestration.md) for schemas, transitions, CLI usage, authorization boundaries, and recovery behavior; do not duplicate the role prompts in a run plan.
 
+For run-backed participation perspectives, target-specific limitations, next review dates and conditions, or declared independent-audit/dossier information, use a registered `audit-context` artifact with saved evidence. See [`references/audit-context.md`](references/audit-context.md). Only the declared external reviewer or requester may produce the appropriate fields. These declarations do not authenticate a person or elevate E4/E5.
+
 For registered screening evidence, use payload 4.0.0 and read [`references/saved-evidence.md`](references/saved-evidence.md). Every E1 observation requires saved raw evidence bound to the exact run, declared target version and environment; unavailable capture remains E0 with its limitation. `bind-evidence` adds a reference to a new candidate without changing its conclusions. Registration and report generation recheck raw bytes; `compare-evidence` records private before/after byte and context differences.
 
 Before registering observations, use `capture-targets` and `bind-targets` to fix measured file, Git, HTTP or saved browser-state identities in the initialized run. Envelopes must carry the inventory's exact `target_snapshot_ids`; registration rejects drift. See [`references/measured-targets.md`](references/measured-targets.md) for explicit HTTP permissions, saved-state limitations, authorized-change handling and private before/after comparison. Capture alone does not bind a run.
@@ -305,4 +307,3 @@ node <skill-folder>\scripts\render-audit-report.mjs --input <assessment.json> --
 ## Source Basis
 
 This reusable audit workflow is target- and organization-independent. Read `references/source-basis.md` for the public primary sources, included metadata, copyright boundary, and profiles that are not yet implemented.
-

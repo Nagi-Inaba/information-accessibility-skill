@@ -19,6 +19,7 @@ import { networkPolicyErrors } from "./network-policy.mjs";
 import { createHumanReviewRecord, humanReviewRunContext } from "./human-review-provenance.mjs";
 import { declaredReviewMethod, isHumanReviewMapping, reviewRecordSha256 } from "./assessment-provenance.mjs";
 import { collectScreeningEvidence } from "./run-evidence.mjs";
+import { validateContextBindings, collectContextEvidence, projectAuditContext } from "./audit-context.mjs";
 import { targetInventoryErrors, targetBindingErrors, checkLocalRunTargets, consumeRunTargetCheck, checkRunTargets } from "./run-targets.mjs";
 export { canonicalJson } from "./canonical-json.mjs";
 
@@ -38,7 +39,8 @@ const auditRunRegistryCompatibility = new Map([
   ["11.0.0", "10.0.0"],
   ["12.0.0", "11.0.0"],
   ["13.0.0", "12.0.0"],
-  ["14.0.0", "13.0.0"]
+  ["14.0.0", "13.0.0"],
+  ["15.0.0", "14.0.0"]
 ]);
 const auditRunEnvelopeCompatibility = new Map([
   ["1.0.0", "1.0.0"],
@@ -54,11 +56,12 @@ const auditRunEnvelopeCompatibility = new Map([
   ["11.0.0", "3.0.0"],
   ["12.0.0", "3.0.0"],
   ["13.0.0", "3.0.0"],
-  ["14.0.0", "3.0.0"]
+  ["14.0.0", "3.0.0"],
+  ["15.0.0", "3.0.0"]
 ]);
 const currentAuditRunManifestContract = {
   "id": "audit-run",
-  "latest_schema_version": "14.0.0",
+  "latest_schema_version": "15.0.0",
   "schema_versions": [
     {
       "version": "1.0.0",
@@ -130,8 +133,14 @@ const currentAuditRunManifestContract = {
     },
     {
       "version": "14.0.0",
-      "schema_file": "audit-run.schema.json",
+      "schema_file": "audit-run-14.0.0.schema.json",
       "schema_sha256": "8a5c491996266461da52a9adb87642b5899f1035b0755c8398e4f6b52898e92b",
+      "mode": "read_only"
+    },
+    {
+      "version": "15.0.0",
+      "schema_file": "audit-run.schema.json",
+      "schema_sha256": "41b6084e4fd0215e52513593002d0bed572a4a9d1ee664179b28a82a6a573bcc",
       "mode": "current"
     }
   ]
@@ -514,8 +523,11 @@ function validateOrchestrationRegistrySemantics(registry, canonicalRegistry) {
   const canonicalRoles = new Map((canonicalRegistry?.roles ?? []).map((role) => [role.id, role]));
   for (const [roleId, canonicalRole] of canonicalRoles) {
     const installedRole = roleById.get(roleId);
+    const expectedRole = roleId === "orchestrator"
+      ? { ...canonicalRole, input_types: [...canonicalRole.input_types, "audit-context"] }
+      : canonicalRole;
     if (!installedRole) errors.push(`Missing canonical role: ${roleId}.`);
-    else if (!isDeepStrictEqual(installedRole, canonicalRole)) errors.push(`Canonical role contract changed: ${roleId}.`);
+    else if (!isDeepStrictEqual(installedRole, expectedRole)) errors.push(`Canonical role contract changed: ${roleId}.`);
   }
   const installedArtifactTypes = new Map(artifactTypes.map((artifactType) => [artifactType?.id, artifactType]));
   for (const canonicalArtifactType of canonicalRegistry?.artifact_types ?? []) {
@@ -561,7 +573,17 @@ function validateOrchestrationRegistrySemantics(registry, canonicalRegistry) {
     if (role?.output_type === "fix-authorization" && roleId !== "declared_authorizer") {
       errors.push(`Only declared_authorizer may produce fix-authorization; received ${roleId}.`);
     }
-    if (!canonicalRoles.has(role?.id)) {
+    if (["declared_context_reviewer", "declared_context_owner"].includes(role?.id)) {
+      const expectedKind = role.id === "declared_context_reviewer" ? "external_human" : "external_requester";
+      const reviewerInputs = ["screening-observations", "human-review-queue", "declared-human-review", "remediation-plan"];
+      const expectedInputs = role.id === "declared_context_owner" ? [...reviewerInputs, "audit-context"] : reviewerInputs;
+      if (role.producer_kind !== expectedKind || role.agent_id !== null || role.output_type !== "audit-context"
+          || role.can_record_profile_outcome !== false || role.can_write_target !== false
+          || role.install_by_default !== false || role.max_ai_evidence_level !== null
+          || !isDeepStrictEqual(role.input_types, expectedInputs)) {
+        errors.push(`Invalid audit-context producer contract: ${role.id}.`);
+      }
+    } else if (!canonicalRoles.has(role?.id)) {
       if (role?.producer_kind !== "ai_agent"
           || !['E0', 'E1'].includes(role?.max_ai_evidence_level)
           || role?.can_record_profile_outcome !== false
@@ -616,7 +638,7 @@ function validateOrchestrationRegistrySemantics(registry, canonicalRegistry) {
   }
   for (const duplicate of duplicateValues(transitionKeys)) errors.push(`Ambiguous transition for state and artifact type: ${duplicate.replace("\u0000", " + ")}.`);
   for (const duplicate of duplicateValues(routeKeys)) errors.push(`Duplicate transition route: ${duplicate.replace("\u0000", " -> ")}.`);
-  for (const artifactType of artifactTypeIds.filter((id) => id !== "audit-run")) {
+  for (const artifactType of artifactTypeIds.filter((id) => !["audit-run", "audit-context"].includes(id))) {
     if (!roles.some((role) => role?.output_type === artifactType)) errors.push(`Registered artifact type has no producer role: ${artifactType}.`);
     if (!transitionArtifactTypes.has(artifactType)) errors.push(`Registered artifact type has no transition: ${artifactType}.`);
   }
@@ -677,6 +699,8 @@ export function loadAuditResources(skillRoot = defaultSkillRoot) {
     orchestrationSchemaV11: "references/orchestration-registry-11.0.0.schema.json",
     orchestrationRegistryV12: "references/orchestration-registry-12.0.0.json",
     orchestrationSchemaV12: "references/orchestration-registry-12.0.0.schema.json",
+    orchestrationRegistryV13: "references/orchestration-registry-13.0.0.json",
+    orchestrationSchemaV13: "references/orchestration-registry-13.0.0.schema.json",
     envelopeSchema: "references/audit-artifact-envelope.schema.json",
     envelopeSchemaV1: "references/audit-artifact-envelope-1.0.0.schema.json",
     envelopeSchemaV2: "references/audit-artifact-envelope-2.0.0.schema.json",
@@ -699,7 +723,8 @@ export function loadAuditResources(skillRoot = defaultSkillRoot) {
     ["frozen 9.0.0", loaded.orchestrationRegistryV9, loaded.orchestrationSchemaV9],
     ["frozen 10.0.0", loaded.orchestrationRegistryV10, loaded.orchestrationSchemaV10],
     ["frozen 11.0.0", loaded.orchestrationRegistryV11, loaded.orchestrationSchemaV11],
-    ["frozen 12.0.0", loaded.orchestrationRegistryV12, loaded.orchestrationSchemaV12]
+    ["frozen 12.0.0", loaded.orchestrationRegistryV12, loaded.orchestrationSchemaV12],
+    ["frozen 13.0.0", loaded.orchestrationRegistryV13, loaded.orchestrationSchemaV13]
   ]) {
     const registryErrors = [];
     validateJsonSchema(registry.value, schema.value, "$", registryErrors);
@@ -779,6 +804,7 @@ export function loadAuditResources(skillRoot = defaultSkillRoot) {
     loaded.orchestrationRegistryV10,
     loaded.orchestrationRegistryV11,
     loaded.orchestrationRegistryV12,
+    loaded.orchestrationRegistryV13,
     loaded.orchestrationRegistry
   ];
   const orchestrationRegistries = new Map(registryFiles.map((registry) => [
@@ -1202,7 +1228,7 @@ function validateHumanQueueBindings(envelopesById, profileId, resources, errors,
 }
 
 function validateScreeningProfileBindings(run, envelopesById, resources, errors) {
-  if (!["12.0.0", "13.0.0", "14.0.0"].includes(run.schema_version) || errors.length) return;
+  if (!["12.0.0", "13.0.0", "14.0.0", "15.0.0"].includes(run.schema_version) || errors.length) return;
   const profileIds = new Set(resources.standardsRegistry.profiles.find((profile) => profile.id === run.profile.id).requirement_ids);
   const observedIds = new Set();
   for (const record of envelopesById.values()) {
@@ -1325,7 +1351,7 @@ function validateDeclaredHumanBindings(envelopesById, profileId, resources, erro
       const evidenceTypes = new Set((review.target_specific_evidence ?? []).map((item) => item?.type));
       // Current run 11 may explicitly record non-performance without inventing
       // keyboard/browser/AT results. Frozen run 10 keeps its original checks.
-      if (["10.0.0", "11.0.0", "12.0.0", "13.0.0"].includes(resources.orchestrationRegistry.schema_version) && review.profile_outcome === "not_tested") {
+      if (["10.0.0", "11.0.0", "12.0.0", "13.0.0", "14.0.0"].includes(resources.orchestrationRegistry.schema_version) && review.profile_outcome === "not_tested") {
         requiredEvidenceTypes.clear();
         requiredEvidenceTypes.add("manual_observation");
         if ([...evidenceTypes].some((type) => type !== "manual_observation")) errors.push(`Declared human review ${artifactId} not_tested accepts only manual_observation non-performance notes for ${requirementId}.`);
@@ -1355,7 +1381,8 @@ export function validateArtifactCandidate(run, artifact, validation) {
   if (permissionError) errors.push(permissionError);
   const outgoing = resources.orchestrationRegistry.transitions.filter((transition) => transition.from === run.status && transition.required_artifact_types.includes(artifact.artifact_type));
   const incoming = resources.orchestrationRegistry.transitions.some((transition) => transition.to === run.status && transition.required_artifact_types.includes(artifact.artifact_type));
-  if (outgoing.length > 1 || (!outgoing.length && !incoming)) errors.push(`Artifact type ${artifact.artifact_type} is not registerable from ${run.status}.`);
+  const supplementalContext = artifact.artifact_type === "audit-context" && run.status !== "retest_required";
+  if (outgoing.length > 1 || (!outgoing.length && !incoming && !supplementalContext)) errors.push(`Artifact type ${artifact.artifact_type} is not registerable from ${run.status}.`);
   if (run.history.at(-1)?.at && compareInstants(artifact.created_at, run.history.at(-1).at) < 0) errors.push("Artifact created_at precedes the current run state.");
   const envelopes = new Map([...validation.envelopesById, [artifact.artifact_id, artifact]]);
   const entries = new Map(run.artifacts.map((entry) => [entry.artifact_id, entry]));
@@ -1366,11 +1393,13 @@ export function validateArtifactCandidate(run, artifact, validation) {
   validateHumanQueueBindings(envelopes, run.profile.id, resources, errors, run);
   validateDeclaredHumanBindings(envelopes, run.profile.id, resources, errors);
   validateRemediationBindings(envelopes, errors);
+  validateContextBindings(envelopes, errors);
   errors.push(...targetBindingErrors(run, [artifact]));
-  const evidence = errors.length ? { errors: [], snapshots: new Map() } : collectScreeningEvidence(run, [artifact],
-    (relativePath) => readStableFile(resolveInside(validation.artifactRoot, path.join(validation.artifactRoot, ...relativePath.split("/")))));
-  errors.push(...evidence.errors);
-  return { valid: errors.length === 0, errors, evidenceSnapshots: evidence.snapshots };
+  const reader = (relativePath) => readStableFile(resolveInside(validation.artifactRoot, path.join(validation.artifactRoot, ...relativePath.split("/"))));
+  const evidence = errors.length ? { errors: [], snapshots: new Map() } : collectScreeningEvidence(run, [artifact], reader);
+  const contextEvidence = errors.length ? { errors: [], snapshots: new Map() } : collectContextEvidence(run, [artifact], reader);
+  errors.push(...evidence.errors, ...contextEvidence.errors);
+  return { valid: errors.length === 0, errors, evidenceSnapshots: new Map([...evidence.snapshots, ...contextEvidence.snapshots]) };
 }
 
 export function validateHumanReviewCandidate(run, artifact, validation) {
@@ -1502,7 +1531,7 @@ function validateHistory(run, resources, artifactsById, errors) {
   }
   if (run?.status !== current) errors.push(`Run status/history continuity error: status is ${String(run?.status)} but history ends at ${current}.`);
   for (const artifact of Array.isArray(run?.artifacts) ? run.artifacts : []) {
-    if (!representedTypes.has(artifact?.artifact_type)) errors.push(`Registered artifact type is not represented by run history: ${String(artifact?.artifact_type)} (${String(artifact?.artifact_id)}).`);
+    if (artifact?.artifact_type !== "audit-context" && !representedTypes.has(artifact?.artifact_type)) errors.push(`Registered artifact type is not represented by run history: ${String(artifact?.artifact_type)} (${String(artifact?.artifact_id)}).`);
   }
 }
 
@@ -1548,7 +1577,7 @@ export function validateAuditRun(run, { skillRoot = defaultSkillRoot, runFile, r
   const currentSchemaVersion = resources.auditRunSchema.properties.schema_version.const;
   // Run 10 has the same target/permission/human-binding checks; freezing its
   // payload schema must not weaken validation of existing records.
-  const usesCurrentPolicy = ["10.0.0", "11.0.0", "12.0.0", "13.0.0", currentSchemaVersion].includes(runRecord.schema_version);
+  const usesCurrentPolicy = ["10.0.0", "11.0.0", "12.0.0", "13.0.0", "14.0.0", currentSchemaVersion].includes(runRecord.schema_version);
   if (usesCurrentPolicy) {
     errors.push(...inspectionRequestErrors(runRecord.inspection_request));
     const profile = resources.standardsRegistry.profiles.find((item) => item.id === runRecord.profile?.id);
@@ -1606,6 +1635,7 @@ export function validateAuditRun(run, { skillRoot = defaultSkillRoot, runFile, r
     validateHumanQueueBindings(envelopesById, runRecord.profile?.id, runResources, errors, runRecord);
     validateDeclaredHumanBindings(envelopesById, runRecord.profile?.id, runResources, errors);
     validateRemediationBindings(envelopesById, errors);
+    validateContextBindings(envelopesById, errors);
   }
   validateHistory(runRecord, runResources, artifactsById, errors);
   errors.push(...targetBindingErrors(runRecord, [...envelopesById.values()].map(({ envelope }) => envelope)));
@@ -1615,7 +1645,14 @@ export function validateAuditRun(run, { skillRoot = defaultSkillRoot, runFile, r
     (relativePath) => readArtifactFile(resolveInside(artifactRoot, path.join(artifactRoot, ...relativePath.split("/"))))
   );
   errors.push(...evidence.errors);
-  return { valid: errors.length === 0, errors, resources: runResources, artifactRoot, envelopesById, evidenceSnapshots: evidence.snapshots };
+  const contextEvidence = errors.length ? { errors: [], snapshots: new Map() } : collectContextEvidence(
+    runRecord,
+    [...envelopesById.values()].map(({ envelope }) => envelope),
+    (relativePath) => readArtifactFile(resolveInside(artifactRoot, path.join(artifactRoot, ...relativePath.split("/"))))
+  );
+  errors.push(...contextEvidence.errors);
+  return { valid: errors.length === 0, errors, resources: runResources, artifactRoot, envelopesById,
+    evidenceSnapshots: new Map([...evidence.snapshots, ...contextEvidence.snapshots]) };
 }
 
 function normalizePermission(value, aliases, name) {
@@ -1678,8 +1715,8 @@ export function createAuditRun(options) {
     if (!options.supersedesRunFile) throw new Error("supersedesRunFile is required for fresh retest initialization.");
     const predecessorValidation = validateAuditRun(options.supersedesRun, { skillRoot, runFile: options.supersedesRunFile });
     if (!predecessorValidation.valid) throw new Error(`Invalid superseded audit run:\n- ${predecessorValidation.errors.join("\n- ")}`);
-    if (!["5.0.0", "6.0.0", "7.0.0", "8.0.0", "9.0.0", "10.0.0", "11.0.0", "12.0.0", "13.0.0", "14.0.0"].includes(options.supersedesRun.schema_version)) {
-      throw new Error("Fresh retest predecessor must use supported audit-run schema_version 5.0.0 through 14.0.0.");
+    if (!["5.0.0", "6.0.0", "7.0.0", "8.0.0", "9.0.0", "10.0.0", "11.0.0", "12.0.0", "13.0.0", "14.0.0", "15.0.0"].includes(options.supersedesRun.schema_version)) {
+      throw new Error("Fresh retest predecessor must use supported audit-run schema_version 5.0.0 through 15.0.0.");
     }
     if (options.supersedesRun.status !== "retest_required") throw new Error("Fresh retest predecessor status must be retest_required.");
     if (run.run_id === options.supersedesRun.run_id) throw new Error("Fresh retest run ID must differ from the predecessor run ID.");
@@ -1786,7 +1823,8 @@ export function registerArtifact(run, artifact, options = {}) {
   if (targetErrors.length) throw new Error(`Invalid artifact target binding:\n- ${targetErrors.join("\n- ")}`);
   const incomingCurrent = validation.resources.orchestrationRegistry.transitions.some((transition) => transition.to === run.status && transition.required_artifact_types.includes(installedArtifact.artifact_type));
   if (outgoing.length > 1) throw new Error(`Ambiguous transition for ${run.status} and ${installedArtifact.artifact_type}`);
-  if (outgoing.length === 0 && !incomingCurrent) throw new Error(`Artifact type ${installedArtifact.artifact_type} is a future or invalid transition from ${run.status}`);
+  const supplementalContext = installedArtifact.artifact_type === "audit-context" && run.status !== "retest_required";
+  if (outgoing.length === 0 && !incomingCurrent && !supplementalContext) throw new Error(`Artifact type ${installedArtifact.artifact_type} is a future or invalid transition from ${run.status}`);
   const lastHistoryAt = run.history.at(-1)?.at;
   if (lastHistoryAt && compareInstants(installedArtifact.created_at, lastHistoryAt) < 0) throw new Error("Artifact created_at precedes the current run state.");
   if (run.target_inventory && installedArtifact.artifact_type !== "change-record") {
@@ -1962,9 +2000,11 @@ export function mergeArtifacts({ run, assessment, artifacts, registries, claimTi
   validateHumanQueueBindings(suppliedEnvelopesById, run.profile.id, resources, bindingErrors, run);
   validateDeclaredHumanBindings(suppliedEnvelopesById, run.profile.id, resources, bindingErrors);
   validateRemediationBindings(suppliedEnvelopesById, bindingErrors);
+  validateContextBindings(suppliedEnvelopesById, bindingErrors);
   if (!bindingErrors.length) {
-    bindingErrors.push(...collectScreeningEvidence(run, artifacts,
-      (relativePath) => resources.evidence_snapshots_by_path?.get(relativePath)).errors);
+    const reader = (relativePath) => resources.evidence_snapshots_by_path?.get(relativePath);
+    bindingErrors.push(...collectScreeningEvidence(run, artifacts, reader).errors);
+    bindingErrors.push(...collectContextEvidence(run, artifacts, reader).errors);
   }
   if (bindingErrors.length) throw new Error(`Invalid merge artifact binding:\n- ${bindingErrors.join("\n- ")}`);
   const merged = structuredClone(assessment);
@@ -2079,6 +2119,13 @@ export function mergeArtifacts({ run, assessment, artifacts, registries, claimTi
       merged.assessment.limitations.push(item.residual_limitation);
     }
   }
+  const context = projectAuditContext(suppliedEnvelopesById);
+  merged.assessment.participation_coverage = context.coverage;
+  merged.assessment.assurance = context.assurance;
+  merged.assessment.limitations.push(...context.limitations);
+  merged.assessment.next_review_at = context.next_review_at;
+  merged.assessment.next_review_owner = context.next_review_owner;
+  merged.assessment.next_review_condition = context.next_review_condition;
   if (!["reference_only", "screened", "evaluated_subset"].includes(claimTier)) {
     throw new Error("--claim-tier must be reference_only, screened, or evaluated_subset; the evidence guard may impose a lower ceiling.");
   }

@@ -350,12 +350,28 @@ function fullSections(presentation, text) {
     [presentation.messages.sources.not_run, escapeHtml(prov.not_run)],
     [presentation.messages.fields.evidenceLevel, escapeHtml(presentation.evidence_level)]
   ])}</section>`);
+  const context = presentation.audit_context ?? {};
+  const ja = presentation.locale === "ja";
+  sections.push(`<section id="audit-context"><h2>${ja ? "参加観点と次回確認" : "Participation and next review"}</h2>${definitionList([
+    ...Object.entries(context.participation_coverage ?? {}).map(([key, value]) => [key, escapeHtml(value)]),
+    [ja ? "次回確認日" : "Next review date", escapeHtml(context.next_review_at ?? text.noRecord)],
+    ...(context.next_review_condition ? [[ja ? "再確認条件" : "Review condition", escapeHtml(context.next_review_condition)]] : []),
+    ...(context.next_review_owner ? [[ja ? "担当者" : "Owner", escapeHtml(context.next_review_owner)]] : []),
+    [ja ? "独立監査の申告" : "Independent audit declared", escapeHtml(context.independent_audit_performed ? text.yes : text.no)],
+    ...(context.independent_audit?.scope_method ? [[ja ? "監査範囲と方法" : "Audit scope and method", escapeHtml(context.independent_audit.scope_method)]] : []),
+    ...(context.independent_audit?.report_location ? [[ja ? "監査報告の所在" : "Audit report location", escapeHtml(context.independent_audit.report_location)]] : []),
+    [ja ? "資料整備の申告" : "Dossier declared", escapeHtml(context.dossier_prepared ? text.yes : text.no)],
+    ...(context.dossier?.responsible_owner ? [[ja ? "資料担当者" : "Dossier owner", escapeHtml(context.dossier.responsible_owner)]] : []),
+    ...(context.dossier?.artifacts?.length ? [[ja ? "資料" : "Dossier artifacts", escapeHtml(context.dossier.artifacts.join(", "))]] : [])
+  ])}</section>`);
   sections.push(`<section id="limitations"><h2>${escapeHtml(text.limitations)}</h2>${presentation.limitations?.length ? `<ul>${presentation.limitations.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>` : `<p>${escapeHtml(text.noLimitations)}</p>`}</section>`);
   return sections;
 }
 
 function summarySections(presentation, text, appendixHref) {
   const prov = provenanceCounts(presentation);
+  const context = presentation.audit_context ?? {};
+  const ja = presentation.locale === "ja";
   const sections = [
     overviewSection(presentation, text),
     `<section id="key-findings"><h2>${escapeHtml(text.keyFindings)}</h2>${findingsSection(presentation, text)}</section>`,
@@ -364,6 +380,18 @@ function summarySections(presentation, text, appendixHref) {
     `<section id="group-counts"><h2>${escapeHtml(text.groups)}</h2>${groupCountsTable(presentation, text)}</section>`,
     `<section id="provenance"><h2>${escapeHtml(text.provenance)}</h2>${definitionList([[presentation.messages.sources.human_review, escapeHtml(prov.human_review)], [presentation.messages.sources.screening, escapeHtml(prov.screening)], [presentation.messages.sources.not_run, escapeHtml(prov.not_run)], [text.evidence, escapeHtml(presentation.evidence_level)]])}</section>`,
     `<section id="claim"><h2>${escapeHtml(text.claim)}</h2>${definitionList([[text.requestedTier, `<code>${escapeHtml(presentation.claim.requested_tier)}</code>`], [text.maximumTier, `<code>${escapeHtml(presentation.claim.maximum_tier)}</code>`], [text.fixedWording, escapeHtml(presentation.claim.wording)], [text.reasons, escapeHtml(presentation.claim.reasons?.join("; ") || text.noRecord)]])}</section>`,
+    `<section id="audit-context"><h2>${ja ? "参加観点と次回確認" : "Participation and next review"}</h2>${definitionList([
+      ...Object.entries(context.participation_coverage ?? {}).map(([key, value]) => [key, escapeHtml(value)]),
+      [ja ? "次回確認日" : "Next review date", escapeHtml(context.next_review_at ?? text.noRecord)],
+      ...(context.next_review_condition ? [[ja ? "再確認条件" : "Review condition", escapeHtml(context.next_review_condition)]] : []),
+      ...(context.next_review_owner ? [[ja ? "担当者" : "Owner", escapeHtml(context.next_review_owner)]] : []),
+      [ja ? "独立監査の申告" : "Independent audit declared", escapeHtml(context.independent_audit_performed ? text.yes : text.no)],
+      ...(context.independent_audit?.scope_method ? [[ja ? "監査範囲と方法" : "Audit scope and method", escapeHtml(context.independent_audit.scope_method)]] : []),
+      ...(context.independent_audit?.report_location ? [[ja ? "監査報告の所在" : "Audit report location", escapeHtml(context.independent_audit.report_location)]] : []),
+      [ja ? "資料整備の申告" : "Dossier declared", escapeHtml(context.dossier_prepared ? text.yes : text.no)],
+      ...(context.dossier?.responsible_owner ? [[ja ? "資料担当者" : "Dossier owner", escapeHtml(context.dossier.responsible_owner)]] : []),
+      ...(context.dossier?.artifacts?.length ? [[ja ? "資料" : "Dossier artifacts", escapeHtml(context.dossier.artifacts.join(", "))]] : [])
+    ])}</section>`,
     `<section id="scope"><h2>${escapeHtml(text.scope)}</h2>${definitionList([[text.included, list(presentation.scope?.included, text.noRecord)], [text.limitations, escapeHtml(presentation.limitations?.join("; ") || text.noRecord)]])}</section>`
   ];
   if (appendixHref) sections.push(`<section id="appendix"><h2>${escapeHtml(text.appendix)}</h2><p><a href="${escapeAttribute(appendixHref)}">${escapeHtml(text.appendixLink)}</a></p></section>`);
@@ -376,12 +404,13 @@ function tocEntries(detail, presentation, text, appendixHref) {
     const entries = [
       ["overview", text.overview], ["key-findings", text.keyFindings], ["pending-checks", readerText(presentation.locale).pending],
       ...intake,
-      ["group-counts", text.groups], ["provenance", text.provenance], ["claim", text.claim], ["scope", text.scope]
+      ["group-counts", text.groups], ["provenance", text.provenance], ["claim", text.claim],
+      ["audit-context", presentation.locale === "ja" ? "参加観点と次回確認" : "Participation and next review"], ["scope", text.scope]
     ];
     if (appendixHref) entries.push(["appendix", text.appendix]);
     return entries;
   }
-  return [["overview", text.overview], ["findings", text.keyFindings], ["pending-checks", readerText(presentation.locale).pending], ...intake, ["legend", text.legend], ["claim", text.claim], ["target", text.target], ["criteria", text.criteria], ["scope", text.scope], ["coverage", text.coverage], ["limitations", text.limitations]];
+  return [["overview", text.overview], ["findings", text.keyFindings], ["pending-checks", readerText(presentation.locale).pending], ...intake, ["legend", text.legend], ["claim", text.claim], ["target", text.target], ["criteria", text.criteria], ["scope", text.scope], ["coverage", text.coverage], ["audit-context", presentation.locale === "ja" ? "参加観点と次回確認" : "Participation and next review"], ["limitations", text.limitations]];
 }
 
 export function renderReportHtml(presentation, { detail = "full", appendixHref = null } = {}) {

@@ -16,8 +16,11 @@ import { generateAssessment } from "../codex/skills/information-accessibility-pr
 import {
   loadAuditResources,
   mergeArtifacts,
+  registerArtifact,
+  sha256Bytes,
   validateAuditRun
 } from "../codex/skills/information-accessibility-practice/scripts/lib/audit-run.mjs";
+import { createRunEvidenceReference } from "../codex/skills/information-accessibility-practice/scripts/lib/run-evidence.mjs";
 import { lookupRequirement } from "../codex/skills/information-accessibility-practice/scripts/show-requirement.mjs";
 import { validateAssessment } from "../codex/skills/information-accessibility-practice/scripts/validate-assessment.mjs";
 import { auditStatus, statusText } from "../codex/skills/information-accessibility-practice/scripts/show-audit-status.mjs";
@@ -130,7 +133,7 @@ function reportRunFixture(temp, { declaredFinding = false, withoutPlan = false, 
   const target = { name: targetName, version_or_commit: "fixture-v1", urls_or_files: ["https://example.invalid/checkout"] };
   const scope = { included: ["Checkout"], excluded: [], complete_processes: [], third_party_content: [], full_pages_reviewed: false };
   const environment = { os: ["not_declared"], browsers: [], assistive_technologies: [], input_modes: [] };
-  const targetContext = { schema_version: "14.0.0", run_id: runId, target, environment };
+  const targetContext = { schema_version: "15.0.0", run_id: runId, target, environment };
   targetContext.target_inventory = fixtureInventory(targetContext, artifactRoot);
   const created = [
     "2026-07-17T12:00:01Z",
@@ -269,7 +272,7 @@ function reportRunFixture(temp, { declaredFinding = false, withoutPlan = false, 
   const artifacts = withoutPlan ? [screen, queue, human] : [screen, queue, human, remediation];
   if (withoutPlan) artifactFiles.delete(remediation.artifact_id);
   const run = {
-    schema_version: "14.0.0",
+    schema_version: "15.0.0",
     target_inventory: targetContext.target_inventory,
     inspection_request: createInspectionRequest("quick", "Identify the next investigation"),
     run_id: runId,
@@ -333,6 +336,149 @@ function reportRunFixture(temp, { declaredFinding = false, withoutPlan = false, 
   writeJson(assessmentFile, assessment);
   return { run, runFile, assessment, assessmentFile, artifactFiles, baseline, artifacts, resources };
 }
+
+test("registered audit context supplies participation, limitations and a review date without leaking internal context", () => {
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), "a11y-audit-context-"));
+  try {
+    const fixture = reportRunFixture(temp);
+    let { run } = fixture;
+    const context = (id, kind, value, publication, role, seconds) => {
+      const sourcePath = `context-${id}.txt`;
+      const bytes = Buffer.from(`Target-specific source for ${kind}: ${JSON.stringify(value)}\n`);
+      fs.writeFileSync(path.join(temp, "artifacts", sourcePath), bytes);
+      const capturedAt = `2026-07-17T12:00:${seconds}Z`;
+      const reference = createRunEvidenceReference({ run, targetRef: run.target.urls_or_files[0], evidenceType: "other",
+        relativePath: sourcePath, bytes, capturedAt });
+      const artifact = {
+        schema_version: "3.0.0",
+        target_snapshot_ids: run.target_inventory.snapshots.map((snapshot) => snapshot.snapshot_id),
+        artifact_id: `ART-CONTEXT-${id}`,
+        artifact_type: "audit-context",
+        run_id: run.run_id,
+        producer: { role_id: role, producer_kind: role === "declared_context_reviewer" ? "external_human" : "external_requester",
+          origin: "test declaration" },
+        created_at: `2026-07-17T12:00:${String(Number(seconds) + 1).padStart(2, "0")}Z`,
+        inputs: [],
+        payload: { schema_version: "1.0.0", kind, publication, declarant_name: "Declared reviewer",
+          declared_at: capturedAt, rationale: "Observed against the declared target and saved source.",
+          source_artifact_ids: [], evidence_refs: [reference], value }
+      };
+      const file = path.join(temp, "artifacts", `context-${id}.json`);
+      writeJson(file, artifact);
+      return { artifact, file, sourcePath, bytes };
+    };
+    const declarations = [
+      context("FIND", "participation", { perspective: "find", outcome: "cant_tell" }, "public", "declared_context_reviewer", "05"),
+      context("LIMIT", "limitation", { text: "Private constraint: assisted journey unavailable." }, "internal", "declared_context_reviewer", "07"),
+      context("DATE", "next_review", { at: "2026-10-01", owner: "Private Owner", condition: "Retest after navigation changes." },
+        "public", "declared_context_owner", "09"),
+      context("AUDIT", "independent_audit", { performed: true, evaluator_independent: true,
+        scope_method: "Independent review of the declared scope.", report_location: "independent-report.pdf" },
+      "internal", "declared_context_owner", "11"),
+      context("DOSSIER", "dossier", { prepared: true, responsible_owner: "Private Owner",
+        artifacts: ["procurement-dossier.pdf"] }, "internal", "declared_context_owner", "13")
+    ];
+    const authoredPayload = structuredClone(declarations[0].artifact.payload);
+    authoredPayload.evidence_refs = [];
+    const payloadFile = path.join(temp, "context-payload.json");
+    const candidateFile = path.join(temp, "artifacts", "authored-context.json");
+    writeJson(payloadFile, authoredPayload);
+    const authored = spawnSync(process.execPath, [path.join(skill, "scripts/create-audit-artifact.mjs"), "init",
+      "--run", fixture.runFile, "--type", "audit-context", "--role", "declared_context_reviewer",
+      "--payload", payloadFile, "--evidence-file", path.join(temp, "artifacts", declarations[0].sourcePath),
+      "--target-ref", run.target.urls_or_files[0], "--captured-at", "2026-07-17T12:00:05Z",
+      "--output", candidateFile], { encoding: "utf8" });
+    assert.equal(authored.status, 0, authored.stderr);
+    assert.equal(readJson(candidateFile).payload.evidence_refs.length, 1);
+    for (const item of declarations) {
+      run = registerArtifact(run, item.artifact, { skillRoot: skill, runFile: fixture.runFile, artifactFile: item.file });
+      writeJson(fixture.runFile, run);
+      fixture.resources.artifact_snapshots_by_id.set(item.artifact.artifact_id, {
+        bytes: fs.readFileSync(item.file), sha256: resourcesSha256(item.file)
+      });
+      fixture.resources.evidence_snapshots_by_path.set(item.sourcePath, { bytes: item.bytes, sha256: sha256Bytes(item.bytes) });
+    }
+    const merged = mergeArtifacts({ run, assessment: fixture.baseline, artifacts: [...fixture.artifacts, ...declarations.map((item) => item.artifact)],
+      registries: fixture.resources });
+    assert.equal(merged.assessment.participation_coverage.find, "cant_tell");
+    assert.equal(merged.assessment.next_review_at, "2026-10-01");
+    assert.equal(merged.assessment.next_review_owner, "Private Owner");
+    assert.equal(merged.assessment.assurance.independent_audit.performed, true);
+    assert.equal(merged.assessment.assurance.legal_or_procurement_dossier.prepared, true);
+    assert.equal(merged.assessment.evidence_level, "E2");
+    const inflated = structuredClone(merged);
+    inflated.assessment.evidence_level = "E4";
+    assert.equal(validate(inflated).valid, false);
+    const runValidation = validateAuditRun(run, { skillRoot: skill, runFile: fixture.runFile });
+    assert.equal(runValidation.valid, true, runValidation.errors.join("\n"));
+    const publicModel = buildCurrentPublicReportModel({ run, assessment: merged,
+      envelopesById: runValidation.envelopesById,
+      resources: fixture.resources });
+    assert.equal(publicModel.auditContext.participation_coverage.find, "cant_tell");
+    assert.equal(publicModel.auditContext.next_review_at, "2026-10-01");
+    assert.ok(!JSON.stringify(publicModel).includes("Private constraint"));
+    assert.ok(!JSON.stringify(publicModel).includes("Private Owner"));
+    const assessmentFile = path.join(temp, "context-assessment.json");
+    writeJson(assessmentFile, merged);
+    const output = path.join(temp, "public-context.md");
+    const manifest = path.join(temp, "public-context-manifest.json");
+    const rendered = spawnSync(process.execPath, [path.join(skill, "scripts/render-report.mjs"),
+      "--run", fixture.runFile, "--assessment", assessmentFile, "--output", output,
+      "--visibility", "public", "--reviewer-disclosure", "redact", "--redaction-manifest", manifest], { encoding: "utf8" });
+    assert.equal(rendered.status, 0, rendered.stderr);
+    const publicReport = fs.readFileSync(output, "utf8");
+    assert.match(publicReport, /2026-10-01/u);
+    assert.ok(publicReport.includes("cant\\_tell"));
+    assert.ok(!publicReport.includes("Private constraint"));
+    assert.ok(!publicReport.includes("Private Owner"));
+    assert.ok(!publicReport.includes("independent-report.pdf"));
+    assert.ok(!publicReport.includes("procurement-dossier.pdf"));
+    const summaryFile = path.join(temp, "public-context-summary.html");
+    const summaryManifest = path.join(temp, "public-context-summary-manifest.json");
+    const summary = spawnSync(process.execPath, [path.join(skill, "scripts/render-report.mjs"),
+      "--run", fixture.runFile, "--assessment", assessmentFile, "--output", summaryFile,
+      "--format", "html", "--detail", "summary", "--visibility", "public",
+      "--reviewer-disclosure", "redact", "--redaction-manifest", summaryManifest], { encoding: "utf8" });
+    assert.equal(summary.status, 0, summary.stderr);
+    const publicHtml = fs.readFileSync(summaryFile, "utf8");
+    assert.match(publicHtml, /audit-context/u);
+    assert.match(publicHtml, /2026-10-01/u);
+    for (const privateText of ["Private constraint", "Private Owner", "independent-report.pdf", "procurement-dossier.pdf"]) {
+      assert.ok(!publicHtml.includes(privateText), privateText);
+    }
+    const internalFile = path.join(temp, "internal-context.html");
+    const internal = spawnSync(process.execPath, [path.join(skill, "scripts/render-report.mjs"),
+      "--run", fixture.runFile, "--assessment", assessmentFile, "--output", internalFile,
+      "--format", "html", "--visibility", "internal"], { encoding: "utf8" });
+    assert.equal(internal.status, 0, internal.stderr);
+    const internalHtml = fs.readFileSync(internalFile, "utf8");
+    for (const internalText of ["Private constraint", "Private Owner", "independent-report.pdf", "procurement-dossier.pdf"]) {
+      assert.ok(internalHtml.includes(internalText), internalText);
+    }
+    const falsified = structuredClone(merged);
+    falsified.assessment.next_review_at = "2026-10-02";
+    const falsifiedFile = path.join(temp, "falsified-assessment.json");
+    writeJson(falsifiedFile, falsified);
+    const rejected = spawnSync(process.execPath, [path.join(skill, "scripts/render-report.mjs"),
+      "--run", fixture.runFile, "--assessment", falsifiedFile, "--output", path.join(temp, "falsified-report.md")],
+    { encoding: "utf8" });
+    assert.notEqual(rejected.status, 0);
+    assert.match(rejected.stderr, /next review schedule does not exactly match/u);
+    const wrongRole = context("WRONG", "participation", { perspective: "receive", outcome: "fail" }, "public",
+      "declared_context_owner", "15");
+    assert.throws(() => registerArtifact(run, wrongRole.artifact,
+      { skillRoot: skill, runFile: fixture.runFile, artifactFile: wrongRole.file }), /cannot declare participation/);
+    const duplicate = context("DUP", "participation", { perspective: "find", outcome: "pass" }, "public",
+      "declared_context_reviewer", "17");
+    assert.throws(() => registerArtifact(run, duplicate.artifact,
+      { skillRoot: skill, runFile: fixture.runFile, artifactFile: duplicate.file }), /Conflicting audit-context declaration/);
+    const altered = Buffer.from("Tampered source\n");
+    fs.writeFileSync(path.join(temp, "artifacts", declarations[0].sourcePath), altered);
+    assert.equal(validateAuditRun(run, { skillRoot: skill, runFile: fixture.runFile }).valid, false);
+  } finally {
+    fs.rmSync(temp, { recursive: true, force: true });
+  }
+});
 
 test("human findings survive without a remediation plan and can acquire a plan later", (t) => {
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), "audit-finding-only-"));

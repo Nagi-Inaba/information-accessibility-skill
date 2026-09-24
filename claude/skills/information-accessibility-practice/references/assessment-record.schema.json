@@ -698,6 +698,14 @@
           ],
           "format": "date"
         },
+        "next_review_owner": {
+          "type": ["string", "null"],
+          "minLength": 1
+        },
+        "next_review_condition": {
+          "type": ["string", "null"],
+          "minLength": 1
+        },
         "assessment_id": {
           "type": "string",
           "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"

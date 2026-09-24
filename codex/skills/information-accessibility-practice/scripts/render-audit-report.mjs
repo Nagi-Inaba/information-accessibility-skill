@@ -22,6 +22,7 @@ import { reviewEntries, resolveHumanReviews, consensusReviewRows, consensusRemed
 import { isHumanReviewMapping, publicReviewerAssurance, reviewerAssuranceText, reviewerVerificationOptions, displayedEvidenceLevel } from "./lib/assessment-provenance.mjs";
 import { loadReviewTrust } from "./lib/review-trust-input.mjs";
 import { parseAttestationJson } from "./lib/attestation-canonical.mjs";
+import { contextArtifacts, projectAuditContext } from "./lib/audit-context.mjs";
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.dirname(scriptDir);
@@ -249,7 +250,15 @@ export function renderAuditReport(record, validation) {
     "## 10. 改善と再確認",
     "",
     findings.length ? "各指摘事項の改善案と再確認方法を使用します。" : "- 改善項目の記録はありません。",
-    assessment.next_review_at ? `- 次回確認日: ${assessment.next_review_at}` : "- 次回確認日: 記録なし。"
+    assessment.next_review_at ? `- 次回確認日: ${assessment.next_review_at}` : "- 次回確認日: 記録なし。",
+    ...(assessment.next_review_condition ? [`- 再確認条件: ${cell(assessment.next_review_condition)}`] : []),
+    ...(assessment.next_review_owner ? [`- 担当者: ${cell(assessment.next_review_owner)}`] : []),
+    `- 独立監査の申告: ${assessment.assurance.independent_audit.performed ? "はい" : "いいえ"}`,
+    ...(assessment.assurance.independent_audit.scope_method ? [`- 監査範囲と方法: ${cell(assessment.assurance.independent_audit.scope_method)}`] : []),
+    ...(assessment.assurance.independent_audit.report_location ? [`- 監査報告の所在: ${cell(assessment.assurance.independent_audit.report_location)}`] : []),
+    `- 資料整備の申告: ${assessment.assurance.legal_or_procurement_dossier.prepared ? "はい" : "いいえ"}`,
+    ...(assessment.assurance.legal_or_procurement_dossier.responsible_owner ? [`- 資料担当者: ${cell(assessment.assurance.legal_or_procurement_dossier.responsible_owner)}`] : []),
+    ...(assessment.assurance.legal_or_procurement_dossier.artifacts.length ? [`- 資料: ${cell(assessment.assurance.legal_or_procurement_dossier.artifacts.join(", "))}`] : [])
   );
 
   return `${lines.join("\n").trimEnd()}\n\n${renderSourceNoticesMarkdown("ja")}`;
@@ -293,6 +302,7 @@ function collectRunEvidence(envelopesById) {
   }
   const resolved = resolveHumanReviews(reviewEntries(humanSources));
   return { queues, humanReviews: consensusReviewRows(resolved), humanReviewHistory: humanReviews, resolved,
+    context: projectAuditContext(envelopesById),
     screeningObservations, remediationItems: consensusRemediationItems(resolved, remediationItems) };
 }
 
@@ -319,6 +329,7 @@ function expectedRunBackedLimitations(evidence, assessmentVersion = "1.0.0") {
     .sort((left, right) => left.remediation_id.localeCompare(right.remediation_id, "en"))) {
     if (!limitations.includes(item.residual_limitation)) limitations.push(item.residual_limitation);
   }
+  limitations.push(...(evidence.context?.limitations ?? []));
   return limitations;
 }
 
@@ -388,8 +399,8 @@ function internalControlTerms({ run, envelopesById, resources }) {
     addString(terms, envelope?.run_id);
     addString(terms, envelope?.producer?.role_id);
     for (const id of envelope?.target_snapshot_ids ?? []) addString(terms, id);
-    for (const observation of envelope?.payload?.observations ?? []) {
-      for (const reference of observation.evidence_refs ?? []) {
+    for (const source of [...(envelope?.payload?.observations ?? []), ...(envelope?.artifact_type === "audit-context" ? [envelope.payload] : [])]) {
+      for (const reference of source.evidence_refs ?? []) {
         for (const key of ["path", "sha256", "environment_ref", "target_snapshot_id", "target_context_sha256"]) addString(terms, reference[key]);
       }
     }
@@ -851,7 +862,7 @@ export function validateRunBackedAssessment({ run, assessment, envelopesById, re
   if (humanByRequirement.size > 0) {
     const expectedReviewers = [...new Set(evidence.humanReviewHistory.map((review) => review.reviewer_name))].sort().join(", ");
     const expectedDate = evidence.humanReviewHistory.map((review) => review.review_date).sort().at(-1);
-    const hasPerformedReview = !["11.0.0", "12.0.0", "13.0.0", "14.0.0"].includes(run.schema_version) || evidence.humanReviews.some((review) => review.profile_outcome !== "not_tested");
+    const hasPerformedReview = !["11.0.0", "12.0.0", "13.0.0", "14.0.0", "15.0.0"].includes(run.schema_version) || evidence.humanReviews.some((review) => review.profile_outcome !== "not_tested");
     const expectedLevel = hasPerformedReview ? "E2" : screeningByRequirement.size > 0 ? "E1" : "E0";
     if (record.evidence_level !== expectedLevel || record.evaluator !== expectedReviewers || record.evaluated_at !== expectedDate) {
       throw new Error("Assessment evaluation identity does not match the current run human review declarations.");
@@ -859,14 +870,10 @@ export function validateRunBackedAssessment({ run, assessment, envelopesById, re
   } else if (screeningByRequirement.size > 0 && record.evidence_level !== "E1") {
     throw new Error("Assessment evidence level does not match the current run screening evidence.");
   }
-  if (Object.values(record.participation_coverage ?? {}).some((outcome) => outcome !== "not_tested")) {
-    throw new Error("Run-backed assessment must not add participation outcomes that are absent from the registered artifacts.");
+  if (!isDeepStrictEqual(record.participation_coverage, evidence.context.coverage)) {
+    throw new Error("Run-backed participation outcomes do not exactly match registered audit-context evidence.");
   }
-  const expectedAssurance = {
-    independent_audit: { performed: false, evaluator_independent: false, scope_method: "", report_location: "" },
-    legal_or_procurement_dossier: { prepared: false, responsible_owner: "", artifacts: [] }
-  };
-  if (!isDeepStrictEqual(record.assurance, expectedAssurance)) {
+  if (!isDeepStrictEqual(record.assurance, evidence.context.assurance)) {
     throw new Error("Run-backed assessment must not add assurance claims that are absent from the registered artifacts.");
   }
   const expectedLimitations = expectedRunBackedLimitations(evidence, assessment.schema_version);
@@ -883,7 +890,11 @@ export function validateRunBackedAssessment({ run, assessment, envelopesById, re
   if (!claimValidation.valid) {
     throw new Error(`Run-backed assessment claim/evidence validation failed: ${claimValidation.errors.join("; ")}`);
   }
-  if (record.next_review_at !== null) throw new Error("Run-backed assessment next review date is not derived from the registered artifacts.");
+  if (record.next_review_at !== evidence.context.next_review_at
+      || (record.next_review_owner ?? null) !== evidence.context.next_review_owner
+      || (record.next_review_condition ?? null) !== evidence.context.next_review_condition) {
+    throw new Error("Run-backed next review schedule does not exactly match registered audit-context evidence.");
+  }
   return evidence;
 }
 
@@ -892,6 +903,12 @@ export function buildPublicReportModel({ run, assessment, envelopesById, resourc
     reviewerVerificationOptions({ run, envelopesById, trust }));
   if (!validation.valid) throw new Error(`Assessment reviewer/evidence validation failed: ${validation.errors.join("; ")}`);
   const evidence = collectRunEvidence(envelopesById);
+  const publicContext = projectAuditContext(new Map(contextArtifacts(envelopesById)
+    .filter((artifact) => artifact.payload.publication === "public")
+    .map((artifact) => [artifact.artifact_id, artifact])));
+  const privateLimitations = new Set(evidence.context.declarations
+    .filter((item) => item.publication === "internal" && item.kind === "limitation")
+    .map((item) => item.value.text));
   const recordedProfileResults = assessment.assessment.results.filter((result) => result.requirement_kind === "profile_requirement");
   const screeningResults = assessment.assessment.results.filter((result) => result.requirement_kind === "screening_check");
   const registeredRequirementIds = resources?.standardsRegistry?.profiles
@@ -909,7 +926,7 @@ export function buildPublicReportModel({ run, assessment, envelopesById, resourc
   }));
   const reportProjection = buildReportProjection(profileResults, evidence.screeningObservations);
   const expectedProfileCount = registeredRequirementIds.length;
-  const performedReviews = evidence.humanReviews.filter((review) => !["11.0.0", "12.0.0", "13.0.0", "14.0.0"].includes(run.schema_version) || review.profile_outcome !== "not_tested");
+  const performedReviews = evidence.humanReviews.filter((review) => !["11.0.0", "12.0.0", "13.0.0", "14.0.0", "15.0.0"].includes(run.schema_version) || review.profile_outcome !== "not_tested");
   const reviewedIds = new Set(performedReviews.map((review) => review.requirement_id));
   const resultByRequirement = new Map(assessment.assessment.results.map((result) => [result.requirement_id, result]));
   const findingById = uniqueMap(assessment.assessment.findings ?? [], "id", "assessment finding ID");
@@ -1028,7 +1045,14 @@ export function buildPublicReportModel({ run, assessment, envelopesById, resourc
     pendingHumanChecks: sortedByRequirement([...pendingByRequirement.values()].map((item) => publicQueueItem(item, publicLocation))),
     screeningCandidates,
     remediation,
-    limitations: publicLimitations(assessment.assessment.limitations),
+    limitations: publicLimitations(assessment.assessment.limitations.filter((item) => !privateLimitations.has(item))),
+    auditContext: {
+      participation_coverage: publicContext.coverage,
+      independent_audit_performed: publicContext.assurance.independent_audit.performed,
+      dossier_prepared: publicContext.assurance.legal_or_procurement_dossier.prepared,
+      next_review_at: publicContext.next_review_at,
+      next_review_condition: publicContext.next_review_condition
+    },
     claim: {
       tier: publicClaimTier(assessment.assessment.claim.requested_tier),
       wording: validation.guard.assured_claim_wording.ja
@@ -1043,7 +1067,7 @@ export function buildPublicReportModel({ run, assessment, envelopesById, resourc
     reportOutcomeCounts: reportProjection.counts,
     catalogCoverage: { recorded: recordedProfileResults.length, expected: expectedProfileCount },
     evaluationCoverage: {
-      humanReviewed: profileResults.filter((result) => isHumanReviewMapping(result) && (!["11.0.0", "12.0.0", "13.0.0", "14.0.0"].includes(run.schema_version) || result.outcome !== "not_tested")).length,
+      humanReviewed: profileResults.filter((result) => isHumanReviewMapping(result) && (!["11.0.0", "12.0.0", "13.0.0", "14.0.0", "15.0.0"].includes(run.schema_version) || result.outcome !== "not_tested")).length,
       expected: expectedProfileCount
     }
   };
@@ -1178,7 +1202,15 @@ export function renderRunBackedReport(model) {
     `- 記録済みスクリーニング: ${model.screeningCount}`,
     `- 証拠レベル: ${cell(model.evidenceLevel)}`,
     "- 結果は、記載した対象の版・範囲・環境・証拠を越えて適用しません。",
-    ...model.limitations.map((limitation) => `- ${cell(limitation)}`)
+    ...model.limitations.map((limitation) => `- ${cell(limitation)}`),
+    "",
+    "## 8. 参加観点と次回確認",
+    "",
+    ...Object.entries(model.auditContext?.participation_coverage ?? {}).map(([key, outcome]) => `- ${key}: ${cell(outcome)}`),
+    `- 次回確認日: ${cell(model.auditContext?.next_review_at ?? "記録なし")}`,
+    ...(model.auditContext?.next_review_condition ? [`- 再確認条件: ${cell(model.auditContext.next_review_condition)}`] : []),
+    `- 独立監査の申告: ${model.auditContext?.independent_audit_performed ? "はい" : "いいえ"}`,
+    `- 資料整備の申告: ${model.auditContext?.dossier_prepared ? "はい" : "いいえ"}`
   ];
   return `${lines.join("\n").trimEnd()}\n\n${renderSourceNoticesMarkdown("ja")}`;
 }

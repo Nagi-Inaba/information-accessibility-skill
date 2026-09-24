@@ -174,7 +174,7 @@ function buildClaim({ assessment, validation, registry, locale, rows }) {
   };
 }
 
-function commonPresentation({ assessment, validation, registry, locale, rows, target, scope, environment, evaluator, limitations, findings, inspectionRequest, inspectionRecords, screeningSummary, findingSummary }) {
+function commonPresentation({ assessment, validation, registry, locale, rows, target, scope, environment, evaluator, limitations, findings, inspectionRequest, inspectionRecords, screeningSummary, findingSummary, auditContext, publicAuditContext, publicLimitations }) {
   const normalizedLocale = normalizeReportLocale(locale);
   const messages = reportMessages(normalizedLocale);
   const profileId = assessment.profile.id;
@@ -211,6 +211,18 @@ function commonPresentation({ assessment, validation, registry, locale, rows, ta
     overall_outcome: overallOutcome(counts),
     claim: buildClaim({ assessment, validation, registry, locale: normalizedLocale, rows }),
     limitations: clone(limitations ?? []),
+    audit_context: clone(auditContext ?? {
+      participation_coverage: assessment.participation_coverage,
+      independent_audit_performed: assessment.assurance.independent_audit.performed,
+      independent_audit: assessment.assurance.independent_audit,
+      dossier_prepared: assessment.assurance.legal_or_procurement_dossier.prepared,
+      dossier: assessment.assurance.legal_or_procurement_dossier,
+      next_review_at: assessment.next_review_at,
+      next_review_condition: assessment.next_review_condition ?? null,
+      next_review_owner: assessment.next_review_owner ?? null
+    }),
+    ...(publicAuditContext ? { public_audit_context: clone(publicAuditContext) } : {}),
+    ...(publicLimitations ? { public_limitations: clone(publicLimitations) } : {}),
     findings: clone(findings ?? []),
     has_screening_projection: rows.some((row) => row.source_kind === "screening"),
     messages
@@ -336,6 +348,11 @@ export function buildRunBackedPresentation({ run, assessment: assessmentRecord, 
     scope: publicModel.scope,
     environment: publicModel.environment,
     evaluator: null,
+    auditContext: publicModel.auditContext,
+    publicAuditContext: publicModel.publicAuditContext,
+    publicLimitations: [...(publicModel.publicLimitations ?? []),
+      ...(publicModel.networkScope ? [networkScopeText(publicModel.networkScope, normalizedLocale)] : []),
+      ...(publicModel.interactionScope ? [interactionScopeText(publicModel.interactionScope, normalizedLocale)] : [])],
     limitations: [...(publicModel.limitations ?? []), ...(publicModel.networkScope ? [networkScopeText(publicModel.networkScope, normalizedLocale)] : []),
       ...(publicModel.interactionScope ? [interactionScopeText(publicModel.interactionScope, normalizedLocale)] : [])],
     findings: (publicModel.remediation ?? []).map((finding) => {
@@ -509,6 +526,20 @@ export function renderReportMarkdown(presentation) {
     `- ${messages.fields.catalogCoverage}: ${presentation.rows.length}/${presentation.claim.expected}`,
     `- ${messages.fields.humanCoverage}: ${presentation.claim.human_reviewed}/${presentation.claim.expected}`,
     `- ${messages.fields.evidenceLevel}: ${markdownCell(presentation.evidence_level)}`,
+    "",
+    presentation.locale === "ja" ? "## 参加観点と次回確認" : "## Participation and next review",
+    "",
+    ...Object.entries(presentation.audit_context?.participation_coverage ?? {})
+      .map(([key, outcome]) => `- ${key}: ${markdownCell(outcome)}`),
+    `- ${presentation.locale === "ja" ? "次回確認日" : "Next review date"}: ${markdownCell(presentation.audit_context?.next_review_at ?? messages.text.noRecord)}`,
+    ...(presentation.audit_context?.next_review_condition ? [`- ${presentation.locale === "ja" ? "再確認条件" : "Review condition"}: ${markdownCell(presentation.audit_context.next_review_condition)}`] : []),
+    ...(presentation.audit_context?.next_review_owner ? [`- ${presentation.locale === "ja" ? "担当者" : "Owner"}: ${markdownCell(presentation.audit_context.next_review_owner)}`] : []),
+    `- ${presentation.locale === "ja" ? "独立監査の申告" : "Independent audit declared"}: ${presentation.audit_context?.independent_audit_performed ? messages.text.yes : messages.text.no}`,
+    ...(presentation.audit_context?.independent_audit?.scope_method ? [`- ${presentation.locale === "ja" ? "監査範囲と方法" : "Audit scope and method"}: ${markdownCell(presentation.audit_context.independent_audit.scope_method)}`] : []),
+    ...(presentation.audit_context?.independent_audit?.report_location ? [`- ${presentation.locale === "ja" ? "監査報告の所在" : "Audit report location"}: ${markdownCell(presentation.audit_context.independent_audit.report_location)}`] : []),
+    `- ${presentation.locale === "ja" ? "資料整備の申告" : "Dossier declared"}: ${presentation.audit_context?.dossier_prepared ? messages.text.yes : messages.text.no}`,
+    ...(presentation.audit_context?.dossier?.responsible_owner ? [`- ${presentation.locale === "ja" ? "資料担当者" : "Dossier owner"}: ${markdownCell(presentation.audit_context.dossier.responsible_owner)}`] : []),
+    ...(presentation.audit_context?.dossier?.artifacts?.length ? [`- ${presentation.locale === "ja" ? "資料" : "Dossier artifacts"}: ${markdownCell(presentation.audit_context.dossier.artifacts.join(", "))}`] : []),
     "",
     `## ${messages.headings.limitations}`,
     "",
