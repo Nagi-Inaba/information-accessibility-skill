@@ -362,6 +362,8 @@ Web監査runと独立した`non-web-review`を追加した。`init`は文書／�
 
 #51では現行のCodex編集元・Claude同期・CIでの同期検査を確認した。独立した共通treeを加えるだけでは共有247ファイルが三重管理になるため、生成配布物をGit／release／既存installerでどう扱うかの移行設計を残す。現状の同期機構をIssue全件完了とは扱わない。
 
+移行方針は、`shared/skill`を唯一の追跡対象となる共通本文とし、Codex固有の`agents/openai.yaml`などをoverlayとして分けること。既存の`codex/skills/...`と`claude/skills/...`は生成先として維持するが、共通ファイルをGitで三重追跡しない。新規cloneでは同期器が両方を生成し、installer・検証器は生成前のsource checkoutと生成済みreleaseの両方を扱う。release生成器はcommitに固定したsourceから一時領域で両配布物を生成し、現行の導入先pathを含むarchiveを検証してから保存する。CIは生成の再現性とsourceとの差を調べる。実装時には現行の同期器の安全な書込み・rollback、agent生成、source noticeの拘束を維持し、既存runと原本を移動しない。新規clone、Codex／Claude installer dry-run、release展開、Windows／Ubuntu CIが通るまで生成物の追跡を外さない。
+
 #46ではW3CのWCAG 2.2本体・errata・Understanding・Techniques・ACT・ARIA 1.2、WAICのJISチェックリスト・解説、デジタル庁の方針ページの9件を固定し、週次または手動でURL・転送先・HTTP情報・本文hashを監視する。変更・取得失敗はレビュー対象としてCIを失敗させ、成果物に保持する。既存のcatalog候補生成と差分比較を接続し、正本や`last_verified_at`は自動更新しない。ローカル実行では9件を取得でき、初期baselineとの差は0件。catalog候補の構造差分は0件だが、デジタル庁ページの本文hashだけが保存済みcatalogから変化しており、人手確認が必要。リモートのschedule・artifact uploadは未実行。baseline更新と正本への採用は出典・内容の確認後に別commitで行う。
 
 ## #14のfocus手順追加（2026-09-25）

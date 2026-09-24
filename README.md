@@ -235,7 +235,7 @@ AIエージェントが作成または更新するプロファイル要件行は
 
 ## 開発と保守
 
-変更前に[CONTRIBUTING.md](CONTRIBUTING.md)を確認してください。通常の完全検証は次です。
+変更前に[CONTRIBUTING.md](CONTRIBUTING.md)を確認してください。現在はCodex側のskillが編集元、Claude側は同期生成物です。`shared/skill`への移行は[#51](https://github.com/Nagi-Inaba/information-accessibility-skill/issues/51)で追跡します。通常の完全検証は次です。
 
 ```powershell
 node .\scripts\verify-all.mjs
