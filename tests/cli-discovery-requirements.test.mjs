@@ -62,7 +62,7 @@ test("profiles list reports active profiles, counts, versions, and claim ceiling
   const minimumCoverage = new Map([
     ["jis-x-8341-3-2016-aa", 9],
     ["jp-public-web", 9],
-    ["web-modern", 10]
+    ["web-modern", 12]
   ]);
   for (const profile of output.profiles) {
     const coverage = profile.procedure_coverage;
@@ -137,7 +137,7 @@ test("requirements search supports Japanese and English terms plus profile, leve
   ]));
   assert.deepEqual(
     procedure.requirements.map((item) => item.success_criterion),
-    ["1.1.1", "1.3.1", "1.4.4", "2.1.1", "2.4.1", "2.4.11", "3.1.1", "3.3.1", "3.3.2", "4.1.2"]
+    ["1.1.1", "1.3.1", "1.4.4", "1.4.10", "2.1.1", "2.4.1", "2.4.11", "3.1.1", "3.3.1", "3.3.2", "4.1.2", "4.1.3"]
   );
 });
 

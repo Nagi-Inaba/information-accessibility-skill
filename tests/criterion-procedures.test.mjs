@@ -131,7 +131,7 @@ test("SC 1.4.4 exposes a human review procedure with pass, fail, and cant_tell c
   assert.match(procedure.ai_boundary, /must not record a profile outcome/i);
 });
 
-test("catalog procedures include ten unique requirement IDs", () => {
+test("catalog procedures include the expected unique requirement IDs", () => {
   const requirementIds = procedures.procedures.map((procedure) => procedure.requirement_id);
   const unique = new Set(requirementIds);
   const expected = new Set([
@@ -144,12 +144,14 @@ test("catalog procedures include ten unique requirement IDs", () => {
     "WCAG-2.2-SC-2.1.1",
     "WCAG-2.2-SC-4.1.2",
     "WCAG-2.2-SC-2.4.11",
-    "WCAG-2.2-SC-3.3.1"
+    "WCAG-2.2-SC-3.3.1",
+    "WCAG-2.2-SC-1.4.10",
+    "WCAG-2.2-SC-4.1.3"
   ]);
 
   assert.equal(requirementIds.length, procedures.procedures.length);
   assert.equal(unique.size, procedures.procedures.length);
-  assert.equal(unique.size, 10);
+  assert.ok(unique.size >= 12);
   for (const req of expected) {
     assert.equal(unique.has(req), true, `missing requirement ${req}`);
   }
@@ -247,6 +249,21 @@ test("new focus and input-error procedures keep their criterion boundaries and p
   assert.ok(errors.counterexamples.fail.some((example) => /no text identifies/i.test(example)));
 });
 
+test("reflow and status procedures retain scoped exceptions and distinct speech evidence", () => {
+  const reflow = procedureFor("WCAG-2.2-SC-1.4.10");
+  assert.ok(reflow.primary_sources.includes("https://www.w3.org/TR/WCAG22/#reflow"));
+  assert.match(reflow.procedure_steps.join(" "), /320 CSS pixels.*256 CSS pixels/u);
+  assert.match(reflow.procedure_steps.join(" "), /smallest section/u);
+  assert.ok(reflow.counterexamples.fail.some((example) => /horizontal and vertical scrolling/u.test(example)));
+
+  const status = procedureFor("WCAG-2.2-SC-4.1.3");
+  assert.ok(status.primary_sources.includes("https://www.w3.org/TR/WCAG22/#status-messages"));
+  assert.match(status.applicability_steps.join(" "), /without changing context/u);
+  assert.match(status.procedure_steps.join(" "), /programmatically determinable/u);
+  assert.match(status.procedure_steps.join(" "), /actual announcement separately/u);
+  assert.ok(status.counterexamples.fail.some((example) => /without a role or property/u.test(example)));
+});
+
 test("lookup normalizes an available criterion procedure into an exact versioned queue binding", () => {
   const result = lookupRequirement("web-modern", "WCAG-2.2-SC-1.1.1", skill);
   assert.equal(result.lookup_version, "2.0.0");
@@ -275,7 +292,7 @@ test("lookup normalizes an unavailable criterion procedure into the exact generi
   });
 });
 
-test("lookup exposes exact versioned bindings sourced from both new criterion procedures", () => {
+test("lookup exposes exact versioned bindings for available criterion procedures", () => {
   const expectedRefs = new Map([
     ["WCAG-2.2-SC-1.1.1", "criterion-procedures:1.0.0#wcag22-sc-1-1-1-non-text-content"],
     ["WCAG-2.2-SC-2.1.1", "criterion-procedures:1.0.0#wcag22-sc-2-1-1-keyboard"],
@@ -286,7 +303,9 @@ test("lookup exposes exact versioned bindings sourced from both new criterion pr
     ["WCAG-2.2-SC-1.3.1", "criterion-procedures:1.0.0#wcag22-sc-1-3-1-info-and-relationships"],
     ["WCAG-2.2-SC-4.1.2", "criterion-procedures:1.0.0#wcag22-sc-4-1-2-name-role-value"],
     ["WCAG-2.2-SC-2.4.11", "criterion-procedures:1.0.0#wcag22-sc-2-4-11-focus-not-obscured-minimum"],
-    ["WCAG-2.2-SC-3.3.1", "criterion-procedures:1.0.0#wcag22-sc-3-3-1-error-identification"]
+    ["WCAG-2.2-SC-3.3.1", "criterion-procedures:1.0.0#wcag22-sc-3-3-1-error-identification"],
+    ["WCAG-2.2-SC-1.4.10", "criterion-procedures:1.0.0#wcag22-sc-1-4-10-reflow"],
+    ["WCAG-2.2-SC-4.1.3", "criterion-procedures:1.0.0#wcag22-sc-4-1-3-status-messages"]
   ]);
 
   for (const [requirementId, procedureRef] of expectedRefs) {
