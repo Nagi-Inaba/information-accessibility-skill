@@ -1208,6 +1208,70 @@
         "cant_tell": ["A cropped screenshot shows an 'Options' heading but not the section it introduces."]
       },
       "ai_boundary": "AI may compare heading and label text with candidate content, but it must not infer topic accuracy from markup or wording alone, or record a profile outcome, human_verified mapping, or E2+ claim without human review of the presented section or component and its context."
+    },
+    {
+      "id": "wcag22-sc-3-2-1-on-focus",
+      "requirement_id": "WCAG-2.2-SC-3.2.1",
+      "procedure_version": "1.0.0",
+      "procedure_kind": "human_manual_or_hybrid",
+      "automation_role": "supporting_only",
+      "primary_sources": ["https://www.w3.org/TR/WCAG22/#on-focus", "https://www.w3.org/WAI/WCAG22/Understanding/on-focus.html"],
+      "applicability_steps": [
+        "Inventory focusable user interface components in the fixed scope, including controls revealed by relevant states; record the browser, input method, and initial context.",
+        "Separate receiving focus from activation or changing a control's value. A mouse click may both focus and activate a button, so identify which event causes any observed change."
+      ],
+      "procedure_steps": [
+        "In a safe state, move keyboard focus onto each applicable component without activating it; where relevant, focus a non-activating field with a pointer as a second route.",
+        "Observe whether focus alone submits a form, opens a new window, moves focus elsewhere, changes the viewport or page, or substantially changes the page's meaning. Record the before and after focus target, URL or window, viewport, and relevant content.",
+        "Distinguish a change of context from a local content change such as a tooltip or expanded hint that leaves the user in place. Review focus order under SC 2.4.3 and setting changes under SC 3.2.2 separately; advance warning does not create an exception to this criterion."
+      ],
+      "expected_results": [
+        "Receiving focus alone never initiates a change of context for any applicable component.",
+        "An ordinary local content update may occur on focus if it does not move focus, navigate, change the viewport, or substantially change the page's meaning."
+      ],
+      "required_evidence_types": ["browser_inspection", "manual_observation"],
+      "cant_tell_when": [
+        "The component cannot be reached by focus in the permitted state, or an activation event cannot be separated from focus in the available evidence.",
+        "The resulting focus, window, viewport, or content state cannot be observed well enough to decide whether a change of context occurred."
+      ],
+      "counterexamples": {
+        "pass": ["Focusing a search field displays a small hint while focus stays in the field and the page context remains stable."],
+        "fail": ["Tabbing to a help field opens a dialog and moves focus into it before the user activates anything."],
+        "cant_tell": ["A recording shows a dialog after a button is clicked but does not show whether focus or activation opened it."]
+      },
+      "ai_boundary": "AI may flag focus handlers and candidate context changes, but it must not infer the actual trigger or user-visible context from event code alone, or record a profile outcome, human_verified mapping, or E2+ claim without human review of focus-only interaction."
+    },
+    {
+      "id": "wcag22-sc-3-2-2-on-input",
+      "requirement_id": "WCAG-2.2-SC-3.2.2",
+      "procedure_version": "1.0.0",
+      "procedure_kind": "human_manual_or_hybrid",
+      "automation_role": "supporting_only",
+      "primary_sources": ["https://www.w3.org/TR/WCAG22/#on-input", "https://www.w3.org/WAI/WCAG22/Understanding/on-input.html"],
+      "applicability_steps": [
+        "Inventory components whose persistent setting or value can change, including text inputs, checkboxes, select options, and buttons that toggle state or become disabled; identify potentially consequential changes and a safe test state.",
+        "Distinguish changing a setting from activating a link, submit button, or dialog-opening button; record any advice presented before the user uses a setting-changing component."
+      ],
+      "procedure_steps": [
+        "In a safe fixture, change each applicable setting or value without taking an additional submit or navigation action; observe focus, window, viewport, page location, and any content that changes the page's meaning.",
+        "If the change automatically causes a change of context, inspect whether the user was advised of that specific behavior before using the component, in a form available in the tested interaction. A warning shown only after the change does not qualify.",
+        "Distinguish local content changes, such as revealing related fields, from context changes. Record the setting change, before and after state, any prior advice, and observed result; assess focus-only effects under SC 3.2.1 separately."
+      ],
+      "expected_results": [
+        "Changing a component setting does not automatically change context, or the user has been advised of that behavior before using the component.",
+        "A content update that leaves the basic context intact does not fail solely because it follows input."
+      ],
+      "required_evidence_types": ["browser_inspection", "manual_observation"],
+      "cant_tell_when": [
+        "The value change or its resulting context cannot be safely exercised or observed in the permitted state.",
+        "Available evidence cannot establish whether advice preceded use, whether a stateful button changed its setting, or whether the result was a context change rather than a local content update."
+      ],
+      "counterexamples": {
+        "pass": ["Choosing 'Meeting' in a calendar form reveals participant fields while the user remains in the form."],
+        "fail": ["Selecting a category immediately navigates to another page, with no advice before the selection."],
+        "cant_tell": ["A video begins after a selection and shows a new page, but the preceding instruction and trigger are not visible."]
+      },
+      "ai_boundary": "AI may identify value-change handlers and candidate prior advice, but it must not infer a context change or sufficient advance notice from code or static text alone, or record a profile outcome, human_verified mapping, or E2+ claim without human review of the safe input flow."
     }
   ]
 }

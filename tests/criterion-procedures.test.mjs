@@ -453,6 +453,17 @@ test("multiple ways and descriptive headings preserve their narrow exceptions an
   assert.match(headings.procedure_steps.join(" "), /short word.*SC 4\.1\.2/u);
 });
 
+test("on-focus and on-input procedures distinguish their triggers and context changes", () => {
+  const focus = procedureFor("WCAG-2.2-SC-3.2.1");
+  const input = procedureFor("WCAG-2.2-SC-3.2.2");
+  assert.ok(focus.primary_sources.includes("https://www.w3.org/TR/WCAG22/#on-focus"));
+  assert.match(focus.applicability_steps.join(" "), /receiving focus from activation/u);
+  assert.match(focus.procedure_steps.join(" "), /without activating.*change of context.*advance warning does not/u);
+  assert.ok(input.primary_sources.includes("https://www.w3.org/TR/WCAG22/#on-input"));
+  assert.match(input.applicability_steps.join(" "), /toggle state or become disabled.*submit button/u);
+  assert.match(input.procedure_steps.join(" "), /advised.*before using.*local content changes/u);
+});
+
 test("new focus and input-error procedures keep their criterion boundaries and primary sources", () => {
   const focus = procedureFor("WCAG-2.2-SC-2.4.11");
   assert.ok(focus.primary_sources.includes("https://www.w3.org/TR/WCAG22/#focus-not-obscured-minimum"));

@@ -8,6 +8,8 @@ This project uses a Keep a Changelog-style structure. Until a tagged release is 
 
 ### Added
 
+- WCAG 2.2 SC 3.2.1 and 3.2.2 have English and Japanese procedures distinguishing focus from activation and setting changes from context changes.
+
 - WCAG 2.2 SC 2.4.5 and 2.4.6 have English and Japanese procedures for multiple page-finding routes and descriptive headings and labels.
 
 - WCAG 2.2 SC 2.4.2 and 2.4.4 have English and Japanese procedures for descriptive page titles and link purpose in programmatic context.
