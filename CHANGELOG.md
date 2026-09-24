@@ -8,6 +8,8 @@ This project uses a Keep a Changelog-style structure. Until a tagged release is 
 
 ### Added
 
+- Profile discovery now reports criterion-specific procedure coverage by count and percentage. Human procedures for WCAG 2.2 SC 2.4.11 and 3.3.1 include primary-source links, applicability, exceptions and uncertainty boundaries in English and Japanese.
+
 - Cross-platform Codex installation and shared Codex/Claude lifecycle commands for dry-run, backed-up upgrade, reversible uninstall and backup restore. Installed CLI, skill and manifest-selected agents come from one verified source revision.
 
 - Read-only historical run validation and report regeneration can use explicitly saved resource files whose catalog, procedure and method hashes match the run. Frozen run 1–16 reports use the current renderer only when the original run and assessment pass validation, without changing source records.

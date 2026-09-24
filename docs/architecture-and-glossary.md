@@ -118,6 +118,16 @@ Human-facing documents may use natural Japanese or English, while machine-readab
 | report-only judgement | A public presentation of limited screening evidence; not a machine-readable profile outcome |
 | claim tier | The strongest fixed wording supported by the recorded evidence and profile ceiling |
 
+## Criterion procedure coverage / 条項固有手順のカバレッジ
+
+`accessibility-audit profiles list --format text|json|markdown` reports the count and percentage of profile rows with a registered criterion-specific procedure. The current source covers 10/55 WCAG 2.2 A/AA rows (18.2%), 9/38 JIS rows (23.7%), and 9/56 legacy combined-profile rows (16.1%). A JIS row counts as available only when its direct procedure or its linked WCAG row has one. Availability does not mean the target was tested or that a complete conformance claim is possible.
+
+`accessibility-audit profiles list --format text|json|markdown`は、profileごとに条項固有手順がある行の件数と割合を表示します。現行ソースはWCAG 2.2 A/AAで10/55件（18.2%）、JISで9/38件（23.7%）、旧組合せprofileで9/56件（16.1%）です。JIS行は直接の手順または紐付くWCAG行の手順がある場合だけavailableと数えます。availableは対象の検査済みや完全な適合主張を意味しません。
+
+For an unavailable row, the generic family playbook supplies initial inspection questions, not criterion-specific applicability or exceptions. The human reviewer must open the row's primary source, determine applicability and evidence for that target, and leave uncertain outcomes as `cant_tell`. The next procedure batches prioritize reflow, focus visibility, status messages, input errors and state changes. Each added batch needs primary-source review, Japanese overlay parity and a coverage regression check before it is treated as available.
+
+unavailableの行ではfamily別の汎用手順を初期確認に使いますが、条項固有の適用条件や例外を代用しません。人手reviewerはその行の一次資料を開き、対象固有の適用条件と証拠を確認し、不確かな結果を`cant_tell`として残します。次はreflow、focusの可視性、status message、入力誤り、状態変化を優先して追加します。追加するたびに一次資料との照合、日本語overlay、カバレッジ低下の検出を確認します。
+
 ## Information-use perspectives / 情報利用の5観点
 
 The participation-oriented review is related to, but distinct from, WCAG or JIS outcomes.

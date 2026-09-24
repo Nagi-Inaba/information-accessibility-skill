@@ -6,6 +6,7 @@ import process from "node:process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { assertValidStandardsRegistry, localizedGroupBasis } from "./lib/profile-registry.mjs";
+import { buildRequirementsIndex } from "./browse-requirements.mjs";
 import {
   localizedProfile,
   normalizeRuntimeLocale,
@@ -45,6 +46,7 @@ function parseArgs(argv) {
 export function buildProfilesIndex(root = skillRoot, locale = "en") {
   const selectedLocale = normalizeRuntimeLocale(locale, "en");
   const registry = assertValidStandardsRegistry(readJson(path.join(root, "references/standards-registry.json")));
+  const requirements = buildRequirementsIndex(root).requirements;
   const checklist = readJson(path.join(root, "references/screen-reader-ui-checks.json"));
   const localeValidation = validateRuntimeLocaleCatalog({ registry, checklist, root });
   if (!localeValidation.valid) {
@@ -53,28 +55,39 @@ export function buildProfilesIndex(root = skillRoot, locale = "en") {
   const profiles = registry.profiles
     .filter((profile) => profile.assessment_configuration?.active === true)
     .map((profile) => localizedProfile(profile, selectedLocale))
-    .map((profile) => ({
-      id: profile.id,
-      display_name: profile.display_name,
-      target_scope: profile.target_scope,
-      profile_kind: profile.profile_kind,
-      explicit_adoption_required: profile.explicit_adoption_required,
-      migration: profile.migration ?? null,
-      active: true,
-      implementation_status: profile.implementation_status,
-      registry_version: registry.schema_version,
-      requirement_count: profile.requirement_ids.length,
-      groups: profile.assessment_configuration.groups.map((group) => ({
-        id: group.id,
-        label: group.label,
-        basis: localizedGroupBasis(profile, group.id, selectedLocale),
-        requirement_count: profile.requirement_ids.filter((id) => group.requirement_id_prefixes.some((prefix) => id.startsWith(prefix))).length
-      })),
-      requires_web_interaction_evidence: profile.assessment_configuration.requires_web_interaction_evidence,
-      formal_conformance_target: profile.formal_conformance_target,
-      claim_ceiling: profile.claim_rules.claim_ceiling,
-      source_urls: [...new Set((profile.standards ?? []).map((standard) => standard.primary_url).filter(Boolean))]
-    }))
+    .map((profile) => {
+      const rows = requirements.filter((item) => item.profile_ids.includes(profile.id));
+      if (rows.length !== profile.requirement_ids.length) throw new Error(`Procedure coverage rows do not match profile ${profile.id}.`);
+      const available = rows.filter((item) => item.procedure_status === "available").length;
+      return {
+        id: profile.id,
+        display_name: profile.display_name,
+        target_scope: profile.target_scope,
+        profile_kind: profile.profile_kind,
+        explicit_adoption_required: profile.explicit_adoption_required,
+        migration: profile.migration ?? null,
+        active: true,
+        implementation_status: profile.implementation_status,
+        registry_version: registry.schema_version,
+        requirement_count: profile.requirement_ids.length,
+        procedure_coverage: {
+          total_requirements: rows.length,
+          available_procedures: available,
+          unavailable_procedures: rows.length - available,
+          percentage: Number((available * 100 / rows.length).toFixed(1))
+        },
+        groups: profile.assessment_configuration.groups.map((group) => ({
+          id: group.id,
+          label: group.label,
+          basis: localizedGroupBasis(profile, group.id, selectedLocale),
+          requirement_count: profile.requirement_ids.filter((id) => group.requirement_id_prefixes.some((prefix) => id.startsWith(prefix))).length
+        })),
+        requires_web_interaction_evidence: profile.assessment_configuration.requires_web_interaction_evidence,
+        formal_conformance_target: profile.formal_conformance_target,
+        claim_ceiling: profile.claim_rules.claim_ceiling,
+        source_urls: [...new Set((profile.standards ?? []).map((standard) => standard.primary_url).filter(Boolean))]
+      };
+    })
     .sort((left, right) => left.id.localeCompare(right.id, "en"));
   return {
     schema_version: "1.0.0",
@@ -90,6 +103,7 @@ function labels(locale) {
     title: "利用可能なアクセシビリティプロファイル",
     active: "利用可能なプロファイル",
     requirements: "条項数",
+    procedures: "条項固有手順",
     claimCeiling: "主張上限",
     target: "対象範囲",
     groups: "区分",
@@ -105,6 +119,7 @@ function labels(locale) {
     title: "Active accessibility profiles",
     active: "Active profiles",
     requirements: "Requirements",
+    procedures: "Criterion procedures",
     claimCeiling: "Claim ceiling",
     target: "Target scope",
     groups: "Groups",
@@ -127,6 +142,7 @@ function renderText(index) {
       "",
       `${profile.id} — ${profile.display_name}`,
       `  ${text.requirements}: ${profile.requirement_count}`,
+      `  ${text.procedures}: ${profile.procedure_coverage.available_procedures}/${profile.procedure_coverage.total_requirements} (${profile.procedure_coverage.percentage}%)`,
       `  ${text.claimCeiling}: ${profile.claim_ceiling}`,
       `  ${text.target}: ${profile.target_scope}`,
       ...profileDetails(profile, text).map((line) => `  ${line}`),
@@ -152,9 +168,9 @@ function renderMarkdown(index) {
     `${text.registryVersion}: \`${index.registry_version}\`  `,
     `${text.verified}: ${index.verified_at}`,
     "",
-    `| ${text.profile} | ${text.requirements} | ${text.groups} | ${text.claimCeiling} | ${text.target} |`,
-    "| --- | ---: | --- | --- | --- |",
-    ...index.profiles.map((profile) => `| \`${profile.id}\` | ${profile.requirement_count} | ${profile.groups.map((group) => `${group.label}: ${group.requirement_count}`).join("; ")} | \`${profile.claim_ceiling}\` | ${profile.target_scope} |`),
+    `| ${text.profile} | ${text.requirements} | ${text.procedures} | ${text.groups} | ${text.claimCeiling} | ${text.target} |`,
+    "| --- | ---: | ---: | --- | --- | --- |",
+    ...index.profiles.map((profile) => `| \`${profile.id}\` | ${profile.requirement_count} | ${profile.procedure_coverage.available_procedures}/${profile.procedure_coverage.total_requirements} (${profile.procedure_coverage.percentage}%) | ${profile.groups.map((group) => `${group.label}: ${group.requirement_count}`).join("; ")} | \`${profile.claim_ceiling}\` | ${profile.target_scope} |`),
     "",
     ...index.profiles.flatMap((profile) => [
       `## ${profile.id} — ${profile.display_name}`,

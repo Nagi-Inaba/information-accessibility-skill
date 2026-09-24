@@ -59,6 +59,18 @@ test("profiles list reports active profiles, counts, versions, and claim ceiling
   assert.equal(output.profiles.find((profile) => profile.id === "jis-x-8341-3-2016-aa").requirement_count, 38);
   assert.equal(output.profiles.find((profile) => profile.id === "web-modern").requirement_count, 55);
   assert.equal(output.profiles.find((profile) => profile.id === "jp-public-web").requirement_count, 56);
+  const minimumCoverage = new Map([
+    ["jis-x-8341-3-2016-aa", 9],
+    ["jp-public-web", 9],
+    ["web-modern", 10]
+  ]);
+  for (const profile of output.profiles) {
+    const coverage = profile.procedure_coverage;
+    assert.equal(coverage.total_requirements, profile.requirement_count);
+    assert.ok(coverage.available_procedures >= minimumCoverage.get(profile.id), profile.id);
+    assert.equal(coverage.available_procedures + coverage.unavailable_procedures, coverage.total_requirements);
+    assert.equal(coverage.percentage, Number((coverage.available_procedures * 100 / coverage.total_requirements).toFixed(1)));
+  }
   assert.ok(output.profiles.every((profile) => profile.active === true));
   assert.ok(output.profiles.every((profile) => typeof profile.claim_ceiling === "string"));
 });
@@ -125,7 +137,7 @@ test("requirements search supports Japanese and English terms plus profile, leve
   ]));
   assert.deepEqual(
     procedure.requirements.map((item) => item.success_criterion),
-    ["1.1.1", "1.3.1", "1.4.4", "2.1.1", "2.4.1", "3.1.1", "3.3.2", "4.1.2"]
+    ["1.1.1", "1.3.1", "1.4.4", "2.1.1", "2.4.1", "2.4.11", "3.1.1", "3.3.1", "3.3.2", "4.1.2"]
   );
 });
 

@@ -302,6 +302,70 @@
         ]
       },
       "ai_boundary": "AIはcomponent候補の洗い出し、取得済みDOM／accessibility tree stateの比較、review質問の下書きを行えますが、profile outcome、human_verified mapping、E2以上のclaimを記録してはいけません。外部の人手reviewerが対象固有のbrowserおよび支援技術の証拠とともに条項結果を記録します。"
+    },
+    {
+      "id": "wcag22-sc-2-4-11-focus-not-obscured-minimum",
+      "applicability_steps": [
+        "固定した画面状態・viewport・zoomでkeyboard focusを受ける部品と、作成者が配置した固定表示・重なり表示を特定します。",
+        "利用者が移動できる内容の初期位置と、利用者が開いた内容をfocusを進めずに閉じるか移動できるかを記録します。"
+      ],
+      "procedure_steps": [
+        "固定header、footer、通知、持続する重なり表示の近くも含め、該当部品をkeyboardで順にfocusし、部品とviewportの状態を記録します。",
+        "各focus位置で、作成者の内容が部品自体を完全に隠すか確認します。利用者が開いた内容が覆う場合、focusを進めずに部品を見せる操作ができるか試します。",
+        "対象のresponsive・zoom状態でも繰り返します。覆う層を記録し、focus indicator自体の見え方を扱う2.4.7と部品の可視性を分けます。"
+      ],
+      "expected_results": [
+        "keyboard focusを受けた部品は少なくとも一部が見えるか、利用者が開いた内容をfocusを進めずに動かして見せられます。",
+        "利用者が移動できる内容は初期位置で確認し、focus indicatorの見た目は別の条項で扱います。"
+      ],
+      "cant_tell_when": [
+        "許可された画面状態でkeyboard focus、部品の境界、または覆う層を観測できない場合。",
+        "利用者が移動・開閉できる内容について、初期位置やfocusを維持したままの表示操作を確認できない場合。"
+      ],
+      "counterexamples": {
+        "pass": [
+          "固定headerの下でfocusしたlinkの一部が見え、どの部品にfocusがあるか確認できます。"
+        ],
+        "fail": [
+          "持続するcookie bannerがkeyboard focusを受けたbuttonを完全に隠し、focusを動かさずにbannerを閉じられません。"
+        ],
+        "cant_tell": [
+          "重なり表示のscreenshotはありますが、その下でfocusしている部品を示すkeyboard操作記録がありません。"
+        ]
+      },
+      "ai_boundary": "AIは重なり表示とfocus経路の候補を示せますが、profile outcome、human_verified mapping、E2以上のclaimを記録してはいけません。外部の人手reviewerが固定した画面状態で部品の可視性を確認します。"
+    },
+    {
+      "id": "wcag22-sc-3-3-1-error-identification",
+      "applicability_steps": [
+        "必須情報の未入力、不正な形式・値、入力値の自動訂正を自動検出する入力手順を特定します。",
+        "該当する検出状態を起こす許可済みの非機微テストデータを選び、対象が検出しない誤りを推測で追加しません。"
+      ],
+      "procedure_steps": [
+        "許可されたform・入力手順で各検出状態を起こし、入力値、field、検出時点、その後の画面状態を記録します。",
+        "利用者向けtextが、誤りのある項目と誤りの内容の両方を示すか確認します。複数の誤りを同時に確認できる場合は各項目を確認します。",
+        "自動訂正した入力を利用者に説明しているか確認します。訂正案は3.3.3、programmatic nameやstateは別の条項として記録します。"
+      ],
+      "expected_results": [
+        "自動検出した各入力誤りについて、該当項目と誤りの内容がtextで示されます。",
+        "送信失敗時にformを黙って再表示するだけで終わらず、値の自動訂正も利用者に説明されます。"
+      ],
+      "cant_tell_when": [
+        "許可されたテストデータで誤りの状態を安全に起こせないか、表示されたtextと該当項目を観測できない場合。",
+        "値の変更が自動訂正か利用者操作か判別できない場合。"
+      ],
+      "counterexamples": {
+        "pass": [
+          "不正な日付を送信すると、日付fieldを特定し、許容範囲外だと説明するtextが表示されます。"
+        ],
+        "fail": [
+          "送信に失敗し、赤い枠だけ付いたformが再表示されますが、誤ったfieldや内容を示すtextがありません。"
+        ],
+        "cant_tell": [
+          "送信後のformのscreenshotだけがあり、送信した値と検証結果の記録がありません。"
+        ]
+      },
+      "ai_boundary": "AIは安全な誤りのテスト例を下書きし表示messageを洗い出せますが、profile outcome、human_verified mapping、E2以上のclaimを記録してはいけません。外部の人手reviewerが各誤りの状態を起こして評価します。"
     }
   ]
 }

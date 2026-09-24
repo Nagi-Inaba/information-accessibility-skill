@@ -131,7 +131,7 @@ test("SC 1.4.4 exposes a human review procedure with pass, fail, and cant_tell c
   assert.match(procedure.ai_boundary, /must not record a profile outcome/i);
 });
 
-test("catalog procedures include eight unique requirement IDs and match SC 3.1.1/2.4.1/3.3.2/1.4.4 additions", () => {
+test("catalog procedures include ten unique requirement IDs", () => {
   const requirementIds = procedures.procedures.map((procedure) => procedure.requirement_id);
   const unique = new Set(requirementIds);
   const expected = new Set([
@@ -142,12 +142,14 @@ test("catalog procedures include eight unique requirement IDs and match SC 3.1.1
     "WCAG-2.2-SC-3.3.2",
     "WCAG-2.2-SC-1.4.4",
     "WCAG-2.2-SC-2.1.1",
-    "WCAG-2.2-SC-4.1.2"
+    "WCAG-2.2-SC-4.1.2",
+    "WCAG-2.2-SC-2.4.11",
+    "WCAG-2.2-SC-3.3.1"
   ]);
 
   assert.equal(requirementIds.length, procedures.procedures.length);
   assert.equal(unique.size, procedures.procedures.length);
-  assert.equal(unique.size, 8);
+  assert.equal(unique.size, 10);
   for (const req of expected) {
     assert.equal(unique.has(req), true, `missing requirement ${req}`);
   }
@@ -229,6 +231,22 @@ test("unimplemented criteria retain the generic playbook without a criterion-spe
   assert.equal(result.audit_method.id, "timing-and-motion");
 });
 
+test("new focus and input-error procedures keep their criterion boundaries and primary sources", () => {
+  const focus = procedureFor("WCAG-2.2-SC-2.4.11");
+  assert.ok(focus.primary_sources.includes("https://www.w3.org/TR/WCAG22/#focus-not-obscured-minimum"));
+  assert.ok(focus.procedure_steps.some((step) => /entirely hides the component/i.test(step)));
+  assert.ok(focus.procedure_steps.some((step) => /without advancing focus/i.test(step)));
+  assert.ok(focus.procedure_steps.some((step) => /2\.4\.7/u.test(step)));
+  assert.ok(focus.counterexamples.fail.some((example) => /entirely covers/i.test(example)));
+
+  const errors = procedureFor("WCAG-2.2-SC-3.3.1");
+  assert.ok(errors.primary_sources.includes("https://www.w3.org/TR/WCAG22/#error-identification"));
+  assert.ok(errors.applicability_steps.some((step) => /automatically detect/i.test(step)));
+  assert.ok(errors.procedure_steps.some((step) => /identity of the item.*what is wrong/i.test(step)));
+  assert.ok(errors.procedure_steps.some((step) => /3\.3\.3/u.test(step)));
+  assert.ok(errors.counterexamples.fail.some((example) => /no text identifies/i.test(example)));
+});
+
 test("lookup normalizes an available criterion procedure into an exact versioned queue binding", () => {
   const result = lookupRequirement("web-modern", "WCAG-2.2-SC-1.1.1", skill);
   assert.equal(result.lookup_version, "2.0.0");
@@ -266,7 +284,9 @@ test("lookup exposes exact versioned bindings sourced from both new criterion pr
     ["WCAG-2.2-SC-3.3.2", "criterion-procedures:1.0.0#wcag22-sc-3-3-2-labels-or-instructions"],
     ["WCAG-2.2-SC-1.4.4", "criterion-procedures:1.0.0#wcag22-sc-1-4-4-resize-text"],
     ["WCAG-2.2-SC-1.3.1", "criterion-procedures:1.0.0#wcag22-sc-1-3-1-info-and-relationships"],
-    ["WCAG-2.2-SC-4.1.2", "criterion-procedures:1.0.0#wcag22-sc-4-1-2-name-role-value"]
+    ["WCAG-2.2-SC-4.1.2", "criterion-procedures:1.0.0#wcag22-sc-4-1-2-name-role-value"],
+    ["WCAG-2.2-SC-2.4.11", "criterion-procedures:1.0.0#wcag22-sc-2-4-11-focus-not-obscured-minimum"],
+    ["WCAG-2.2-SC-3.3.1", "criterion-procedures:1.0.0#wcag22-sc-3-3-1-error-identification"]
   ]);
 
   for (const [requirementId, procedureRef] of expectedRefs) {

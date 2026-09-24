@@ -2,9 +2,9 @@
   "$schema": "./criterion-procedures.schema.json",
   "schema_version": "1.0.0",
   "catalog_status": "partial",
-  "verified_at": "2026-07-22",
+  "verified_at": "2026-09-25",
   "copyright_boundary": "These are original procedural summaries. They identify public W3C sources but do not reproduce normative standard text.",
-  "usage_rule": "Use a listed procedure only after fixing the target scope and opening its primary sources. This partial catalog adds procedures for eight criteria; it does not make an unlisted criterion executable or the profile complete.",
+  "usage_rule": "Use a listed procedure only after fixing the target scope and opening its primary sources. This partial catalog covers only the listed criteria; it does not make an unlisted criterion executable or the profile complete.",
   "automation_role": "supporting_only",
   "procedures": [
     {
@@ -402,6 +402,95 @@
         ]
       },
       "ai_boundary": "AI may inventory candidate components, compare captured DOM or accessibility-tree states, or draft review questions, but it must not record a profile outcome, human_verified mapping, or E2+ claim; an external human reviewer records any criterion result with target-specific browser and assistive-technology evidence."
+    },
+    {
+      "id": "wcag22-sc-2-4-11-focus-not-obscured-minimum",
+      "requirement_id": "WCAG-2.2-SC-2.4.11",
+      "procedure_version": "1.0.0",
+      "procedure_kind": "human_manual_or_hybrid",
+      "automation_role": "supporting_only",
+      "primary_sources": [
+        "https://www.w3.org/TR/WCAG22/#focus-not-obscured-minimum",
+        "https://www.w3.org/WAI/WCAG22/Understanding/focus-not-obscured-minimum.html"
+      ],
+      "applicability_steps": [
+        "Identify keyboard-focusable components in the fixed page states, viewport, zoom, and author-created sticky or overlay content.",
+        "Record the initial position of user-movable content and whether user-opened content can be dismissed or moved without advancing keyboard focus."
+      ],
+      "procedure_steps": [
+        "Move keyboard focus through each applicable component, including controls near sticky headers, footers, notifications, and persistent overlays; record the focused component and viewport state.",
+        "At each focus stop, inspect whether author-created content entirely hides the component itself. If user-opened content covers it, try the available reveal action without advancing focus.",
+        "Repeat in the scoped responsive or zoomed state. Record any obscuring layer and distinguish component visibility from separate focus-indicator visibility under 2.4.7."
+      ],
+      "expected_results": [
+        "Every keyboard-focused component remains at least partly visible, or user-opened content can reveal it without advancing focus.",
+        "User-movable content is checked in its initial position; unrelated focus-indicator appearance is assessed separately."
+      ],
+      "required_evidence_types": [
+        "keyboard_test",
+        "manual_observation",
+        "browser_inspection"
+      ],
+      "cant_tell_when": [
+        "Keyboard focus, the component boundary, or the author-created obscuring layer cannot be observed in a permitted target state.",
+        "The initial position or focus-preserving reveal behavior of user-movable or user-opened content cannot be established."
+      ],
+      "counterexamples": {
+        "pass": [
+          "A focused link under a sticky header remains partly visible, and the user can identify the focused component."
+        ],
+        "fail": [
+          "A persistent cookie banner entirely covers a keyboard-focused button and cannot be dismissed without moving focus."
+        ],
+        "cant_tell": [
+          "A screenshot shows an overlay, but there is no keyboard-focus trace identifying which component is focused beneath it."
+        ]
+      },
+      "ai_boundary": "AI may flag candidate overlays and focus paths, but it must not record a profile outcome, human_verified mapping, or E2+ claim; an external human reviewer verifies component visibility in the fixed target states."
+    },
+    {
+      "id": "wcag22-sc-3-3-1-error-identification",
+      "requirement_id": "WCAG-2.2-SC-3.3.1",
+      "procedure_version": "1.0.0",
+      "procedure_kind": "human_manual_or_hybrid",
+      "automation_role": "supporting_only",
+      "primary_sources": [
+        "https://www.w3.org/TR/WCAG22/#error-identification",
+        "https://www.w3.org/WAI/WCAG22/Understanding/error-identification.html"
+      ],
+      "applicability_steps": [
+        "Identify input workflows that automatically detect omitted required information, invalid formats or values, or automatically corrected input.",
+        "Choose permitted, non-sensitive test data that triggers each relevant detected-error state; do not infer an error state where the target does not detect one."
+      ],
+      "procedure_steps": [
+        "Trigger each applicable detected error through the permitted form or input flow, and record the submitted value, field, detection point, and resulting page state.",
+        "Inspect the user-facing text for both the identity of the item in error and a description of what is wrong; repeat for multiple simultaneous errors when the flow permits.",
+        "Check whether automatically corrected input is described to the user. Record correction suggestions under 3.3.3 and programmatic name or state exposure under their separate criteria."
+      ],
+      "expected_results": [
+        "For every automatically detected input error, text identifies the affected item and describes the error.",
+        "A failed submission does more than silently redisplay the form, and an automatic correction is described to the user."
+      ],
+      "required_evidence_types": [
+        "manual_observation",
+        "browser_inspection"
+      ],
+      "cant_tell_when": [
+        "The error state cannot be safely triggered with permitted test data, or the resulting text and affected item cannot be observed.",
+        "The reviewer cannot determine whether a changed value was an automatic correction or a user action."
+      ],
+      "counterexamples": {
+        "pass": [
+          "After an invalid date is submitted, text identifies the Date field and states that its value is outside the allowed range."
+        ],
+        "fail": [
+          "Submission fails and the form reappears with a red border only; no text identifies the erroneous field or describes the error."
+        ],
+        "cant_tell": [
+          "A form is shown in a screenshot after submission, but the submitted values and validation result were not captured."
+        ]
+      },
+      "ai_boundary": "AI may draft safe error cases and inventory visible messages, but it must not record a profile outcome, human_verified mapping, or E2+ claim; an external human reviewer triggers and evaluates each relevant error state."
     }
   ]
 }
