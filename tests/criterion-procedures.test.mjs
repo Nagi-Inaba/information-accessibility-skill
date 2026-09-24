@@ -383,6 +383,19 @@ test("SC 2.5.7 requires a non-drag single-pointer route for author-controlled dr
   assert.ok(procedure.cant_tell_when.length && procedure.counterexamples.cant_tell.length);
 });
 
+test("SC 2.5.1 separates path-based gestures from dragging and checks a single-pointer route", () => {
+  const procedure = procedureFor("WCAG-2.2-SC-2.5.1");
+  assert.deepEqual(procedure.primary_sources, [
+    "https://www.w3.org/TR/WCAG22/#pointer-gestures",
+    "https://www.w3.org/WAI/WCAG22/Understanding/pointer-gestures.html"
+  ]);
+  assert.deepEqual(procedure.required_evidence_types, ["browser_inspection", "manual_observation"]);
+  assert.match(procedure.applicability_steps.join(" "), /multiple simultaneous pointers.*path.*unrestricted drag-and-drop/u);
+  assert.match(procedure.procedure_steps.join(" "), /one pointer.*keyboard-only.*SC 2\.5\.7.*essential exception/u);
+  assert.match(procedure.counterexamples.fail.join(" "), /horizontal flick.*no tap or click/u);
+  assert.ok(procedure.cant_tell_when.length && procedure.counterexamples.cant_tell.length);
+});
+
 test("new focus and input-error procedures keep their criterion boundaries and primary sources", () => {
   const focus = procedureFor("WCAG-2.2-SC-2.4.11");
   assert.ok(focus.primary_sources.includes("https://www.w3.org/TR/WCAG22/#focus-not-obscured-minimum"));
