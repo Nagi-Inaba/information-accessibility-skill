@@ -77,7 +77,10 @@ export function localizedRootHelpText(locale = "en") {
     messages.commands_heading,
     ...commandLines,
     "",
-    ...messages.root_notes
+    ...messages.root_notes,
+    normalized === "ja"
+      ? "内部成果物の推奨保存先: audit-runs/<run-id>/（公開用ファイルは確認後に明示的に書き出してください）。"
+      : "Recommended private output: audit-runs/<run-id>/; explicitly export and review public files before delivery."
   ].join("\n");
 }
 

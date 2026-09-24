@@ -111,6 +111,12 @@ node .\codex\skills\information-accessibility-practice\scripts\accessibility-aud
 Automated redaction cannot detect every sensitive value. Public output always requires human publication review. The manifest records only the field path, reason, and action; it does not copy the removed value.
 自動伏字ですべての機微情報を検出することはできません。公開向け出力には人による公開前確認が必要です。manifestにはfield path、理由、処理だけを記録し、削除した値は複製しません。
 
+Keep each audit's run, evidence, assessment, internal reports, public candidates, and redaction manifests together under `audit-runs/<run-id>/`. This directory is Git-ignored, but still needs your usual access control and backup. To export a reviewed public report, rerun `report --visibility public` with a new `--output` path outside this repository and a new internal `--redaction-manifest` path; review the exported file before delivery. Outputs are never overwritten by the CLI.
+run・証拠・assessment・内部レポート・公開候補・伏字manifestは監査ごとに`audit-runs/<run-id>/`へまとめます。Gitの追跡対象外ですが、アクセス制御とバックアップは別途必要です。確認済みの公開用レポートを書き出す際は、`report --visibility public`をリポジトリ外の新しい`--output`と内部用の新しい`--redaction-manifest`で再実行し、書き出したファイルを納品前に確認します。CLIは既存ファイルを上書きしません。
+
+Archive each run directory as one unit with its source version and review context. Set retention to the applicable project policy; there is no automatic cleanup. Before manually deleting a working copy, confirm the archive and preserve original, signed, or submitted evidence.
+runディレクトリはソース版とレビューの文脈を含めて一単位で保管します。保存期間は案件の方針で決めてください。自動削除はありません。作業用コピーを手動削除する前に保管先を確認し、原本・署名済み・提出済みの証拠は保持します。
+
 See [`reporting.md`](reporting.md) for the complete contract and examples.
 詳細な契約と例は[`reporting.md`](reporting.md)を参照してください。
 

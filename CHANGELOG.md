@@ -27,6 +27,8 @@ This project uses a Keep a Changelog-style structure. Until a tagged release is 
 
 ### Changed
 
+- Internal audit output examples and CLI help consistently recommend `audit-runs/<run-id>/`; guidance now separates reviewed public export from private candidates and documents run-level archival and retention.
+
 - Run 14 / registry 13 introduce human review and portable review record 3. Multiple declared reviewers can assess one criterion; unanimous active reviews determine its result, while disagreement remains cant_tell. Explicit same-reviewer supersession preserves original records and evidence. Reports retain review histories and honor public name/role disclosure; status and retest use the same consensus. Worksheets accept overlapping reviews with --reviews all. Frozen run 13, review 2 and record 2 remain readable; existing signatures are not rewritten.
 
 - Run 13 / registry 12 introduce human review 2 and remediation plan 3: several findings per criterion, several criteria/observations per finding, and separate remedy IDs. Portable human review record 2 signs these relations; version 1 signatures remain readable. Reports separate declared finding and failed-criterion counts. `status --retest-of` aggregates successor human declarations for prior findings without claiming that individual locations are repaired.

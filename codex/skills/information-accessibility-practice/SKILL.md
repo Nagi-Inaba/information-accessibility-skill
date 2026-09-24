@@ -169,8 +169,8 @@ The optional development request template is for custom scope, named environment
 
 5. If standards assessment is requested, initialize a complete profile record instead of hand-building an empty checklist:
    - Resolve `skill_root` as the directory containing this `SKILL.md`; never resolve scripts from the audited target's working directory.
-   - Run `node <skill_root>/scripts/generate-assessment.mjs --profile web-modern --output <assessment.json>` for WCAG 2.2 A/AA (55 requirements).
-   - Run `node <skill_root>/scripts/generate-assessment.mjs --profile jp-public-web --output <assessment.json>` for JIS X 8341-3:2016 A/AA plus the separately identified 18 added WCAG 2.2 requirements (56 total).
+   - Run `node <skill_root>/scripts/generate-assessment.mjs --profile web-modern --output audit-runs/example/assessment.json` for WCAG 2.2 A/AA (55 requirements).
+   - Run `node <skill_root>/scripts/generate-assessment.mjs --profile jp-public-web --output audit-runs/example/assessment.json` for JIS X 8341-3:2016 A/AA plus the separately identified 18 added WCAG 2.2 requirements (56 total).
    - Use `assets/assessment-record.template.json` only for profiles without a generated catalog.
    - After an available named criterion procedure, or the returned generic playbook plus primary sources when no criterion procedure is available, and target-specific manual or hybrid evidence, a separate external human review workflow may record profile requirement outcomes as `pass`, `fail`, `not_applicable`, `not_tested`, or `cant_tell`.
    - Before evaluating each row, run `show-requirement.mjs` for that exact profile and requirement. Follow the returned method and any available criterion procedure, open its primary sources, and do not evaluate from the title alone.
@@ -305,9 +305,9 @@ When using the skill, verify claims with actual artifacts whenever possible: ins
 When maintaining or packaging the skill:
 
 ```powershell
-node <skill-folder>\scripts\validate-assessment.mjs <assessment.json>
-node <skill-folder>\scripts\generate-assessment.mjs --profile web-modern --output <new-assessment.json>
-node <skill-folder>\scripts\render-audit-report.mjs --input <assessment.json> --output <report.md>
+node <skill-folder>\scripts\generate-assessment.mjs --profile web-modern --output audit-runs/example/assessment.json
+node <skill-folder>\scripts\validate-assessment.mjs audit-runs/example/assessment.json
+node <skill-folder>\scripts\render-audit-report.mjs --input audit-runs/example/assessment.json --output audit-runs/example/report.md
 ```
 
 ## Source Basis
