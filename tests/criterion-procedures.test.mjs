@@ -486,6 +486,18 @@ test("language-of-parts and consistent-help procedures preserve exceptions and c
   assert.match(help.procedure_steps.join(" "), /serialized content order.*navigation between pages alone does not qualify/u);
 });
 
+test("meaningful-sequence and sensory-instruction procedures keep their distinct limits", () => {
+  const sequence = procedureFor("WCAG-2.2-SC-1.3.2");
+  assert.ok(sequence.primary_sources.includes("https://www.w3.org/TR/WCAG22/#meaningful-sequence"));
+  assert.match(sequence.procedure_steps.join(" "), /at least one programmatically determinable order.*SC 2\.4\.3/u);
+  assert.match(sequence.expected_results.join(" "), /one correct sequence is needed/u);
+
+  const sensory = procedureFor("WCAG-2.2-SC-1.3.3");
+  assert.ok(sensory.primary_sources.includes("https://www.w3.org/TR/WCAG22/#sensory-characteristics"));
+  assert.match(sensory.applicability_steps.join(" "), /shape.*color.*size.*visual location.*orientation.*sound/u);
+  assert.match(sensory.procedure_steps.join(" "), /Sensory cues may remain.*SC 1\.4\.1/u);
+});
+
 test("new focus and input-error procedures keep their criterion boundaries and primary sources", () => {
   const focus = procedureFor("WCAG-2.2-SC-2.4.11");
   assert.ok(focus.primary_sources.includes("https://www.w3.org/TR/WCAG22/#focus-not-obscured-minimum"));
