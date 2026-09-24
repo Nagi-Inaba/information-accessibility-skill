@@ -152,12 +152,13 @@ test("catalog procedures include the expected unique requirement IDs", () => {
     "WCAG-2.2-SC-2.1.2",
     "WCAG-2.2-SC-3.3.3",
     "WCAG-2.2-SC-1.4.3",
-    "WCAG-2.2-SC-1.4.11"
+    "WCAG-2.2-SC-1.4.11",
+    "WCAG-2.2-SC-1.4.1"
   ]);
 
   assert.equal(requirementIds.length, procedures.procedures.length);
   assert.equal(unique.size, procedures.procedures.length);
-  assert.ok(unique.size >= 18);
+  assert.ok(unique.size >= 19);
   for (const req of expected) {
     assert.equal(unique.has(req), true, `missing requirement ${req}`);
   }
@@ -302,6 +303,18 @@ test("SC 1.4.11 limits non-text contrast review to required visual information",
   assert.deepEqual(procedure.required_evidence_types, ["browser_inspection", "manual_observation"]);
   assert.match(procedure.procedure_steps.join(" "), /boundary need not be tested.*SC 1\.4\.3.*3:1.*parts needed to understand/u);
   assert.match(procedure.procedure_steps.join(" "), /inactive component.*unmodified by the author.*nonadjacent states/u);
+  assert.ok(procedure.cant_tell_when.length && procedure.counterexamples.fail.length);
+});
+
+test("SC 1.4.1 requires a visible way to understand author-defined color cues", () => {
+  const procedure = procedureFor("WCAG-2.2-SC-1.4.1");
+  assert.deepEqual(procedure.primary_sources, [
+    "https://www.w3.org/TR/WCAG22/#use-of-color",
+    "https://www.w3.org/WAI/WCAG22/Understanding/use-of-color.html"
+  ]);
+  assert.deepEqual(procedure.required_evidence_types, ["browser_inspection", "manual_observation"]);
+  assert.match(procedure.procedure_steps.join(" "), /visible text.*non-hue cue.*3:1.*specific hue/u);
+  assert.match(procedure.procedure_steps.join(" "), /hidden text alone.*SC 1\.4\.3.*SC 1\.4\.11.*visited history/u);
   assert.ok(procedure.cant_tell_when.length && procedure.counterexamples.fail.length);
 });
 
