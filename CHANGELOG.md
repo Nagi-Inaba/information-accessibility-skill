@@ -8,6 +8,8 @@ This project uses a Keep a Changelog-style structure. Until a tagged release is 
 
 ### Added
 
+- WCAG 2.2 SC 2.2.2 and 2.3.1 have English and Japanese procedures for moving content and flash safety review.
+
 - WCAG 2.2 SC 2.1.4 and 2.2.1 have English and Japanese procedures for character-key shortcuts and adjustable time limits.
 
 - WCAG 2.2 SC 1.4.12 and 1.4.13 have English and Japanese procedures for text-spacing overrides and transient hover or focus content.

@@ -236,10 +236,10 @@ test("SC 4.1.2 exposes a component semantics and change-exposure human review pr
   assert.match(procedure.ai_boundary, /must not record a profile outcome/i);
 });
 
-test("unimplemented criteria retain the generic playbook without a criterion-specific procedure", () => {
-  const result = lookupRequirement("web-modern", "WCAG-2.2-SC-2.2.2", skill);
+test("JIS-specific unmapped criteria retain the generic playbook", () => {
+  const result = lookupRequirement("jis-x-8341-3-2016-aa", "JIS-X-8341-3-2016-SC-4.1.1", skill);
   assert.equal("criterion_procedure" in result, false);
-  assert.equal(result.audit_method.id, "timing-and-motion");
+  assert.equal(result.audit_method.id, "parsing-legacy");
 });
 
 test("focus order and visibility require observed keyboard paths and remain separate", () => {
@@ -534,6 +534,18 @@ test("character-shortcut and time-limit procedures preserve alternatives and exc
   assert.match(timing.cant_tell_when.join(" "), /safe permitted state.*disappearing information/u);
 });
 
+test("motion and flash procedures retain distinct timing and safety boundaries", () => {
+  const motion = procedureFor("WCAG-2.2-SC-2.2.2");
+  assert.ok(motion.primary_sources.includes("https://www.w3.org/TR/WCAG22/#pause-stop-hide"));
+  assert.match(motion.applicability_steps.join(" "), /more than five seconds.*do not apply a five-second exception/u);
+  assert.match(motion.procedure_steps.join(" "), /focus stays.*update frequency.*SC 2\.3\.1/u);
+
+  const flash = procedureFor("WCAG-2.2-SC-2.3.1");
+  assert.ok(flash.primary_sources.includes("https://www.w3.org/TR/WCAG22/#three-flashes-or-below-threshold"));
+  assert.match(flash.procedure_steps.join(" "), /safe frame-based method.*every one-second window.*general-flash and red-flash thresholds/u);
+  assert.match(flash.cant_tell_when.join(" "), /reliable capture.*threshold measurements/u);
+});
+
 test("new focus and input-error procedures keep their criterion boundaries and primary sources", () => {
   const focus = procedureFor("WCAG-2.2-SC-2.4.11");
   assert.ok(focus.primary_sources.includes("https://www.w3.org/TR/WCAG22/#focus-not-obscured-minimum"));
@@ -579,13 +591,13 @@ test("lookup normalizes an available criterion procedure into an exact versioned
   });
 });
 
-test("lookup normalizes an unavailable criterion procedure into the exact generic method binding", () => {
-  const result = lookupRequirement("web-modern", "WCAG-2.2-SC-2.2.2", skill);
+test("lookup normalizes an unmapped JIS criterion into the exact generic method binding", () => {
+  const result = lookupRequirement("jis-x-8341-3-2016-aa", "JIS-X-8341-3-2016-SC-4.1.1", skill);
   assert.equal(result.lookup_version, "2.0.0");
   assert.deepEqual(result.procedure_binding, {
     procedure_availability: "unavailable",
     procedure_ref: null,
-    generic_method_ref: "web-audit-methods:1.0.0#timing-and-motion",
+    generic_method_ref: "web-audit-methods:1.0.0#parsing-legacy",
     official_sources: result.criterion.official_method_sources,
     human_actions: result.audit_method.procedure_steps,
     required_evidence_types: result.audit_method.required_evidence_types,

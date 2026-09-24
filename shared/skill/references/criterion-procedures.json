@@ -1656,6 +1656,70 @@
         "cant_tell": ["A screenshot shows a session warning but gives no evidence of its response duration or how many extensions are allowed."]
       },
       "ai_boundary": "AI may flag timers, redirects, and candidate warnings, but it must not infer actual timing, repeated extension, equivalent untimed access, or an exception from declarations alone, or record a profile outcome, human_verified mapping, or E2+ claim without human review of the time-limited task."
+    },
+    {
+      "id": "wcag22-sc-2-2-2-pause-stop-hide",
+      "requirement_id": "WCAG-2.2-SC-2.2.2",
+      "procedure_version": "1.0.0",
+      "procedure_kind": "human_manual_or_hybrid",
+      "automation_role": "supporting_only",
+      "primary_sources": ["https://www.w3.org/TR/WCAG22/#pause-stop-hide", "https://www.w3.org/WAI/WCAG22/Understanding/pause-stop-hide.html"],
+      "applicability_steps": [
+        "Inventory moving, blinking, scrolling, and auto-updating visual information that starts without direct user activation, including content initiated indirectly by focus, hover, or scrolling into view. Record whether it runs alongside other content.",
+        "For movement, blinking, or scrolling, measure whether it lasts more than five seconds; for auto-updating information, do not apply a five-second exception. Identify any claimed essential activity and distinguish audio under SC 1.4.2."
+      ],
+      "procedure_steps": [
+        "For applicable moving, blinking, or scrolling information, test whether the user can pause, stop, or hide it while continuing to use the rest of the page. A pause that works only while focus stays on the moving item is insufficient.",
+        "For applicable auto-updating information, test whether the user can pause, stop, hide, or control the update frequency. Record the trigger, duration or update interval, parallel content, available control, and observed result.",
+        "If an essential-activity exception is claimed, verify why stopping the movement or update would fundamentally change that activity. Evaluate flashing separately under SC 2.3.1; a pause control does not make hazardous flashing conform."
+      ],
+      "expected_results": [
+        "Automatically started movement, blinking, or scrolling that lasts more than five seconds alongside other content can be paused, stopped, or hidden unless essential.",
+        "Automatically updating information alongside other content can be paused, stopped, hidden, or have its frequency controlled unless essential, regardless of a five-second duration."
+      ],
+      "required_evidence_types": ["browser_inspection", "manual_observation"],
+      "cant_tell_when": [
+        "The actual trigger, duration, parallel presentation, or effect of a control cannot be observed in a permitted safe state.",
+        "Available evidence cannot establish whether a claimed activity is essential, or whether an apparent pause still lets the rest of the page be used."
+      ],
+      "counterexamples": {
+        "pass": ["An automatically scrolling ticker beside a form runs continuously, but a pause control freezes it while the form remains usable."],
+        "fail": ["A news list updates automatically beside an article without a way to pause, stop, hide, or control its update frequency."],
+        "cant_tell": ["A screenshot shows an animated carousel, but neither its start trigger nor duration or controls can be observed."]
+      },
+      "ai_boundary": "AI may detect motion and update candidates, but it must not infer start trigger, duration, usable control behavior, or essential activity from code alone, or record a profile outcome, human_verified mapping, or E2+ claim without human review in a safe state."
+    },
+    {
+      "id": "wcag22-sc-2-3-1-three-flashes-or-below-threshold",
+      "requirement_id": "WCAG-2.2-SC-2.3.1",
+      "procedure_version": "1.0.0",
+      "procedure_kind": "human_manual_or_hybrid",
+      "automation_role": "supporting_only",
+      "primary_sources": ["https://www.w3.org/TR/WCAG22/#three-flashes-or-below-threshold", "https://www.w3.org/WAI/WCAG22/Understanding/three-flashes-or-below-threshold.html"],
+      "applicability_steps": [
+        "Inventory author-controlled videos, animations, ads, transitions, and other content with candidate rapid luminance or saturated-red changes, including content that appears after interaction or loops.",
+        "Identify the largest available display scale and relevant version, including full-screen video and the highest dynamic-range version. Separate content-caused flashes from display or rendering-device flicker."
+      ],
+      "procedure_steps": [
+        "Inspect the media or animation through a safe frame-based method before any live playback of suspected hazardous content. For each candidate, count general and red flashes within every one-second window, including loop boundaries and simultaneous areas.",
+        "If more than three flashes occur in a one-second period, use a suitable validated analysis method and the normative general-flash and red-flash thresholds to assess the combined flashing area, luminance, and saturated-red transitions at the largest relevant scale. Record tool version, source frames, timing, scale, and threshold result.",
+        "Do not treat a warning, pause button, short duration, or a text alternative as curing nonconforming flashes. Assess prolonged blinking under SC 2.2.2 separately; if the frame source or threshold measurement is unreliable, record cant_tell rather than a visual guess."
+      ],
+      "expected_results": [
+        "No content flashes more than three times in any one-second period, or every faster flash remains below both the general-flash and red-flash thresholds.",
+        "The assessment includes relevant loops, simultaneous flashing areas, and the largest offered presentation."
+      ],
+      "required_evidence_types": ["browser_inspection", "manual_observation"],
+      "cant_tell_when": [
+        "A safe, reliable capture of the relevant frames, timing, loop boundary, or largest offered presentation is unavailable.",
+        "A candidate exceeds three flashes per second but the general-flash and red-flash threshold measurements cannot be established reliably."
+      ],
+      "counterexamples": {
+        "pass": ["Frame analysis of a looping animation shows at most three general and red flashes in every one-second window, including across the loop boundary."],
+        "fail": ["Validated frame analysis finds four large, above-threshold general flashes in one second of a full-screen video."],
+        "cant_tell": ["A compressed screen recording suggests rapid red flashes, but its dropped frames and unknown full-screen scale prevent reliable counting or threshold analysis."]
+      },
+      "ai_boundary": "AI may flag candidate flashes and assist with frame counting, but it must not declare safety from ordinary playback, a warning, or an unvalidated measurement, or record a profile outcome, human_verified mapping, or E2+ claim without human review of safe frame evidence and threshold analysis."
     }
   ]
 }
