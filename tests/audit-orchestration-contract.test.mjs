@@ -35,7 +35,7 @@ function schemaErrors(value, schemaName) {
 
 function validAuditRun() {
   return {
-    schema_version: "13.0.0",
+    schema_version: "14.0.0",
     target_inventory: null,
     inspection_request: createInspectionRequest("quick", "Identify the next investigation"),
     run_id: runId,
@@ -73,7 +73,7 @@ function validAuditRun() {
     },
     resource_versions: {
       standards_registry_version: "1.0.0",
-      orchestration_registry_version: "12.0.0",
+      orchestration_registry_version: "13.0.0",
       orchestration_registry_sha256: sha256,
       criteria_catalog_sha256: sha256,
       criterion_procedures_sha256: sha256,
@@ -180,12 +180,13 @@ test("optional signal provenance preserves legacy reports and never turns no-sig
 function validDeclaredHumanReviewPayload(availability = "available") {
   const available = availability === "available";
   return {
-    schema_version: "2.0.0",
+    schema_version: "3.0.0", reviewer_id: "fixture-reviewer",
     declaration: "I declare that I performed the described target-specific review.",
     reviewer_name: "Declared Reviewer",
     review_date: "2026-07-17",
     identity_authenticated: false,
     reviews: [{
+      review_id: "HR-FIXTURE-" + "WCAG-2.2-SC-1.1.1",
       requirement_id: "WCAG-2.2-SC-1.1.1",
       procedure_availability: availability,
       criterion_procedure_ref: available
@@ -254,18 +255,18 @@ test("current queue 3 and remediation 3 preserve frozen version 1 reading", asyn
 
 test("versioned contracts freeze prior runs while run 8, registry 7, and envelope 3 are current", async () => {
   const versions = [
-    ["orchestration-registry.json", "schema_version", "12.0.0"],
+    ["orchestration-registry.json", "schema_version", "13.0.0"],
     ["orchestration-registry-6.0.0.json", "schema_version", "6.0.0"],
     ["orchestration-registry-5.0.0.json", "schema_version", "5.0.0"],
     ["orchestration-registry-4.0.0.json", "schema_version", "4.0.0"],
     ["orchestration-registry-3.0.0.json", "schema_version", "3.0.0"],
     ["orchestration-registry-2.0.0.json", "schema_version", "2.0.0"],
-    ["orchestration-registry.schema.json", "schema", "12.0.0"],
+    ["orchestration-registry.schema.json", "schema", "13.0.0"],
     ["orchestration-registry-6.0.0.schema.json", "schema", "6.0.0"],
     ["orchestration-registry-5.0.0.schema.json", "schema", "5.0.0"],
     ["orchestration-registry-4.0.0.schema.json", "schema", "4.0.0"],
     ["orchestration-registry-2.0.0.schema.json", "schema", "2.0.0"],
-    ["audit-run.schema.json", "schema", "13.0.0"],
+    ["audit-run.schema.json", "schema", "14.0.0"],
     ["audit-run-7.0.0.schema.json", "schema", "7.0.0"],
     ["audit-artifact-envelope.schema.json", "schema", "3.0.0"],
     ["audit-artifact-envelope-2.0.0.schema.json", "schema", "2.0.0"],
@@ -644,7 +645,7 @@ test("the orchestration registry fixes the complete role, artifact, and transiti
   assert.deepEqual(registry.artifact_types, [
     {
   "id": "audit-run",
-  "latest_schema_version": "13.0.0",
+  "latest_schema_version": "14.0.0",
   "schema_versions": [
     {
       "version": "1.0.0",
@@ -710,8 +711,14 @@ test("the orchestration registry fixes the complete role, artifact, and transiti
     },
     {
       "version": "13.0.0",
-      "schema_file": "audit-run.schema.json",
+      "schema_file": "audit-run-13.0.0.schema.json",
       "schema_sha256": "2c4b852b3599e036fda577f52b04933f4ddb7ab53a3e8f399f2b99c30713e187",
+      "mode": "read_only"
+    },
+    {
+      "version": "14.0.0",
+      "schema_file": "audit-run.schema.json",
+      "schema_sha256": "8a5c491996266461da52a9adb87642b5899f1035b0755c8398e4f6b52898e92b",
       "mode": "current"
     }
   ]
@@ -768,7 +775,7 @@ test("the orchestration registry fixes the complete role, artifact, and transiti
 },
     {
   "id": "declared-human-review",
-  "latest_schema_version": "2.0.0",
+  "latest_schema_version": "3.0.0",
   "schema_versions": [
     {
       "version": "1.0.0",
@@ -778,8 +785,14 @@ test("the orchestration registry fixes the complete role, artifact, and transiti
     },
     {
       "version": "2.0.0",
-      "schema_file": "declared-human-review.schema.json",
+      "schema_file": "declared-human-review-2.0.0.schema.json",
       "schema_sha256": "4474360f5eb63e75485acfa45bf832fe4bc2d2cc92d7beaf87beae059ed0c41e",
+      "mode": "read_only"
+    },
+    {
+      "version": "3.0.0",
+      "schema_file": "declared-human-review.schema.json",
+      "schema_sha256": "e8fd6e691a184f1261e716aea7c22902d9a01e32d95dc365374ad6783d1841e3",
       "mode": "current"
     }
   ]

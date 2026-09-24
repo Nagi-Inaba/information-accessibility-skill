@@ -54,7 +54,7 @@ function journal(file, root, header) {
 export function createInteractionSession({ run, runFile, targetRef, supervisor, adapter, logFile }) {
   run = structuredClone(run);
   const validation = validateAuditRun(run, { runFile });
-  if (!validation.valid || run.schema_version !== "13.0.0") throw new Error("Interaction session requires a valid current run.");
+  if (!validation.valid || run.schema_version !== "14.0.0") throw new Error("Interaction session requires a valid current run.");
   const target = run.target_inventory?.snapshots.find((item) => item.target_ref === targetRef);
   if (!target) throw new Error("Interaction requires a measured target snapshot.");
   const policy = structuredClone(run.permissions.interaction_policy);

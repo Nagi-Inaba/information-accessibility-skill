@@ -1,6 +1,7 @@
 import { isIP } from "node:net";
 import { declaredFindings, findingPlanMetadata, remediationPlanItems } from "./run-findings.mjs";
 import { groupScreeningProjections, screeningReviewRecord } from "./review-details.mjs";
+import { reviewEntries, resolveHumanReviews, consensusReviewRows, consensusRemediationItems, reviewHistoryForReport } from "./human-review-consensus.mjs";
 
 const redacted = "[redacted]";
 const machineFields = new Set([
@@ -180,14 +181,16 @@ export function buildInternalRunBackedModel({ run, assessment, publicModel, enve
   model.limitations = structuredClone(assessment.assessment.limitations ?? []);
 
   const screenings = [];
-  const humanReviews = [];
-  const remediations = [];
+  const humanSources = [];
+  const rawRemediations = [];
   for (const record of envelopesById.values()) {
     const envelope = record?.envelope ?? record;
     if (envelope?.artifact_type === "screening-observations") screenings.push(...(envelope.payload?.observations ?? []));
-    if (envelope?.artifact_type === "declared-human-review") humanReviews.push(...(envelope.payload?.reviews ?? []));
-    if (envelope?.artifact_type === "remediation-plan") remediations.push(...remediationPlanItems(envelope.payload));
+    if (envelope?.artifact_type === "declared-human-review") humanSources.push({ payload: envelope.payload, artifact_id: envelope.artifact_id });
+    if (envelope?.artifact_type === "remediation-plan") rawRemediations.push(...remediationPlanItems(envelope.payload));
   }
+  const resolved = resolveHumanReviews(reviewEntries(humanSources)), humanReviews = consensusReviewRows(resolved);
+  const remediations = consensusRemediationItems(resolved, rawRemediations);
   const humanByRequirement = new Map(humanReviews.map((review) => [review.requirement_id, review]));
   const screeningByProfile = groupScreeningProjections(screenings);
   const rawRationale = (check) => humanByRequirement.get(check.requirement_id)?.rationale
@@ -202,14 +205,15 @@ export function buildInternalRunBackedModel({ run, assessment, publicModel, enve
     requirement_id: review.requirement_id,
     outcome: review.profile_outcome,
     rationale: review.rationale,
-    evidence: structuredClone(review.target_specific_evidence ?? [])
+    evidence: structuredClone(review.target_specific_evidence ?? []),
+    ...(resolved.modern ? { review_consensus: resolved.groups.get(review.requirement_id).status, human_reviews: reviewHistoryForReport(resolved.groups.get(review.requirement_id)) } : {})
   }));
   model.screeningCandidates = screenings.map((observation) => ({
     ...structuredClone(observation),
     remediation: remediations.find((item) => item.basis === "unverified_screening_candidate"
       && (item.observation_refs ? item.observation_refs.some((ref) => ref.requirement_id === observation.requirement_id) : item.requirement_id === observation.requirement_id)) ?? null
   }));
-  const declaredFindingRequirements = new Set(humanReviews.filter((review) => declaredFindings(review).length).map((review) => review.requirement_id));
+  const declaredFindingRequirements = new Set(resolved.findingReviews.filter((review) => declaredFindings(review).length).map((review) => review.requirement_id));
   model.remediation = remediations.filter((item) => item.basis !== "verified_failure" || !declaredFindingRequirements.has(item.requirement_id)).map((item) => ({
     requirement_id: item.requirement_id,
     ...(item.finding_id ? { requirement_ids: item.requirement_ids, observation_ids: item.observation_refs.map((ref) => ref.requirement_id) } : {}),
@@ -261,6 +265,21 @@ export function applyReportVisibility(presentation, { visibility = "internal", r
     };
   }
 
+  // Review histories also occur in finding details and inspection records.
+  // Apply identity disclosure before sanitizing any of those projections.
+  if (selectedDisclosure === "redact") {
+    const redactReviewers = (value, location = "") => {
+      if (!value || typeof value !== "object") return;
+      for (const [key, item] of Object.entries(value)) {
+        const field = location ? `${location}.${key}` : key;
+        if (["reviewer_name", "reviewer_role"].includes(key) && item) {
+          value[key] = redacted;
+          addRedaction(entries, field, "reviewer_identity_redacted", "redacted");
+        } else redactReviewers(item, field);
+      }
+    };
+    redactReviewers(copy);
+  }
   copy.target.name = sanitizeText(copy.target.name, "target.name", entries);
   copy.target.version_or_commit = sanitizeVersion(copy.target.version_or_commit, "target.version_or_commit", entries);
   copy.target.urls_or_files = copy.target.urls_or_files.map((value, index) => sanitizeUrl(value, `target.urls_or_files[${index}]`, entries));
@@ -281,6 +300,7 @@ export function applyReportVisibility(presentation, { visibility = "internal", r
     primary_url: sanitizeUrl(row.primary_url, `rows[${index}].primary_url`, entries),
     rationale: sanitizeText(row.rationale, `rows[${index}].rationale`, entries),
     evidence: sanitizeNested(row.evidence, `rows[${index}].evidence`, entries, "evidence"),
+    human_reviews: sanitizeNested(row.human_reviews, `rows[${index}].human_reviews`, entries, "human_reviews"),
     screening_observations: sanitizeNested(row.screening_observations, `rows[${index}].screening_observations`, entries, "screening_observations"),
     queue_context: sanitizeNested(row.queue_context, `rows[${index}].queue_context`, entries, "queue_context"),
     review_details: sanitizeNested(row.review_details, `rows[${index}].review_details`, entries, "review_details")

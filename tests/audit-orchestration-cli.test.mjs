@@ -74,7 +74,7 @@ function resourceVersions(registryFile = "orchestration-registry.json") {
 function initialRun(artifactRoot) {
   const resolvedRoot = path.isAbsolute(artifactRoot) ? artifactRoot : activeArtifactRoot;
   const run = {
-    schema_version: "13.0.0",
+    schema_version: "14.0.0",
     inspection_request: createInspectionRequest("quick", "Identify the next investigation"),
     run_id: runId,
     supersedes_run_id: null,
@@ -258,12 +258,13 @@ function queueEnvelope({ artifactId = "ART-QUEUE-001", inputs = [], payload = qu
 
 function declaredHumanPayload(requirementId = "WCAG-2.2-SC-1.1.1", profileOutcome = "pass") {
   return {
-    schema_version: "2.0.0",
+    schema_version: "3.0.0", reviewer_id: "fixture-reviewer",
     declaration: "I declare that I performed the recorded review as an external human reviewer.",
     reviewer_name: "External Reviewer",
     review_date: "2026-07-17",
     identity_authenticated: false,
     reviews: [{
+      review_id: "HR-FIXTURE-" + requirementId,
       requirement_id: requirementId,
       procedure_availability: "available",
       criterion_procedure_ref: "criterion-procedures:1.0.0#wcag22-sc-1-1-1-non-text-content",
@@ -799,7 +800,7 @@ test("run initialization creates a schema-valid immutable manifest with installe
   ]);
   assert.equal(result.status, 0, result.stderr || result.stdout);
   const run = readJson(output);
-  assert.equal(run.schema_version, "13.0.0");
+  assert.equal(run.schema_version, "14.0.0");
   assert.equal(run.target_inventory, null);
   assert.equal(run.status, "initialized");
   assert.equal(run.artifact_root, "artifacts");
@@ -974,8 +975,8 @@ test("audit-run dispatch maps runs 1/2 to registry 1 through run 7 to registry 6
   const legacyV3SchemaFile = path.join(references, "audit-run-3.0.0.schema.json");
   const legacyV4SchemaFile = path.join(references, "audit-run-4.0.0.schema.json");
   const legacyV5SchemaFile = path.join(references, "audit-run-5.0.0.schema.json");
-  assert.equal(currentSchema.$id, "urn:information-accessibility:audit-run:13.0.0");
-  assert.equal(currentSchema.properties.schema_version.const, "13.0.0");
+  assert.equal(currentSchema.$id, "urn:information-accessibility:audit-run:14.0.0");
+  assert.equal(currentSchema.properties.schema_version.const, "14.0.0");
   assert.equal(readJson(legacyV1SchemaFile).properties.schema_version.const, "1.0.0");
   assert.equal(readJson(legacyV2SchemaFile).properties.schema_version.const, "2.0.0");
   assert.equal(readJson(legacyV3SchemaFile).properties.schema_version.const, "3.0.0");
@@ -987,7 +988,7 @@ test("audit-run dispatch maps runs 1/2 to registry 1 through run 7 to registry 6
   const registryV2 = readJson(path.join(references, "orchestration-registry-2.0.0.json"));
   const registryV3 = readJson(path.join(references, "orchestration-registry-3.0.0.json"));
   const registryV4 = readJson(path.join(references, "orchestration-registry-4.0.0.json"));
-  assert.equal(currentRegistry.schema_version, "12.0.0");
+  assert.equal(currentRegistry.schema_version, "13.0.0");
   assert.equal(registryV1.schema_version, "1.0.0");
   assert.equal(registryV2.schema_version, "2.0.0");
   assert.equal(registryV3.schema_version, "3.0.0");
@@ -1118,6 +1119,8 @@ test("legacy declared-human runs remain readable without retroactive current bin
   const human = readJson(fixture.humanFile);
   human.schema_version = "1.0.0";
   human.payload.schema_version = "1.0.0";
+  delete human.payload.reviewer_id;
+  delete human.payload.reviews[0].review_id;
   delete human.target_snapshot_ids;
   human.payload.reviews[0].official_sources = [];
   human.payload.reviews[0].target_specific_evidence = human.payload.reviews[0].target_specific_evidence
@@ -1493,6 +1496,7 @@ test("each registry derives its own exact per-artifact payload compatibility pol
   expected.set("10.0.0", { ...expected.get("9.0.0"), "human-review-queue": "3.0.0" });
   expected.set("11.0.0", { ...expected.get("10.0.0"), "screening-observations": "4.0.0" });
   expected.set("12.0.0", { ...expected.get("11.0.0"), "remediation-plan": "3.0.0", "declared-human-review": "2.0.0" });
+  expected.set("13.0.0", { ...expected.get("12.0.0"), "declared-human-review": "3.0.0" });
   assert.deepEqual([...resources.orchestrationRegistries.keys()], [...expected.keys()]);
   for (const [registryVersion, payloadVersions] of expected) {
     assert.deepEqual(
@@ -2337,6 +2341,7 @@ test("unavailable declared review uses the queued criterion's current generic me
   const human = readJson(fixture.humanFile);
   human.inputs[0].sha256 = sha256File(fixture.queueFile);
   human.payload.reviews = [{
+    review_id: "HR-FIXTURE-UNAVAILABLE",
     requirement_id: "WCAG-2.2-SC-1.2.1",
     procedure_availability: "unavailable",
     criterion_procedure_ref: null,

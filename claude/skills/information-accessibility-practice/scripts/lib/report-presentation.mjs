@@ -4,6 +4,8 @@ import { renderSourceNoticesMarkdown } from "./source-provenance.mjs";
 import { networkScopeText } from "./network-policy.mjs";
 import { interactionScopeText } from "./interaction-policy.mjs";
 import { isHumanReviewMapping, publicReviewerAssurance, reviewerAssuranceLabel, reviewerAssuranceText, displayedEvidenceLevel } from "./assessment-provenance.mjs";
+import { reviewEntries, resolveHumanReviews, reviewHistoryForReport } from "./human-review-consensus.mjs";
+import { reviewRecordSha256 } from "./assessment-provenance.mjs";
 import { readerText, readerOverviewMarkdown, readerActionsMarkdown, readerPendingMarkdown, readerInspectionMarkdown } from "./report-reader.mjs";
 import {
   groupForRequirement,
@@ -218,6 +220,8 @@ function commonPresentation({ assessment, validation, registry, locale, rows, ta
 export function buildStandalonePresentation({ record, validation, registry, catalog, locale = "ja" }) {
   if (!validation?.valid) throw new Error("Assessment record must pass validation before report presentation is built.");
   const assessment = record.assessment;
+  const humanResolution = (assessment.human_review_records ?? []).some((item) => item.review.schema_version === "3.0.0")
+    ? resolveHumanReviews(reviewEntries(assessment.human_review_records.map((item) => ({ payload: item.review, reviewer_id: item.reviewer_id, record_sha256: reviewRecordSha256(item) })))) : null;
   const normalizedLocale = normalizeReportLocale(locale);
   const messages = reportMessages(normalizedLocale);
   const { metadata } = criterionMetadata(registry, catalog, assessment.profile.id, normalizedLocale);
@@ -241,6 +245,10 @@ export function buildStandalonePresentation({ record, validation, registry, cata
       rationale: resultRationale(result, messages),
       review_details: clone(result?.review_details),
       evidence: clone(result?.evidence ?? []),
+      ...(humanResolution?.groups.has(item.requirement_id) ? {
+        review_consensus: humanResolution.groups.get(item.requirement_id).status,
+        human_reviews: reviewHistoryForReport(humanResolution.groups.get(item.requirement_id))
+      } : {}),
       applicability: outcome === "not_applicable" ? "not_applicable" : humanReviewed ? "applicable" : "undetermined"
     };
   });
@@ -297,6 +305,7 @@ export function buildRunBackedPresentation({ run, assessment: assessmentRecord, 
       rationale: check.rationale || messages.text.noEvidence,
       review_details: clone(check.review_details),
       evidence: human ? clone(human.evidence ?? []) : (screening?.observations ?? []).flatMap(screeningEvidence),
+      ...(human?.human_reviews ? { human_reviews: clone(human.human_reviews), review_consensus: human.review_consensus } : {}),
       applicability: check.applicability ?? (check.outcome === "not_applicable" ? "not_applicable" : "undetermined")
     };
   });

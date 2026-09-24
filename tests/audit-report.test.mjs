@@ -130,7 +130,7 @@ function reportRunFixture(temp, { declaredFinding = false, withoutPlan = false, 
   const target = { name: targetName, version_or_commit: "fixture-v1", urls_or_files: ["https://example.invalid/checkout"] };
   const scope = { included: ["Checkout"], excluded: [], complete_processes: [], third_party_content: [], full_pages_reviewed: false };
   const environment = { os: ["not_declared"], browsers: [], assistive_technologies: [], input_modes: [] };
-  const targetContext = { schema_version: "13.0.0", run_id: runId, target, environment };
+  const targetContext = { schema_version: "14.0.0", run_id: runId, target, environment };
   targetContext.target_inventory = fixtureInventory(targetContext, artifactRoot);
   const created = [
     "2026-07-17T12:00:01Z",
@@ -213,12 +213,12 @@ function reportRunFixture(temp, { declaredFinding = false, withoutPlan = false, 
     run_id: runId,
     sha256: resourcesSha256(queueFile)
   }], {
-    schema_version: "2.0.0",
+    schema_version: "3.0.0", reviewer_id: "fixture-reviewer",
     declaration: "I declare that I performed the recorded review as an external human reviewer.",
     reviewer_name: "External Reviewer",
     review_date: "2026-07-17",
     identity_authenticated: false,
-    reviews: [review("WCAG-2.2-SC-1.1.1", "fail"), review("WCAG-2.2-SC-1.3.1", "pass")]
+    reviews: [review("WCAG-2.2-SC-1.1.1", "fail"), review("WCAG-2.2-SC-1.3.1", "pass")].map((item) => ({ ...item, review_id: "HR-FIXTURE-" + item.requirement_id }))
   }, created[2], "external_human");
   if (declaredFinding) human.payload.reviews[0].finding = {
     id: "FIND-HUMAN-REPORT", priority: "P1", location: "Checkout product image",
@@ -269,7 +269,7 @@ function reportRunFixture(temp, { declaredFinding = false, withoutPlan = false, 
   const artifacts = withoutPlan ? [screen, queue, human] : [screen, queue, human, remediation];
   if (withoutPlan) artifactFiles.delete(remediation.artifact_id);
   const run = {
-    schema_version: "13.0.0",
+    schema_version: "14.0.0",
     target_inventory: targetContext.target_inventory,
     inspection_request: createInspectionRequest("quick", "Identify the next investigation"),
     run_id: runId,
@@ -713,7 +713,7 @@ test("run-backed renderer rejects tampering, mismatched or foreign assessment ev
     const foreignOutput = path.join(temp, "foreign.md");
     const foreign = invoke(foreignFile, foreignOutput);
     assert.notEqual(foreign.status, 0);
-    assert.match(foreign.stderr || foreign.stdout, /differs from the referenced human review/);
+    assert.match(foreign.stderr || foreign.stdout, /differs from the complete human review consensus/);
     assert.equal(fs.existsSync(foreignOutput), false);
 
     const existingOutput = path.join(temp, "existing.md");

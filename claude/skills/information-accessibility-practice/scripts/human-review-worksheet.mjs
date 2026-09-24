@@ -8,7 +8,7 @@ import { compareInstants } from "./lib/date-time.mjs";
 function optionsFrom(argv) {
   const [command, ...args] = argv;
   const options = { command };
-  const flags = command === "export" ? ["run", "queue", "output", "format"] : ["run", "queue", "input", "output", "format", "artifact-id"];
+  const flags = command === "export" ? ["run", "queue", "output", "format", "reviews"] : ["run", "queue", "input", "output", "format", "artifact-id", "reviews"];
   if (!["export", "import"].includes(command)) throw new Error("Choose human-review export or import.");
   for (let index = 0; index < args.length; index += 2) {
     const flag = args[index], key = flag.replace(/^--/u, ""), value = args[index + 1];
@@ -20,6 +20,8 @@ function optionsFrom(argv) {
   for (const key of ["run", "queue", "output", ...(command === "export" ? ["format"] : ["input"])]) if (!options[key]) throw new Error(`--${key} is required.`);
   if (!options.format) options.format = ({ ".xlsx": "xlsx", ".csv": "csv", ".md": "markdown" })[path.extname(options.input).toLowerCase()];
   if (!["xlsx", "csv", "markdown"].includes(options.format)) throw new Error("--format must be xlsx, csv or markdown (or use .xlsx, .csv, .md input extension).");
+  options.reviews ??= "unsubmitted";
+  if (!["unsubmitted", "all"].includes(options.reviews)) throw new Error("--reviews must be unsubmitted or all.");
   return options;
 }
 
@@ -29,13 +31,13 @@ export async function runWorksheetCommand(argv) {
   const run = structuredClone(parseAttestationJson(snapshot.bytes));
   const validation = validateAuditRun(run, { runFile: snapshot.path });
   if (!validation.valid) throw new Error(`Audit run validation failed:\n- ${validation.errors.join("\n- ")}`);
-  if (run.schema_version !== "13.0.0") throw new Error("Worksheets require current run 13.0.0; legacy runs remain read-only.");
+  if (run.schema_version !== "14.0.0") throw new Error("Worksheets require current run 14.0.0; legacy runs remain read-only.");
   if (!["human_queue_ready", "human_review_recorded"].includes(run.status)) throw new Error("Worksheets require a registered queue before remediation planning.");
   for (const entry of validation.envelopesById.values()) parseAttestationJson(entry.snapshot.bytes);
   const selected = validation.envelopesById.get(options.queue);
   if (!selected || selected.envelope.artifact_type !== "human-review-queue") throw new Error("--queue must be the ID of a registered human-review-queue in this run.");
   const queue = selected.envelope;
-  const items = worksheetItems(run, queue, validation.envelopesById);
+  const items = worksheetItems(run, queue, validation.envelopesById, options.reviews);
   const expected = createWorksheetRows({ run, runSha256: snapshot.sha256, queue, queueSha256: selected.snapshot.sha256, items, skillRoot: validation.resources.skillRoot });
   const output = path.resolve(options.output);
   const relative = path.relative(validation.artifactRoot, output);

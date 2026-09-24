@@ -8,6 +8,7 @@ export function legacyAssessment(record) {
   for (const row of legacy.assessment.results ?? []) {
     if (row.mapping_status === "human_declared") row.mapping_status = "human_verified";
     delete row.review_record_sha256;
+    delete row.review_resolution;
   }
   return legacy;
 }

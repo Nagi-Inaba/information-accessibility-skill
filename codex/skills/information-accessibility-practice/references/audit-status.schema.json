@@ -8,6 +8,78 @@
   "properties": {
     "schema_version": {"const": "1.0.0"},
     "valid": {"type": "boolean"},
+    "human_review_resolution": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "requirement_id",
+          "status",
+          "reviews"
+        ],
+        "properties": {
+          "requirement_id": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "single_review",
+              "agreement",
+              "unresolved_disagreement"
+            ]
+          },
+          "reviews": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "review_id",
+                "reviewer_id",
+                "review_date",
+                "outcome",
+                "state",
+                "supersedes_review_id"
+              ],
+              "properties": {
+                "review_id": {
+                  "type": "string"
+                },
+                "reviewer_id": {
+                  "type": "string"
+                },
+                "review_date": {
+                  "type": "string",
+                  "format": "date"
+                },
+                "outcome": {
+                  "enum": [
+                    "pass",
+                    "fail",
+                    "not_applicable",
+                    "not_tested",
+                    "cant_tell"
+                  ]
+                },
+                "state": {
+                  "enum": [
+                    "active",
+                    "superseded"
+                  ]
+                },
+                "supersedes_review_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "finding_retest": {
       "type": "object", "additionalProperties": false, "required": ["basis", "requirements", "findings"],
       "properties": {

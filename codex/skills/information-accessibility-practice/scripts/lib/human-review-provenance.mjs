@@ -6,6 +6,7 @@ import { verifyDetachedAttestation, attestationVerificationResult } from "./atte
 
 const recordSchema = JSON.parse(fs.readFileSync(new URL("../../references/human-review-record.schema.json", import.meta.url), "utf8"));
 const legacyRecordSchema = JSON.parse(fs.readFileSync(new URL("../../references/human-review-record-1.0.0.schema.json", import.meta.url), "utf8"));
+const pluralRecordSchema = JSON.parse(fs.readFileSync(new URL("../../references/human-review-record-2.0.0.schema.json", import.meta.url), "utf8"));
 const hasSameJson = (left, right) => canonicalAttestationJson(left) === canonicalAttestationJson(right);
 const requireValue = (condition, message) => { if (!condition) throw new Error(message); };
 
@@ -13,9 +14,10 @@ export function validateHumanReviewRecord(record) {
   // This also rejects accessors, hidden fields, non-finite numbers and other
   // non-JSON values before any application code reads attacker-owned fields.
   canonicalAttestationJson(record);
-  const errors = validateJsonSchema(record, record.schema_version === "1.0.0" ? legacyRecordSchema : recordSchema);
+  const errors = validateJsonSchema(record, record.schema_version === "1.0.0" ? legacyRecordSchema : record.schema_version === "2.0.0" ? pluralRecordSchema : recordSchema);
   requireValue(errors.length === 0, `Invalid human review record:\n- ${errors.join("\n- ")}`);
   const context = record.context;
+  if (record.schema_version === "3.0.0") requireValue(record.reviewer_id === record.review.reviewer_id, "Review record reviewer_id must match the declared review subject.");
   const reviewedIds = record.review.reviews.map((review) => review.requirement_id);
   requireValue(new Set(reviewedIds).size === reviewedIds.length, "Duplicate reviewed requirement IDs are not permitted.");
   if (context.origin.kind === "audit_run") {
@@ -49,7 +51,7 @@ export function humanReviewRunContext({ run, artifact, artifactSha256 }) {
 }
 
 export function createHumanReviewRecord({ reviewerId, review, context }) {
-  const record = { schema_version: review.schema_version === "1.0.0" ? "1.0.0" : "2.0.0", reviewer_id: reviewerId, context: structuredClone(context), review: structuredClone(review), attestation: null };
+  const record = { schema_version: review.schema_version, reviewer_id: reviewerId, context: structuredClone(context), review: structuredClone(review), attestation: null };
   validateHumanReviewRecord(record);
   return record;
 }
@@ -57,7 +59,7 @@ export function createHumanReviewRecord({ reviewerId, review, context }) {
 export function humanReviewSigningSubject(record) {
   validateHumanReviewRecord(record);
   return {
-    subject_type: record.schema_version === "1.0.0" ? "information-accessibility-human-review-v1" : "information-accessibility-human-review-v2",
+    subject_type: `information-accessibility-human-review-v${record.schema_version.split(".")[0]}`,
     schema_version: record.schema_version,
     reviewer_id: record.reviewer_id,
     context: structuredClone(record.context),

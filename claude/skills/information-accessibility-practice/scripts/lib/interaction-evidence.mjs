@@ -5,7 +5,7 @@ import { isRealInstant } from "./evidence-identity-validation.mjs";
 // Offline consistency only. Neither an approval ID nor this hash chain is an
 // authentication credential or permission to replay an operation.
 export function validateInteractionEvidence(bytes, run, reference) {
-  if (!["10.0.0", "11.0.0", "12.0.0", "13.0.0"].includes(run.schema_version)) return;
+  if (!["10.0.0", "11.0.0", "12.0.0", "13.0.0", "14.0.0"].includes(run.schema_version)) return;
   const fail = () => { throw new Error("Interaction evidence has an invalid chain, approval, operation or run/target binding."); };
   let entries;
   try { entries = bytes.toString("utf8").trimEnd().split("\n").map((line) => JSON.parse(line)); } catch { fail(); }

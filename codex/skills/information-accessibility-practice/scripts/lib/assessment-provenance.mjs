@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import { attestationDigest, canonicalAttestationJson, parseAttestationJson } from "./attestation-canonical.mjs";
 import { humanReviewContext, humanReviewRunContext, humanReviewSigningSubject, verifyHumanReviewRecord } from "./human-review-provenance.mjs";
 import { declaredFindings, declaredFindingErrors } from "./run-findings.mjs";
+import { reviewEntries, resolveHumanReviews } from "./human-review-consensus.mjs";
 
 const assurances = ["legacy_self_declared", "self_declared", "self_signed", "signed", "organization_attested", "independent"];
 const authenticated = new Set(["signed", "organization_attested", "independent"]);
@@ -43,7 +44,7 @@ export function validateReviewBindings(record, catalogRecords, auditMethods, pro
       }
       if (!exactSet(review.official_sources, procedure?.primary_sources ?? catalog.official_method_sources)) errors.push(`Human review official_sources must exactly match the registered procedure or catalog: ${id}`);
       const types = new Set((review.target_specific_evidence ?? []).map((entry) => entry?.type));
-      const nonPerformance = ["11.0.0", "12.0.0", "13.0.0"].includes(options.run?.schema_version) && review.profile_outcome === "not_tested";
+      const nonPerformance = ["11.0.0", "12.0.0", "13.0.0", "14.0.0"].includes(options.run?.schema_version) && review.profile_outcome === "not_tested";
       const requiredTypes = nonPerformance ? ["manual_observation"] : procedure?.required_evidence_types ?? method?.required_evidence_types ?? [];
       if (nonPerformance && [...types].some((type) => type !== "manual_observation")) errors.push(`Human review not_tested accepts only manual_observation non-performance notes: ${id}`);
       for (const type of requiredTypes) {
@@ -103,8 +104,48 @@ export function assessReviewerProvenance(record, options = {}) {
         }
       } catch (error) { errors.push(error.message); }
     }
-    errors.push(...declaredFindingErrors([...verifiedRecords.keys()].flatMap((item) => item.review.reviews)));
-    for (const reviewRecord of records) {
+    const modern = records.some((item) => item.review?.schema_version === "3.0.0");
+    if (modern) {
+      try {
+        const resolved = resolveHumanReviews(reviewEntries([...verifiedRecords.keys()].map((item) => ({
+          payload: item.review, reviewer_id: item.reviewer_id, record_sha256: reviewRecordSha256(item)
+        }))));
+        const verificationByHash = new Map([...verifiedRecords].map(([item, verification]) => [reviewRecordSha256(item), verification]));
+        const entryById = new Map([...resolved.groups.values()].flatMap((group) => group.history.map((entry) => [entry.review_id, entry])));
+        for (const [priorId, successorId] of resolved.superseded) {
+          const prior = verificationByHash.get(entryById.get(priorId).record_sha256), successor = verificationByHash.get(entryById.get(successorId).record_sha256);
+          if (assurances.indexOf(successor.assurance) < assurances.indexOf(prior.assurance)) throw new Error("Superseding review cannot downgrade its predecessor's verified reviewer assurance.");
+        }
+        errors.push(...declaredFindingErrors(resolved.findingReviews));
+        const confirmedFindingRequirements = new Map();
+        for (const review of resolved.findingReviews) for (const finding of declaredFindings(review)) {
+          const ids = confirmedFindingRequirements.get(finding.id) ?? new Set();
+          ids.add(review.requirement_id); confirmedFindingRequirements.set(finding.id, ids);
+          const projected = (assessment.findings ?? []).find((item) => item.id === finding.id);
+          if (!projected || Object.entries(finding).some(([key, value]) => !same(projected[key], value))) throw new Error(`Assessment finding differs from the active human reviews: ${finding.id}`);
+        }
+        for (const [id, requirements] of confirmedFindingRequirements) {
+          const finding = assessment.findings.find((item) => item.id === id);
+          if (!same([...finding.requirement_ids].sort(), [...requirements].sort())) throw new Error(`Assessment finding relations differ from active consensus: ${id}`);
+        }
+        for (const group of resolved.groups.values()) {
+          const review = group.review, row = rows.find((item) => item.requirement_id === group.requirement_id && item.requirement_kind === "profile_requirement");
+          if (!row || row.mapping_status !== "human_declared" || Object.hasOwn(row, "review_record_sha256") || Object.hasOwn(row, "review_details")
+            || !same(row.review_resolution, group.resolution) || row.outcome !== review.profile_outcome || row.method_kind !== "manual"
+            || row.method !== declaredReviewMethod(review) || row.notes !== review.rationale || !same(row.evidence, review.target_specific_evidence)) throw new Error(`Assessment row differs from the complete human review consensus: ${group.requirement_id}`);
+          const explicit = new Set(group.active.flatMap((entry) => declaredFindings(entry.review).map((finding) => finding.id)));
+          if (review.profile_outcome === "fail" && explicit.size && (assessment.findings ?? []).some((finding) => finding.requirement_ids.includes(group.requirement_id) && !explicit.has(finding.id))) throw new Error(`Unsigned finding added to human review consensus: ${group.requirement_id}`);
+          for (const entry of group.active) if (entry.review.profile_outcome === "fail" && !declaredFindings(entry.review).length
+            && records.find((item) => reviewRecordSha256(item) === entry.record_sha256)?.context.origin.kind === "standalone") throw new Error(`Standalone human failure requires signed-subject finding details: ${group.requirement_id}`);
+          const verification = group.active.map((entry) => verificationByHash.get(entry.record_sha256))
+            .sort((a, b) => assurances.indexOf(a.assurance) - assurances.indexOf(b.assurance))[0];
+          byRequirement.set(group.requirement_id, verification); counts[verification.assurance]++;
+          group.history.forEach((entry) => used.add(entry.record_sha256));
+        }
+      } catch (error) { errors.push(error.message); }
+    } else {
+      errors.push(...declaredFindingErrors([...verifiedRecords.keys()].flatMap((item) => item.review.reviews)));
+      for (const reviewRecord of records) {
       try {
         const hash = reviewRecordSha256(reviewRecord);
         if (seen.has(hash)) throw new Error("Duplicate human review record subject.");
@@ -137,10 +178,12 @@ export function assessReviewerProvenance(record, options = {}) {
           used.add(hash);
         }
       } catch (error) { errors.push(error.message); }
+      }
     }
     for (const row of rows) {
       if (row.mapping_status === "human_declared" && !byRequirement.has(row.requirement_id)) errors.push(`No valid reviewer provenance for declared row: ${row.requirement_id}`);
       if (row.mapping_status !== "human_declared" && Object.hasOwn(row, "review_record_sha256")) errors.push(`Only human_declared rows may reference a review record: ${row.requirement_id}`);
+      if (row.mapping_status !== "human_declared" && Object.hasOwn(row, "review_resolution")) errors.push(`Only human_declared rows may contain a review resolution: ${row.requirement_id}`);
     }
     if (used.size !== records.length) errors.push("Every human review record must bind at least one assessment result.");
   }

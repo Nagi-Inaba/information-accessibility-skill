@@ -145,7 +145,7 @@ function assertRejected(result, pattern) {
 
 function initialRun(artifactRoot) {
   const run = {
-    schema_version: "13.0.0",
+    schema_version: "14.0.0",
     inspection_request: createInspectionRequest("quick", "Identify the next investigation"),
     run_id: RUN_ID,
     supersedes_run_id: null,
@@ -236,12 +236,13 @@ function remediationPayload() {
 function declaredHumanReviewPayload(requirementId = "WCAG-2.2-SC-1.1.1") {
   const binding = lookupRequirement("web-modern", requirementId, skillRoot).procedure_binding;
   return {
-    schema_version: "2.0.0",
+    schema_version: "3.0.0", reviewer_id: "fixture-reviewer",
     declaration: "I declare that I performed the review in accordance with the specified requirement.",
     reviewer_name: "Authorized reviewer",
     review_date: "2026-07-18",
     identity_authenticated: false,
     reviews: [{
+      review_id: "HR-FIXTURE-" + requirementId,
       requirement_id: requirementId,
       procedure_availability: binding.procedure_availability,
       criterion_procedure_ref: binding.procedure_availability === "available" ? binding.procedure_ref : null,

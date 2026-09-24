@@ -8,7 +8,8 @@ import { validateAssessment } from "./validate-assessment.mjs";
 import { validateRunBackedAssessment } from "./render-audit-report.mjs";
 import { networkScopeSummary } from "./lib/network-policy.mjs";
 import { interactionScopeSummary } from "./lib/interaction-policy.mjs";
-import { findingRelations, findingRetestSummary } from "./lib/run-findings.mjs";
+import { findingRelations, findingRetestSummary, remediationPlanItems } from "./lib/run-findings.mjs";
+import { reviewEntries, resolveHumanReviews, consensusReviewRows, consensusRemediationItems } from "./lib/human-review-consensus.mjs";
 import { assertStableFile, defaultSkillRoot, mergeArtifacts, readStableFile, validateAuditRun } from "./lib/audit-run.mjs";
 
 function parse(snapshot) {
@@ -134,7 +135,7 @@ export function auditStatus(runFile, { skillRoot = defaultSkillRoot, retestOf } 
         result.recovery.push("Complete the registered finding details or required artifact bindings, then merge from a fresh E0 baseline.");
       }
     }
-    const retest = ["5.0.0", "6.0.0", "7.0.0", "8.0.0", "9.0.0", "10.0.0", "11.0.0", "12.0.0", "13.0.0"].includes(run.schema_version) && run.status === "retest_required";
+    const retest = ["5.0.0", "6.0.0", "7.0.0", "8.0.0", "9.0.0", "10.0.0", "11.0.0", "12.0.0", "13.0.0", "14.0.0"].includes(run.schema_version) && run.status === "retest_required";
     result.operations.retest = { available: retest, reason: retest ? "new_run_id_and_target_version_required" : "requires_completed_authorized_change" };
     let priorEnvelopes = envelopes, comparison = false;
     if (retestOf) {
@@ -150,7 +151,17 @@ export function auditStatus(runFile, { skillRoot = defaultSkillRoot, retestOf } 
       for (const record of priorValidation.envelopesById.values()) assertStableFile(record.snapshot, "predecessor artifact");
       for (const evidence of priorValidation.evidenceSnapshots?.values() ?? []) assertStableFile(evidence, "predecessor evidence");
     }
-    result.finding_retest = findingRetestSummary(findingRelations(priorEnvelopes), envelopes.filter((item) => item.artifact_type === "declared-human-review").flatMap((item) => item.payload.reviews), { comparison, required: retest });
+    const resolve = (records) => resolveHumanReviews(reviewEntries(records.filter((item) => item.artifact_type === "declared-human-review")
+      .map((item) => ({ payload: item.payload, artifact_id: item.artifact_id }))));
+    const resolved = resolve(envelopes), priorResolved = comparison ? resolve(priorEnvelopes) : resolved;
+    const plans = consensusRemediationItems(priorResolved, priorEnvelopes.filter((item) => item.artifact_type === "remediation-plan").flatMap((item) => remediationPlanItems(item.payload)));
+    result.finding_retest = findingRetestSummary(findingRelations(priorEnvelopes, { reviews: priorResolved.findingReviews, plans }), consensusReviewRows(resolved), { comparison, required: retest });
+    if (resolved.modern) result.human_review_resolution = [...resolved.groups.values()].map((group) => ({
+      requirement_id: group.requirement_id, status: group.status,
+      reviews: group.history.map((entry) => ({ review_id: entry.review_id, reviewer_id: entry.reviewer_id,
+        review_date: entry.review_date, outcome: entry.review.profile_outcome,
+        state: group.active.includes(entry) ? "active" : "superseded", supersedes_review_id: entry.review.supersedes_review_id ?? null }))
+    }));
   }
   assertStableFile(snapshot, "audit run");
   for (const record of validation.envelopesById?.values() ?? []) assertStableFile(record.snapshot, "registered artifact");
@@ -175,6 +186,9 @@ export function statusText(result, locale = "en") {
     "", ja ? "次の遷移（成果物の作成・検証が必要）" : "Next transitions (create and validate the required artifact)",
     ...result.next_transitions.map((item) => `- ${item.from} -> ${item.to}: ${item.required_artifact_types.join(", ")} / ${item.producer_roles.join(", ")} / ${item.permitted ? "available" : item.reason}`),
     "", ...Object.entries(result.operations).map(([name, operation]) => `${name}: ${operation.available ? "available" : "unavailable"} (${operation.reason})`),
+    ...(result.human_review_resolution ? ["", ja ? "レビューの一致と訂正履歴（確認者IDは申告値）" : "Review agreement and supersession (reviewer IDs are self-declared)",
+      ...result.human_review_resolution.flatMap((item) => [`- ${item.requirement_id}: ${item.status}`,
+        ...item.reviews.map((review) => `  ${review.review_id} / ${review.reviewer_id} / ${review.review_date} / ${review.outcome} / ${review.state}${review.supersedes_review_id ? ` / supersedes ${review.supersedes_review_id}` : ""}`)])] : []),
     ...(result.finding_retest ? ["", ja ? "指摘・条項ごとの再確認（申告に基づく。指摘の解消確定ではありません）" : "Finding/criterion retest declarations (not confirmation of finding resolution)",
       ...result.finding_retest.findings.map((item) => `- ${item.finding_id}: ${item.status} / ${item.requirement_ids.join(", ")}`),
       ...result.finding_retest.requirements.map((item) => `- ${item.requirement_id}: ${item.status}`)] : []),

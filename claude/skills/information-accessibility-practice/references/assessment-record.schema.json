@@ -322,6 +322,57 @@
               "review_record_sha256": {
                 "type": "string",
                 "pattern": "^[a-f0-9]{64}$"
+              },
+              "review_resolution": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "policy",
+                  "status",
+                  "review_refs"
+                ],
+                "properties": {
+                  "policy": {
+                    "const": "unanimous_active_reviews"
+                  },
+                  "status": {
+                    "enum": [
+                      "single_review",
+                      "agreement",
+                      "unresolved_disagreement"
+                    ]
+                  },
+                  "review_refs": {
+                    "type": "array",
+                    "minItems": 1,
+                    "uniqueItems": true,
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "review_id",
+                        "record_sha256",
+                        "state"
+                      ],
+                      "properties": {
+                        "review_id": {
+                          "type": "string",
+                          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"
+                        },
+                        "record_sha256": {
+                          "type": "string",
+                          "pattern": "^[a-f0-9]{64}$"
+                        },
+                        "state": {
+                          "enum": [
+                            "active",
+                            "superseded"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
               }
             },
             "allOf": [
@@ -337,9 +388,33 @@
                   }
                 },
                 "then": {
-                  "required": [
-                    "review_record_sha256"
-                  ]
+                  "if": {
+                    "required": [
+                      "review_resolution"
+                    ]
+                  },
+                  "then": {
+                    "properties": {
+                      "requirement_id": {},
+                      "requirement_kind": {},
+                      "requirement_source": {},
+                      "mapping_status": {},
+                      "outcome": {},
+                      "method_kind": {},
+                      "method_ref": {},
+                      "method": {},
+                      "evidence": {},
+                      "notes": {},
+                      "review_details": {},
+                      "review_resolution": {}
+                    },
+                    "additionalProperties": false
+                  },
+                  "else": {
+                    "required": [
+                      "review_record_sha256"
+                    ]
+                  }
                 }
               }
             ]
@@ -653,7 +728,8 @@
         "schema_version": {
           "enum": [
             "1.0.0",
-            "2.0.0"
+            "2.0.0",
+            "3.0.0"
           ]
         },
         "reviewer_id": {
@@ -913,7 +989,8 @@
             "schema_version": {
               "enum": [
                 "1.0.0",
-                "2.0.0"
+                "2.0.0",
+                "3.0.0"
               ]
             },
             "declaration": {
@@ -937,6 +1014,14 @@
               "items": {
                 "$ref": "#/$defs/human_review_record/$defs/review"
               }
+            },
+            "reviewer_id": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"
+            },
+            "reviewer_role": {
+              "type": "string",
+              "minLength": 1
             }
           }
         },
@@ -1026,6 +1111,17 @@
               "items": {
                 "$ref": "#/$defs/human_review_record/$defs/finding"
               }
+            },
+            "review_id": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"
+            },
+            "supersedes_review_id": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"
             }
           },
           "allOf": [
@@ -1100,7 +1196,9 @@
                   "target_specific_evidence": {},
                   "profile_outcome": {},
                   "rationale": {},
-                  "findings": {}
+                  "findings": {},
+                  "review_id": {},
+                  "supersedes_review_id": {}
                 },
                 "additionalProperties": false
               }
@@ -1223,13 +1321,86 @@
             }
           },
           "else": {
+            "if": {
+              "properties": {
+                "schema_version": {
+                  "const": "2.0.0"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "review": {
+                  "properties": {
+                    "schema_version": {
+                      "const": "2.0.0"
+                    }
+                  }
+                }
+              }
+            },
+            "else": {
+              "properties": {
+                "review": {
+                  "required": [
+                    "reviewer_id"
+                  ],
+                  "properties": {
+                    "schema_version": {
+                      "const": "3.0.0"
+                    },
+                    "reviews": {
+                      "items": {
+                        "required": [
+                          "review_id"
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "schema_version": {
+                "enum": [
+                  "1.0.0",
+                  "2.0.0"
+                ]
+              }
+            }
+          },
+          "then": {
             "properties": {
               "review": {
                 "properties": {
-                  "schema_version": {
-                    "const": "2.0.0"
+                  "schema_version": {},
+                  "declaration": {},
+                  "reviewer_name": {},
+                  "review_date": {},
+                  "identity_authenticated": {},
+                  "reviews": {
+                    "items": {
+                      "properties": {
+                        "requirement_id": {},
+                        "procedure_availability": {},
+                        "criterion_procedure_ref": {},
+                        "generic_method_ref": {},
+                        "official_sources": {},
+                        "target_specific_evidence": {},
+                        "profile_outcome": {},
+                        "rationale": {},
+                        "finding": {},
+                        "findings": {}
+                      },
+                      "additionalProperties": false
+                    }
                   }
-                }
+                },
+                "additionalProperties": false
               }
             }
           }

@@ -145,12 +145,14 @@ function humanArtifact(runId, suffix, queue, queueFile) {
     createdAt: `2026-08-23T12:00:2${suffix}Z`,
     inputs: [inputRef(queue, queueFile)],
     payload: {
-      schema_version: "2.0.0",
+      schema_version: "3.0.0",
       declaration: "I declare that I performed the recorded review as an external human reviewer.",
+      reviewer_id: "example-reviewer",
       reviewer_name: "Example External Reviewer",
       review_date: "2026-08-23",
       identity_authenticated: false,
       reviews: [{
+        review_id: `HR-EXAMPLE-${suffix}`,
         requirement_id: profileRequirement,
         procedure_availability: binding.procedure_availability,
         criterion_procedure_ref: binding.procedure_ref,

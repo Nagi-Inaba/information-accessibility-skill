@@ -20,6 +20,7 @@ import { renderReportSummaryMarkdown } from "../codex/skills/information-accessi
 import { applyReportVisibility } from "../codex/skills/information-accessibility-practice/scripts/lib/report-privacy.mjs";
 import { legacyAssessment } from "./helpers/legacy-assessment.mjs";
 import { buildRunFindings } from "../codex/skills/information-accessibility-practice/scripts/lib/run-findings.mjs";
+import { resolveHumanReviews, reviewEntries } from "../codex/skills/information-accessibility-practice/scripts/lib/human-review-consensus.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const scripts = path.join(root, "codex/skills/information-accessibility-practice/scripts");
@@ -105,6 +106,64 @@ test("signed plural findings retain shared criteria and reject unsigned relation
   assert.throws(() => buildRunFindings(duplicate.reviews, []), /Duplicate finding|Conflicting human/);
   const duplicateContent = structuredClone(payload); duplicateContent.reviews[0].findings.push({ ...shared, id: "FIND-DUPLICATE-CONTENT" });
   assert.throws(() => buildRunFindings(duplicateContent.reviews, []), /Duplicate human finding content/);
+});
+
+test("independent reviews retain agreement, disagreement and immutable supersession", () => {
+  const { baseline, record } = fixture({ failure: true });
+  function review(reviewerId, reviewId, outcome, supersedes = null) {
+    const payload = structuredClone(record.review); payload.schema_version = "3.0.0";
+    payload.reviewer_id = reviewerId; payload.reviewer_name = "PRIVATE-" + reviewerId;
+    const row = payload.reviews[0]; row.review_id = reviewId; row.supersedes_review_id = supersedes; row.profile_outcome = outcome;
+    if (outcome !== "fail") delete row.finding;
+    return createHumanReviewRecord({ reviewerId, review: payload, context: record.context });
+  }
+  const first = review("reviewer-a", "HR-A1", "fail"), second = review("reviewer-b", "HR-B1", "fail");
+  const original = JSON.stringify(first);
+  const single = applyStandaloneHumanReview({ assessment: baseline, reviewRecord: first, resources });
+  const agreed = applyStandaloneHumanReview({ assessment: single, reviewRecord: second, resources });
+  assert.equal(agreed.assessment.results[0].review_resolution.status, "agreement");
+  assert.equal(agreed.assessment.findings.length, 1);
+  const correction = review("reviewer-b", "HR-B2", "pass", "HR-B1");
+  const conflict = applyStandaloneHumanReview({ assessment: agreed, reviewRecord: correction, resources });
+  assert.equal(conflict.assessment.results[0].outcome, "cant_tell");
+  assert.equal(conflict.assessment.results[0].review_resolution.status, "unresolved_disagreement");
+  assert.equal(conflict.assessment.human_review_records.length, 3);
+  assert.equal(conflict.assessment.findings.length, 0);
+  assert.equal(JSON.stringify(first), original);
+  for (const locale of ["ja", "en"]) {
+    const presentation = buildStandalonePresentation({ record: conflict, validation: validate(conflict), registry: resources.standardsRegistry, catalog: resources.criteriaCatalog, locale });
+    const publicCopy = applyReportVisibility(presentation, { visibility: "public", reviewerDisclosure: "redact" }).presentation;
+    for (const report of [renderReportMarkdown(publicCopy), renderReportHtml(publicCopy)]) {
+      assert.doesNotMatch(report, /PRIVATE-reviewer/);
+      assert.match(report, locale === "ja" ? /不一致・未解決/ : /Unresolved disagreement/);
+      assert.match(report, locale === "ja" ? /更新前/ : /superseded/);
+      assert.match(report, /Synthetic missing alternative/);
+    }
+    const included = applyReportVisibility(presentation, { visibility: "public", reviewerDisclosure: "include" }).presentation;
+    assert.match(renderReportHtml(included), /PRIVATE-reviewer-a/);
+  }
+  const resolved = applyStandaloneHumanReview({ assessment: conflict, reviewRecord: review("reviewer-a", "HR-A2", "pass", "HR-A1"), resources });
+  assert.equal(resolved.assessment.results[0].outcome, "pass");
+  assert.equal(resolved.assessment.human_review_records.length, 4);
+  assert.equal(validate(resolved).valid, true);
+  assert.throws(() => applyStandaloneHumanReview({ assessment: resolved, reviewRecord: review("reviewer-c", "HR-C1", "pass", "HR-A2"), resources }), /same declared reviewer/);
+  const altered = structuredClone(conflict); altered.assessment.results[0].outcome = "pass";
+  assert.equal(validate(altered).valid, false);
+  const sources = [first, second, correction].map((item) => ({ payload: item.review, reviewer_id: item.reviewer_id }));
+  sources[1].payload = structuredClone(sources[1].payload); sources[1].payload.reviews[0].supersedes_review_id = "HR-B2";
+  assert.throws(() => resolveHumanReviews(reviewEntries(sources)), /cycle/);
+  const { signed, trust } = signer(first);
+  const signedSingle = applyStandaloneHumanReview({ assessment: baseline, reviewRecord: signed, resources, trust });
+  assert.equal(validate(signedSingle, { trust }).guard.reviewer_assurance.authenticated_requirement_count, 1);
+  assert.throws(() => applyStandaloneHumanReview({ assessment: signedSingle,
+    reviewRecord: review("reviewer-a", "HR-A3", "pass", "HR-A1"), resources, trust }), /assurance|downgrade/i);
+  const tamperedId = structuredClone(signed); tamperedId.review.reviews[0].review_id = "HR-FORGED";
+  assert.throws(() => applyStandaloneHumanReview({ assessment: baseline, reviewRecord: tamperedId, resources, trust }), /subject.*mismatch/i);
+  const legacySingle = applyStandaloneHumanReview({ assessment: baseline, reviewRecord: record, resources });
+  const mixed = applyStandaloneHumanReview({ assessment: legacySingle, reviewRecord: second, resources });
+  assert.equal(validate(mixed).valid, true);
+  assert.equal(buildStandalonePresentation({ record: mixed, validation: validate(mixed), registry: resources.standardsRegistry,
+    catalog: resources.criteriaCatalog }).rows[0].human_reviews.length, 2);
 });
 
 test("assessment assurance is rederived from records and external trust for every report format", () => {

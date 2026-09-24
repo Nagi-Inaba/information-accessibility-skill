@@ -30,16 +30,17 @@ test("offline CLI prepares and verifies real run-backed and standalone records w
   const sourceFile = path.resolve(scenario, run.artifact_root, entry.path);
   const sourceBytes = fs.readFileSync(sourceFile), runBytes = fs.readFileSync(runFile), assessmentBytes = fs.readFileSync(assessmentFile);
   const rawReview = path.join(directory, "declared.json"); write(rawReview, read(sourceFile).payload);
+  const reviewerId = read(sourceFile).payload.reviewer_id;
   const cases = [
     { name: "run", context: ["--run", runFile, "--artifact-id", entry.artifact_id], prepare: [] },
     { name: "standalone", context: ["--assessment", assessmentFile], prepare: ["--review", rawReview] }
   ];
   for (const scenario of cases) {
     const recordFile = path.join(directory, `${scenario.name}-record.json`);
-    const prepared = success(cli(["prepare", ...scenario.context, ...scenario.prepare, "--reviewer-id", "PRIVATE-REVIEWER", "--output", recordFile]));
+    const prepared = success(cli(["prepare", ...scenario.context, ...scenario.prepare, "--reviewer-id", reviewerId, "--output", recordFile]));
     assert.equal(prepared.assurance, "self_declared"); assert.equal(prepared.reviewer_identity_authenticated, false);
     const before = fs.readFileSync(recordFile);
-    assert.notEqual(cli(["prepare", ...scenario.context, ...scenario.prepare, "--reviewer-id", "PRIVATE-REVIEWER", "--output", recordFile]).status, 0);
+    assert.notEqual(cli(["prepare", ...scenario.context, ...scenario.prepare, "--reviewer-id", reviewerId, "--output", recordFile]).status, 0);
     assert.deepEqual(fs.readFileSync(recordFile), before);
     const unsigned = success(cli(["verify", ...scenario.context, "--record", recordFile]));
     assert.equal(unsigned.assurance, "self_declared"); assert.equal(unsigned.assessment_result_binding_verified, false);

@@ -123,6 +123,22 @@ export function screeningInspectionRecord(observation) {
 }
 
 export function reviewDetailLines(row, locale = "ja") {
+  if (row.human_reviews?.length) {
+    const ja = locale !== "en", states = ja ? { single_review: "単独レビュー", agreement: "全員の結果が一致", unresolved_disagreement: "不一致・未解決" }
+      : { single_review: "Single review", agreement: "Unanimous agreement", unresolved_disagreement: "Unresolved disagreement" };
+    return [ja ? `人手レビューの集約: ${states[row.review_consensus]}` : `Human review resolution: ${states[row.review_consensus]}`,
+      ...row.human_reviews.flatMap((review) => [
+        `${ja ? "レビュー" : "Review "}${review.number}: ${review.state === "active" ? (ja ? "有効" : "active") : (ja ? "更新前" : "superseded")} / ${review.outcome}`,
+        `${review.reviewer_name}${review.reviewer_role ? " / " + review.reviewer_role : ""} / ${review.review_date}`,
+        ...(review.supersedes ? [ja ? `レビュー${review.supersedes}を訂正` : `Supersedes review ${review.supersedes}`] : []),
+        `${ja ? "手順" : "Procedure"}: ${review.procedure}`,
+        ...reviewDetailLines(review, locale),
+        ...(review.findings ?? []).map((finding) => `${ja ? "このレビューの指摘" : "This review's finding"}: ${finding.priority} / ${finding.location} / ${finding.observation}`)
+      ]),
+      ...(row.review_consensus === "unresolved_disagreement" ? [ja
+        ? "次の確認: 確認者間で証拠と判定理由を照合し、訂正が必要な確認者が元のレビューIDを指定して再提出する。"
+        : "Next check: compare the reviewers' evidence and rationale; reviewers who revise their judgement must submit an explicit superseding review."] : [])];
+  }
   if (row.screening_observations?.length) return [
     ...(row.screening_conflicts?.length ? [screeningConflictReason(row.screening_conflicts, locale)] : []),
     ...row.screening_observations.flatMap((observation) => reviewDetailLines(observation, locale))

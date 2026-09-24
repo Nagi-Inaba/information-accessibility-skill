@@ -113,6 +113,11 @@ function envelope(overrides = {}) {
 
 test("frozen orchestration contracts retain their normalized hashes across line-ending conventions", () => {
   const frozenHashes = [
+    ["audit-run-13.0.0.schema.json","2c4b852b3599e036fda577f52b04933f4ddb7ab53a3e8f399f2b99c30713e187"],
+    ["declared-human-review-2.0.0.schema.json","4474360f5eb63e75485acfa45bf832fe4bc2d2cc92d7beaf87beae059ed0c41e"],
+    ["human-review-record-2.0.0.schema.json","3038eee889eec588d46c80de7ff950bf1d8fdbea7dbfd047097ebbfacaddf0e6"],
+    ["orchestration-registry-12.0.0.json","d1a7a5023e01aed9a9d77149d580b46a34f2bc0523f3bf8f93cc5f5bb2805f50"],
+    ["orchestration-registry-12.0.0.schema.json","d6a1b15e799f352326b99e123e63de1b1b6297f3ce4bd1b6454cd3059e1854ac"],
     ["declared-human-review-1.0.0.schema.json","f4732affdb197ae02d56bf1cdccda2978422b127a1b8c5f173ed452ba1198f7a"],
     ["human-review-record-1.0.0.schema.json","463e029221fea69c7175947b82962bcde4db4790f3b9a53f7692b367dfbbfb39"],
     ["audit-run-12.0.0.schema.json","836344169a4f237e4d724ce26501ad43712fb7b2e5028be73ad279e389788cce"],
@@ -148,8 +153,8 @@ test("frozen orchestration contracts retain their normalized hashes across line-
   assert.equal(readJson(path.join(references, "audit-run-5.0.0.schema.json")).properties.schema_version.const, "5.0.0");
   assert.equal(readJson(path.join(references, "screening-observations-1.0.0.schema.json")).properties.schema_version.const, "1.0.0");
   assert.equal(readJson(path.join(references, "audit-artifact-envelope-1.0.0.schema.json")).properties.schema_version.const, "1.0.0");
-  assert.equal(readJson(path.join(references, "orchestration-registry.json")).schema_version, "12.0.0");
-  assert.equal(readJson(path.join(references, "audit-run.schema.json")).properties.schema_version.const, "13.0.0");
+  assert.equal(readJson(path.join(references, "orchestration-registry.json")).schema_version, "13.0.0");
+  assert.equal(readJson(path.join(references, "audit-run.schema.json")).properties.schema_version.const, "14.0.0");
   assert.equal(readJson(path.join(references, "audit-artifact-envelope.schema.json")).properties.schema_version.const, "3.0.0");
 });
 

@@ -32,7 +32,9 @@ node scripts/human-review.mjs prepare --run audit-run.json --artifact-id ART-HUM
 
 CLIは現在のrun契約、登録artifactの関係とハッシュ、保存済みの証拠を検証します。署名対象のcontextをrunから組み立て、登録元のレビューをそのまま保存します。対象サイトへの通信は行いません。対象の現在状態を再検査したことにはなりません。
 
-単独のassessmentでは、実際の担当者から受け取った`declared-human-review` 2.0.0のpayload（旧1.0.0も読取り可能）を指定します。新しいassessment 2.0.0には生成時に一意の`assessment_id`が入り、そのIDを使います。
+review 3では、`--reviewer-id` とpayloadの `reviewer_id` を一致させます。各確認に一意の `review_id` を付け、同じ担当者の訂正は `supersedes_review_id` で以前の確認を参照します。署名はこれらのIDと訂正関係も含みます。集約と公開時の履歴表示は[複数の確認者・再提出](human-review-worksheet.md#一部提出複数の確認者再提出)を参照してください。最も低い有効レビューの保証水準が、その基準の保証上限になります。
+
+単独のassessmentでは、実際の担当者から受け取った`declared-human-review` 3.0.0のpayload（旧1.0.0／2.0.0も読取り可能）を指定します。新しいassessment 2.0.0には生成時に一意の`assessment_id`が入り、そのIDを使います。
 
 ```powershell
 node scripts/human-review.mjs prepare --assessment assessment.json --review declared-review.json --reviewer-id reviewer-001 --output private-review-record.json

@@ -40,8 +40,8 @@ function importSheet(f, input, name = "review", extras = []) {
   return { output, result };
 }
 const set = (rows, key, value) => { const row = rows.find((row) => row[0] === key); assert.ok(row, key); row[4] = value; };
-function mergeReview(f, registered) {
-  const run = read(registered), baseline = path.join(f.root, "baseline.json"), output = path.join(f.root, "assessment.json");
+function mergeReview(f, registered, suffix = "") {
+  const run = read(registered), baseline = path.join(f.root, `baseline${suffix}.json`), output = path.join(f.root, `assessment${suffix}.json`);
   pass(cli(["assessment", "--profile", run.profile.id, "--target-name", run.target.name, "--target-version", run.target.version_or_commit,
     "--target-ref", run.target.urls_or_files[0], "--evaluator", "Synthetic reviewer", "--evaluated-at", "2026-09-18", "--output", baseline]));
   const assessment = read(baseline); assessment.assessment.scope = run.scope; assessment.assessment.environment = run.environment;
@@ -50,7 +50,7 @@ function mergeReview(f, registered) {
   return output;
 }
 function fill(rows, id = ids[0], outcome = "pass", name = "Synthetic reviewer") {
-  set(rows, "reviewer.name", name); set(rows, "reviewer.date", "2026-09-18");
+  set(rows, "reviewer.id", "worksheet-reviewer"); set(rows, "reviewer.name", name); set(rows, "reviewer.date", "2026-09-18");
   set(rows, "reviewer.declaration", "Synthetic test data; no real audit was performed.");
   set(rows, `${id}.outcome`, outcome); set(rows, `${id}.rationale`, "Synthetic rationale | quote \"literal\"\nsecond line & <tag>");
   for (const row of rows.filter((row) => row[0].startsWith(`${id}.evidence.`) && row[0].endsWith(".type") && row[4])) {
@@ -97,6 +97,46 @@ for (const [format, outcome] of [["csv", "pass"], ["markdown", "fail"], ["xlsx",
     const repeated = importSheet(f, sheet); assert.notEqual(repeated.result.status, 0, "Existing output is not overwritten");
   });
 }
+
+test("overlapping worksheets preserve disagreement, agreement and explicit supersession through status and public reports", (t) => {
+  const f = fixture(t), originals = [];
+  let priorB;
+  for (const [index, reviewer, outcome] of [[0, "a", "fail"], [1, "b", "pass"], [2, "b", "fail"]]) {
+    const sheet = path.join(f.artifactRoot, `multiple-${index}.csv`);
+    pass(cli(["human-review", "export", "--run", f.runFile, "--queue", f.queueId, "--format", "csv", "--reviews", "all", "--output", sheet]));
+    const rows = fill(decodeCsv(fs.readFileSync(sheet, "utf8")), ids[0], outcome, "Private Reviewer " + reviewer);
+    set(rows, "reviewer.id", "reviewer-" + reviewer); set(rows, "reviewer.role", "Private Role");
+    if (index === 2) set(rows, ids[0] + ".supersedes_review_id", priorB);
+    fs.writeFileSync(sheet, encodeCsv(rows), "utf8");
+    const imported = importSheet(f, sheet, "multiple-" + index, ["--reviews", "all"]); pass(imported.result);
+    if (index === 1) priorB = read(imported.output).payload.reviews[0].review_id;
+    originals.push([imported.output, fs.readFileSync(imported.output)]);
+    const registered = path.join(f.root, `multiple-run-${index}.json`);
+    pass(cli(["register", "--run", f.runFile, "--artifact", imported.output, "--output", registered])); f.runFile = registered;
+    const merged = mergeReview(f, registered, "-" + index), value = read(merged), row = value.assessment.results.find((item) => item.requirement_id === ids[0]);
+    assert.equal(row.outcome, index === 1 ? "cant_tell" : "fail");
+    assert.equal(row.review_resolution.status, ["single_review", "unresolved_disagreement", "agreement"][index]);
+    const statusResult = cli(["status", "--run", registered, "--format", "json"]); pass(statusResult);
+    const status = JSON.parse(statusResult.stdout);
+    assert.equal(status.human_review_resolution[0].status, row.review_resolution.status);
+    assert.equal(status.operations.report.available, true);
+    if (index === 1) {
+      const run = read(registered), validation = validateAuditRun(run, { runFile: registered });
+      const model = buildPublicReportModel({ run, assessment: value, envelopesById: validation.envelopesById, resources: validation.resources });
+      assert.ok(model.pendingHumanChecks.some((item) => item.requirement_id === ids[0]), "Disagreement keeps the queued follow-up");
+      const report = path.join(f.root, "disagreement.html");
+      pass(cli(["report", "--run", registered, "--assessment", merged, "--locale", "ja", "--format", "html", "--output", report,
+        "--visibility", "public", "--reviewer-disclosure", "redact", "--redaction-manifest", report + ".redaction.json"]));
+      const text = fs.readFileSync(report, "utf8"); assert.match(text, /不一致・未解決/u); assert.match(text, /確認者間で証拠と判定理由を照合/u);
+      assert.doesNotMatch(text, /Private Reviewer|Private Role|reviewer-a|reviewer-b/u);
+    }
+    if (index === 2) {
+      assert.equal(value.assessment.human_review_records.length, 3);
+      assert.equal(status.human_review_resolution[0].reviews.filter((item) => item.state === "superseded").length, 1);
+    }
+  }
+  for (const [file, bytes] of originals) assert.deepEqual(fs.readFileSync(file), bytes);
+});
 
 test("all five outcomes work; not_tested records only an explicit non-performance note without fabricated tests", (t) => {
   const f = fixture(t), sheet = exportSheet(f), expected = decodeCsv(fs.readFileSync(sheet, "utf8"));

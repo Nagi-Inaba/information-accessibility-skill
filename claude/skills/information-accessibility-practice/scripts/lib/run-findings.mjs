@@ -89,10 +89,10 @@ export function findingRelationErrors(artifact, envelopes) {
   return errors;
 }
 
-export function findingRelations(envelopes) {
+export function findingRelations(envelopes, overrides = {}) {
   const observations = envelopes.filter((item) => item.artifact_type === "screening-observations").flatMap((item) => item.payload.observations);
-  const reviews = envelopes.filter((item) => item.artifact_type === "declared-human-review").flatMap((item) => item.payload.reviews);
-  const plans = envelopes.filter((item) => item.artifact_type === "remediation-plan").flatMap((item) => remediationPlanItems(item.payload));
+  const reviews = overrides.reviews ?? envelopes.filter((item) => item.artifact_type === "declared-human-review").flatMap((item) => item.payload.reviews);
+  const plans = overrides.plans ?? envelopes.filter((item) => item.artifact_type === "remediation-plan").flatMap((item) => remediationPlanItems(item.payload));
   const findings = new Map();
   for (const item of plans) {
     if (!item.finding_id && item.basis === "verified_failure" && reviews.some((review) => review.requirement_id === item.requirement_id && declaredFindings(review).length)) continue;

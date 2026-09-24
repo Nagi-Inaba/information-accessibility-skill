@@ -28,7 +28,7 @@ test("transport records pinned GET and HEAD without forwarding credentials, with
   assert.equal(log.run_id, runId);
   assert.equal(log.network_policy_sha256, networkPolicyHash(f.policy));
   assert.ok(log.entries.every((entry) => entry.pinned_address === "127.0.0.1" && entry.request_sent && entry.outcome === "succeeded"));
-  const run = { schema_version: "13.0.0", run_id: runId, permissions: { network: "allowlisted", network_policy: f.policy } };
+  const run = { schema_version: "14.0.0", run_id: runId, permissions: { network: "allowlisted", network_policy: f.policy } };
   const reference = { target_ref: `${f.origin}/`, captured_at: new Date().toISOString() };
   validateNetworkEvidence(Buffer.from(JSON.stringify(log)), run, reference);
   for (const mutate of [

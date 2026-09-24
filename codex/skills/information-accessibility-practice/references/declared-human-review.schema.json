@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:information-accessibility:declared-human-review:2.0.0",
+  "$id": "urn:information-accessibility:declared-human-review:3.0.0",
   "title": "Declared External Human Review",
   "type": "object",
   "additionalProperties": false,
@@ -10,11 +10,12 @@
     "reviewer_name",
     "review_date",
     "identity_authenticated",
-    "reviews"
+    "reviews",
+    "reviewer_id"
   ],
   "properties": {
     "schema_version": {
-      "const": "2.0.0"
+      "const": "3.0.0"
     },
     "declaration": {
       "type": "string",
@@ -37,6 +38,14 @@
       "items": {
         "$ref": "#/$defs/review"
       }
+    },
+    "reviewer_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"
+    },
+    "reviewer_role": {
+      "type": "string",
+      "minLength": 1
     }
   },
   "$defs": {
@@ -51,7 +60,8 @@
         "official_sources",
         "target_specific_evidence",
         "profile_outcome",
-        "rationale"
+        "rationale",
+        "review_id"
       ],
       "properties": {
         "requirement_id": {
@@ -117,6 +127,17 @@
           "items": {
             "$ref": "#/$defs/finding"
           }
+        },
+        "review_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"
+        },
+        "supersedes_review_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"
         }
       },
       "allOf": [
@@ -191,7 +212,9 @@
               "target_specific_evidence": {},
               "profile_outcome": {},
               "rationale": {},
-              "findings": {}
+              "findings": {},
+              "review_id": {},
+              "supersedes_review_id": {}
             },
             "additionalProperties": false
           }

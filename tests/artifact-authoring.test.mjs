@@ -45,6 +45,7 @@ test("finding plans link several observations and criteria without duplicating r
   pass(cli(["review-queue", "--run", runFile, "--artifact-id", "ART-RELATION-QUEUE", "--output", queueFile])); add(queueFile);
   const human = read(path.join(artifacts, "declared-human-review.json")).payload, original = human.reviews[0];
   human.reviews = read(queueFile).payload.items.map((item) => ({ ...structuredClone(original), requirement_id: item.requirement_id,
+    review_id: `HR-RELATION-${item.requirement_id}`,
     procedure_availability: item.procedure_availability, criterion_procedure_ref: item.procedure_ref,
     generic_method_ref: item.generic_method_ref, official_sources: item.official_sources,
     target_specific_evidence: item.required_evidence_types.map((type) => ({ ...structuredClone(original.target_specific_evidence[0]), type, observation: "Synthetic evidence for relation validation only" })) }));
@@ -214,6 +215,8 @@ test("author four standard candidates, edit, validate, register, merge and repor
   historical.resource_versions.orchestration_registry_version = "11.0.0";
   historical.resource_versions.orchestration_registry_sha256 = frozen.sha256;
   const oldHuman = read(path.join(artifacts, "authored-2.json")); oldHuman.payload.schema_version = "1.0.0";
+  delete oldHuman.payload.reviewer_id; delete oldHuman.payload.reviewer_role;
+  for (const review of oldHuman.payload.reviews) { delete review.review_id; delete review.supersedes_review_id; }
   const oldHumanFile = path.join(artifacts, "old-human.json"); write(oldHumanFile, oldHuman);
   const oldHumanHash = crypto.createHash("sha256").update(fs.readFileSync(oldHumanFile)).digest("hex");
   Object.assign(historical.artifacts.find((entry) => entry.artifact_id === oldHuman.artifact_id), { path: path.basename(oldHumanFile), sha256: oldHumanHash });
@@ -228,7 +231,9 @@ test("author four standard candidates, edit, validate, register, merge and repor
   originalRecord.context.origin.artifact_sha256 = oldHumanHash;
   const oldRecord = createHumanReviewRecord({ reviewerId: originalRecord.reviewer_id, review: oldHuman.payload, context: originalRecord.context });
   oldAssessment.assessment.human_review_records = [oldRecord];
-  for (const row of oldAssessment.assessment.results) if (row.review_record_sha256) row.review_record_sha256 = reviewRecordSha256(oldRecord);
+  for (const row of oldAssessment.assessment.results) if (row.review_record_sha256 || row.review_resolution) {
+    delete row.review_resolution; row.review_record_sha256 = reviewRecordSha256(oldRecord);
+  }
   const oldAssessmentFile = path.join(scenario, "old-assessment.json"); write(oldAssessmentFile, oldAssessment);
   pass(cli(["report", "--run", oldRunFile, "--assessment", oldAssessmentFile, "--output", path.join(scenario, "old-run12-report.md")]));
 });

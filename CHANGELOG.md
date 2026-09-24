@@ -25,6 +25,8 @@ This project uses a Keep a Changelog-style structure. Until a tagged release is 
 
 ### Changed
 
+- Run 14 / registry 13 introduce human review and portable review record 3. Multiple declared reviewers can assess one criterion; unanimous active reviews determine its result, while disagreement remains cant_tell. Explicit same-reviewer supersession preserves original records and evidence. Reports retain review histories and honor public name/role disclosure; status and retest use the same consensus. Worksheets accept overlapping reviews with --reviews all. Frozen run 13, review 2 and record 2 remain readable; existing signatures are not rewritten.
+
 - Run 13 / registry 12 introduce human review 2 and remediation plan 3: several findings per criterion, several criteria/observations per finding, and separate remedy IDs. Portable human review record 2 signs these relations; version 1 signatures remain readable. Reports separate declared finding and failed-criterion counts. `status --retest-of` aggregates successor human declarations for prior findings without claiming that individual locations are repaired.
 - Screening payload 4.0.0 links one saved observation to several criteria, retains all conflicting evidence, and counts observation candidates separately from mapped criteria. Run 12.0.0 uses registry 11.0.0; frozen run 11 and screening 3 remain readable.
 - Browser rule findings remain machine observations with related criterion references rather than profile outcomes.

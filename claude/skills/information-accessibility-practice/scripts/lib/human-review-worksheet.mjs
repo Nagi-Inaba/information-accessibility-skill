@@ -10,11 +10,15 @@ const fixed = "固定";
 const maxRows = 12000;
 const maxCell = 32767;
 
-export function worksheetItems(run, queue, envelopesById) {
+export function worksheetItems(run, queue, envelopesById, selection = "unsubmitted") {
+  if (selection === "all") return queue.payload.items.map((item) => ({ ...item,
+    previous_reviews: [...envelopesById.values()].filter(({ envelope }) => envelope.artifact_type === "declared-human-review")
+      .flatMap(({ envelope }) => envelope.payload.reviews.filter((review) => review.requirement_id === item.requirement_id)
+        .map((review) => `${envelope.payload.reviewer_id}: ${review.review_id}`)) }));
   const recorded = new Set([...envelopesById.values()].flatMap(({ envelope }) => envelope.artifact_type === "declared-human-review"
     ? envelope.payload.reviews.map((review) => review.requirement_id) : []));
   const items = queue.payload.items.filter((item) => !recorded.has(item.requirement_id));
-  if (!items.length) throw new Error("This queue has no unsubmitted requirements. Existing reviews are immutable; use a new run for a correction.");
+  if (!items.length) throw new Error("This queue has no unsubmitted requirements. Export with --reviews all for another reviewer or an explicit superseding review.");
   return items;
 }
 
@@ -30,6 +34,8 @@ export function createWorksheetRows({ run, runSha256, queue, queueSha256, items,
   add("context.instructions", "共通", "入力方法", "入力区分が「入力」の行の「値」だけ記入する。判定が空欄の基準は未提出。1ファイルにつき確認者は1人。",
     "固定欄・行数・項目キーを変更しない。日時はタイムゾーン付き文字列。数式は使用不可。このファイルには非公開の対象情報を含む。");
   add("reviewer.name", "確認者", "氏名", "", "実際に確認した人の氏名。本人確認は別工程。", true);
+  add("reviewer.id", "確認者", "確認者ID", "", "継続して使う識別子。半角英数字・ピリオド・ハイフン・下線・コロン。氏名やIDの記入は本人認証ではない。", true);
+  add("reviewer.role", "確認者", "役割（任意）", "", "確認時の役割。公開時は氏名と同じ開示設定に従う。", true);
   add("reviewer.date", "確認者", "確認日", "", "YYYY-MM-DD。実際の確認日。", true);
   add("reviewer.declaration", "確認者", "確認の申告", "", "誰が何を確認したか、範囲と制約を自分の言葉で記入する。", true);
   for (const item of items) {
@@ -47,6 +53,8 @@ export function createWorksheetRows({ run, runSha256, queue, queueSha256, items,
     row("required_evidence", "必要な証拠の種類", item.required_evidence_types.join("\n"), "not_tested は未実施の理由を manual_observation に記録する。実施していない検査結果は作らない。");
     row("outcome", "判定", "", "pass=適合 / fail=不適合 / not_applicable=非該当 / not_tested=未実施 / cant_tell=判断不能。空欄は未提出。", true);
     row("rationale", "判定理由", "", "対象固有の理由と確認範囲を記入する。", true);
+    if (item.previous_reviews) row("previous_reviews", "既存の確認者IDとレビューID", item.previous_reviews.join("\n"), "以前の記録を訂正するときに参照する。元の記録は保持される。");
+    row("supersedes_review_id", "訂正するレビューID（任意）", "", "同じ確認者IDによる同じ基準の記録を訂正する場合のみ指定する。追加の確認者は空欄。判定理由に訂正の根拠も記入する。", true);
     for (const [key, label, help] of [
       ["priority", "不適合の優先度", "fail の場合のみ P0 / P1 / P2 を選択する。"],
       ["location", "不適合の箇所", "fail の場合のみ、対象URL・要素・状態を具体的に記入する。"],
@@ -117,6 +125,7 @@ export function reviewFromWorksheet({ rows, expected, items, artifactId, now }) 
     const review = { requirement_id: id, procedure_availability: item.procedure_availability, criterion_procedure_ref: item.procedure_ref,
       generic_method_ref: item.generic_method_ref, official_sources: [...item.official_sources], profile_outcome: outcome,
       rationale: required(`${id}.rationale`), target_specific_evidence: [] };
+    if (get("supersedes_review_id")) review.supersedes_review_id = get("supersedes_review_id");
     const evidenceCount = new Set(["manual_observation", ...item.required_evidence_types]).size + 2;
     for (let index = 0; index < evidenceCount; index++) {
       const prefix = `evidence.${index}`;
@@ -146,7 +155,8 @@ export function reviewFromWorksheet({ rows, expected, items, artifactId, now }) 
     reviews.push(review);
   }
   if (!reviews.length) throw new Error("Worksheet has no submitted reviews.");
-  return { schema_version: "2.0.0", declaration: required("reviewer.declaration"), reviewer_name: required("reviewer.name"),
+  for (const review of reviews) review.review_id = `${artifactId}:${review.requirement_id}`;
+  return { schema_version: "3.0.0", reviewer_id: required("reviewer.id"), ...(answers.get("reviewer.role") ? { reviewer_role: answers.get("reviewer.role") } : {}), declaration: required("reviewer.declaration"), reviewer_name: required("reviewer.name"),
     review_date: reviewDate, identity_authenticated: false, reviews };
 }
 
