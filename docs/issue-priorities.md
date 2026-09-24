@@ -49,7 +49,7 @@
 | #57 | ローカル実装・検証済み（2026-09-19） | assessment 2.0.0で人手申告行と元レビューを結合。単独apply／run付きmerge、外部方針による署名者確認、claim guard、日英の公開Markdown／HTML、旧形式表示を接続。統合6テストと既存CLI拡張が成功。全76ファイルの実行と失敗分の再検証が完了。 |
 | #58 | ローカル実装・検証済み（2026-09-19） | bundle記録1.0.0とprepare／verify CLIを追加。run・登録artifact・証拠・assessment・report・明示した添付を署名対象とし、現在の実バイトと前段の署名をオフライン検証。専用7テスト成功。全77ファイルの実行と失敗分の修正・再検証が完了。 |
 | #50 | ローカル実装・検証済み（2026-09-19） | 出典・利用条件の台帳、同梱notice、カタログ更新候補の再確認待ち記録、日英Markdown／HTMLへの帰属表示を追加。専用7テスト、全78ファイル、実Chromeのレポート検査が成功。法的レビューは未実施と明記。 |
-| #35 | ローカル実装・検証済み／外部反映待ち（2026-09-19） | 対応版・移行方針、4種類のIssueフォーム、非公開報告の案内、commit固定の配布候補と収録一覧を整備。全79ファイル623件中618成功・失敗0・5スキップ。GitHub設定は確認回答待ち、Release公開は未実施。 |
+| #35 | ローカル実装・検証済み／外部反映待ち（2026-09-25） | 現行版のRelease noteに更新し、commit固定の配布候補の展開・package／catalog検証、Codex／Claude導入dry-runが成功。GitHub APIでは非公開脆弱性報告が無効、topicsとhomepageは空、Releaseは未公開。 |
 | #16 | ローカル実装・検証済み（2026-09-19） | run 11／registry 10／queue 3で対象箇所・登録済み観測・理由・優先度を結合。候補生成CLI、公開レポート、旧形式読取り、重複検出を接続。全80ファイルの実行と失敗分の修正・関連120件の再検証が完了。 |
 | #17 | ローカル実装・検証済み（2026-09-19） | CSV・Markdown・XLSXの出力と取り込み、部分入力・未実施の扱いを実装。下記に検証結果を記録。 |
 | #31 | ローカル実装・検証済み（2026-09-23） | 記入済みpayloadから標準4種類の候補を作成し、編集後に登録前検証するCLIを追加。単独CLIの登録・統合・報告まで確認。 |
@@ -135,6 +135,8 @@ raw結果・設定・ツール由来の自由記述を公開レポートへ直�
 実際のcommit `f9559c9a3ff1cc4843e41d95dc187739024a0153`から、`audit-runs/issue35-release-candidate/`へtar.gz、source-manifest.json、release-notes.md、SHA256SUMSを生成した。tar.gzは1,141,202バイト。展開後の185共有ファイル・161 JSONのpackage検証、catalog検証、Claude dry-run、64-bit Windows PowerShellでのCodex WhatIfが成功し、導入先ディレクトリは作成されていない。候補はこのcommitに固定され、後続の進捗文書commitを取り込んだと扱わない。
 
 専用3テストで全ファイルhash、再現可能なアーカイブ、上書き・未commit変更・禁止パス・未知ファイルの拒否を確認した。README・NVDA smoke契約を含む関連検証が成功。全79テストファイルは623件中618成功・失敗0・環境依存5スキップで、実ChromeのHTMLレポート、scanner、取り込み、能力確認、操作承認のE2Eを含む。実機支援技術とリモートCIはこの成功に含めない。
+
+2026-09-25にRelease noteの古いrun／registry版列挙を、現行の`docs/version-support.md`参照へ修正した。更新後のcommitからローカル候補を生成し、アーカイブhashと収録ファイル、展開後のpackage／catalog、Codex／Claudeのdry-runを確認した。GitHub APIの読み取りでは非公開脆弱性報告は`enabled: false`、topicsは空、homepageは未設定で、公開Releaseはない。非公開報告経路とAboutの設定・公開操作は未実施。
 
 | #35の受け入れ条件 | 現在の状態 |
 | --- | --- |
