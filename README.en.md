@@ -47,9 +47,9 @@ The package also includes eleven source-backed [common Web screening patterns](c
 | Target | Natural-language review | Structured screening or standards ledger | Current limit |
 | --- | --- | --- | --- |
 | Website or Web application | Supported | `web-modern`, `jp-public-web`, read-only `scan-web` | A real screen-reader session remains an external human or host capability |
-| PDF, Word document, or slide deck | Supported | Guidance-oriented | No active dedicated profile or formal claim path |
-| Video or audio | Supported | Relevant Web requirements inside a named Web scope | No standalone media profile |
-| Event, meeting, or community process | Supported | Review through five information-use perspectives | No dedicated structured assessment yet |
+| PDF, Word document, or slide deck | Supported | Five-perspective non-Web record, human review, and comparison | No dedicated standards conformance profile |
+| Video or audio | Supported | Five-perspective non-Web record, human review, and comparison | No standalone media standards profile |
+| Event, meeting, or community process | Supported | Five-perspective non-Web record, human review, and comparison | No standards conformance judgement |
 | ATAG or authoring process | Reference guidance | No structured assessment | `authoring-agent` is inactive. Keep Part A host UI separate; distinguish support features and automatic outputs within Part B |
 
 Choose the profile for the standard or policy your assessment uses:
@@ -135,7 +135,7 @@ The npm installation is audit-only as well. Install the optional fixer through t
 
 `--pattern all` covers the eight bundled screen-reader patterns and any `--extension <file.json>`, not every UI pattern. A person must verify actual speech on the target device. See the [stateful UI guide](codex/skills/information-accessibility-practice/references/screen-reader-stateful-ui.md) for the extension format.
 
-These discovery commands are read-only. The standard CLI does not modify the audited target.
+Discovery commands are read-only. `non-web-review` writes only requested new records and does not modify the audited target. Use `non-web-review init` for a document/slide, media item, event, or participation workflow. It creates five initially untested perspectives. `validate`, `report`, and `compare` support human observations, improvements, and later review. Store outputs in a private directory such as `audit-runs/`. This is separate from WCAG/JIS assessment and does not verify the bytes of referenced evidence files.
 
 ## Try it in five minutes
 

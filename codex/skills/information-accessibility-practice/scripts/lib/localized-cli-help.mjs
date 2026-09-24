@@ -13,6 +13,7 @@ const localeAwareCommands = new Set([
   "doctor",
   "preflight-web",
   "screen-reader-checklist",
+  "non-web-review",
   "report"
 ]);
 

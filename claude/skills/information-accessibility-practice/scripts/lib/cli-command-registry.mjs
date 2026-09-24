@@ -282,6 +282,22 @@ const definitions = [
     notes: ["The command is read-only. Missing optional browser capability produces WARN rather than a false package failure. Run preflight-web to test the actual browser runtime."]
   },
   {
+    name: "non-web-review",
+    script: "non-web-review.mjs",
+    summary: "Create, validate, report, and compare private participation reviews for non-Web targets.",
+    usage: [
+      "accessibility-audit non-web-review init --kind <document-slide|media-content|event-community|participation-workflow> --id <id> --name <name> --version <version> --scope <scope> --output <new.json>",
+      "accessibility-audit non-web-review validate --input <review.json>",
+      "accessibility-audit non-web-review report --input <review.json> --output <new.md>",
+      "accessibility-audit non-web-review compare --before <old.json> --after <new.json> --output <new.md|json> [--format markdown|json] [--locale ja|en]"
+    ],
+    options: [
+      option("--locale", "<ja|en>", "Template questions and report language; default ja."),
+      option("--format", "<markdown|json>", "Comparison output format; default markdown.")
+    ],
+    notes: ["No Web audit run or standards profile is created. Reports and comparisons are private participation records, not conformance claims."]
+  },
+  {
     name: "screen-reader-checklist",
     script: "show-screen-reader-checklist.mjs",
     summary: "Show supporting checks for stateful UI and screen-reader behavior.",

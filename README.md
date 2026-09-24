@@ -47,9 +47,9 @@ AIと自動検査が作るものは、原則として問題候補やE0／E1のsc
 | 対象 | 自然言語レビュー | 構造化screening／規格台帳 | 現在の制限 |
 | --- | --- | --- | --- |
 | Webサイト／Webアプリ | 対応 | WCAG・JISの各プロファイル、読取り専用`scan-web` | 実機スクリーンリーダー確認は外部の人またはホスト機能が必要 |
-| PDF／Word／スライド | 対応 | ガイダンス中心 | 専用のactive profileと正式なclaim経路は未実装 |
-| 動画／音声 | 対応 | Web範囲内の関連条項確認 | 単独media profileは未実装 |
-| イベント／会議／コミュニティ | 対応 | 情報利用の5観点によるレビュー | 専用の構造化assessmentは未実装 |
+| PDF／Word／スライド | 対応 | 5観点の非Web記録・人手確認・比較 | 専用の規格適合profileは未実装 |
+| 動画／音声 | 対応 | 5観点の非Web記録・人手確認・比較 | 単独media規格profileは未実装 |
+| イベント／会議／コミュニティ | 対応 | 5観点の非Web記録・人手確認・比較 | 規格適合判定の対象外 |
 | ATAG／authoring process | 参照ガイダンス | 構造化assessmentなし | `authoring-agent`はinactive。Part Aのhost UIを分け、Part B内の作者支援機能と自動生成物を区別する |
 
 評価に使う規格・方針に合わせて、次のプロファイルを選びます。
@@ -135,7 +135,7 @@ accessibility-audit preflight-web --browser-channel chrome --locale ja --format 
 
 スクリーンリーダーの`--pattern all`は同梱8パターンと指定した`--extension <file.json>`の範囲です。実機の読み上げは人が確認し、未掲載のUIは別途評価してください。拡張ファイルの形式は[状態付きUIの手順](codex/skills/information-accessibility-practice/references/screen-reader-stateful-ui.md)に記載しています。
 
-これらのdiscovery commandはread-onlyです。標準CLIは監査対象を変更しません。
+探索系commandはread-onlyです。`non-web-review`は指定した新規記録ファイルだけを書き、監査対象を変更しません。非Web対象は`non-web-review init`で文書・スライド、動画・音声、イベント、参加導線のいずれかを選び、5観点の未実施記録を作れます。`validate`、`report`、`compare`で人手確認・改善案・再確認を扱います。出力は`audit-runs/`などの非公開フォルダに保存してください。これはWCAG／JISの評価台帳ではなく、根拠ファイルの実バイト照合も行いません。
 
 ## 5分で試す
 

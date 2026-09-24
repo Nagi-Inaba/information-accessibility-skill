@@ -331,6 +331,12 @@ Issue作成時の4件は後続作業で8件になっていた。まずW3C一次�
 
 Issueの選択肢2を採用した。ATAGを理由にskillは起動するが、inactiveな`authoring-agent`を規格評価profileとして案内しない。ATAG Part Bは名前を付けた制作工程の参照ガイダンスとして扱い、Part Aのhost UI、Part B内の作者支援機能と自動生成物を区別する。Web WCAG profileへの代用やATAG適合報告をしない。registryの`formal_conformance_target`は将来対象の記述であり、現行CLIの利用可否は`assessment_configuration.active: false`で決まると明記した。旧registryのhashを変更せず、既存のinactive profile拒否とactive Web assessmentを確認する。
 
+## #30 非Web参加レビューの記録・報告・再確認
+
+Web監査runと独立した`non-web-review`を追加した。`init`は文書／スライド、動画／音声、イベント／コミュニティ、参加導線の4種類から、見つける・受け取る・理解する・参加する・続けるの5観点を未実施で生成する。JSON schemaと追加検証で、観点・check IDの欠落や重複、根拠のない確認済み結果、確認者・観測・改善案・再確認方法の不足を拒否する。`report`は人手記録を非公開Markdownへ、`compare`は同じ対象IDの前後版をJSONまたはMarkdownへ新規出力する。比較は申告された内容だけを対象とし、参照資料の実バイトや改善の成立は証明しない。WCAG／JISのoutcome・claimへ自動転用しない。
+
+4種類の初期例、記入済みイベントのreport／compare、誤ったclaimと証拠不足を専用3テストで確認した。README日英11テスト、関連CLI／locale18テスト、release packaging3テストも成功。README日英の対応表を更新し、専用の規格profile・human review queue・証拠ファイルの実体照合は未対応と明示する。出力は私的フォルダに保管する。GitHub Issueはopen、未push・未PR・未merge。
+
 以下の未完了Issueも継続目標に含む。技術的な前提や外部判断が必要な項目は、具体的な残課題を記録して実行可能な作業を進める。
 
 同じ行でも、前提となるIssueから順に実装する。P1は証拠・権限・日時の信頼性、P2は人手作業と再検査、P3は対象拡張と保守性を優先する区分であり、指摘の重大度とは異なる。
@@ -349,7 +355,7 @@ Issueの選択肢2を採用した。ATAGを理由にskillは起動するが、in
 | P2 | #53 → #33 | 両件ともローカル実装・対象検証済み。#53はAI handoffと実行runtime、#33は監査専用の既定導入と任意修正機能を分離。ソースpackageの物理分割とリモートCIは未実施。全体テストは`exceljs`欠落による環境上の未確認が残る。 |
 | P2 | #28、#26、#27 | 3件ともローカル実装・対象検証済み。#28は旧run再レポート、#26は内部出力先、#27は版固定と3 OS向け導入・更新・削除を整備。macOS／Linux実機とリモートCI、公開releaseは未確認。 |
 | P3 | #14 → #32 | #14は12/55（WCAG）まで段階拡充し、残りは未整備。#32は一覧・任意拡張・主要3パターンをローカル実装し、対象テストが成功。#14の次の主要条項へ戻る。 |
-| P3 | #30、#66 | #66はATAGを参照ガイダンスへ統一し、inactive profileとWeb評価を分離。#30の非Web記録・報告・再検査は未実装として次に進める。 |
+| P3 | #30、#66 | #66はATAGを参照ガイダンスへ統一し、inactive profileとWeb評価を分離。#30は非Webの5観点記録・報告・前後比較をローカル実装。規格profileや根拠ファイル検証は未対応。 |
 | P3 | #51 → #46 | 共通sourceと配布物を分離し、一次資料の監視結果を人がレビューできる形で保存する。 |
 
 ## 親Issueの修正方針
