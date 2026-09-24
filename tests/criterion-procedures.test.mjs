@@ -443,6 +443,16 @@ test("page title and link purpose procedures preserve their distinct navigation 
   assert.ok(title.cant_tell_when.length && link.cant_tell_when.length);
 });
 
+test("multiple ways and descriptive headings preserve their narrow exceptions and boundaries", () => {
+  const ways = procedureFor("WCAG-2.2-SC-2.4.5");
+  const headings = procedureFor("WCAG-2.2-SC-2.4.6");
+  assert.ok(ways.primary_sources.includes("https://www.w3.org/TR/WCAG22/#multiple-ways"));
+  assert.match(ways.procedure_steps.join(" "), /two working ways.*duplicate link.*process exception/u);
+  assert.ok(headings.primary_sources.includes("https://www.w3.org/TR/WCAG22/#headings-and-labels"));
+  assert.match(headings.applicability_steps.join(" "), /absence of a heading or label alone.*SC 3\.3\.2.*SC 1\.3\.1/u);
+  assert.match(headings.procedure_steps.join(" "), /short word.*SC 4\.1\.2/u);
+});
+
 test("new focus and input-error procedures keep their criterion boundaries and primary sources", () => {
   const focus = procedureFor("WCAG-2.2-SC-2.4.11");
   assert.ok(focus.primary_sources.includes("https://www.w3.org/TR/WCAG22/#focus-not-obscured-minimum"));
