@@ -271,7 +271,7 @@
     },
     {
       "path": "references/criterion-procedures.json",
-      "canonical_sha256": "2765ad0865834b93dc758e39d7cb8d781d4459c1e63947fae0dafe59f7389b2a",
+      "canonical_sha256": "05eeceb78f0b8b4fe8d62e7000b738b00ecb79845c16f13f309426c5d44ec167",
       "source_ids": [
         "WCAG-2.2",
         "REFERENCE-ONLY-W3C-WAIC"

@@ -408,6 +408,18 @@ test("SC 2.5.2 distinguishes pointer down/up routes and unsafe verification", ()
   assert.ok(procedure.counterexamples.pass.length && procedure.counterexamples.fail.length && procedure.counterexamples.cant_tell.length);
 });
 
+test("SC 2.5.3 compares the visible label with the computed name", () => {
+  const procedure = procedureFor("WCAG-2.2-SC-2.5.3");
+  assert.deepEqual(procedure.primary_sources, [
+    "https://www.w3.org/TR/WCAG22/#label-in-name",
+    "https://www.w3.org/WAI/WCAG22/Understanding/label-in-name.html"
+  ]);
+  assert.match(procedure.procedure_steps.join(" "), /computed accessible name.*aria-label.*same order.*not require.*start/u);
+  assert.match(procedure.applicability_steps.join(" "), /placeholder.*only nearby visible text/u);
+  assert.match(procedure.expected_results.join(" "), /no accessible name does not pass/u);
+  assert.ok(procedure.cant_tell_when.length && procedure.counterexamples.cant_tell.length);
+});
+
 test("new focus and input-error procedures keep their criterion boundaries and primary sources", () => {
   const focus = procedureFor("WCAG-2.2-SC-2.4.11");
   assert.ok(focus.primary_sources.includes("https://www.w3.org/TR/WCAG22/#focus-not-obscured-minimum"));
