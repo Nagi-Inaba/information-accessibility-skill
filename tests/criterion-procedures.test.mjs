@@ -498,6 +498,18 @@ test("meaningful-sequence and sensory-instruction procedures keep their distinct
   assert.match(sensory.procedure_steps.join(" "), /Sensory cues may remain.*SC 1\.4\.1/u);
 });
 
+test("orientation and input-purpose procedures retain essential and user-data boundaries", () => {
+  const orientation = procedureFor("WCAG-2.2-SC-1.3.4");
+  assert.ok(orientation.primary_sources.includes("https://www.w3.org/TR/WCAG22/#orientation"));
+  assert.match(orientation.procedure_steps.join(" "), /portrait and landscape.*user-selected system orientation lock.*SC 1\.4\.10/u);
+  assert.match(orientation.expected_results.join(" "), /unless that specific orientation is essential/u);
+
+  const purpose = procedureFor("WCAG-2.2-SC-1.3.5");
+  assert.ok(purpose.primary_sources.includes("https://www.w3.org/TR/WCAG22/#identify-input-purpose"));
+  assert.match(purpose.applicability_steps.join(" "), /current user.*Input Purposes list.*another person/u);
+  assert.match(purpose.procedure_steps.join(" "), /type='email'.*autofill success.*two different listed purposes/u);
+});
+
 test("new focus and input-error procedures keep their criterion boundaries and primary sources", () => {
   const focus = procedureFor("WCAG-2.2-SC-2.4.11");
   assert.ok(focus.primary_sources.includes("https://www.w3.org/TR/WCAG22/#focus-not-obscured-minimum"));

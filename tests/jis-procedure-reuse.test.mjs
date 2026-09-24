@@ -52,6 +52,8 @@ const equivalentRequirements = [
 ];
 
 const additionalRequirements = [
+  ["WCAG-2.2-ADDITIONAL-SC-1.3.4", "WCAG-2.2-SC-1.3.4"],
+  ["WCAG-2.2-ADDITIONAL-SC-1.3.5", "WCAG-2.2-SC-1.3.5"],
   ["WCAG-2.2-ADDITIONAL-SC-1.4.10", "WCAG-2.2-SC-1.4.10"],
   ["WCAG-2.2-ADDITIONAL-SC-1.4.11", "WCAG-2.2-SC-1.4.11"],
   ["WCAG-2.2-ADDITIONAL-SC-2.4.11", "WCAG-2.2-SC-2.4.11"],
