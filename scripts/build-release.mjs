@@ -23,6 +23,7 @@ function git(root, args, input) {
   return result.stdout;
 }
 export function isReleasePath(file) {
+  if (file === "docs/issue-priorities.md") return false;
   if (rootFiles.has(file)) return true;
   if (file === "shared/skill/.npmignore") return true;
   if (file === ".github/PULL_REQUEST_TEMPLATE.md" || /^\.github\/(?:workflows|ISSUE_TEMPLATE)\/[A-Za-z0-9._-]+\.ya?ml$/u.test(file)) return true;

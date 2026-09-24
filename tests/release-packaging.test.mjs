@@ -75,6 +75,7 @@ test("release archive pins the source, preserves every manifest byte and exclude
   }
   assert.ok(manifest.files.some(file => file.path.endsWith("references/licenses/w3c-document-2023.html")));
   assert.ok(manifest.files.some(file => file.path === "docs/releases/0.1.0.md"));
+  assert.equal(manifest.files.some(file => file.path === "docs/issue-priorities.md"), false);
   assert.ok(manifest.files.some(file => file.path === ".github/workflows/report-nvda-smoke.yml"));
   assert.equal(manifest.files.some(file => /(?:^\.(?!github\/)|docs\/sources\/|docs\/reviews\/|audit-runs\/)/u.test(file.path) && ![".gitattributes", ".gitignore"].includes(file.path)), false);
   assert.ok(manifest.files.some(file => file.path === "codex/skills/information-accessibility-practice/.npmignore"));

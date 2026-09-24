@@ -49,7 +49,7 @@
 | #57 | ローカル実装・検証済み（2026-09-19） | assessment 2.0.0で人手申告行と元レビューを結合。単独apply／run付きmerge、外部方針による署名者確認、claim guard、日英の公開Markdown／HTML、旧形式表示を接続。統合6テストと既存CLI拡張が成功。全76ファイルの実行と失敗分の再検証が完了。 |
 | #58 | ローカル実装・検証済み（2026-09-19） | bundle記録1.0.0とprepare／verify CLIを追加。run・登録artifact・証拠・assessment・report・明示した添付を署名対象とし、現在の実バイトと前段の署名をオフライン検証。専用7テスト成功。全77ファイルの実行と失敗分の修正・再検証が完了。 |
 | #50 | ローカル実装・検証済み（2026-09-19） | 出典・利用条件の台帳、同梱notice、カタログ更新候補の再確認待ち記録、日英Markdown／HTMLへの帰属表示を追加。専用7テスト、全78ファイル、実Chromeのレポート検査が成功。法的レビューは未実施と明記。 |
-| #35 | ローカル実装・検証済み／外部反映待ち（2026-09-25） | 現行版のRelease noteに更新し、commit固定の配布候補の展開・package／catalog検証、Codex／Claude導入dry-runが成功。GitHub APIでは非公開脆弱性報告が無効、topicsとhomepageは空、Releaseは未公開。 |
+| #35 | ローカル実装・検証済み／外部反映待ち（2026-09-25） | 現行版のRelease noteに更新し、内部のIssue進捗台帳を配布対象から除外。commit固定の配布候補の展開・package／catalog検証、Codex／Claude導入dry-runが成功。GitHub APIでは非公開脆弱性報告が無効、topicsとhomepageは空、Releaseは未公開。 |
 | #16 | ローカル実装・検証済み（2026-09-19） | run 11／registry 10／queue 3で対象箇所・登録済み観測・理由・優先度を結合。候補生成CLI、公開レポート、旧形式読取り、重複検出を接続。全80ファイルの実行と失敗分の修正・関連120件の再検証が完了。 |
 | #17 | ローカル実装・検証済み（2026-09-19） | CSV・Markdown・XLSXの出力と取り込み、部分入力・未実施の扱いを実装。下記に検証結果を記録。 |
 | #31 | ローカル実装・検証済み（2026-09-23） | 記入済みpayloadから標準4種類の候補を作成し、編集後に登録前検証するCLIを追加。単独CLIの登録・統合・報告まで確認。 |
@@ -130,7 +130,7 @@ raw結果・設定・ツール由来の自由記述を公開レポートへ直�
 
 `f9559c9`で対応版・移行方針、SECURITY／CONTRIBUTING／CHANGELOG、4種類のIssueフォームとPR template、READMEの案内を整備した。package 0.1.0は未公開の開発系列としてcommit SHAも記録し、run 10／registry 9／envelope 3、assessment 2等の現行版と旧形式の読取り条件を明記した。破壊的変更を版番号の書換えだけで移行せず、元の証拠・署名とpackageを保持する。
 
-`build-release.mjs`はcleanなHEADから、`release-files.json`で確認した532ファイルだけを収録する。完全なcommit、アーカイブと各ファイルのSHA-256、versioned release noteを付け、既存出力は上書きしない。GitのWindows改行変換を固定し、一時展開後に全ファイルの実バイトとpackageを検証する。研究用原本・非公開audit-runs・Git履歴・node_modules・内部作業記録は除外する。独立レビューで指摘された未知のfixture／example混入を、収録一覧の完全照合とnegative testで修正した。既存ファイルの内容については、公開前のdiff reviewが引き続き必要。
+`build-release.mjs`はcleanなHEADから、`release-files.json`で確認した公開対象ファイルだけを収録する。完全なcommit、アーカイブと各ファイルのSHA-256、versioned release noteを付け、既存出力は上書きしない。GitのWindows改行変換を固定し、一時展開後に全ファイルの実バイトとpackageを検証する。研究用原本・非公開audit-runs・Git履歴・node_modules・内部作業記録は除外する。独立レビューで指摘された未知のfixture／example混入を、収録一覧の完全照合とnegative testで修正した。既存ファイルの内容については、公開前のdiff reviewが引き続き必要。
 
 実際のcommit `f9559c9a3ff1cc4843e41d95dc187739024a0153`から、`audit-runs/issue35-release-candidate/`へtar.gz、source-manifest.json、release-notes.md、SHA256SUMSを生成した。tar.gzは1,141,202バイト。展開後の185共有ファイル・161 JSONのpackage検証、catalog検証、Claude dry-run、64-bit Windows PowerShellでのCodex WhatIfが成功し、導入先ディレクトリは作成されていない。候補はこのcommitに固定され、後続の進捗文書commitを取り込んだと扱わない。
 
