@@ -87,5 +87,17 @@ test("core-only manual, vendor and pull-request changes require measured target 
     const invalidArgs = args.map((value) => value === "fixture-v2" ? "unrecorded-v3" : value);
     invalidArgs[invalidArgs.length - 1] = path.join(scenario, "invalid-retest-run.json");
     rejected(cli(invalidArgs), /registered declared change/);
+    const deltaFile = path.join(retestRoot, "retest-delta.json"), reportFile = path.join(retestRoot, "retest-delta.md");
+    pass(cli(["compare-runs", "--before", after, "--after", retest, "--output", deltaFile, "--report", reportFile]));
+    const delta = read(deltaFile);
+    assert.equal(delta.before_run_id, read(after).run_id);
+    assert.equal(delta.after_run_id, read(retest).run_id);
+    assert.ok(delta.findings.every((finding) => finding.status === "not_retested"));
+    assert.ok(delta.remediation.some((item) => item.remediation_id === plan.payload.items[0].remediation_id && item.status === "declared_change_recorded"));
+    assert.match(fs.readFileSync(reportFile, "utf8"), /再検査の前後比較/);
+    rejected(cli(["compare-runs", "--before", before, "--after", retest, "--output", path.join(retestRoot, "wrong.json"),
+      "--report", path.join(retestRoot, "wrong.md")]), /successor/);
+    rejected(cli(["compare-runs", "--before", after, "--after", retest, "--output", path.join(scenario, "outside-delta.json"),
+      "--report", path.join(retestRoot, "inside-report.md")]), /private artifact root/);
   }
 });

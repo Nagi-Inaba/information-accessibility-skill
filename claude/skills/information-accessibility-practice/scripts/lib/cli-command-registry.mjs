@@ -108,6 +108,14 @@ const definitions = [
     notes: ["Drafts use screening-observations 4.0.0 and evidence_refs arrays. Bind every E1 observation before registration.", "Files and outputs stay within the artifact root. The command preserves observations and evidence levels; it does not inspect targets or authenticate the capture."]
   },
   {
+    name: "compare-runs",
+    script: "compare-audit-runs.mjs",
+    summary: "Compare a linked retest with its predecessor using registered findings, human outcomes and screening signals.",
+    usage: ["accessibility-audit compare-runs --before <old-run.json> --after <retest-run.json> --output <after-artifacts/delta.json> --report <after-artifacts/delta.md> [--mapping <private-mapping.json>]"],
+    notes: ["Both outputs stay in the successor private artifact root. Optional mapping contains finding_ids and screening_ids objects from old ID to new ID.",
+      "A missing or inconclusive successor review is not resolved. Criterion passes do not prove that every old location was repaired; screening is separate from profile outcomes."]
+  },
+  {
     name: "compare-evidence",
     script: "compare-audit-evidence.mjs",
     summary: "Compare validated saved evidence before and after a change, for private review.",
