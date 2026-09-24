@@ -8,6 +8,8 @@ This project uses a Keep a Changelog-style structure. Until a tagged release is 
 
 ### Added
 
+- WCAG 2.2 SC 1.4.11 has English and Japanese non-text contrast procedures for required component cues and graphical parts, with adjacent-color measurements and criterion-specific exceptions.
+
 - WCAG 2.2 SC 1.4.3 has English and Japanese text-contrast procedures covering effective colors, large-scale text including CJK, unrounded thresholds, and criterion-specific exceptions.
 
 - WCAG 2.2 SC 3.3.3 has English and Japanese error-suggestion procedures that distinguish correction guidance from error identification and require a concrete security or purpose reason for an exception.

@@ -718,6 +718,39 @@
         "cant_tell": ["A screenshot shows light text over a photo, but the effective background under the letters and the text size were not established."]
       },
       "ai_boundary": "AI may flag candidate color pairs and calculate provisional ratios, but it must not infer applicable exceptions or record a profile outcome, human_verified mapping, or E2+ claim from a scanner result alone; a human reviewer verifies the rendered state and measurements."
+    },
+    {
+      "id": "wcag22-sc-1-4-11-non-text-contrast",
+      "requirement_id": "WCAG-2.2-SC-1.4.11",
+      "procedure_version": "1.0.0",
+      "procedure_kind": "human_manual_or_hybrid",
+      "automation_role": "supporting_only",
+      "primary_sources": ["https://www.w3.org/TR/WCAG22/#non-text-contrast", "https://www.w3.org/WAI/WCAG22/Understanding/non-text-contrast.html"],
+      "applicability_steps": [
+        "Inventory visual cues needed to identify operable user interface components or their states, including icon-only controls, selection marks, and authored focus indicators in reachable states.",
+        "Identify parts of graphics needed to understand the content; record equivalent visible information and any claimed inactive-control, unmodified user-agent, or essential-presentation exception for the particular item."
+      ],
+      "procedure_steps": [
+        "Inspect each required non-text cue in its actual state and identify the adjacent colors needed to distinguish it. A control boundary need not be tested when another sufficient visual cue identifies the control; review text contrast under SC 1.4.3 separately.",
+        "Record the cue, state, effective adjacent colors, and unrounded contrast ratio. Account for transparency, gradients, and varying backgrounds, and compare the required cue against its adjacent color or colors at the 3:1 threshold.",
+        "For informative graphics, test only the parts needed to understand the content, such as a necessary chart line or symbol; verify whether visible labels or another available presentation already convey the same information.",
+        "Review exceptions item by item: confirm that an inactive component cannot currently be operated, that an exempt native appearance is determined by the user agent and unmodified by the author, or that changing a particular graphic presentation would undermine its meaning. Do not require a 3:1 change between nonadjacent states of one component."
+      ],
+      "expected_results": [
+        "Required visual cues for applicable components and their states distinguish themselves from adjacent colors at 3:1 or higher in the tested states.",
+        "Each graphical part required for understanding reaches 3:1 against adjacent colors, unless a documented exception applies to that particular presentation."
+      ],
+      "required_evidence_types": ["browser_inspection", "manual_observation"],
+      "cant_tell_when": [
+        "The relevant component state, graphic, or effective adjacent colors cannot be observed or established in the permitted target.",
+        "The evidence does not establish whether a cue is required, equivalent information is available, or a claimed inactive, user-agent, or essential-presentation exception applies."
+      ],
+      "counterexamples": {
+        "pass": ["A required selected-state checkmark measures 3.2:1 against its adjacent fill in the tested state."],
+        "fail": ["An icon is the only visible cue identifying an active button, but it measures 2.7:1 against its adjacent background."],
+        "cant_tell": ["A screenshot shows a pale chart line, but the underlying data labels and actual adjacent colors cannot be inspected."]
+      },
+      "ai_boundary": "AI may identify candidate cues and calculate provisional color ratios, but it must not decide whether a cue is required, an exception applies, or a profile outcome, human_verified mapping, or E2+ claim follows from a scanner result alone; a human reviewer verifies the actual states and visual meaning."
     }
   ]
 }
