@@ -619,6 +619,39 @@
         "cant_tell": ["A still image shows an outline, but the keyboard path and actual focused control are unknown."]
       },
       "ai_boundary": "AI may flag CSS or captured focus-state candidates, but it must not record a profile outcome, human_verified mapping, or E2+ claim from styles alone; a human reviewer verifies the visible indicator during keyboard operation."
+    },
+    {
+      "id": "wcag22-sc-2-1-2-no-keyboard-trap",
+      "requirement_id": "WCAG-2.2-SC-2.1.2",
+      "procedure_version": "1.0.0",
+      "procedure_kind": "human_manual_or_hybrid",
+      "automation_role": "supporting_only",
+      "primary_sources": ["https://www.w3.org/TR/WCAG22/#no-keyboard-trap", "https://www.w3.org/WAI/WCAG22/Understanding/no-keyboard-trap.html"],
+      "applicability_steps": [
+        "Identify every scoped component that can receive keyboard focus, including embedded content, editors, dialogs, popovers, and their reachable states.",
+        "Record the keyboard interface, browser, operating system, and entry path; a deliberate focus cycle inside an open dialog is not by itself a failure if users can leave it by keyboard."
+      ],
+      "procedure_steps": [
+        "Enter each representative component using only the keyboard interface, then try to move focus away with Tab, Shift+Tab, arrow keys where relevant, and the standard exit methods of the tested environment.",
+        "For a dialog or other contained region, test its keyboard dismissal or exit controls and confirm that focus can leave the region; record the actual key sequence and resulting focus destination.",
+        "If leaving requires a nonstandard key sequence, inspect whether the user is advised of that method when needed and verify that it works without a pointing device.",
+        "Assess whether all functionality is keyboard operable under SC 2.1.1 and whether the subsequent focus order preserves meaning under SC 2.4.3 separately."
+      ],
+      "expected_results": [
+        "Every component reached by keyboard permits focus to move away through the keyboard interface in the tested state, including after entering embedded or modal content.",
+        "When the exit requires more than ordinary arrow, Tab, or other standard methods for that environment, the user receives usable instructions for the exit method."
+      ],
+      "required_evidence_types": ["keyboard_test", "manual_observation"],
+      "cant_tell_when": [
+        "The component or trapped state cannot be reached, or the focused destination cannot be observed in the permitted runtime.",
+        "The available keyboard interface or platform-specific standard exit method is unknown, or the alleged nonstandard exit instruction cannot be inspected."
+      ],
+      "counterexamples": {
+        "pass": ["A modal cycles focus among its controls while open, and its keyboard-operable Cancel control closes it and returns focus to the page."],
+        "fail": ["An embedded editor captures Tab and other tested exit keys, offers no usable keyboard exit, and leaves focus inside the editor."],
+        "cant_tell": ["A screenshot shows an open modal, but no keyboard entry, exit attempt, or resulting focus position was observed."]
+      },
+      "ai_boundary": "AI may identify focusable components and candidate exit instructions, but it must not infer a profile outcome, human_verified mapping, or E2+ claim from markup alone; a human reviewer tests entry and exit with the relevant keyboard interface."
     }
   ]
 }

@@ -148,12 +148,13 @@ test("catalog procedures include the expected unique requirement IDs", () => {
     "WCAG-2.2-SC-1.4.10",
     "WCAG-2.2-SC-4.1.3",
     "WCAG-2.2-SC-2.4.3",
-    "WCAG-2.2-SC-2.4.7"
+    "WCAG-2.2-SC-2.4.7",
+    "WCAG-2.2-SC-2.1.2"
   ]);
 
   assert.equal(requirementIds.length, procedures.procedures.length);
   assert.equal(unique.size, procedures.procedures.length);
-  assert.ok(unique.size >= 14);
+  assert.ok(unique.size >= 15);
   for (const req of expected) {
     assert.equal(unique.has(req), true, `missing requirement ${req}`);
   }
@@ -245,6 +246,20 @@ test("focus order and visibility require observed keyboard paths and remain sepa
   }
   assert.match(order.procedure_steps.join(" "), /visual or DOM order/u);
   assert.match(visible.procedure_steps.join(" "), /indicator persists/u);
+});
+
+test("SC 2.1.2 checks keyboard exit from contained focus without treating every modal cycle as a trap", () => {
+  const procedure = procedureFor("WCAG-2.2-SC-2.1.2");
+  assert.deepEqual(procedure.primary_sources, [
+    "https://www.w3.org/TR/WCAG22/#no-keyboard-trap",
+    "https://www.w3.org/WAI/WCAG22/Understanding/no-keyboard-trap.html"
+  ]);
+  assert.deepEqual(procedure.required_evidence_types, ["keyboard_test", "manual_observation"]);
+  assert.match(procedure.applicability_steps.join(" "), /not by itself a failure/u);
+  assert.match(procedure.procedure_steps.join(" "), /nonstandard key sequence.*advised/u);
+  assert.match(procedure.procedure_steps.join(" "), /SC 2\.1\.1.*SC 2\.4\.3/u);
+  assert.ok(procedure.counterexamples.pass.length && procedure.counterexamples.fail.length && procedure.counterexamples.cant_tell.length);
+  assert.match(procedure.ai_boundary, /must not infer a profile outcome/u);
 });
 
 test("new focus and input-error procedures keep their criterion boundaries and primary sources", () => {
