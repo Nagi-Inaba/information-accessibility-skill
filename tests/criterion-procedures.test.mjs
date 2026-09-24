@@ -31,6 +31,15 @@ test("prerecorded media procedures distinguish media alternatives, captions, and
   assert.match(description.procedure_steps.join(" "), /full text alternative.*SC 1\.2\.5/u);
 });
 
+test("live captions and Level AA description retain their distinct media boundaries", () => {
+  const live = procedureFor("WCAG-2.2-SC-1.2.4");
+  const description = procedureFor("WCAG-2.2-SC-1.2.5");
+  assert.match(live.applicability_steps.join(" "), /two-way individual call/u);
+  assert.match(live.procedure_steps.join(" "), /future recording.*does not replace/u);
+  assert.match(description.procedure_steps.join(" "), /full text alternative.*SC 1\.2\.3/u);
+  assert.match(description.expected_results.join(" "), /existing audio.*all/u);
+});
+
 test("SC 1.1.1 exposes a human review procedure with pass, fail, and cant_tell counterexamples", () => {
   const procedure = procedureFor("WCAG-2.2-SC-1.1.1");
 
