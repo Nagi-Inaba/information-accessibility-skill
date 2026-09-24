@@ -801,6 +801,33 @@ test("status distinguishes authorized-change readiness and legacy read-only reco
   assert.ok(legacy.next_transitions.every((transition) => !transition.permitted));
 }));
 
+test("a frozen run remains readable with an exact saved catalog without changing the source run", (t) => withTemp(t, ({ temp, artifactRoot }) => {
+  const run = initialRun(artifactRoot);
+  const resources = loadAuditResources(skillRoot);
+  run.schema_version = "16.0.0";
+  run.resource_versions.orchestration_registry_version = "15.0.0";
+  run.resource_versions.orchestration_registry_sha256 = resources.orchestrationRegistries.get("15.0.0").sha256;
+  const savedSkill = path.join(temp, "saved-skill");
+  const savedReferences = path.join(savedSkill, "references");
+  fs.mkdirSync(savedReferences, { recursive: true });
+  for (const name of ["standards-registry.json", "criteria-catalog.json", "criterion-procedures.json", "web-audit-methods.json"]) {
+    fs.copyFileSync(path.join(references, name), path.join(savedReferences, name));
+  }
+  const catalog = path.join(savedReferences, "criteria-catalog.json");
+  fs.appendFileSync(catalog, "\n");
+  run.resource_versions.criteria_catalog_sha256 = sha256File(catalog);
+  const runFile = path.join(temp, "frozen-run.json");
+  writeJson(runFile, run);
+  const original = fs.readFileSync(runFile);
+  assert.equal(validateAuditRun(run, { skillRoot, runFile }).valid, false);
+  const historical = validateAuditRun(run, { skillRoot, runFile, historicalResourceRoot: savedSkill });
+  assert.equal(historical.valid, true, historical.errors.join("\n"));
+  const cli = runNode(validateRun, ["--input", runFile, "--output", path.join(temp, "historical-validation.json"),
+    "--historical-resources", savedSkill]);
+  assert.equal(cli.status, 0, cli.stderr);
+  assert.deepEqual(fs.readFileSync(runFile), original);
+}));
+
 test("run initialization creates a schema-valid immutable manifest with installed resource hashes", (t) => withTemp(t, ({ temp, artifactRoot }) => {
   const output = path.join(temp, "audit-run.v1.json");
   const result = runNode(createRun, [

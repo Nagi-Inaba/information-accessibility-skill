@@ -895,6 +895,111 @@ test("renderer creates a self-contained report from a validated record with an a
   }
 });
 
+test("saved historical resources allow read-only report regeneration only for exact run hashes", () => {
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), "a11y-historical-report-"));
+  try {
+    const fixture = reportRunFixture(temp);
+    const savedSkill = path.join(temp, "saved-skill");
+    const savedReferences = path.join(savedSkill, "references");
+    fs.mkdirSync(savedReferences, { recursive: true });
+    for (const name of ["standards-registry.json", "criteria-catalog.json", "criterion-procedures.json", "web-audit-methods.json"]) {
+      fs.copyFileSync(path.join(skill, "references", name), path.join(savedReferences, name));
+    }
+    const savedCatalog = path.join(savedReferences, "criteria-catalog.json");
+    fs.appendFileSync(savedCatalog, "\n");
+    fixture.run.resource_versions.criteria_catalog_sha256 = resourcesSha256(savedCatalog);
+    writeJson(fixture.runFile, fixture.run);
+    const original = fs.readFileSync(fixture.runFile);
+    assert.equal(validateAuditRun(fixture.run, { skillRoot: skill, runFile: fixture.runFile }).valid, false);
+    assert.equal(validateAuditRun(fixture.run, { skillRoot: skill, runFile: fixture.runFile,
+      historicalResourceRoot: savedSkill }).valid, true);
+    const output = path.join(temp, "historical-report.md");
+    const rendered = spawnSync(process.execPath, [path.join(skill, "scripts/render-report.mjs"),
+      "--run", fixture.runFile, "--assessment", fixture.assessmentFile, "--output", output,
+      "--historical-resources", savedSkill], { encoding: "utf8" });
+    assert.equal(rendered.status, 0, rendered.stderr);
+    assert.match(fs.readFileSync(output, "utf8"), /catalog・手順・監査方法のSHA-256はrunと照合済み/u);
+    assert.deepEqual(fs.readFileSync(fixture.runFile), original);
+    fs.appendFileSync(savedCatalog, "\n");
+    assert.equal(validateAuditRun(fixture.run, { skillRoot: skill, runFile: fixture.runFile,
+      historicalResourceRoot: savedSkill }).valid, false);
+  } finally {
+    fs.rmSync(temp, { recursive: true, force: true });
+  }
+});
+
+test("frozen run 16 can regenerate a report using its exact saved resource hashes", () => {
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), "a11y-frozen-report-"));
+  try {
+    const artifactRoot = path.join(temp, "artifacts");
+    fs.mkdirSync(artifactRoot);
+    const runFile = path.join(temp, "run.json");
+    const created = spawnSync(process.execPath, [path.join(skill, "scripts/create-audit-run.mjs"),
+      "--run-id", "RUN-20260924T190000Z-TEST0002", "--profile", "web-modern",
+      "--target-name", "Frozen fixture", "--target-version", "v1",
+      "--target-ref", "https://example.invalid/", "--artifact-root", "artifacts",
+      "--network", "denied", "--interaction", "read_only", "--source-write", "denied",
+      "--inspection-mode", "quick", "--inspection-purpose", "Historical report test", "--output", runFile], { encoding: "utf8", cwd: temp });
+    assert.equal(created.status, 0, created.stderr);
+    const run = readJson(runFile);
+    run.schema_version = "16.0.0";
+    const resources = loadAuditResources(skill);
+    run.resource_versions.orchestration_registry_version = "15.0.0";
+    run.resource_versions.orchestration_registry_sha256 = resources.orchestrationRegistries.get("15.0.0").sha256;
+    const savedSkill = path.join(temp, "saved-skill");
+    const savedReferences = path.join(savedSkill, "references");
+    fs.mkdirSync(savedReferences, { recursive: true });
+    for (const name of ["standards-registry.json", "criteria-catalog.json", "criterion-procedures.json", "web-audit-methods.json"]) {
+      fs.copyFileSync(path.join(skill, "references", name), path.join(savedReferences, name));
+    }
+    const catalog = path.join(savedReferences, "criteria-catalog.json");
+    fs.appendFileSync(catalog, "\n");
+    run.resource_versions.criteria_catalog_sha256 = resourcesSha256(catalog);
+    writeJson(runFile, run);
+    const assessment = generateAssessment("web-modern", { targetName: "Frozen fixture", targetVersion: "v1",
+      targetRefs: ["https://example.invalid/"], evaluator: "Historical reviewer", evaluatedAt: "2026-09-24" });
+    assessment.assessment.scope = structuredClone(run.scope);
+    assessment.assessment.environment = structuredClone(run.environment);
+    const assessmentFile = path.join(temp, "assessment.json");
+    writeJson(assessmentFile, assessment);
+    const output = path.join(temp, "report.md");
+    const rendered = spawnSync(process.execPath, [path.join(skill, "scripts/render-report.mjs"),
+      "--run", runFile, "--assessment", assessmentFile, "--output", output,
+      "--historical-resources", savedSkill], { encoding: "utf8" });
+    assert.equal(rendered.status, 0, rendered.stderr);
+    assert.match(fs.readFileSync(output, "utf8"), /旧版resourceを指定して再出力しました/u);
+    const run5 = structuredClone(run);
+    run5.schema_version = "5.0.0";
+    run5.resource_versions.orchestration_registry_version = "4.0.0";
+    run5.resource_versions.orchestration_registry_sha256 = resources.orchestrationRegistries.get("4.0.0").sha256;
+    delete run5.inspection_request;
+    delete run5.target_inventory;
+    delete run5.permissions.network_policy;
+    delete run5.permissions.interaction_policy;
+    const run5File = path.join(temp, "run5.json");
+    writeJson(run5File, run5);
+    const run5Result = spawnSync(process.execPath, [path.join(skill, "scripts/render-report.mjs"),
+      "--run", run5File, "--assessment", assessmentFile, "--output", path.join(temp, "run5-report.md"),
+      "--historical-resources", savedSkill], { encoding: "utf8" });
+    assert.equal(run5Result.status, 0, run5Result.stderr);
+    const run1 = structuredClone(run5);
+    run1.schema_version = "1.0.0";
+    run1.resource_versions.orchestration_registry_version = "1.0.0";
+    delete run1.resource_versions.orchestration_registry_sha256;
+    delete run1.permissions.command_execution;
+    run1.permissions.allowed_actions = ["read_target", "write_internal_artifacts"];
+    run1.permissions.forbidden_actions = ["record_profile_outcome", "write_target", "authorize_fix"];
+    const run1File = path.join(temp, "run1.json");
+    writeJson(run1File, run1);
+    const run1Result = spawnSync(process.execPath, [path.join(skill, "scripts/render-report.mjs"),
+      "--run", run1File, "--assessment", assessmentFile, "--output", path.join(temp, "run1-report.md"),
+      "--historical-resources", savedSkill], { encoding: "utf8" });
+    assert.equal(run1Result.status, 0, run1Result.stderr);
+  } finally {
+    fs.rmSync(temp, { recursive: true, force: true });
+  }
+});
+
 test("run-backed renderer reports verified, pending, and unverified work without internal orchestration terms", () => {
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), "a11y-run-backed-report-"));
   try {

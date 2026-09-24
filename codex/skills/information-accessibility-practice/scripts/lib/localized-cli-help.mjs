@@ -36,7 +36,7 @@ function withLocaleOption(definition) {
     for (const option of reportOptions) if (!existing.has(option.flag)) localized.options.push(option);
     localized.usage = [
       "accessibility-audit report --input <assessment.json> [report options]",
-      "accessibility-audit report --run <audit-run.json> --assessment <assessment.json> --output <new-report.md|html> [report options]"
+      "accessibility-audit report --run <audit-run.json> --assessment <assessment.json> --output <new-report.md|html> [--historical-resources <saved-skill-root>] [report options]"
     ];
   } else if (localized.name === "profiles") {
     localized.usage = ["accessibility-audit profiles list [--locale ja|en] [--format text|json|markdown]"];

@@ -1713,21 +1713,46 @@ function validateHistory(run, resources, artifactsById, errors) {
   }
 }
 
-export function validateAuditRun(run, { skillRoot = defaultSkillRoot, runFile, readArtifactFile = readStableFile } = {}) {
+export function validateAuditRun(run, { skillRoot = defaultSkillRoot, runFile, readArtifactFile = readStableFile, historicalResourceRoot } = {}) {
   const errors = [];
+  const runRecord = run !== null && typeof run === "object" && !Array.isArray(run) ? run : {};
   let resources;
+  const historicalResourceSnapshots = [];
   try {
     resources = loadAuditResources(skillRoot);
+    if (historicalResourceRoot) {
+      const files = [
+        ["standardsRegistry", "standards-registry.json", "standards_registry_version"],
+        ["criteriaCatalog", "criteria-catalog.json", "criteria_catalog_sha256"],
+        ["criterionProcedures", "criterion-procedures.json", "criterion_procedures_sha256"],
+        ["auditMethods", "web-audit-methods.json", "audit_methods_sha256"]
+      ];
+      const historical = {};
+      const versions = { ...resources.resourceVersions };
+      for (const [key, name, binding] of files) {
+        const snapshot = readStableFile(path.join(path.resolve(historicalResourceRoot), "references", name), {
+          label: `historical ${name}`, maxBytes: 2 * 1024 * 1024
+        });
+        historicalResourceSnapshots.push(snapshot);
+        const value = parseJsonBytes(snapshot.bytes, `historical ${name}`);
+        const actual = binding === "standards_registry_version" ? value?.schema_version : snapshot.sha256;
+        if (runRecord.resource_versions?.[binding] !== actual) {
+          throw new Error(`Historical ${name} does not match run resource_versions.${binding}.`);
+        }
+        historical[key] = value;
+        versions[binding] = actual;
+      }
+      resources = { ...resources, ...historical, resourceVersions: versions };
+    }
   } catch (error) {
-    return { valid: false, errors: [error.message] };
+    return { valid: false, errors: [error.message], historicalResourceSnapshots };
   }
-  const runRecord = run !== null && typeof run === "object" && !Array.isArray(run) ? run : {};
   const schema = resources.auditRunSchemas.get(runRecord.schema_version);
   if (!schema) errors.push(`Unsupported audit-run schema_version: ${String(runRecord.schema_version)}.`);
   else validateJsonSchema(run, schema, "$", errors);
   // Invalid paths and malformed collections must not cause artifact I/O before
   // the schema rejection. Bundle verification also supplies a bounded reader.
-  if (errors.length) return { valid: false, errors, resources, envelopesById: new Map(), evidenceSnapshots: new Map() };
+  if (errors.length) return { valid: false, errors, resources, envelopesById: new Map(), evidenceSnapshots: new Map(), historicalResourceSnapshots };
   const registryVersion = runRecord.resource_versions?.orchestration_registry_version;
   const registryRecord = resources.orchestrationRegistries.get(registryVersion);
   if (!registryRecord) errors.push(`Unsupported orchestration_registry_version: ${String(registryVersion)}.`);
@@ -1853,7 +1878,7 @@ export function validateAuditRun(run, { skillRoot = defaultSkillRoot, runFile, r
     { artifactRoot }
   );
   errors.push(...fixEvidence.errors);
-  return { valid: errors.length === 0, errors, resources: runResources, artifactRoot, envelopesById,
+  return { valid: errors.length === 0, errors, resources: runResources, artifactRoot, envelopesById, historicalResourceSnapshots,
     evidenceSnapshots: new Map([...evidence.snapshots, ...contextEvidence.snapshots, ...participantEvidence.snapshots, ...changeEvidence.snapshots, ...fixEvidence.snapshots]) };
 }
 

@@ -10,20 +10,34 @@
 
 | 記録 | 新規作成する版 | 過去形式の扱い |
 | --- | --- | --- |
-| audit run | 16.0.0 | 1.0.0〜15.0.0は凍結schemaで読取り。継続操作には現行runが必要。 |
-| orchestration registry | 15.0.0 | runの版に対応する1.0.0〜14.0.0を保持。 |
-| artifact envelope | 3.0.0 | runの版に対応する1.0.0／2.0.0を保持。 |
+| audit run | 17.0.0 | 1.0.0〜16.0.0は凍結schemaで読取り。継続操作には現行runが必要。 |
+| orchestration registry | 17.0.0 | runの版に対応する1.0.0〜16.0.0を保持。run 17の旧registry 16も読取り。 |
+| artifact envelope | 4.0.0 | runの版に対応する1.0.0〜3.0.0を保持。 |
 | assessment | 2.0.0 | 1.0.0を読取り。旧human_verifiedは本人確認のない自己申告として表示。 |
 | screening observations | 4.0.0 | 1.0.0〜3.0.0を読取り。過去の不足証拠を自動補完しない。 |
 | declared human review | 3.0.0 | 凍結1.0.0／2.0.0を読取り。複数確認者の一致・不一致と訂正履歴を保持。署名付きreview recordとは別のartifact。 |
 | audit context | 1.0.0 | 現行runだけで登録。参加観点、制約、次回確認、独立監査・資料整備の申告を根拠付きで記録。旧runに暗黙適用しない。 |
 | human review queue | 3.0.0 | 凍結1.0.0／2.0.0を過去runで読取り。箇所・優先度・観測参照は自動補完しない。 |
 | remediation plan | 3.0.0 | 凍結1.0.0／2.0.0を対応する過去runで読取り。 |
-| fix authorization／change record | 各2.0.0 | 凍結1.0.0を対応する過去runで読取り。古い許可を現行の実行許可へ昇格しない。 |
+| fix authorization／fix handoff／change record | 2.0.0／1.0.0／3.0.0 | 任意のfixer導入時のみ。旧change record 1.0.0／2.0.0は元記録として読取り、実行者の証明として扱わない。 |
 | human review record／audit bundle record | 3.0.0／1.0.0 | review record 1.0.0／2.0.0の旧署名も読取り。 署名検証には受領者が別途選んだ信頼方針が必要。 |
 | scanner import record | 1.0.0 | 保存済みraw結果との一致を検証。自動結果は人手の適否判定にならない。 |
 
 その他の形式と正確な契約は配布物の `references/*.schema.json`、対応するregistry、`source-manifest.json`を参照してください。凍結schemaの存在だけで、現在の資料との互換性や全操作の利用可能性を意味するものではありません。
+
+## 過去runの読取りと再レポート
+
+| audit-run版 | 対応registry版 | 現行packageでの扱い |
+| --- | --- | --- |
+| 1.0.0〜2.0.0 | 1.0.0 | 保存済みresourceとassessmentが契約に合えばread-only検証・再レポート。登録・統合は不可。 |
+| 3.0.0 | 2.0.0 | 同上。 |
+| 4.0.0 | 3.0.0 | 同上。 |
+| 5.0.0〜16.0.0 | run版から1を引いたregistry版 | 保存済みresourceとassessmentが契約に合えばread-only検証・再レポート。登録・統合は不可。 |
+| 17.0.0 | 16.0.0または17.0.0 | 旧registry 16はread-only。registry 17のみ現行操作に対応。 |
+
+旧runと同じ時点のskill folderを保管している場合、`validate-run --input <run.json> --output <new-validation.json> --historical-resources <saved-skill-root>`で読み取り、`report --run <run.json> --assessment <saved-assessment.json> --historical-resources <saved-skill-root> --output <new-report.md>`で再出力する。`<saved-skill-root>/references/`のcatalog・criterion procedures・audit methodsの実バイトSHA-256がrunの記録と一致しなければ拒否する。orchestration registryは現行packageに同梱した凍結版を使い、run 2以降は記録されたSHA-256とも照合する。standards registryはrunに版番号しか記録されていないため、過去の内容をハッシュで認証できない。元packageのcommit／release manifestを別途保存し、この制限を再出力したreportにも明示する。
+
+この経路は元run・artifact・assessmentを変更しない。claim tierや人手確認結果を自動昇格せず、現在の検証契約を通る記録だけ再出力する。run 1.0.0にはorchestration registryのSHA-256記録がないため、現行packageに同梱した凍結版を版番号で解決する。保存済みresourceがないrunのハッシュ差分を推測して埋めることはしない。
 
 ## 既存記録を扱うとき
 

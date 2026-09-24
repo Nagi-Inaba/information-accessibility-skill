@@ -295,8 +295,9 @@ const definitions = [
     name: "validate-run",
     script: "validate-audit-run.mjs",
     summary: "Validate an immutable audit run and write a new validation record.",
-    usage: ["accessibility-audit validate-run --input <run.json> --output <new-validation.json>"],
-    options: [option("--input", "<run.json>", "Audit run."), option("--output", "<file>", "New validation record.")]
+    usage: ["accessibility-audit validate-run --input <run.json> --output <new-validation.json> [--historical-resources <saved-skill-root>]"],
+    options: [option("--input", "<run.json>", "Audit run."), option("--output", "<file>", "New validation record."),
+      option("--historical-resources", "<skill-root>", "Saved resource files whose hashes match this run; read-only.")]
   },
   {
     name: "validate-assessment",
@@ -348,6 +349,7 @@ const definitions = [
       option("--input", "<assessment.json>", "Standalone interface."),
       option("--run", "<audit-run.json>", "Run-backed interface; requires --assessment and --output."),
       option("--assessment", "<assessment.json>", "Merged run-backed assessment."),
+      option("--historical-resources", "<skill-root>", "Use saved resources matching the run hashes for a read-only historical report."),
       option("--lifecycle", "<latest-lifecycle.json>", "Add a validated private lifecycle status summary for a registered finding; repeatable."),
       option("--as-of", "<YYYY-MM-DD>", "Date for overdue and exception-expiry checks; default is the host local date."),
       option("--trust-policy", "<recipient-selected.json>", "Reverify reviewer signatures under an external policy; requires its independent pin."),

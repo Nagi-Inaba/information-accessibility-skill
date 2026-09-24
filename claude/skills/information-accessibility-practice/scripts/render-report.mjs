@@ -64,6 +64,7 @@ function parseArgs(argv) {
     ["--input", "input"],
     ["--run", "run"],
     ["--assessment", "assessment"],
+    ["--historical-resources", "historicalResources"],
     ["--output", "output"],
     ["--locale", "locale"],
     ["--detail", "detail"],
@@ -242,12 +243,8 @@ function renderRunBacked(options) {
   const assessmentSnapshot = readStableFile(path.resolve(options.assessment), { label: "run-backed assessment" });
   const run = parseSnapshotJson(runSnapshot, "audit run");
   const assessment = parseSnapshotJson(assessmentSnapshot, "run-backed assessment");
-  const runValidation = validateAuditRun(run, { skillRoot, runFile: runSnapshot.path });
+  const runValidation = validateAuditRun(run, { skillRoot, runFile: runSnapshot.path, historicalResourceRoot: options.historicalResources });
   if (!runValidation.valid) throw new Error(`Audit run validation failed:\n- ${runValidation.errors.join("\n- ")}`);
-  const currentRunVersion = runValidation.resources.auditRunSchema.properties.schema_version.const;
-    if (!["10.0.0", "11.0.0", "12.0.0", "13.0.0", currentRunVersion].includes(run.schema_version)) {
-      throw new Error(`Run-backed reporting requires audit-run 10.0.0, 11.0.0, 12.0.0, 13.0.0 or current schema_version ${currentRunVersion}; use the original package for older records.`);
-  }
   const trustInput = loadReviewTrust(options);
   const reviewOptions = reviewerVerificationOptions({ run, envelopesById: runValidation.envelopesById, trust: trustInput.trust });
   const validation = validateAssessment(
@@ -289,6 +286,16 @@ function renderRunBacked(options) {
     locale: options.locale
   });
   const rendered = renderOutputs(rawPresentation, options);
+  if (options.historicalResources) {
+    const note = options.locale === "ja"
+      ? "旧版resourceを指定して再出力しました。catalog・手順・監査方法のSHA-256はrunと照合済みです。standards registryは記録された版番号のみを照合できます。元記録は変更せず、表示には現行rendererを使用しています。"
+      : "Regenerated with historical resources. Catalog, procedures, and audit methods match the run's SHA-256 hashes. The standards registry is bound only by its recorded version. Source records were unchanged; this display uses the current renderer.";
+    const decorate = (text) => options.format === "html"
+      ? text.replace(/<main[^>]*>/u, (opening) => `${opening}<p class="provenance-note">${note}</p>`)
+      : text.replace(/\n/u, `\n\n${note}\n`);
+    rendered.report = decorate(rendered.report);
+    if (rendered.appendix) rendered.appendix = decorate(rendered.appendix);
+  }
   const lifecycleSnapshots = [], lifecycleIds = new Set();
   const lifecycle = options.lifecycleFiles.map((file) => {
     const loaded = loadLifecycle(path.resolve(file), { run, validation: runValidation, runFile: runSnapshot.path });
@@ -324,6 +331,7 @@ function renderRunBacked(options) {
     assertStableFile(assessmentSnapshot, "run-backed assessment");
     for (const snapshot of artifactSnapshots) assertStableFile(snapshot, "registered artifact");
     for (const snapshot of runValidation.evidenceSnapshots.values()) assertStableFile(snapshot, "raw evidence");
+    for (const snapshot of runValidation.historicalResourceSnapshots ?? []) assertStableFile(snapshot, "historical resource");
     for (const snapshot of lifecycleSnapshots) assertStableFile(snapshot, "lifecycle input");
     for (const snapshot of trustInput.snapshots) assertStableFile(snapshot, "external reviewer trust policy");
   };
@@ -347,7 +355,7 @@ export function main(argv = process.argv.slice(2)) {
   }
   validateOptionCombinations(options);
   const runBacked = Boolean(options.run || options.assessment);
-  if (!runBacked && (options.lifecycleFiles.length || options.asOf)) throw new Error("Lifecycle status requires a run-backed report.");
+  if (!runBacked && (options.lifecycleFiles.length || options.asOf || options.historicalResources)) throw new Error("Lifecycle status and historical resources require a run-backed report.");
   if (options.input && runBacked) throw new Error("Use either --input or the --run/--assessment interface, not both.");
   if (!options.input && !runBacked) throw new Error("--input or --run/--assessment is required.");
   if (runBacked && (!options.run || !options.assessment || !options.output)) {

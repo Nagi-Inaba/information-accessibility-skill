@@ -6,7 +6,7 @@ import { assertNewOutputPath, assertStableFile, readStableFile, validateAuditRun
 
 function parseArgs(argv) {
   const options = {};
-  const flags = new Map([["--input", "input"], ["--output", "output"]]);
+  const flags = new Map([["--input", "input"], ["--output", "output"], ["--historical-resources", "historicalResources"]]);
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (!flags.has(arg)) throw new Error(`Unknown argument: ${arg}`);
@@ -16,7 +16,7 @@ function parseArgs(argv) {
     options[flags.get(arg)] = value;
     index += 1;
   }
-  for (const [flag, key] of flags) if (!options[key]) throw new Error(`${flag} is required`);
+  for (const flag of ["--input", "--output"]) if (!options[flags.get(flag)]) throw new Error(`${flag} is required`);
   return options;
 }
 
@@ -30,8 +30,9 @@ export function main(argv = process.argv.slice(2)) {
   const output = path.resolve(options.output);
   assertNewOutputPath(output);
   const snapshot = readStableFile(input, { label: "audit run input" });
-  const result = validateAuditRun(parseSnapshot(snapshot), { runFile: input });
+  const result = validateAuditRun(parseSnapshot(snapshot), { runFile: input, historicalResourceRoot: options.historicalResources });
   assertStableFile(snapshot, "audit run input");
+  for (const historical of result.historicalResourceSnapshots ?? []) assertStableFile(historical, "historical resource");
   for (const { snapshot: artifact } of result.envelopesById?.values() ?? []) assertStableFile(artifact, "registered artifact");
   for (const evidence of result.evidenceSnapshots?.values() ?? []) assertStableFile(evidence, "raw evidence");
   writeNewJson(output, { valid: result.valid, errors: result.errors });
