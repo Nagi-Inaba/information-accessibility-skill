@@ -8,6 +8,8 @@ This project uses a Keep a Changelog-style structure. Until a tagged release is 
 
 ### Added
 
+- JIS X 8341-3:2016 SC 4.1.1 has a direct English and Japanese parsing procedure, completing procedure availability for the three bundled Web profiles.
+
 - WCAG 2.2 SC 1.2.4 and 1.2.5 have English and Japanese procedures for live captions and prerecorded audio description.
 
 - WCAG 2.2 SC 1.2.1–1.2.3 have English and Japanese procedures for prerecorded media alternatives, captions, and audio description.

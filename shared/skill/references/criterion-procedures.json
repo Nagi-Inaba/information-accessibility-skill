@@ -1,10 +1,10 @@
 {
   "$schema": "./criterion-procedures.schema.json",
   "schema_version": "1.0.0",
-  "catalog_status": "partial",
+  "catalog_status": "complete_for_registered_profiles",
   "verified_at": "2026-09-25",
   "copyright_boundary": "These are original procedural summaries. They identify public W3C sources but do not reproduce normative standard text.",
-  "usage_rule": "Use a listed procedure only after fixing the target scope and opening its primary sources. This partial catalog covers only the listed criteria; it does not make an unlisted criterion executable or the profile complete.",
+  "usage_rule": "Use a listed procedure only after fixing the target scope and opening its primary sources. All current bundled Web profile rows have a procedure, but this does not mean any target was evaluated or conformant; newly registered rows still need their own procedure.",
   "automation_role": "supporting_only",
   "procedures": [
     {
@@ -1889,6 +1889,25 @@
         "cant_tell": ["A described track is listed, but playback fails and its coverage of the visible demonstration cannot be checked."]
       },
       "ai_boundary": "AI may flag silent visual events and described-track candidates, but it must not infer audio coverage from metadata, a transcript, or generated descriptions, or record a profile outcome, human_verified mapping, or E2+ claim without human comparison of the video and audible information."
+    },
+    {
+      "id": "jis2016-sc-4-1-1-parsing",
+      "requirement_id": "JIS-X-8341-3-2016-SC-4.1.1",
+      "procedure_version": "1.0.0",
+      "procedure_kind": "human_manual_or_hybrid",
+      "automation_role": "supporting_only",
+      "primary_sources": ["https://www.w3.org/TR/WCAG20/#ensure-compat-parses", "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html", "https://waic.jp/translations/UNDERSTANDING-WCAG20/ensure-compat-parses.html"],
+      "applicability_steps": ["Use this procedure only for the JIS X 8341-3:2016 profile, which retains SC 4.1.1; WCAG 2.2 web-modern has no SC 4.1.1. Inventory delivered content implemented using markup languages, including relevant generated states and embedded documents in scope.", "For each markup technology and document state, identify its specification, syntax rules, allowed optional tags or nesting, and the accessible delivered source to inspect."],
+      "procedure_steps": ["Run a suitable parser or conformance checker on the exact delivered markup and relevant generated states. Capture the document or state, tool and version, parse diagnostics, and locations without treating every unrelated validation warning as an SC 4.1.1 failure.", "Inspect reported and sampled elements for complete start and end tags, nesting according to that markup specification, duplicate attributes within an element, and duplicate ID values in the document. Distinguish genuinely malformed source from constructs the applicable specification permits, including optional HTML end tags.", "Confirm significant findings against the delivered source and parsed tree, recording the exact rule, location, state, and any specification allowance. Assess resulting name, role, value, or relationship defects under their own criteria as well; do not substitute a modern WCAG 2.2 outcome for this retained JIS row."],
+      "expected_results": ["For applicable markup, tags are complete, nesting follows the technology specification, attributes are not duplicated within an element, and ID values are unique unless that specification allows the particular feature.", "A parser warning alone is not a failure without mapping it to one of the four conditions and the applicable specification."],
+      "required_evidence_types": ["document_structure_inspection", "manual_observation"],
+      "cant_tell_when": ["The delivered markup or a relevant generated state cannot be obtained, or a suitable parser and specification for its technology are unavailable.", "The available evidence cannot establish whether a flagged construct is allowed by the applicable markup specification or where the reported error originates."],
+      "counterexamples": {
+        "pass": ["An HTML page uses optional end tags permitted by its specification; checked source and generated states have no duplicate attributes or IDs and no disallowed nesting."],
+        "fail": ["Delivered markup gives two distinct controls the same ID, without a specification allowance for that duplicate."],
+        "cant_tell": ["A validator flags a generated fragment, but the delivered state and markup technology cannot be reproduced to confirm the rule or location."]
+      },
+      "ai_boundary": "AI may collect parser diagnostics and duplicate candidates, but it must not equate every validator message with failure, import WCAG 2.2's removed criterion into this JIS row, or record a profile outcome, human_verified mapping, or E2+ claim without human source and specification review."
     }
   ]
 }

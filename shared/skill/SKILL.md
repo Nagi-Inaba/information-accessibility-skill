@@ -12,7 +12,7 @@ Keep two layers separate:
 - **Participation review**: use the five gates for practical coverage across artifacts, events, and workflows.
 - **Standards assessment**: select an explicit profile, record requirement outcomes and evidence, and apply the claim guard. Never infer formal conformance from the five gates or a spot check.
 
-This release is a reusable accessibility-audit workflow. It can initialize every registered Web requirement, preserve target-specific evidence, calculate catalog and evaluation coverage, and produce a guarded report. The bundled Web profiles have complete A/AA criterion metadata and partial criterion-specific human review procedures. Use `profiles list` or `show-requirement` to check current procedure availability. The profiles do not yet have criterion-complete test procedures, so the claim ceiling remains `evaluated_subset`; it cannot determine WCAG/JIS conformance or ATAG process-component conformance.
+This release is a reusable accessibility-audit workflow. It can initialize every registered Web requirement, preserve target-specific evidence, calculate catalog and evaluation coverage, and produce a guarded report. The bundled Web profiles have criterion-specific human review procedures for every registered A/AA row. Use `profiles list` or `show-requirement` to check procedure availability. Procedure availability does not establish a target's evaluated conformance; the claim ceiling remains `evaluated_subset`, and the tool cannot determine WCAG/JIS conformance or ATAG process-component conformance.
 
 ## AI-to-Human Evidence Boundary
 

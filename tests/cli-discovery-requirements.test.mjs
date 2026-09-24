@@ -60,8 +60,8 @@ test("profiles list reports active profiles, counts, versions, and claim ceiling
   assert.equal(output.profiles.find((profile) => profile.id === "web-modern").requirement_count, 55);
   assert.equal(output.profiles.find((profile) => profile.id === "jp-public-web").requirement_count, 56);
   const minimumCoverage = new Map([
-    ["jis-x-8341-3-2016-aa", 37],
-    ["jp-public-web", 55],
+    ["jis-x-8341-3-2016-aa", 38],
+    ["jp-public-web", 56],
     ["web-modern", 55]
   ]);
   for (const profile of output.profiles) {

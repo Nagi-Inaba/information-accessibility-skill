@@ -120,6 +120,7 @@ test("equivalent JIS requirements reuse detailed WCAG procedures without losing 
 test("the public-web profile exposes exactly the mapped JIS and additional procedures", () => {
   const expectedRequirementIds = [...equivalentRequirements, ...additionalRequirements]
     .map(([jisRequirementId]) => jisRequirementId)
+    .concat("JIS-X-8341-3-2016-SC-4.1.1")
     .sort();
 
   for (const distribution of distributions) {
@@ -170,7 +171,7 @@ test("standalone review validation accepts mapped JIS and additional bindings", 
   }
 });
 
-test("JIS-specific SC 4.1.1 does not inherit an unrelated WCAG procedure", () => {
+test("JIS-specific SC 4.1.1 uses its direct 2016 procedure", () => {
   for (const distribution of distributions) {
     const result = distribution.lookup(
       "jp-public-web",
@@ -180,9 +181,9 @@ test("JIS-specific SC 4.1.1 does not inherit an unrelated WCAG procedure", () =>
 
     assert.equal(result.profile.id, "jp-public-web", distribution.name);
     assert.equal(result.criterion.id, "JIS-X-8341-3-2016-SC-4.1.1", distribution.name);
-    assert.equal(result.criterion_procedure_status, "not_available", distribution.name);
-    assert.equal(result.procedure_binding.procedure_availability, "unavailable", distribution.name);
-    assert.equal("criterion_procedure" in result, false, distribution.name);
+    assert.equal(result.criterion_procedure_status, "available", distribution.name);
+    assert.equal(result.criterion_procedure.requirement_id, result.criterion.id, distribution.name);
+    assert.equal(result.procedure_binding.procedure_ref, "criterion-procedures:1.0.0#jis2016-sc-4-1-1-parsing", distribution.name);
   }
 });
 

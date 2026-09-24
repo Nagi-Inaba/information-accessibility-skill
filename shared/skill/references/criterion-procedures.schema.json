@@ -1,13 +1,13 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:information-accessibility:criterion-procedures:1.0.0",
-  "title": "Partial Criterion-specific Human Review Procedures",
+  "title": "Criterion-specific Human Review Procedures for Registered Profiles",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema_version", "catalog_status", "verified_at", "copyright_boundary", "usage_rule", "automation_role", "procedures"],
   "properties": {
     "schema_version": {"const": "1.0.0"},
-    "catalog_status": {"const": "partial"},
+    "catalog_status": {"const": "complete_for_registered_profiles"},
     "verified_at": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$"},
     "copyright_boundary": {"type": "string", "minLength": 1},
     "usage_rule": {"type": "string", "minLength": 1},
