@@ -850,6 +850,39 @@
         "cant_tell": ["Only the final payment page is available; the earlier entry and whether the same value can be selected are unknown."]
       },
       "ai_boundary": "AI may map repeated prompts and candidate exceptions, but it must not infer that values can be selected or an exception applies from field names alone, or record a profile outcome, human_verified mapping, or E2+ claim without a human review of the same process."
+    },
+    {
+      "id": "wcag22-sc-3-3-8-accessible-authentication-minimum",
+      "requirement_id": "WCAG-2.2-SC-3.3.8",
+      "procedure_version": "1.0.0",
+      "procedure_kind": "human_manual_or_hybrid",
+      "automation_role": "supporting_only",
+      "primary_sources": ["https://www.w3.org/TR/WCAG22/#accessible-authentication-minimum", "https://www.w3.org/WAI/WCAG22/Understanding/accessible-authentication-minimum.html"],
+      "applicability_steps": [
+        "Map authentication of an existing account in the fixed scope, including sign-in, required second factors, reauthentication, recovery authentication, and challenges that appear only after an error or risk signal; distinguish initial account creation.",
+        "At each required step, identify any memory, transcription, calculation, or puzzle task and the claimed alternative, assisting mechanism, object-recognition exception, or recognition of user-provided non-text content."
+      ],
+      "procedure_steps": [
+        "With an authorized test account and safe test values, follow each reachable authentication path and record the required steps, conditional challenges, available alternatives, and the point where the user can continue without a cognitive function test.",
+        "For credentials and verification codes, check whether a password manager or user agent can fill the input, or whether the complete value can be pasted from the clipboard without forced retyping, splitting, or character extraction. Do not assume that a field attribute alone proves the mechanism works.",
+        "For a claimed alternative, verify that the complete path is available and avoids an unassisted cognitive function test at every required step. For a claimed AA exception, confirm that the task is object recognition or identifying non-text content previously provided by the user, rather than a text transcription or a puzzle beyond recognition.",
+        "Record account recovery and conditionally triggered CAPTCHA separately. Assess input-purpose semantics under SC 1.3.5, control names under SC 4.1.2, and the stricter AAA authentication requirement under SC 3.3.9 separately."
+      ],
+      "expected_results": [
+        "Every required authentication step has a usable route without an unassisted cognitive function test, or meets one of the two specific recognition exceptions allowed at AA level.",
+        "Where copy/paste or autofill is the assisting mechanism, the relevant complete credential or code can actually be entered without recall or transcription in the tested flow."
+      ],
+      "required_evidence_types": ["browser_inspection", "manual_observation"],
+      "cant_tell_when": [
+        "No authorized test account or safe route is available to inspect a required second factor, recovery step, or conditional challenge without exposing real credentials or changing a live account.",
+        "A claimed alternative, assisting mechanism, or recognition exception cannot be exercised or its applicability cannot be established in the permitted target state."
+      ],
+      "counterexamples": {
+        "pass": ["A test account's password can be filled by a password manager, and its required one-time code can be pasted in full; no later step forces memorization or transcription."],
+        "fail": ["A required one-time code must be typed digit by digit because pasting fills only the first box, and no other usable authentication route is offered."],
+        "cant_tell": ["The test account reaches the password step, but a risk-triggered challenge and recovery path cannot be reached safely, so the complete authentication process is unverified."]
+      },
+      "ai_boundary": "AI may inventory authentication steps and candidate mechanisms, but it must not use real credentials, infer that autofill or alternatives work from markup alone, or record a profile outcome, human_verified mapping, or E2+ claim without a human review of the permitted authentication paths."
     }
   ]
 }

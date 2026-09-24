@@ -45,6 +45,7 @@ const additionalRequirements = [
   ["WCAG-2.2-ADDITIONAL-SC-1.4.11", "WCAG-2.2-SC-1.4.11"],
   ["WCAG-2.2-ADDITIONAL-SC-2.4.11", "WCAG-2.2-SC-2.4.11"],
   ["WCAG-2.2-ADDITIONAL-SC-3.3.7", "WCAG-2.2-SC-3.3.7"],
+  ["WCAG-2.2-ADDITIONAL-SC-3.3.8", "WCAG-2.2-SC-3.3.8"],
   ["WCAG-2.2-ADDITIONAL-SC-4.1.3", "WCAG-2.2-SC-4.1.3"]
 ];
 

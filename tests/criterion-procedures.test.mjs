@@ -344,6 +344,19 @@ test("SC 3.3.7 checks repeated entry in the same process and exact exceptions", 
   assert.ok(procedure.cant_tell_when.length && procedure.counterexamples.fail.length);
 });
 
+test("SC 3.3.8 reviews every authentication step and its AA exceptions", () => {
+  const procedure = procedureFor("WCAG-2.2-SC-3.3.8");
+  assert.deepEqual(procedure.primary_sources, [
+    "https://www.w3.org/TR/WCAG22/#accessible-authentication-minimum",
+    "https://www.w3.org/WAI/WCAG22/Understanding/accessible-authentication-minimum.html"
+  ]);
+  assert.deepEqual(procedure.required_evidence_types, ["browser_inspection", "manual_observation"]);
+  assert.match(procedure.applicability_steps.join(" "), /second factors.*recovery authentication.*challenges.*initial account creation/u);
+  assert.match(procedure.procedure_steps.join(" "), /complete value can be pasted.*object recognition.*non-text content previously provided by the user/u);
+  assert.match(procedure.cant_tell_when.join(" "), /No authorized test account.*real credentials/u);
+  assert.ok(procedure.counterexamples.pass.length && procedure.counterexamples.fail.length && procedure.counterexamples.cant_tell.length);
+});
+
 test("new focus and input-error procedures keep their criterion boundaries and primary sources", () => {
   const focus = procedureFor("WCAG-2.2-SC-2.4.11");
   assert.ok(focus.primary_sources.includes("https://www.w3.org/TR/WCAG22/#focus-not-obscured-minimum"));

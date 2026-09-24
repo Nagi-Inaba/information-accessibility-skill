@@ -8,6 +8,8 @@ This project uses a Keep a Changelog-style structure. Until a tagged release is 
 
 ### Added
 
+- WCAG 2.2 SC 3.3.8 has English and Japanese procedures for authentication paths, assisting mechanisms, AA recognition exceptions, and safe human review.
+
 - Explicit WCAG-equivalent procedures now remain available for JIS and public-web additional criteria in discovery, review queues, and assessment validation.
 
 - WCAG 2.2 SC 3.3.7 has English and Japanese procedures for repeated entry within one process, available-value reuse, and item-specific exceptions.
