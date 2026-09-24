@@ -237,7 +237,7 @@ test("SC 4.1.2 exposes a component semantics and change-exposure human review pr
 });
 
 test("unimplemented criteria retain the generic playbook without a criterion-specific procedure", () => {
-  const result = lookupRequirement("web-modern", "WCAG-2.2-SC-2.2.1", skill);
+  const result = lookupRequirement("web-modern", "WCAG-2.2-SC-2.2.2", skill);
   assert.equal("criterion_procedure" in result, false);
   assert.equal(result.audit_method.id, "timing-and-motion");
 });
@@ -522,6 +522,18 @@ test("text-spacing and transient-content procedures retain their exact condition
   assert.match(transient.applicability_steps.join(" "), /unmodified user-agent tooltips/u);
 });
 
+test("character-shortcut and time-limit procedures preserve alternatives and exceptions", () => {
+  const shortcut = procedureFor("WCAG-2.2-SC-2.1.4");
+  assert.ok(shortcut.primary_sources.includes("https://www.w3.org/TR/WCAG22/#character-key-shortcuts"));
+  assert.match(shortcut.applicability_steps.join(" "), /multi-character sequences.*non-printable modifier/u);
+  assert.match(shortcut.expected_results.join(" "), /disabled, remapped.*component has focus/u);
+
+  const timing = procedureFor("WCAG-2.2-SC-2.2.1");
+  assert.ok(timing.primary_sources.includes("https://www.w3.org/TR/WCAG22/#timing-adjustable"));
+  assert.match(timing.procedure_steps.join(" "), /ten times.*20 seconds.*ten extensions.*longer than 20 hours/u);
+  assert.match(timing.cant_tell_when.join(" "), /safe permitted state.*disappearing information/u);
+});
+
 test("new focus and input-error procedures keep their criterion boundaries and primary sources", () => {
   const focus = procedureFor("WCAG-2.2-SC-2.4.11");
   assert.ok(focus.primary_sources.includes("https://www.w3.org/TR/WCAG22/#focus-not-obscured-minimum"));
@@ -568,7 +580,7 @@ test("lookup normalizes an available criterion procedure into an exact versioned
 });
 
 test("lookup normalizes an unavailable criterion procedure into the exact generic method binding", () => {
-  const result = lookupRequirement("web-modern", "WCAG-2.2-SC-2.2.1", skill);
+  const result = lookupRequirement("web-modern", "WCAG-2.2-SC-2.2.2", skill);
   assert.equal(result.lookup_version, "2.0.0");
   assert.deepEqual(result.procedure_binding, {
     procedure_availability: "unavailable",

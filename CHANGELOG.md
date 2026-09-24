@@ -8,6 +8,8 @@ This project uses a Keep a Changelog-style structure. Until a tagged release is 
 
 ### Added
 
+- WCAG 2.2 SC 2.1.4 and 2.2.1 have English and Japanese procedures for character-key shortcuts and adjustable time limits.
+
 - WCAG 2.2 SC 1.4.12 and 1.4.13 have English and Japanese procedures for text-spacing overrides and transient hover or focus content.
 
 - WCAG 2.2 SC 1.3.4 and 1.3.5 have English and Japanese procedures for orientation access and identifying personal input purposes.
