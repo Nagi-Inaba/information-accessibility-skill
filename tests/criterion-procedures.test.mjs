@@ -464,6 +464,16 @@ test("on-focus and on-input procedures distinguish their triggers and context ch
   assert.match(input.procedure_steps.join(" "), /advised.*before using.*local content changes/u);
 });
 
+test("cross-page consistency procedures preserve relative order and function-based identity", () => {
+  const navigation = procedureFor("WCAG-2.2-SC-3.2.3");
+  const identity = procedureFor("WCAG-2.2-SC-3.2.4");
+  assert.ok(navigation.primary_sources.includes("https://www.w3.org/TR/WCAG22/#consistent-navigation"));
+  assert.match(navigation.procedure_steps.join(" "), /relative order.*Inserted or removed.*user initiated/u);
+  assert.ok(identity.primary_sources.includes("https://www.w3.org/TR/WCAG22/#consistent-identification"));
+  assert.match(identity.applicability_steps.join(" "), /same result when used.*text alternative/u);
+  assert.match(identity.procedure_steps.join(" "), /Exact text need not be identical.*icon is the same.*SC 2\.5\.3/u);
+});
+
 test("new focus and input-error procedures keep their criterion boundaries and primary sources", () => {
   const focus = procedureFor("WCAG-2.2-SC-2.4.11");
   assert.ok(focus.primary_sources.includes("https://www.w3.org/TR/WCAG22/#focus-not-obscured-minimum"));

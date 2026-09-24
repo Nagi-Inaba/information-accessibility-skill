@@ -1272,6 +1272,70 @@
         "cant_tell": ["A video begins after a selection and shows a new page, but the preceding instruction and trigger are not visible."]
       },
       "ai_boundary": "AI may identify value-change handlers and candidate prior advice, but it must not infer a context change or sufficient advance notice from code or static text alone, or record a profile outcome, human_verified mapping, or E2+ claim without human review of the safe input flow."
+    },
+    {
+      "id": "wcag22-sc-3-2-3-consistent-navigation",
+      "requirement_id": "WCAG-2.2-SC-3.2.3",
+      "procedure_version": "1.0.0",
+      "procedure_kind": "human_manual_or_hybrid",
+      "automation_role": "supporting_only",
+      "primary_sources": ["https://www.w3.org/TR/WCAG22/#consistent-navigation", "https://www.w3.org/WAI/WCAG22/Understanding/consistent-navigation.html"],
+      "applicability_steps": [
+        "Define the fixed set of web pages sharing a common purpose and author; identify navigation mechanisms repeated on more than one page, such as main menus, search, and skip links.",
+        "Record compared pages, viewport or layout state, and any user-initiated preference or expansion that changes the navigation presentation."
+      ],
+      "procedure_steps": [
+        "Open each relevant page in a comparable state and list the repeated navigation mechanisms and their recurring items in visual and sequential reading order.",
+        "Compare the relative order of those repeated mechanisms and items across pages. Inserted or removed page-specific items and expanded submenus may be present if the shared items keep their relative order; do not demand identical absolute positions or a frozen menu.",
+        "For an order change, determine whether the user initiated it through a preference, adaptive interface, or control. Record the page pair, common items, observed order, state, and evidence of user initiation; evaluate navigation availability under SC 2.4.5 separately."
+      ],
+      "expected_results": [
+        "Navigation mechanisms repeated within the page set, and recurring items within them, keep the same relative order when compared in equivalent states.",
+        "An observed reordering is acceptable only when the user initiated the change; adding page-specific or submenu items alone does not violate the order of shared items."
+      ],
+      "required_evidence_types": ["browser_inspection", "manual_observation"],
+      "cant_tell_when": [
+        "The repeated mechanism or one of its compared pages cannot be inspected in a comparable permitted state.",
+        "Available evidence cannot establish the sequential order or whether the user initiated a disputed reordering."
+      ],
+      "counterexamples": {
+        "pass": ["Home, Services, and Contact stay in that order across pages; one page adds a submenu beneath Services."],
+        "fail": ["A repeated main menu orders Home, Services, Contact on one page but Contact, Home, Services on another without user action."],
+        "cant_tell": ["Two screenshots show different menus at unknown viewport widths, and their reading order and user settings cannot be checked."]
+      },
+      "ai_boundary": "AI may compare candidate navigation sequences, but it must not infer equivalent layout states, reading order, or user initiation from screenshots or source order alone, or record a profile outcome, human_verified mapping, or E2+ claim without human cross-page review."
+    },
+    {
+      "id": "wcag22-sc-3-2-4-consistent-identification",
+      "requirement_id": "WCAG-2.2-SC-3.2.4",
+      "procedure_version": "1.0.0",
+      "procedure_kind": "human_manual_or_hybrid",
+      "automation_role": "supporting_only",
+      "primary_sources": ["https://www.w3.org/TR/WCAG22/#consistent-identification", "https://www.w3.org/WAI/WCAG22/Understanding/consistent-identification.html"],
+      "applicability_steps": [
+        "Define the set of web pages and inventory functional components repeated across at least two pages; group components by the same result when used, not by icon shape or superficial placement.",
+        "Record the pages, function, visible identification, computed accessible name, and text alternative for each applicable component; distinguish similar icons serving different functions."
+      ],
+      "procedure_steps": [
+        "Exercise or otherwise establish the function of each compared component in a permitted state, then compare how the same function is identified visually and to assistive technology across pages.",
+        "Check whether labels, accessible names, and text alternatives follow a consistent pattern. Exact text need not be identical when a destination or object changes, such as 'Go to page 4' then 'Go to page 5'; different functions may need different names even when the icon is the same.",
+        "Record the compared page set, actual outcomes, visible and programmatic identifiers, and inconsistency. Include all same-function instances on a page when that function also appears on another page; assess name presence under SC 4.1.2 and visible label in name under SC 2.5.3 separately."
+      ],
+      "expected_results": [
+        "Components with the same functionality across the page set are identified consistently in their visible labels and accessible names or text alternatives.",
+        "Variation that follows a stable purpose-based pattern is acceptable; reusing an icon for different functions does not force the same identifier."
+      ],
+      "required_evidence_types": ["browser_inspection", "manual_observation"],
+      "cant_tell_when": [
+        "The compared components' actual outcomes or an applicable page cannot be reached in the permitted state.",
+        "The rendered identifiers or computed names and text alternatives cannot be inspected well enough to compare the same-function components."
+      ],
+      "counterexamples": {
+        "pass": ["Next-page links read 'Go to page 4' and 'Go to page 5' on successive pages, following the same purpose-based pattern."],
+        "fail": ["Equivalent site-search submit buttons are identified as 'Search' on one page and 'Find' on another, with no consistent pattern."],
+        "cant_tell": ["Two matching-looking icons appear on separate pages, but the reviewer cannot determine their actual functions or accessible names."]
+      },
+      "ai_boundary": "AI may flag repeated icons and differing identifiers, but it must not infer identical functionality from appearance or accept visual consistency when accessible names differ, or record a profile outcome, human_verified mapping, or E2+ claim without human review of functions and identifiers across pages."
     }
   ]
 }
