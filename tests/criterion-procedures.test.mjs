@@ -396,6 +396,18 @@ test("SC 2.5.1 separates path-based gestures from dragging and checks a single-p
   assert.ok(procedure.cant_tell_when.length && procedure.counterexamples.cant_tell.length);
 });
 
+test("SC 2.5.2 distinguishes pointer down/up routes and unsafe verification", () => {
+  const procedure = procedureFor("WCAG-2.2-SC-2.5.2");
+  assert.deepEqual(procedure.primary_sources, [
+    "https://www.w3.org/TR/WCAG22/#pointer-cancellation",
+    "https://www.w3.org/WAI/WCAG22/Understanding/pointer-cancellation.html"
+  ]);
+  assert.deepEqual(procedure.required_evidence_types, ["browser_inspection", "manual_observation"]);
+  assert.match(procedure.procedure_steps.join(" "), /down-event.*up-event.*abort.*undo.*reverses.*essential timing reason/u);
+  assert.match(procedure.cant_tell_when.join(" "), /real consequential action.*no safe fixture/u);
+  assert.ok(procedure.counterexamples.pass.length && procedure.counterexamples.fail.length && procedure.counterexamples.cant_tell.length);
+});
+
 test("new focus and input-error procedures keep their criterion boundaries and primary sources", () => {
   const focus = procedureFor("WCAG-2.2-SC-2.4.11");
   assert.ok(focus.primary_sources.includes("https://www.w3.org/TR/WCAG22/#focus-not-obscured-minimum"));

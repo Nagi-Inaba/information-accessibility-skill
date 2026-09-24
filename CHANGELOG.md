@@ -8,6 +8,8 @@ This project uses a Keep a Changelog-style structure. Until a tagged release is 
 
 ### Added
 
+- WCAG 2.2 SC 2.5.2 has English and Japanese procedures for pointer down/up timing, abort or undo, reversal, and essential exceptions.
+
 - WCAG 2.2 SC 2.5.1 has English and Japanese procedures for multipoint and path-based gestures, single-pointer alternatives, and essential exceptions.
 
 - WCAG 2.2 SC 2.5.7 has English and Japanese procedures for non-drag single-pointer alternatives and specific exceptions.
