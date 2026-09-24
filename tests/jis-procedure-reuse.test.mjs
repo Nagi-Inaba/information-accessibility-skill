@@ -37,6 +37,7 @@ const equivalentRequirements = [
   ["JIS-X-8341-3-2016-SC-2.4.6", "WCAG-2.2-SC-2.4.6"],
   ["JIS-X-8341-3-2016-SC-2.4.7", "WCAG-2.2-SC-2.4.7"],
   ["JIS-X-8341-3-2016-SC-3.1.1", "WCAG-2.2-SC-3.1.1"],
+  ["JIS-X-8341-3-2016-SC-3.1.2", "WCAG-2.2-SC-3.1.2"],
   ["JIS-X-8341-3-2016-SC-3.2.1", "WCAG-2.2-SC-3.2.1"],
   ["JIS-X-8341-3-2016-SC-3.2.2", "WCAG-2.2-SC-3.2.2"],
   ["JIS-X-8341-3-2016-SC-3.2.3", "WCAG-2.2-SC-3.2.3"],
@@ -58,6 +59,7 @@ const additionalRequirements = [
   ["WCAG-2.2-ADDITIONAL-SC-2.5.4", "WCAG-2.2-SC-2.5.4"],
   ["WCAG-2.2-ADDITIONAL-SC-2.5.7", "WCAG-2.2-SC-2.5.7"],
   ["WCAG-2.2-ADDITIONAL-SC-2.5.8", "WCAG-2.2-SC-2.5.8"],
+  ["WCAG-2.2-ADDITIONAL-SC-3.2.6", "WCAG-2.2-SC-3.2.6"],
   ["WCAG-2.2-ADDITIONAL-SC-3.3.7", "WCAG-2.2-SC-3.3.7"],
   ["WCAG-2.2-ADDITIONAL-SC-3.3.8", "WCAG-2.2-SC-3.3.8"],
   ["WCAG-2.2-ADDITIONAL-SC-4.1.3", "WCAG-2.2-SC-4.1.3"]

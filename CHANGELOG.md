@@ -8,6 +8,8 @@ This project uses a Keep a Changelog-style structure. Until a tagged release is 
 
 ### Added
 
+- WCAG 2.2 SC 3.1.2 and 3.2.6 have English and Japanese procedures for language changes within text and consistent placement of repeated help.
+
 - WCAG 2.2 SC 3.2.3 and 3.2.4 have English and Japanese procedures for consistent navigation order and identification of repeated functions.
 
 - WCAG 2.2 SC 3.2.1 and 3.2.2 have English and Japanese procedures distinguishing focus from activation and setting changes from context changes.

@@ -474,6 +474,18 @@ test("cross-page consistency procedures preserve relative order and function-bas
   assert.match(identity.procedure_steps.join(" "), /Exact text need not be identical.*icon is the same.*SC 2\.5\.3/u);
 });
 
+test("language-of-parts and consistent-help procedures preserve exceptions and comparison scope", () => {
+  const language = procedureFor("WCAG-2.2-SC-3.1.2");
+  assert.ok(language.primary_sources.includes("https://www.w3.org/TR/WCAG22/#language-of-parts"));
+  assert.match(language.applicability_steps.join(" "), /proper names.*technical terms.*indeterminate language.*vernacular/u);
+  assert.match(language.procedure_steps.join(" "), /speech output as supporting observation only.*SC 3\.1\.1/u);
+
+  const help = procedureFor("WCAG-2.2-SC-3.2.6");
+  assert.ok(help.primary_sources.includes("https://www.w3.org/TR/WCAG22/#consistent-help"));
+  assert.match(help.applicability_steps.join(" "), /direct links.*page without a help mechanism/u);
+  assert.match(help.procedure_steps.join(" "), /serialized content order.*navigation between pages alone does not qualify/u);
+});
+
 test("new focus and input-error procedures keep their criterion boundaries and primary sources", () => {
   const focus = procedureFor("WCAG-2.2-SC-2.4.11");
   assert.ok(focus.primary_sources.includes("https://www.w3.org/TR/WCAG22/#focus-not-obscured-minimum"));
