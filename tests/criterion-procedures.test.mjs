@@ -146,12 +146,14 @@ test("catalog procedures include the expected unique requirement IDs", () => {
     "WCAG-2.2-SC-2.4.11",
     "WCAG-2.2-SC-3.3.1",
     "WCAG-2.2-SC-1.4.10",
-    "WCAG-2.2-SC-4.1.3"
+    "WCAG-2.2-SC-4.1.3",
+    "WCAG-2.2-SC-2.4.3",
+    "WCAG-2.2-SC-2.4.7"
   ]);
 
   assert.equal(requirementIds.length, procedures.procedures.length);
   assert.equal(unique.size, procedures.procedures.length);
-  assert.ok(unique.size >= 12);
+  assert.ok(unique.size >= 14);
   for (const req of expected) {
     assert.equal(unique.has(req), true, `missing requirement ${req}`);
   }
@@ -231,6 +233,18 @@ test("unimplemented criteria retain the generic playbook without a criterion-spe
   const result = lookupRequirement("web-modern", "WCAG-2.2-SC-2.2.1", skill);
   assert.equal("criterion_procedure" in result, false);
   assert.equal(result.audit_method.id, "timing-and-motion");
+});
+
+test("focus order and visibility require observed keyboard paths and remain separate", () => {
+  const order = procedureFor("WCAG-2.2-SC-2.4.3");
+  const visible = procedureFor("WCAG-2.2-SC-2.4.7");
+  for (const procedure of [order, visible]) {
+    assert.deepEqual(procedure.required_evidence_types, ["keyboard_test", "manual_observation"]);
+    assert.equal(procedure.primary_sources.length, 2);
+    assert.ok(procedure.counterexamples.cant_tell.length > 0);
+  }
+  assert.match(order.procedure_steps.join(" "), /visual or DOM order/u);
+  assert.match(visible.procedure_steps.join(" "), /indicator persists/u);
 });
 
 test("new focus and input-error procedures keep their criterion boundaries and primary sources", () => {
