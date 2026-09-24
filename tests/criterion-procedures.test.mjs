@@ -370,6 +370,19 @@ test("SC 2.5.8 measures pointer targets and checks spacing before other exceptio
   assert.ok(procedure.cant_tell_when.length && procedure.counterexamples.cant_tell.length);
 });
 
+test("SC 2.5.7 requires a non-drag single-pointer route for author-controlled dragging", () => {
+  const procedure = procedureFor("WCAG-2.2-SC-2.5.7");
+  assert.deepEqual(procedure.primary_sources, [
+    "https://www.w3.org/TR/WCAG22/#dragging-movements",
+    "https://www.w3.org/WAI/WCAG22/Understanding/dragging-movements.html"
+  ]);
+  assert.deepEqual(procedure.required_evidence_types, ["browser_inspection", "manual_observation"]);
+  assert.match(procedure.procedure_steps.join(" "), /one pointer through taps or clicks.*keyboard-only controls.*swipe-only/u);
+  assert.match(procedure.procedure_steps.join(" "), /user agent alone.*fundamentally change/u);
+  assert.match(procedure.counterexamples.fail.join(" "), /keyboard arrow keys.*no click or tap/u);
+  assert.ok(procedure.cant_tell_when.length && procedure.counterexamples.cant_tell.length);
+});
+
 test("new focus and input-error procedures keep their criterion boundaries and primary sources", () => {
   const focus = procedureFor("WCAG-2.2-SC-2.4.11");
   assert.ok(focus.primary_sources.includes("https://www.w3.org/TR/WCAG22/#focus-not-obscured-minimum"));

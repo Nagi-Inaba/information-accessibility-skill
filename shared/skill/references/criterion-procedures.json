@@ -916,6 +916,39 @@
         "cant_tell": ["A screenshot shows two small icons, but the clickable padding and neighboring target boundaries cannot be inspected."]
       },
       "ai_boundary": "AI may flag small visible controls and estimate candidate geometry, but it must not infer the actual hit area, spacing, or an exception from a screenshot or CSS declaration alone, or record a profile outcome, human_verified mapping, or E2+ claim without a human review of the rendered target."
+    },
+    {
+      "id": "wcag22-sc-2-5-7-dragging-movements",
+      "requirement_id": "WCAG-2.2-SC-2.5.7",
+      "procedure_version": "1.0.0",
+      "procedure_kind": "human_manual_or_hybrid",
+      "automation_role": "supporting_only",
+      "primary_sources": ["https://www.w3.org/TR/WCAG22/#dragging-movements", "https://www.w3.org/WAI/WCAG22/Understanding/dragging-movements.html"],
+      "applicability_steps": [
+        "Inventory author-implemented functions operated by pressing a pointer, moving it while held, and releasing it, such as sorting, sliders, carousels, maps, and drawn selections; record the tested pointer and state.",
+        "Distinguish content-controlled dragging or scrolling from unmodified browser or assistive-technology scrolling, and identify any claim that dragging itself is essential to a specific function."
+      ],
+      "procedure_steps": [
+        "For each applicable function, establish the outcome of dragging in a safe test state, then attempt the same outcome using one pointer through taps or clicks without holding and moving it.",
+        "Exercise the available alternative, such as select-then-select, move buttons, a menu, track clicks, or a pointer-operable text field; check that it covers the needed range of outcomes, not just one example.",
+        "Do not count keyboard-only controls as a pointer alternative. Check a claimed swipe-only alternative separately under SC 2.5.1 because it remains path-based, and assess target size under SC 2.5.8 separately.",
+        "For an exception, establish that the user agent alone provides the drag behavior without author modification, or why removing dragging would fundamentally change this function and no conforming alternative can achieve it."
+      ],
+      "expected_results": [
+        "Each author-controlled dragging function has a working single-pointer route to equivalent outcomes without dragging, unless a specifically supported exception applies.",
+        "The alternative can be completed with separate pointer activations and does not require a held pointer, an exclusively path-based swipe, or a physical keyboard."
+      ],
+      "required_evidence_types": ["browser_inspection", "manual_observation"],
+      "cant_tell_when": [
+        "The dragging function, its outcome, or its claimed non-drag alternative cannot be reached and exercised in the permitted state.",
+        "The available evidence cannot establish whether scrolling is author-controlled or user-agent controlled, or whether dragging is essential to the specified function."
+      ],
+      "counterexamples": {
+        "pass": ["A draggable carousel also has next and previous buttons that can be clicked to reach the same items."],
+        "fail": ["A sortable list can be reordered only by dragging or keyboard arrow keys; no click or tap path moves an item."],
+        "cant_tell": ["A recording shows a board card being dragged, but the reviewer cannot access the board to test its menu or other pointer controls."]
+      },
+      "ai_boundary": "AI may inventory likely drag interactions and candidate controls, but it must not infer that a pointer alternative works or an exception applies from labels or code alone, or record a profile outcome, human_verified mapping, or E2+ claim without a human review of the permitted interaction."
     }
   ]
 }
