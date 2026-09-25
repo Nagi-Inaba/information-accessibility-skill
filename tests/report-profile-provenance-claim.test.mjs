@@ -184,8 +184,11 @@ test("a complete legacy self-declared human-review fixture preserves human prove
   });
   record.assessment.scope.included = ["https://example.com/"];
   for (const row of record.assessment.results) {
-    const requiredEvidenceTypes = lookupRequirement("web-modern", row.requirement_id)
-      .procedure_binding.required_evidence_types;
+    const requirement = lookupRequirement("web-modern", row.requirement_id);
+    const requiredEvidenceTypes = [...new Set([
+      ...requirement.procedure_binding.required_evidence_types,
+      ...requirement.audit_method.required_evidence_types
+    ])];
     row.mapping_status = "human_verified";
     row.outcome = "pass";
     row.method_kind = "manual";
