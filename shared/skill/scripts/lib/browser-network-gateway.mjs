@@ -26,14 +26,15 @@ export async function installBrowserNetworkGateway(context, page, network, reque
       cdp.send("Fetch.failRequest", { requestId: event.requestId, errorReason: "BlockedByClient" }).catch(() => {});
       return;
     }
+    // A queued lane may run after loadingFinished deletes or a redirect overwrites this ID.
+    const metadata = requests.get(event.networkId);
     const lane = nextLane++ % lanes.length;
     const operation = lanes[lane].then(async () => {
       try {
         const navigation = event.resourceType === "Document";
         const type = navigation ? event.frameId === mainId ? "main_document" : "iframe" : "subresource";
         const frame = frames.get(event.frameId);
-        const metadata = requests.get(event.networkId);
-        if (!metadata) throw Object.assign(new Error("Browser request metadata unavailable; per-hop enforcement cannot be established."), { code: "BROWSER_REQUEST_METADATA_MISSING" });
+        if (!metadata) throw Object.assign(new Error(`Browser request metadata unavailable; per-hop enforcement cannot be established (${type}, networkId=${Boolean(event.networkId)}, redirectedRequestId=${Boolean(event.redirectedRequestId)}).`), { code: "BROWSER_REQUEST_METADATA_MISSING" });
         const initiator = type === "iframe" ? frames.get(frame?.parent)?.url : metadata?.document ?? frame?.url;
         const response = await network.request({ url: event.request.url, method: event.request.method, resource_type: type,
           initiator_url: /^https?:/u.test(initiator ?? "") ? initiator : requested.href, redirect_from: metadata?.redirect ?? null });

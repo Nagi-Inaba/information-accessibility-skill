@@ -2385,23 +2385,22 @@ test("public-web additional criterion keeps its WCAG procedure binding through r
   assert.equal(validation.valid, true, validation.errors.join("\n"));
 }));
 
-test("unavailable declared review uses the queued criterion's current generic method and catalog sources", (t) => withTemp(t, ({ temp, artifactRoot }) => {
+test("declared review uses the queued criterion's current procedure and official sources", (t) => withTemp(t, ({ temp, artifactRoot }) => {
   const fixture = makeHumanReviewRun(artifactRoot);
   const queue = readJson(fixture.queueFile);
   queue.payload = queuePayload("WCAG-2.2-SC-1.2.1");
   writeJson(fixture.queueFile, queue);
 
-  const resources = loadAuditResources(skillRoot);
-  const catalog = Object.values(resources.criteriaCatalog.catalogs).flat().find((item) => item.id === "WCAG-2.2-SC-1.2.1");
+  const binding = queue.payload.items[0];
   const human = readJson(fixture.humanFile);
   human.inputs[0].sha256 = sha256File(fixture.queueFile);
   human.payload.reviews = [{
-    review_id: "HR-FIXTURE-UNAVAILABLE",
+    review_id: "HR-FIXTURE-AVAILABLE",
     requirement_id: "WCAG-2.2-SC-1.2.1",
-    procedure_availability: "unavailable",
-    criterion_procedure_ref: null,
-    generic_method_ref: `web-audit-methods:${resources.auditMethods.schema_version}#${catalog.method_key}`,
-    official_sources: structuredClone(catalog.official_method_sources),
+    procedure_availability: binding.procedure_availability,
+    criterion_procedure_ref: binding.procedure_ref,
+    generic_method_ref: null,
+    official_sources: structuredClone(binding.official_sources),
     target_specific_evidence: [{
       type: "manual_observation",
       location: "media player",
@@ -2412,9 +2411,14 @@ test("unavailable declared review uses the queued criterion's current generic me
       location: "media player",
       observation: "The media alternative was checked with assistive technology.",
       captured_at: "2026-07-17T12:00:04Z"
+    }, {
+      type: "browser_inspection",
+      location: "media player",
+      observation: "The media alternatives were inspected in the browser.",
+      captured_at: "2026-07-17T12:00:04Z"
     }],
     profile_outcome: "pass",
-    rationale: "The queued generic review was completed."
+    rationale: "The queued criterion review was completed."
   }];
   writeJson(fixture.humanFile, human);
   fixture.run.artifacts.find((entry) => entry.artifact_id === queue.artifact_id).sha256 = sha256File(fixture.queueFile);
@@ -2424,20 +2428,20 @@ test("unavailable declared review uses the queued criterion's current generic me
   const baseline = validateAuditRun(fixture.run, { skillRoot, runFile });
   assert.equal(baseline.valid, true, baseline.errors.join("\n"));
 
-  human.payload.reviews[0].generic_method_ref = `web-audit-methods:${resources.auditMethods.schema_version}#adaptable-structure`;
+  human.payload.reviews[0].generic_method_ref = "web-audit-methods:1.0.0#audio-and-video-alternatives";
   writeJson(fixture.humanFile, human);
   fixture.run.artifacts.find((entry) => entry.artifact_id === human.artifact_id).sha256 = sha256File(fixture.humanFile);
   const wrongMethod = validateAuditRun(fixture.run, { skillRoot, runFile });
   assert.equal(wrongMethod.valid, false);
-  assert.match(wrongMethod.errors.join("\n"), /generic_method_ref|current generic method/i);
+  assert.match(wrongMethod.errors.join("\n"), /generic_method_ref|must be null/i);
 
-  human.payload.reviews[0].generic_method_ref = `web-audit-methods:${resources.auditMethods.schema_version}#${catalog.method_key}`;
-  human.payload.reviews[0].official_sources = [catalog.official_method_sources[0]];
+  human.payload.reviews[0].generic_method_ref = null;
+  human.payload.reviews[0].official_sources = ["https://example.invalid/not-authoritative"];
   writeJson(fixture.humanFile, human);
   fixture.run.artifacts.find((entry) => entry.artifact_id === human.artifact_id).sha256 = sha256File(fixture.humanFile);
   const wrongSources = validateAuditRun(fixture.run, { skillRoot, runFile });
   assert.equal(wrongSources.valid, false);
-  assert.match(wrongSources.errors.join("\n"), /official_sources|catalog sources/i);
+  assert.match(wrongSources.errors.join("\n"), /official_sources|registered official sources/i);
 }));
 
 test("merge reconstructs only from an E0 assessment baseline with no prior results, findings, or evidence", (t) => withTemp(t, ({ temp, artifactRoot }) => {
