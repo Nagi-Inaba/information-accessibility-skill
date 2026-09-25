@@ -243,7 +243,7 @@ node .\scripts\verify-all.mjs
 
 セキュリティ上の問題は公開Issueへ秘密情報を貼らず、[SECURITY.md](SECURITY.md)の案内に従ってください。
 
-現在のpackage `0.1.0` は開発版です。再現にはcommit SHAも記録してください。配布候補には版とcommit、SHA-256一覧を添え、公開済みreleaseとローカルでの検証結果を区別します。
+初回の[プレリリース v0.1.0](https://github.com/Nagi-Inaba/information-accessibility-skill/releases/tag/v0.1.0)を公開しています。導入時は添付の`SHA256SUMS`と`source-manifest.json`を確認し、再現用に完全なcommit SHAも記録してください。package版だけでは履歴中の開発版を区別できません。
 
 ## ライセンス
 

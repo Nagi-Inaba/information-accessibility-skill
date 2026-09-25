@@ -2,13 +2,13 @@
 
 ## Supported versions
 
-Security fixes target the current `main` branch and the latest published release, when one exists. Older development commits do not receive separate backports. Package `0.1.0` is still an untagged development series as of 2026-09-19; identify it by its full commit, not by the package version alone. See [supported versions and migration](docs/version-support.md).
+Security fixes target the current `main` branch and the latest published release. Older development commits do not receive separate backports. The first published version is the [v0.1.0 prerelease](https://github.com/Nagi-Inaba/information-accessibility-skill/releases/tag/v0.1.0); identify installations by their full source commit, not by the package version alone. See [supported versions and migration](docs/version-support.md).
 
 ## Reporting a vulnerability
 
 Do not publish exploit details, credentials, private audit artifacts, local paths, or target-specific evidence in a public issue.
 
-Use [Report a vulnerability](https://github.com/Nagi-Inaba/information-accessibility-skill/security/advisories/new) to send a private report to the repository maintainers. This route requires GitHub sign-in and repository private vulnerability reporting to be enabled. If it is unavailable, open a public issue asking only for a private contact channel; do not include the affected target, exploit, credentials or evidence. No maintainer email address should be inferred from Git history.
+Use [Report a vulnerability](https://github.com/Nagi-Inaba/information-accessibility-skill/security/advisories/new) to send a private report to the repository maintainers. Private vulnerability reporting is enabled and requires GitHub sign-in. If the route is unavailable, open a public issue asking only for a private contact channel; do not include the affected target, exploit, credentials or evidence. No maintainer email address should be inferred from Git history.
 
 For ordinary non-sensitive defects, use the [bug report form](https://github.com/Nagi-Inaba/information-accessibility-skill/issues/new?template=bug.yml) with synthetic data. GitHub's [private reporting guide](https://docs.github.com/en/code-security/how-tos/report-and-fix-vulnerabilities/report-privately) explains the reporting flow.
 

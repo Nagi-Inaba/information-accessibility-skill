@@ -1,6 +1,6 @@
 # 対応版と互換性
 
-2026-09-19時点では、package `0.1.0` は開発中で、公開済みのtag付きreleaseはありません。同じpackage版でも履歴中にschemaと挙動が変わっているため、報告・再現・導入には完全なcommit SHAを記録してください。今後の配布物はpackage版、commit、各ファイルのSHA-256をセットで示します。
+初回の[プレリリース v0.1.0](https://github.com/Nagi-Inaba/information-accessibility-skill/releases/tag/v0.1.0)はsource commit `43b33adbfb454fc17781912aab20822a2a56ba5d`に固定されています。同じpackage版でも過去の開発履歴ではschemaと挙動が変わっているため、報告・再現・導入には完全なcommit SHAを記録してください。配布物にはpackage版、commit、各ファイルのSHA-256を添えています。
 
 現行の監査専用導入と任意のauthorized fixerは、ともにorchestration registry `17.0.0`を使用します。installerは同梱されたfeature manifestとregistry版の一致を確認し、異なる組合せを拒否します。監査専用導入には`fix-authorization`・`fix-handoff`・`change-record`のpayload schemaと修正実行CLIを含めません。通常の監査runはこの構成で作成・検証できます。これらのartifactを含む既存runの読取りには、対応する修正機能と元のpackage／commitを保持してください。修正機能の追加・除外によって既存の監査runや元の証拠を書き換えません。
 
