@@ -43,7 +43,7 @@ Copyright © 2023 W3C®. This software or document includes material copied from
 - 帰属表示: 出典：デジタル庁「ウェブアクセシビリティ」。
 - 加工: Nagi-Inaba / information-accessibility-skill が追加18項目を抽出し、独自のID・分類・W3Cメタデータとの対応を追加。デジタル庁の未加工の公式資料として表示しない。
 - 再配布: 出典と加工主体を表示する。第三者が権利を持つ部分や個別の利用条件は別途確認する。この方針はデジタル庁の対象範囲に関するもので、日本の全公開Webサイトに一律に課される規格ではない。
-- 法的レビュー: 未実施。確認日: 2026-09-19
+- 法的レビュー: 未実施。確認日: 2026-09-25
 
 ## Accessible Rich Internet Applications \(WAI-ARIA\) 1.2
 
