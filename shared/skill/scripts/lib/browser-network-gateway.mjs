@@ -4,6 +4,7 @@ export async function installBrowserNetworkGateway(context, page, network, reque
   const cdp = await context.newCDPSession(page);
   const frames = new Map();
   const requests = new Map();
+  const pausedRequests = new Map();
   const pending = new Set();
   let failure = null;
   const lanes = Array.from({ length: 4 }, () => Promise.resolve());
@@ -26,18 +27,24 @@ export async function installBrowserNetworkGateway(context, page, network, reque
       cdp.send("Fetch.failRequest", { requestId: event.requestId, errorReason: "BlockedByClient" }).catch(() => {});
       return;
     }
-    // A queued lane may run after loadingFinished deletes or a redirect overwrites this ID.
+    // Network metadata may already be gone; Fetch identifies redirected hops itself.
     const metadata = requests.get(event.networkId);
+    const predecessor = event.redirectedRequestId ? pausedRequests.get(event.redirectedRequestId) : null;
+    pausedRequests.set(event.requestId, { url: event.request.url, frameId: event.frameId });
     const lane = nextLane++ % lanes.length;
     const operation = lanes[lane].then(async () => {
       try {
         const navigation = event.resourceType === "Document";
         const type = navigation ? event.frameId === mainId ? "main_document" : "iframe" : "subresource";
         const frame = frames.get(event.frameId);
-        if (!metadata) throw Object.assign(new Error(`Browser request metadata unavailable; per-hop enforcement cannot be established (${type}, networkId=${Boolean(event.networkId)}, redirectedRequestId=${Boolean(event.redirectedRequestId)}).`), { code: "BROWSER_REQUEST_METADATA_MISSING" });
+        if (event.redirectedRequestId && (!predecessor || predecessor.frameId !== event.frameId ||
+          metadata?.redirect && metadata.redirect !== predecessor.url)) {
+          throw Object.assign(new Error("Browser redirect lineage unavailable or inconsistent."), { code: "BROWSER_REDIRECT_LINEAGE_INVALID" });
+        }
         const initiator = type === "iframe" ? frames.get(frame?.parent)?.url : metadata?.document ?? frame?.url;
         const response = await network.request({ url: event.request.url, method: event.request.method, resource_type: type,
-          initiator_url: /^https?:/u.test(initiator ?? "") ? initiator : requested.href, redirect_from: metadata?.redirect ?? null });
+          initiator_url: /^https?:/u.test(initiator ?? "") ? initiator : requested.href,
+          redirect_from: predecessor?.url ?? metadata?.redirect ?? null });
         const headers = Object.entries(response.headers).filter(([key]) => !["set-cookie", "connection", "transfer-encoding", "content-length"].includes(key))
           .map(([name, value]) => ({ name, value: Array.isArray(value) ? value.join(", ") : String(value) }));
         await cdp.send("Fetch.fulfillRequest", { requestId: event.requestId, responseCode: response.status,
