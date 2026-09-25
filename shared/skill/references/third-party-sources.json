@@ -120,8 +120,8 @@
       "modification_notice": "Nagi-Inaba / information-accessibility-skill が追加18項目を抽出し、独自のID・分類・W3Cメタデータとの対応を追加。デジタル庁の未加工の公式資料として表示しない。",
       "redistribution_notes": "出典と加工主体を表示する。第三者が権利を持つ部分や個別の利用条件は別途確認する。この方針はデジタル庁の対象範囲に関するもので、日本の全公開Webサイトに一律に課される規格ではない。",
       "derivative_notice": null,
-      "reviewed_source_sha256": "fbe3a7f99e4d5c2444d0ecfe0227282c9ba009d5b4be9d2c2821c5860e791c18",
-      "checked_on": "2026-09-19",
+      "reviewed_source_sha256": "0313376e796e282d177fadf9560bb01fd353455bd09d45852ad02fb94861f0b8",
+      "checked_on": "2026-09-25",
       "report_notice": true
     },
     {
@@ -244,7 +244,7 @@
   "resource_bindings": [
     {
       "path": "references/criteria-catalog.json",
-      "canonical_sha256": "be72fa107f94da19b5163d00554c90878941786a270a2e400cbd456cd34196ab",
+      "canonical_sha256": "8612f28fecd929ef9ca03ca7de3826a271d49ef5cfab57f9e5a72163aebf3084",
       "source_ids": [
         "WCAG-2.2",
         "WAIC-JIS-CHECKLIST-2020-12",

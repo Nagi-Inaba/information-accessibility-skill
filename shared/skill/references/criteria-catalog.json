@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0.0",
   "catalog_status": "metadata_complete",
-  "verified_at": "2026-07-14",
+  "verified_at": "2026-09-25",
   "copyright_boundary": "Contains identifiers, titles, levels, source links, and original evidence classifications. Normative criterion text is not included.",
   "sources": [
     {
@@ -20,7 +20,7 @@
       "id": "DIGITAL-AGENCY-JP-PROFILE",
       "url": "https://www.digital.go.jp/accessibility-statement",
       "role": "18 additional WCAG criteria profile",
-      "source_sha256": "fbe3a7f99e4d5c2444d0ecfe0227282c9ba009d5b4be9d2c2821c5860e791c18"
+      "source_sha256": "0313376e796e282d177fadf9560bb01fd353455bd09d45852ad02fb94861f0b8"
     }
   ],
   "catalogs": {
