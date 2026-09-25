@@ -243,7 +243,7 @@ node .\scripts\verify-all.mjs
 
 Do not place secrets or private evidence in a public issue. Follow [SECURITY.md](SECURITY.md) for security reporting.
 
-Package `0.1.0` is a development version. Record the full commit SHA for reproduction. Release candidates include the package version, commit and SHA-256 inventory; local verification is distinct from a published release.
+The first [v0.1.0 prerelease](https://github.com/Nagi-Inaba/information-accessibility-skill/releases/tag/v0.1.0) is published. Verify the attached `SHA256SUMS` and `source-manifest.json` before installation, and record the full commit SHA for reproduction. The package version alone does not distinguish earlier development revisions.
 
 ## License
 

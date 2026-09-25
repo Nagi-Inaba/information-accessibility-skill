@@ -1,13 +1,10 @@
 # Issueの優先順位と進捗
 
-2026-09-25確認。PR [#161](https://github.com/Nagi-Inaba/information-accessibility-skill/pull/161)はマージ済み。Ubuntu／Windows・Node.js 20／22の検証、実Chromeの証拠・レポート経路、NVDAレポートsmokeは成功した。個別Issueの受け入れ条件と統合後の実装を照合し、対応済み35件を完了にした。
+2026-09-25確認。PR [#161](https://github.com/Nagi-Inaba/information-accessibility-skill/pull/161)と[#162](https://github.com/Nagi-Inaba/information-accessibility-skill/pull/162)はマージ済み。Ubuntu／Windows・Node.js 20／22の検証、実Chromeの証拠・レポート経路、NVDAレポートsmokeは成功した。個別Issueの受け入れ条件と統合後の実装を照合し、対応済み35件を完了にした。[v0.1.0プレリリース](https://github.com/Nagi-Inaba/information-accessibility-skill/releases/tag/v0.1.0)のtag・4添付ファイル・hash、非公開脆弱性報告とAbout設定も確認した。
 
 ## 残る優先順
 
-| 優先 | Issue | 状態と次の作業 |
-| --- | --- | --- |
-| P1 | [#35 公開プロジェクトの保守・リリース導線](https://github.com/Nagi-Inaba/information-accessibility-skill/issues/35) | SECURITY、CONTRIBUTING、CHANGELOG、Issue/PRテンプレート、対応版、release候補の生成手順は整備済み。Private vulnerability reportingは無効、Aboutのtopics・homepageは空で、公開Releaseもない。非公開報告先と公開設定・配布物を確定してから完了判定する。公開候補は最終main commitで再生成する。 |
-| 整理 | [#144 Backlog整理](https://github.com/Nagi-Inaba/information-accessibility-skill/issues/144) | 親Issue。本文に古い進捗が残るため、個別Issueと本表で現在状態を確認する。#35完了後に整理する。 |
+この実装トラックの未完了Issueはありません。[#35](https://github.com/Nagi-Inaba/information-accessibility-skill/issues/35)の公開導線と、整理用の親Issue [#144](https://github.com/Nagi-Inaba/information-accessibility-skill/issues/144)も完了しました。親Issueの本文は当初の計画時点の記録です。
 
 ## 完了した実装トラック
 
@@ -19,4 +16,4 @@
 
 - 旧audit-runは保存済みresourceとhashを照合して読取り・再レポートする。自動移行、旧runへの追記、署名の付け替えは行わない。
 - 非Web記録は参加観点の人手記録であり、WCAG／JIS適合判定ではない。ATAGは参照ガイダンスに限定する。実対象の人手評価、支援技術の実機確認、macOSでの導入実機確認は別途必要。
-- 公開ReleaseとGitHub設定は未実施。配布候補とCIの成功を公開完了とは扱わない。
+- v0.1.0はプレリリースです。配布物のhash確認は出所の署名やアクセシビリティ適合の認証ではありません。

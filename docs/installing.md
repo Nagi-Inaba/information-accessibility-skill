@@ -1,8 +1,8 @@
 # Installation, upgrade and removal / 導入・更新・削除
 
-Use a pinned source revision for every install. The package is still version `0.1.0` without a published tagged release, so the package version alone does not identify its behavior. Record the full Git commit SHA or the archive's `source-manifest.json` with the audit. Node.js 20 or later is required. Browser scans additionally need a permitted browser adapter; ledger and report commands do not.
+Use a pinned source revision for every install. The [v0.1.0 prerelease](https://github.com/Nagi-Inaba/information-accessibility-skill/releases/tag/v0.1.0) is published, but the package version alone does not identify earlier development revisions. Verify its `SHA256SUMS` and `source-manifest.json`; record the full source commit with the audit. Node.js 20 or later is required. Browser scans additionally need a permitted browser adapter; ledger and report commands do not.
 
-導入ごとにソース版を固定します。package `0.1.0`は公開済みtag付きreleaseがなく、版番号だけでは挙動を特定できません。完全なGit commit SHA、またはarchiveの`source-manifest.json`を監査記録とともに保管します。Node.js 20以上が必要です。ブラウザー検査には別途利用を認められたadapterが必要ですが、台帳・レポートのコマンドには不要です。
+導入ごとにソース版を固定します。[プレリリース v0.1.0](https://github.com/Nagi-Inaba/information-accessibility-skill/releases/tag/v0.1.0)は公開済みですが、版番号だけでは過去の開発版を特定できません。添付の`SHA256SUMS`と`source-manifest.json`を確認し、完全なsource commitを監査記録とともに保管します。Node.js 20以上が必要です。ブラウザー検査には別途利用を認められたadapterが必要ですが、台帳・レポートのコマンドには不要です。
 
 | Host | Windows | macOS / Linux | Installed components |
 | --- | --- | --- | --- |
