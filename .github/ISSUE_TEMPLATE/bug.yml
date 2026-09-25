@@ -3,11 +3,14 @@ description: Report incorrect behavior or a regression
 title: "[Bug] "
 labels: [bug]
 body:
+  - type: markdown
+    attributes:
+      value: "Security vulnerabilities belong in the private reporting channel linked above. Use synthetic data in this public form."
   - type: input
     id: version
     attributes:
-      label: Version or commit
-      placeholder: commit SHA or release
+      label: Package version / full commit / schema version
+      placeholder: Package 0.1.0, full commit SHA, audit-run 10.0.0
     validations:
       required: true
   - type: input
@@ -15,6 +18,15 @@ body:
     attributes:
       label: Profile / command
       placeholder: web-modern, jp-public-web, accessibility-audit report, etc.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, Node, host (Codex/Claude), browser and assistive technology versions, or not applicable.
+    validations:
+      required: true
   - type: textarea
     id: reproduce
     attributes:
@@ -41,3 +53,10 @@ body:
       options:
         - label: I removed secrets and target-specific private evidence.
           required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence and claim boundary
+      description: Distinguish automatic observations, human judgements and unperformed tests. Do not attach raw real-audit artifacts.
+    validations:
+      required: true

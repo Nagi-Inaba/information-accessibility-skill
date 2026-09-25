@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import crypto from "node:crypto";
+import { schemaFixtureReference } from "./helpers/saved-evidence.mjs";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -74,8 +75,9 @@ function readOnlyRole(overrides = {}) {
 
 function screeningPayload() {
   return {
-    schema_version: "2.0.0",
+    schema_version: "4.0.0",
     observations: [{
+      evidence_refs: [schemaFixtureReference(createdAt)],
       requirement_id: "SCREEN-EXTENSION",
       evidence_level: "E1",
       method: "Read-only structural inspection",
@@ -92,7 +94,8 @@ function screeningPayload() {
 
 function envelope(overrides = {}) {
   return {
-    schema_version: "2.0.0",
+    schema_version: "4.0.0",
+    target_snapshot_ids: [],
     artifact_id: "ART-STRUCTURE-001",
     artifact_type: "screening-observations",
     run_id: runId,
@@ -110,6 +113,25 @@ function envelope(overrides = {}) {
 
 test("frozen orchestration contracts retain their normalized hashes across line-ending conventions", () => {
   const frozenHashes = [
+    ["audit-run-13.0.0.schema.json","2c4b852b3599e036fda577f52b04933f4ddb7ab53a3e8f399f2b99c30713e187"],
+    ["declared-human-review-2.0.0.schema.json","4474360f5eb63e75485acfa45bf832fe4bc2d2cc92d7beaf87beae059ed0c41e"],
+    ["human-review-record-2.0.0.schema.json","3038eee889eec588d46c80de7ff950bf1d8fdbea7dbfd047097ebbfacaddf0e6"],
+    ["orchestration-registry-12.0.0.json","d1a7a5023e01aed9a9d77149d580b46a34f2bc0523f3bf8f93cc5f5bb2805f50"],
+    ["orchestration-registry-12.0.0.schema.json","d6a1b15e799f352326b99e123e63de1b1b6297f3ce4bd1b6454cd3059e1854ac"],
+    ["declared-human-review-1.0.0.schema.json","f4732affdb197ae02d56bf1cdccda2978422b127a1b8c5f173ed452ba1198f7a"],
+    ["human-review-record-1.0.0.schema.json","463e029221fea69c7175947b82962bcde4db4790f3b9a53f7692b367dfbbfb39"],
+    ["audit-run-12.0.0.schema.json","836344169a4f237e4d724ce26501ad43712fb7b2e5028be73ad279e389788cce"],
+    ["remediation-plan-2.0.0.schema.json","b8036ca3587b1a91a89baa034ac4807f5f228ed6bbb1d6e898e96c5ce6b79f92"],
+    ["orchestration-registry-11.0.0.json","5e5f65e30221c27690dbf65f8beca33f2320557bf4c3218f021c5758ad179782"],
+    ["orchestration-registry-11.0.0.schema.json","f4d7cf044dc498a971a719bd15a8ce9168c7704c313bf5c2b884ff166b62ba2b"],
+    ["audit-run-11.0.0.schema.json","62b7906ef2cf5a489bb0260cea57beffd2a306b70dfcc88bf067dd4594fe3cbe"],
+    ["screening-observations-3.0.0.schema.json","268da46d8988039e5ff272166fa2ab13c3492a6a164ecadbb3ac07f47691e33b"],
+    ["orchestration-registry-10.0.0.json","ac9677b26a9771e0d65be60b04aa9fd4a83ec095249219e7db105691fcff262a"],
+    ["orchestration-registry-10.0.0.schema.json","f4a1ef7aa167ae2cbb29c40d366fd91acd803e8f68a5ec8b55823a1e1d54f10f"],
+    ["audit-run-10.0.0.schema.json", "1b9dcb511484fb1c92ee058937804ae1b9dc98147e2954978d8389a3c7abaf6c"],
+    ["human-review-queue-2.0.0.schema.json", "a067686abafc4f8a2661c9b19410d4f27b409f697f6c89b289960ba51b129533"],
+    ["orchestration-registry-9.0.0.json", "56f7da577f45b6bbf0fa37f569e8d0ea2fbd57614ae7843d1d526fe9e1b7d405"],
+    ["orchestration-registry-9.0.0.schema.json", "536a6360b0cca86758f2e4e4ba56e68898f0e576c8b463fe9cdbd2e696c648c5"],
     ["orchestration-registry-3.0.0.json", "f57534c1e430050b6f559d6ae5859171487647346c13624aa58fc18127ed2864"],
     ["orchestration-registry-3.0.0.schema.json", "19903e95a727cca2b4002fa9c9d35b1cf0ddc4d4ac4d658cd28c7820f45b4105"],
     ["audit-run-4.0.0.schema.json", "afc3f0449963d49d2834c13842cecbbc46060695fcf67ab53c133f626df86ecf"],
@@ -131,9 +153,9 @@ test("frozen orchestration contracts retain their normalized hashes across line-
   assert.equal(readJson(path.join(references, "audit-run-5.0.0.schema.json")).properties.schema_version.const, "5.0.0");
   assert.equal(readJson(path.join(references, "screening-observations-1.0.0.schema.json")).properties.schema_version.const, "1.0.0");
   assert.equal(readJson(path.join(references, "audit-artifact-envelope-1.0.0.schema.json")).properties.schema_version.const, "1.0.0");
-  assert.equal(readJson(path.join(references, "orchestration-registry.json")).schema_version, "6.0.0");
-  assert.equal(readJson(path.join(references, "audit-run.schema.json")).properties.schema_version.const, "7.0.0");
-  assert.equal(readJson(path.join(references, "audit-artifact-envelope.schema.json")).properties.schema_version.const, "2.0.0");
+  assert.equal(readJson(path.join(references, "orchestration-registry.json")).schema_version, "17.0.0");
+  assert.equal(readJson(path.join(references, "audit-run.schema.json")).properties.schema_version.const, "17.0.0");
+  assert.equal(readJson(path.join(references, "audit-artifact-envelope.schema.json")).properties.schema_version.const, "4.0.0");
 });
 
 test("an eighth safe read-only role can use an existing registered artifact type", (t) => withSkillCopy(t, "role", (copiedSkill) => {

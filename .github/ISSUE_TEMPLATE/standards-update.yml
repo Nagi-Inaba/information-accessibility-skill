@@ -4,6 +4,19 @@ title: "[Standards] "
 labels: [standards]
 body:
   - type: input
+    id: version
+    attributes:
+      label: Package version / full commit / schema version
+    validations:
+      required: true
+  - type: input
+    id: profile
+    attributes:
+      label: Affected profile / requirement / procedure
+      description: Enter not applicable if no existing profile is affected.
+    validations:
+      required: true
+  - type: input
     id: source
     attributes:
       label: Upstream source
@@ -28,10 +41,21 @@ body:
     attributes:
       label: Local impact
       placeholder: profile IDs, requirement IDs, procedures, report wording, claim boundary, etc.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Source version, observed change and reuse terms
+      description: Include publication/update dates, the reproducible difference, terms URL and attribution impact. Separate observed changes from interpretation; do not paste protected normative text or private audit evidence.
+    validations:
+      required: true
   - type: checkboxes
     id: sourcecheck
     attributes:
       label: Source check
       options:
         - label: I verified this against an official primary source.
+          required: true
+        - label: I removed secrets, private targets, personal data and raw audit evidence.
           required: true

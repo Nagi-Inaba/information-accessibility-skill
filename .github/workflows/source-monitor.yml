@@ -1,0 +1,46 @@
+name: Monitor official accessibility sources
+
+on:
+  schedule:
+    - cron: '17 2 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Inspect official pages
+        id: inspect
+        continue-on-error: true
+        run: node scripts/monitor-official-sources.mjs --output-dir "$RUNNER_TEMP/source-monitor"
+      - name: Build review-only catalog candidate and diff
+        run: |
+          if node scripts/build-criteria-catalog.mjs --refresh --output "$RUNNER_TEMP/source-monitor/catalog-candidate.json" --verified-at "$(date -u +%F)" > "$RUNNER_TEMP/source-monitor/catalog-refresh.log" 2>&1; then
+            node scripts/compare-criteria-catalog.mjs --current shared/skill/references/criteria-catalog.json --candidate "$RUNNER_TEMP/source-monitor/catalog-candidate.json" > "$RUNNER_TEMP/source-monitor/catalog-diff.json"
+          fi
+      - name: Show review summary
+        if: always()
+        run: |
+          if test -f "$RUNNER_TEMP/source-monitor/review.md"; then cat "$RUNNER_TEMP/source-monitor/review.md" >> "$GITHUB_STEP_SUMMARY"; fi
+          if test -f "$RUNNER_TEMP/source-monitor/catalog-diff.json"; then echo 'Catalog diff is in the workflow artifact.' >> "$GITHUB_STEP_SUMMARY"; fi
+          if ! test -f "$RUNNER_TEMP/source-monitor/catalog-candidate.json"; then echo 'Catalog candidate could not be built; inspect catalog-refresh.log.' >> "$GITHUB_STEP_SUMMARY"; fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: official-source-review
+          path: ${{ runner.temp }}/source-monitor/
+          retention-days: 30
+      - name: Signal required review or failed refresh
+        if: always()
+        run: |
+          test '${{ steps.inspect.outcome }}' = 'success'
+          test -f "$RUNNER_TEMP/source-monitor/catalog-diff.json"
+          node -e "const d=require(process.env.RUNNER_TEMP+'/source-monitor/catalog-diff.json'); if(d.source_hash_changes.length || d.requirement_changes.added.length || d.requirement_changes.removed.length || d.requirement_changes.changed.length || d.routing_changes.length || d.structural_changes.length) process.exit(1)"

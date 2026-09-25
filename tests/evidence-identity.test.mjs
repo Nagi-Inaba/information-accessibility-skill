@@ -28,12 +28,16 @@ test("identity paths reject traversal, absolute and Windows alias paths on every
   assert.equal(createEvidenceReference({ ...evidence, relativePath: "証拠/page.html" }).path, "証拠/page.html");
 });
 
-test("timestamps must be real UTC instants rather than normalized invalid dates", () => {
-  for (const capturedAt of ["2026-02-30T00:00:00Z", "2025-02-29T00:00:00Z", "2026-09-18T24:00:00Z", "2026-09-18T00:00:00+00:00", "bad"]) {
+test("timestamps preserve real RFC 3339 offsets and reject normalized invalid dates", () => {
+  for (const capturedAt of ["2026-02-30T00:00:00Z", "2025-02-29T00:00:00Z", "2026-09-18T24:00:00Z", "bad"]) {
     assert.throws(() => createEvidenceReference({ ...evidence, capturedAt }), /captured_at/u);
     assert.throws(() => createFileTargetSnapshot({ ...common, capturedAt, relativePath: "page.html", bytes }), /capturedAt/u);
   }
   assert.ok(createEvidenceReference({ ...evidence, capturedAt: "2024-02-29T00:00:00Z" }));
+  for (const capturedAt of ["2026-09-18T00:00:00+00:00", "2026-09-18T09:00:00.000001+09:00"]) {
+    assert.equal(createEvidenceReference({ ...evidence, capturedAt }).captured_at, capturedAt);
+    assert.equal(createFileTargetSnapshot({ ...common, capturedAt, relativePath: "page.html", bytes }).captured_at, capturedAt);
+  }
 });
 
 test("file snapshots retain path, version and content identity and cannot be mutated in memory", () => {

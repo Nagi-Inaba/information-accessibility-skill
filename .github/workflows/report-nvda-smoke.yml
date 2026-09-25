@@ -3,10 +3,8 @@ name: NVDA report smoke
 on:
   pull_request:
     paths:
-      - "codex/skills/information-accessibility-practice/scripts/render-report.mjs"
-      - "claude/skills/information-accessibility-practice/scripts/render-report.mjs"
-      - "codex/skills/information-accessibility-practice/scripts/lib/report-*.mjs"
-      - "claude/skills/information-accessibility-practice/scripts/lib/report-*.mjs"
+      - "shared/skill/scripts/render-report.mjs"
+      - "shared/skill/scripts/lib/report-*.mjs"
       - "scripts/run-nvda-report-smoke.ps1"
       - "tests/nvda-report-smoke-contract.test.mjs"
       - ".github/workflows/report-nvda-smoke.yml"
@@ -29,6 +27,8 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
+      - name: Generate Codex and Claude skills
+        run: node scripts/sync-distributions.mjs --write
       - name: Generate the fixed English HTML report fixture
         shell: pwsh
         run: |

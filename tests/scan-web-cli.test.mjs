@@ -27,7 +27,7 @@ test("unified CLI exposes scan-web", () => {
 test("scan-web help documents machine-scan inputs and defaults", () => {
   const result = run(["scan-web", "--help"]);
   assert.equal(result.status, 0, result.stderr);
-  for (const token of ["--url", "--profile", "--output", "--context-output", "--allow-origin", "--focus-steps", "--width", "--height", "--reflow-width", "320", "1280", "800"]) {
+  for (const token of ["--url", "--profile", "--output", "--context-output", "--axe-output", "--evidence-output", "--browser-channel", "--allow-origin", "--focus-steps", "--width", "--height", "--reflow-width", "320", "1280", "800"]) {
     assert.ok(result.stdout.includes(token), token);
   }
 });
@@ -63,4 +63,18 @@ test("scan-web reports unknown profiles as usage before dependency checks", () =
   const result = run(["scan-web", "--url", "https://example.com/", "--profile", "missing-profile", "--output", freshOutput()]);
   assert.equal(result.status, 2, result.stderr);
   assert.match(result.stderr, /unknown or inactive/u);
+});
+
+test("scan-web requires paired distinct import outputs before opening a browser", () => {
+  const output = freshOutput();
+  const base = ["scan-web", "--url", "https://example.com/", "--profile", "web-modern", "--output", output];
+  const incomplete = run([...base, "--axe-output", `${output}.axe`]);
+  assert.equal(incomplete.status, 2);
+  assert.match(incomplete.stderr, /supplied together/);
+  const duplicate = run([...base, "--axe-output", `${output}.axe`, "--evidence-output", `${output}.axe`]);
+  assert.equal(duplicate.status, 2);
+  assert.match(duplicate.stderr, /distinct/);
+  const browser = run([...base, "--browser-channel", "arbitrary-executable"]);
+  assert.equal(browser.status, 2);
+  assert.equal(fs.existsSync(output), false);
 });

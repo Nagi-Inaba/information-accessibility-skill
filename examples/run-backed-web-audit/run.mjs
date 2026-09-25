@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+import { createHumanReviewQueue } from "../../codex/skills/information-accessibility-practice/scripts/lib/human-review-queue.mjs";
+
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -8,6 +10,8 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 import { lookupRequirement } from "../../codex/skills/information-accessibility-practice/scripts/show-requirement.mjs";
+import { createRunEvidenceReference } from "../../codex/skills/information-accessibility-practice/scripts/lib/run-evidence.mjs";
+import { targetSnapshotIds } from "../../codex/skills/information-accessibility-practice/scripts/lib/run-targets.mjs";
 
 const exampleRoot = path.dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = path.resolve(exampleRoot, "../..");
@@ -17,10 +21,19 @@ const profileRequirement = "WCAG-2.2-SC-1.1.1";
 const screeningRequirement = "SCREEN-IMAGE-ALT";
 
 function parseArgs(argv) {
-  if (argv.length !== 2 || argv[0] !== "--output" || !argv[1] || argv[1].startsWith("--")) {
-    throw new Error("Usage: node examples/run-backed-web-audit/run.mjs --output <empty-directory>");
+  const options = { targetName: "Public run-backed accessibility example", targetRefs: [] };
+  const seen = new Set();
+  for (let i = 0; i < argv.length; i += 2) {
+    const flag = argv[i];
+    if (!["--output", "--target-name", "--target-ref"].includes(flag) || !argv[i + 1] || argv[i + 1].startsWith("--")) throw new Error(`Invalid example argument: ${flag}`);
+    if (flag !== "--target-ref" && seen.has(flag)) throw new Error(`Duplicate argument: ${flag}`);
+    seen.add(flag);
+    if (flag === "--target-ref") options.targetRefs.push(argv[i + 1]);
+    else options[flag === "--output" ? "output" : "targetName"] = argv[i + 1];
   }
-  return { output: path.resolve(argv[1]) };
+  if (!options.output) throw new Error("Usage: node examples/run-backed-web-audit/run.mjs --output <empty-directory> [--target-name <name>] [--target-ref <ref>]");
+  if (!options.targetRefs.length) options.targetRefs.push("https://example.com/");
+  return { ...options, output: path.resolve(options.output) };
 }
 
 function runCli(args) {
@@ -63,7 +76,8 @@ function inputRef(artifact, file) {
 
 function envelope({ artifactId, artifactType, runId, roleId, producerKind, createdAt, inputs, payload }) {
   return {
-    schema_version: "2.0.0",
+    schema_version: "4.0.0",
+    target_snapshot_ids: [],
     artifact_id: artifactId,
     artifact_type: artifactType,
     run_id: runId,
@@ -89,11 +103,12 @@ function screeningArtifact(runId, suffix) {
     createdAt: capturedAt,
     inputs: [],
     payload: {
-      schema_version: "2.0.0",
+      schema_version: "4.0.0",
       observations: [{
+        evidence_refs: [],
         requirement_id: screeningRequirement,
         evidence_level: "E1",
-        method: "Read-only rendered fixture inspection",
+        method: "Static fixture HTML inspection (illustrative)",
         location: "Example page, informative image",
         observation: "The fixture image has no programmatically determinable text alternative.",
         captured_at: capturedAt,
@@ -106,25 +121,16 @@ function screeningArtifact(runId, suffix) {
   });
 }
 
-function queueArtifact(runId, suffix, screening, screeningFile) {
-  const binding = lookupRequirement("web-modern", profileRequirement, skillRoot).procedure_binding;
+function queueArtifact(run, suffix, screening, screeningFile) {
   return envelope({
     artifactId: `ART-QUEUE-EXAMPLE${suffix}`,
     artifactType: "human-review-queue",
-    runId,
+    runId: run.run_id,
     roleId: "human_queue_planner",
     producerKind: "ai_agent",
     createdAt: `2026-08-23T12:00:1${suffix}Z`,
     inputs: [inputRef(screening, screeningFile)],
-    payload: {
-      schema_version: "2.0.0",
-      items: [{ requirement_id: profileRequirement, ...binding }],
-      procedure_coverage: {
-        total_requirements: 1,
-        available_procedures: binding.procedure_availability === "available" ? 1 : 0,
-        unavailable_procedures: binding.procedure_availability === "unavailable" ? 1 : 0
-      }
-    }
+    payload: createHumanReviewQueue({ run, screenings: [screening], skillRoot })
   });
 }
 
@@ -139,12 +145,14 @@ function humanArtifact(runId, suffix, queue, queueFile) {
     createdAt: `2026-08-23T12:00:2${suffix}Z`,
     inputs: [inputRef(queue, queueFile)],
     payload: {
-      schema_version: "1.0.0",
+      schema_version: "3.0.0",
       declaration: "I declare that I performed the recorded review as an external human reviewer.",
+      reviewer_id: "example-reviewer",
       reviewer_name: "Example External Reviewer",
       review_date: "2026-08-23",
       identity_authenticated: false,
       reviews: [{
+        review_id: `HR-EXAMPLE-${suffix}`,
         requirement_id: profileRequirement,
         procedure_availability: binding.procedure_availability,
         criterion_procedure_ref: binding.procedure_ref,
@@ -178,7 +186,7 @@ function remediationArtifact(runId, suffix, source, sourceFile, humanReviewed) {
     createdAt: `2026-08-23T12:00:3${suffix}Z`,
     inputs: [inputRef(source, sourceFile)],
     payload: {
-      schema_version: "2.0.0",
+      schema_version: "3.0.0",
       items: [{
         remediation_id: `REM-EXAMP00${suffix}`,
         basis: humanReviewed ? "verified_failure" : "unverified_screening_candidate",
@@ -213,12 +221,13 @@ function bindAssessmentToRun(assessmentFile, runFile) {
   rewriteJson(assessmentFile, assessment);
 }
 
-function buildScenario(base, { name, runId, suffix, humanReviewed }) {
+function buildScenario(base, { name, runId, suffix, humanReviewed, targetName, targetRefs }) {
   const scenario = path.join(base, name);
   const artifactRoot = path.join(scenario, "artifacts");
   fs.mkdirSync(artifactRoot, { recursive: true, mode: 0o700 });
 
-  const initialRun = path.join(scenario, "audit-run.v0.json");
+  const unboundRun = path.join(scenario, "audit-run.v0.json");
+  const initialRun = path.join(scenario, "audit-run.bound.json");
   const baseline = path.join(scenario, "baseline-assessment.json");
   runCli([
     "init",
@@ -226,21 +235,44 @@ function buildScenario(base, { name, runId, suffix, humanReviewed }) {
     "--inspection-purpose", "Identify major barriers and the next checks",
     "--run-id", runId,
     "--profile", "web-modern",
-    "--target-name", "Public run-backed accessibility example",
+    "--target-name", targetName,
     "--target-version", "fixture-v1",
-    "--target-ref", "https://example.com/",
+    ...targetRefs.flatMap((ref) => ["--target-ref", ref]),
     "--artifact-root", artifactRoot,
     "--network", "none",
     "--interaction", "safe_read_only",
     "--source-write", "none",
-    "--output", initialRun
+    "--output", unboundRun
   ]);
+  // These are explicitly synthetic saved states. No example URL is fetched.
+  const captureBytes = fs.readFileSync(path.join(exampleRoot, "fixture.html"));
+  const digest = (bytes) => crypto.createHash("sha256").update(bytes).digest("hex");
+  const specifications = targetRefs.map((targetRef, index) => {
+    const bundlePath = path.join(artifactRoot, `fixture-state-${index}.json`);
+    writeJsonNew(bundlePath, {
+      schema_version: "1.0.0", kind: "web-evidence-bundle", captured_at: "2026-08-23T12:00:00Z",
+      target: { requested_url: targetRef, final_url: targetRef, http_status: 200,
+        dom_sha256: digest(captureBytes), ax_tree_sha256: digest("[]") },
+      environment: { adapter: "synthetic-example-fixture", browser_version: "fixture",
+        viewport: { width: 1280, height: 720 }, rendering: { locale: "en-US" } },
+      evidence: { dom: captureBytes.toString("utf8"), accessibility_tree: [] }
+    });
+    return { kind: "web_state", target_ref: targetRef, bundle_path: bundlePath, locale: "en-US",
+      authentication_state_id: "synthetic-example-fixture", feature_flags: [] };
+  });
+  const specsFile = path.join(artifactRoot, "target-specifications.json");
+  const inventoryFile = path.join(artifactRoot, "target-inventory.json");
+  writeJsonNew(specsFile, specifications);
+  runCli(["capture-targets", "--run", unboundRun, "--specs", specsFile, "--output", inventoryFile]);
+  runCli(["bind-targets", "--run", unboundRun, "--targets", inventoryFile, "--output", initialRun]);
+  const measuredRun = readJson(initialRun);
+  const snapshotIds = targetSnapshotIds(measuredRun);
   runCli([
     "assessment",
     "--profile", "web-modern",
-    "--target-name", "Public run-backed accessibility example",
+    "--target-name", targetName,
     "--target-version", "fixture-v1",
-    "--target-ref", "https://example.com/",
+    ...targetRefs.flatMap((ref) => ["--target-ref", ref]),
     "--evaluator", "Audit orchestrator",
     "--evaluated-at", "2026-08-23",
     "--output", baseline
@@ -249,11 +281,17 @@ function buildScenario(base, { name, runId, suffix, humanReviewed }) {
 
   const artifacts = [];
   const screening = screeningArtifact(runId, suffix);
+  screening.target_snapshot_ids = snapshotIds;
   const screeningFile = path.join(artifactRoot, "screening-observations.json");
+  fs.writeFileSync(path.join(artifactRoot, "captured-fixture.html"), captureBytes, { flag: "wx", mode: 0o600 });
+  const observation = screening.payload.observations[0];
+  observation.evidence_refs.push(createRunEvidenceReference({ run: measuredRun, targetRef: targetRefs[0], evidenceType: "dom_snapshot",
+    relativePath: "captured-fixture.html", bytes: captureBytes, capturedAt: observation.captured_at }));
   writeJsonNew(screeningFile, screening);
   artifacts.push({ value: screening, file: screeningFile });
 
-  const queue = queueArtifact(runId, suffix, screening, screeningFile);
+  const queue = queueArtifact(measuredRun, suffix, screening, screeningFile);
+  queue.target_snapshot_ids = snapshotIds;
   const queueFile = path.join(artifactRoot, "human-review-queue.json");
   writeJsonNew(queueFile, queue);
   artifacts.push({ value: queue, file: queueFile });
@@ -262,6 +300,7 @@ function buildScenario(base, { name, runId, suffix, humanReviewed }) {
   let humanFile;
   if (humanReviewed) {
     human = humanArtifact(runId, suffix, queue, queueFile);
+    human.target_snapshot_ids = snapshotIds;
     humanFile = path.join(artifactRoot, "declared-human-review.json");
     writeJsonNew(humanFile, human);
     artifacts.push({ value: human, file: humanFile });
@@ -270,6 +309,7 @@ function buildScenario(base, { name, runId, suffix, humanReviewed }) {
   const remediationSource = humanReviewed ? human : screening;
   const remediationSourceFile = humanReviewed ? humanFile : screeningFile;
   const remediation = remediationArtifact(runId, suffix, remediationSource, remediationSourceFile, humanReviewed);
+  remediation.target_snapshot_ids = snapshotIds;
   const remediationFile = path.join(artifactRoot, "remediation-plan.json");
   writeJsonNew(remediationFile, remediation);
   artifacts.push({ value: remediation, file: remediationFile });
@@ -302,15 +342,17 @@ function buildScenario(base, { name, runId, suffix, humanReviewed }) {
 }
 
 export function main(argv = process.argv.slice(2)) {
-  const { output } = parseArgs(argv);
+  const { output, targetName, targetRefs } = parseArgs(argv);
   ensureEmptyDirectory(output);
   const screeningOnly = buildScenario(output, {
+    targetName, targetRefs,
     name: "screening-only",
     runId: "RUN-20260823T120000Z-EXAM0001",
     suffix: "1",
     humanReviewed: false
   });
   const humanReviewed = buildScenario(output, {
+    targetName, targetRefs,
     name: "human-reviewed",
     runId: "RUN-20260823T120000Z-EXAM0002",
     suffix: "2",

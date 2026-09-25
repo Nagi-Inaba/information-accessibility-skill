@@ -5,17 +5,24 @@ import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import test from "node:test";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const installer = path.join(root, "scripts/install-claude.mjs");
 const sourceSkill = path.join(root, "claude/skills/information-accessibility-practice");
 const manifest = readJson(path.join(root, "shared/agents/agent-manifest.json"));
+const optionalFiles = readJson(path.join(root, "shared/agents/authorized-fixer-feature.json")).optional_skill_files;
 const defaultAgents = manifest.agents.filter((agent) => agent.install_by_default);
 const reviewerAgent = defaultAgents.find((agent) => agent.id === "information-accessibility-reviewer");
 const nonDefaultAgents = manifest.agents.filter((agent) => !agent.install_by_default);
 
 assert.ok(reviewerAgent, "the reviewer must remain a manifest default");
+
+test("npm core package excludes the same optional fixer files as the installers", () => {
+  const ignored = fs.readFileSync(path.join(root, "codex/skills/information-accessibility-practice/.npmignore"), "utf8")
+    .trim().split(/\r?\n/u);
+  assert.deepEqual(ignored, optionalFiles);
+});
 
 function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, "utf8").replace(/^\uFEFF/u, ""));
@@ -50,8 +57,8 @@ function relativeFiles(base, current = base) {
   }).sort();
 }
 
-function assertMirror(expected, actual) {
-  const expectedFiles = relativeFiles(expected);
+function assertMirror(expected, actual, excluded = []) {
+  const expectedFiles = relativeFiles(expected).filter((file) => !excluded.includes(file.split(path.sep).join("/")));
   const actualFiles = relativeFiles(actual);
   assert.deepEqual(actualFiles, expectedFiles);
   for (const relative of expectedFiles) {
@@ -103,7 +110,7 @@ test("Claude installer dry-run selects manifest defaults without writing to CLAU
   }
 });
 
-test("Claude installer performs a clean manifest-driven install and the installed skill works", () => {
+test("Claude installer performs a clean manifest-driven install and the installed skill works", async () => {
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), "a11y-claude-install-"));
   try {
     const claudeHome = path.join(temp, "claude-home");
@@ -116,7 +123,13 @@ test("Claude installer performs a clean manifest-driven install and the installe
     assert.equal(output.specialist_dispatch, "available");
 
     const installedSkill = path.join(claudeHome, "skills/information-accessibility-practice");
-    assertMirror(sourceSkill, installedSkill);
+    assertMirror(sourceSkill, installedSkill, optionalFiles);
+    assert.equal(fs.existsSync(path.join(installedSkill, "scripts/apply-authorized-fix.mjs")), false);
+    assert.equal(fs.existsSync(path.join(installedSkill, "references/fix-handoff.schema.json")), false);
+    const { loadAuditResources } = await import(pathToFileURL(path.join(installedSkill, "scripts/lib/audit-run.mjs")).href);
+    const resources = loadAuditResources(installedSkill);
+    assert.equal(resources.orchestrationRegistry.schema_version, "17.0.0");
+    assert.equal(resources.payloadSchemas.has("fix-handoff"), false);
     for (const agent of defaultAgents) {
       assert.equal(sha256(installedAgentPath(claudeHome, agent)), sha256(sourceAgentPath(agent)), agent.id);
     }
@@ -145,6 +158,43 @@ test("Claude installer performs a clean manifest-driven install and the installe
       neutralCwd
     );
     assert.equal(validated.status, 0, validated.stderr || validated.stdout);
+    const auditRun = path.join(neutralCwd, "audit-run.json");
+    fs.mkdirSync(path.join(neutralCwd, "artifacts"));
+    const initialized = run(process.execPath, [path.join(installedSkill, "scripts/create-audit-run.mjs"),
+      "--run-id", "RUN-20260924T190000Z-TEST0001", "--profile", "web-modern",
+      "--target-name", "Core-only smoke test", "--target-version", "1",
+      "--target-ref", "https://example.invalid/", "--artifact-root", "artifacts",
+      "--network", "denied", "--interaction", "read_only", "--source-write", "denied",
+      "--inspection-mode", "quick", "--inspection-purpose", "Check core-only initialization",
+      "--output", auditRun
+    ], neutralCwd);
+    assert.equal(initialized.status, 0, initialized.stderr || initialized.stdout);
+    const validatedRun = run(process.execPath, [path.join(installedSkill, "scripts/validate-audit-run.mjs"),
+      "--input", auditRun, "--output", path.join(neutralCwd, "run-validation.json")], neutralCwd);
+    assert.equal(validatedRun.status, 0, validatedRun.stderr || validatedRun.stdout);
+    const validatedWithFixer = run(process.execPath, [path.join(sourceSkill, "scripts/validate-audit-run.mjs"),
+      "--input", auditRun, "--output", path.join(neutralCwd, "run-validation-with-fixer.json")], neutralCwd);
+    assert.equal(validatedWithFixer.status, 0, validatedWithFixer.stderr || validatedWithFixer.stdout);
+    fs.copyFileSync(path.join(sourceSkill, "references/fix-handoff.schema.json"), path.join(installedSkill, "references/fix-handoff.schema.json"));
+    assert.throws(() => loadAuditResources(installedSkill), /Incomplete authorized fixer schema installation/u);
+  } finally {
+    fs.rmSync(temp, { recursive: true, force: true });
+  }
+});
+
+test("Claude opt-in installs the complete fixer with its matching core", async () => {
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), "a11y-claude-fixer-"));
+  try {
+    const claudeHome = path.join(temp, "claude-home");
+    const result = runInstaller(["--claude-home", claudeHome, "--include-authorized-fixer"]);
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    const output = parseOutput(result);
+    assert.equal(output.authorized_fixer, true);
+    assertMirror(sourceSkill, path.join(claudeHome, "skills/information-accessibility-practice"));
+    assert.equal(output.agents.at(-1).id, "information-accessibility-authorized-fixer");
+    const installedSkill = path.join(claudeHome, "skills/information-accessibility-practice");
+    const { loadAuditResources } = await import(pathToFileURL(path.join(installedSkill, "scripts/lib/audit-run.mjs")).href);
+    assert.equal(loadAuditResources(installedSkill).payloadSchemas.has("fix-handoff"), true);
   } finally {
     fs.rmSync(temp, { recursive: true, force: true });
   }

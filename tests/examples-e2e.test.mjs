@@ -101,8 +101,8 @@ test("run-backed example creates ordered artifacts, merged assessment, and repor
   assert.equal(fs.existsSync(path.join(temp, "human-reviewed", "declared-human-review.json")), true);
   const screeningAssessment = readJson(path.join(temp, "screening-only", "merged-assessment.json"));
   const humanAssessment = readJson(path.join(temp, "human-reviewed", "merged-assessment.json"));
-  assert.ok(screeningAssessment.assessment.results.every((row) => row.mapping_status !== "human_verified"));
-  assert.ok(humanAssessment.assessment.results.some((row) => row.mapping_status === "human_verified"));
+  assert.ok(screeningAssessment.assessment.results.every((row) => row.mapping_status !== "human_declared"));
+  assert.ok(humanAssessment.assessment.results.some((row) => row.mapping_status === "human_declared"));
 });
 
 test("example documentation uses repository-relative commands and contains no private fixture data", () => {

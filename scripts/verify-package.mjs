@@ -3,8 +3,9 @@ import path from "node:path";
 import process from "node:process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import { validateStandardsRegistry } from "../codex/skills/information-accessibility-practice/scripts/lib/profile-registry.mjs";
+import { validateStandardsRegistry } from "../shared/skill/scripts/lib/profile-registry.mjs";
 import { buildDistribution } from "./sync-distributions.mjs";
+import { verifySourceNotices } from "./verify-source-provenance.mjs";
 
 const defaultRoot = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 
@@ -12,6 +13,9 @@ function walk(base, current = base) {
   return fs.readdirSync(current, { withFileTypes: true }).flatMap((entry) => {
     const full = path.join(current, entry.name);
     if (entry.isSymbolicLink()) return [];
+    // Third-party dependencies may contain JSONC; private run outputs are not
+    // package sources. Validate their own contracts through the runtime instead.
+    if (entry.isDirectory() && (entry.name === "node_modules" || (current === base && ["audit-runs", ".git"].includes(entry.name)))) return [];
     return entry.isDirectory() ? walk(base, full) : [path.relative(base, full).split(path.sep).join("/")];
   }).sort();
 }
@@ -24,6 +28,8 @@ export function verifyPackage(root = defaultRoot) {
   const packageRoot = path.resolve(root);
   const distribution = buildDistribution(packageRoot, { write: false });
   const errors = [...distribution.errors];
+  try { verifySourceNotices(packageRoot); }
+  catch (error) { errors.push(`Invalid source provenance: ${error.message}`); }
   const jsonFiles = distribution.status === "PASS"
     ? walk(packageRoot).map((file) => path.join(packageRoot, ...file.split("/"))).filter((file) => file.endsWith(".json"))
     : [];
@@ -38,9 +44,8 @@ export function verifyPackage(root = defaultRoot) {
 
   const registryPath = path.join(
     packageRoot,
-    "codex",
-    "skills",
-    "information-accessibility-practice",
+    "shared",
+    "skill",
     "references",
     "standards-registry.json"
   );

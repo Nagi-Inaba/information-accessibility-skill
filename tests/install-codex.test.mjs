@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const installer = path.join(root, "scripts/install-codex.ps1");
 const sourceSkill = path.join(root, "codex/skills/information-accessibility-practice");
+const optionalFiles = JSON.parse(fs.readFileSync(path.join(root, "shared/agents/authorized-fixer-feature.json"), "utf8")).optional_skill_files;
 const manifest = readJson("shared/agents/agent-manifest.json");
 const defaultAgents = manifest.agents.filter((agent) => agent.install_by_default);
 const authorizedFixerAgent = manifest.agents.find((agent) => agent.id === "information-accessibility-authorized-fixer");
@@ -34,8 +35,8 @@ function relativeFiles(base, current = base) {
   }).sort();
 }
 
-function assertMirror(expected, actual) {
-  const expectedFiles = relativeFiles(expected);
+function assertMirror(expected, actual, excluded = []) {
+  const expectedFiles = relativeFiles(expected).filter((file) => !excluded.includes(file.split(path.sep).join("/")));
   const actualFiles = relativeFiles(actual);
   assert.deepEqual(actualFiles, expectedFiles);
   for (const relative of expectedFiles) {
@@ -228,7 +229,7 @@ test("Codex installer creates a fresh Codex home and omits an unnecessary backup
     ], root, installerEnv);
 
     assert.equal(installed.status, 0, installed.stderr || installed.stdout);
-    assertMirror(sourceSkill, path.join(codexHome, "skills/information-accessibility-practice"));
+    assertMirror(sourceSkill, path.join(codexHome, "skills/information-accessibility-practice"), optionalFiles);
     assertDefaultAgentsInstalled(codexHome);
     assert.equal(fs.existsSync(backupRoot), false);
     assert.deepEqual(transactionResidues(codexHome), []);
@@ -292,7 +293,7 @@ test("Codex installer installs manifest defaults, preserves unrelated agents, an
       "-BackupRoot", backupRoot
     ]);
     assert.equal(installed.status, 0, installed.stderr || installed.stdout);
-    assertMirror(sourceSkill, installedSkill);
+    assertMirror(sourceSkill, installedSkill, optionalFiles);
     assertDefaultAgentsInstalled(codexHome);
     assert.equal(fs.readFileSync(unrelatedAgent, "utf8"), "user-owned\n");
     assert.equal(fs.readFileSync(path.join(backupRoot, "skill", "SKILL.md"), "utf8"), "old skill\n");

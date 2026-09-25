@@ -38,7 +38,7 @@ snapshots compare repository identity, full SHA-1 or SHA-256 object ID and
 subpath. The caller must obtain these values from the actual target. Git dirty
 state, dynamic browser state and the meaning of a URL response are not inferred.
 
-Evidence references retain a relative file path, SHA-256, real UTC capture time,
+Evidence references retain a relative file path, SHA-256, real RFC 3339 capture time (preserving an explicit offset or `Z`),
 environment reference and target snapshot ID. Validation requires
 `publication: "private_by_default"`. A hash comparison detects changed bytes;
 it does not authenticate the person who produced them or establish that the
@@ -49,10 +49,17 @@ Windows device names and alternate data stream syntax on all platforms.
 Consumers must still enforce a trusted evidence root, reject symlinks and
 verify the file bytes before use. These modules do not open the referenced path.
 
-These are library contracts. The audit-run registry and `capture-web` command
-do not yet import these records, automatically bind them to a run, fetch a live
-target again, or enforce drift checks during artifact registration. That broader
-integration remains tracked by Issues #25 and #54. Do not insert the records into
-existing run schemas or treat them as formal conformance evidence. URL query
-strings, repository identifiers and evidence paths can be private; these records
-must not be copied into a public report without the report privacy policy.
+`run-evidence.mjs` integrates saved evidence with screening payloads 3.0.0 and 4.0.0.
+`bind-evidence` creates references tied to the exact run, declared target version,
+target context and environment. Registration, validation, status, merge and
+run-backed reports verify the saved bytes. `compare-evidence` provides a private
+before/after comparison with byte and context changes reported separately. E1
+requires saved evidence; E0 may document unavailable capture. See the installed
+[saved-evidence contract](../shared/skill/references/saved-evidence.md)
+for examples, minimum evidence, privacy and historical read-only behavior.
+
+Live target drift checks remain tracked by #54, and tool scan import by #65.
+`capture-web` does not automatically register its output. These references bind
+to declared context; they do not authenticate a producer or establish formal
+conformance. URL queries, repository identifiers and evidence paths can be
+private. Public reports omit raw references and do not embed the raw files.

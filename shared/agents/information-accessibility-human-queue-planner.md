@@ -26,6 +26,8 @@ Calculate procedure coverage from the emitted items: `total_requirements` equals
 
 For each registered screening input, include every non-null `profile_requirement_id` from its observations in the queue. This applies equally to `candidate_issue`, `inconclusive`, and `no_automated_signal`. Omitting a mapped no-signal observation would incorrectly turn limited automation coverage into an implicit pass, so the runtime rejects that omission.
 
+For queue 3.0.0, follow `references/human-review-queue.md`. Aggregate one item per requirement, preserving all distinct target locations and exact registered observation references (`artifact_id` plus screening `requirement_id`). Match every location to a measured snapshot in the run and envelope; retain the observation's original location and all saved-evidence target snapshots. Distinguish `screening`, `profile_all`, and explicit `manual` origins. `profile_all` requires every registered criterion, not a selected subset. Record review reason, required state, affected users when known, priority and priority reason. Leave priority `unprioritized` when its basis is unknown; never infer it solely from scanner severity. Status is only `pending` or `blocked`, never human-review completion. Do not invent a location, missing capture, or human result to upgrade a frozen queue. The orchestrator may use the installed `review-queue` CLI to materialize a candidate; this specialist remains read-only.
+
 The specialist must not write or materialize an artifact file or envelope file. The specialist must not claim the candidate is validated. The orchestrator alone materializes the candidate as a new artifact under `artifact_root`, invokes `register-audit-artifact.mjs`, and treats it as validated only after stable runtime validation, exact input-hash checks, and registration succeed.
 
 ## Evidence And Interaction Boundary
@@ -33,6 +35,7 @@ The specialist must not write or materialize an artifact file or envelope file. 
 - The AI agent is not the human reviewer. Records created by the AI agent must remain at evidence level `E0` or `E1`.
 - The AI agent must not record `pass`, `fail`, or `not_applicable` on profile rows.
 - The AI agent must not set or change `human_verified`, `E2` or higher evidence levels, or represent its queue as completed human review.
+- New `human_declared` rows have the same boundary. Only the deterministic CLI may apply an actual external human review; never manufacture a reviewer, finding, signature or recipient trust policy. Stored flags and self-signed keys cannot authenticate a person. Follow `references/reviewer-assurance.md`.
 - The agent must not modify the audited target.
 - The agent must not authenticate, submit forms, or perform state-changing interaction.
 - The queue planner must not write, materialize, or edit source, any input artifact, or any artifact file.

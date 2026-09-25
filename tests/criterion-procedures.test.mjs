@@ -16,6 +16,30 @@ function procedureFor(requirementId) {
   return result.criterion_procedure;
 }
 
+test("prerecorded media procedures distinguish media alternatives, captions, and visual description", () => {
+  const audioVideoOnly = procedureFor("WCAG-2.2-SC-1.2.1");
+  const captions = procedureFor("WCAG-2.2-SC-1.2.2");
+  const description = procedureFor("WCAG-2.2-SC-1.2.3");
+  for (const procedure of [audioVideoOnly, captions, description]) {
+    assert.equal(procedure.primary_sources.length, 2);
+    assert.ok(procedure.primary_sources[0].startsWith("https://www.w3.org/TR/WCAG22/#"));
+    assert.ok(procedure.counterexamples.cant_tell.length > 0);
+  }
+  assert.match(audioVideoOnly.expected_results.join(" "), /audio-only.*alternative.*video-only.*audio track/u);
+  assert.match(captions.procedure_steps.join(" "), /synchronization.*speaker identification/u);
+  assert.match(captions.procedure_steps.join(" "), /non-speech/u);
+  assert.match(description.procedure_steps.join(" "), /full text alternative.*SC 1\.2\.5/u);
+});
+
+test("live captions and Level AA description retain their distinct media boundaries", () => {
+  const live = procedureFor("WCAG-2.2-SC-1.2.4");
+  const description = procedureFor("WCAG-2.2-SC-1.2.5");
+  assert.match(live.applicability_steps.join(" "), /two-way individual call/u);
+  assert.match(live.procedure_steps.join(" "), /future recording.*does not replace/u);
+  assert.match(description.procedure_steps.join(" "), /full text alternative.*SC 1\.2\.3/u);
+  assert.match(description.expected_results.join(" "), /existing audio.*all/u);
+});
+
 test("SC 1.1.1 exposes a human review procedure with pass, fail, and cant_tell counterexamples", () => {
   const procedure = procedureFor("WCAG-2.2-SC-1.1.1");
 
@@ -131,7 +155,7 @@ test("SC 1.4.4 exposes a human review procedure with pass, fail, and cant_tell c
   assert.match(procedure.ai_boundary, /must not record a profile outcome/i);
 });
 
-test("catalog procedures include eight unique requirement IDs and match SC 3.1.1/2.4.1/3.3.2/1.4.4 additions", () => {
+test("catalog procedures include the expected unique requirement IDs", () => {
   const requirementIds = procedures.procedures.map((procedure) => procedure.requirement_id);
   const unique = new Set(requirementIds);
   const expected = new Set([
@@ -142,12 +166,25 @@ test("catalog procedures include eight unique requirement IDs and match SC 3.1.1
     "WCAG-2.2-SC-3.3.2",
     "WCAG-2.2-SC-1.4.4",
     "WCAG-2.2-SC-2.1.1",
-    "WCAG-2.2-SC-4.1.2"
+    "WCAG-2.2-SC-4.1.2",
+    "WCAG-2.2-SC-2.4.11",
+    "WCAG-2.2-SC-3.3.1",
+    "WCAG-2.2-SC-1.4.10",
+    "WCAG-2.2-SC-4.1.3",
+    "WCAG-2.2-SC-2.4.3",
+    "WCAG-2.2-SC-2.4.7",
+    "WCAG-2.2-SC-2.1.2",
+    "WCAG-2.2-SC-3.3.3",
+    "WCAG-2.2-SC-1.4.3",
+    "WCAG-2.2-SC-1.4.11",
+    "WCAG-2.2-SC-1.4.1",
+    "WCAG-2.2-SC-3.3.4",
+    "WCAG-2.2-SC-3.3.7"
   ]);
 
   assert.equal(requirementIds.length, procedures.procedures.length);
   assert.equal(unique.size, procedures.procedures.length);
-  assert.equal(unique.size, 8);
+  assert.ok(unique.size >= 21);
   for (const req of expected) {
     assert.equal(unique.has(req), true, `missing requirement ${req}`);
   }
@@ -223,10 +260,357 @@ test("SC 4.1.2 exposes a component semantics and change-exposure human review pr
   assert.match(procedure.ai_boundary, /must not record a profile outcome/i);
 });
 
-test("unimplemented criteria retain the generic playbook without a criterion-specific procedure", () => {
-  const result = lookupRequirement("web-modern", "WCAG-2.2-SC-2.2.1", skill);
-  assert.equal("criterion_procedure" in result, false);
-  assert.equal(result.audit_method.id, "timing-and-motion");
+test("JIS-specific parsing retains the generic playbook as supporting guidance", () => {
+  const result = lookupRequirement("jis-x-8341-3-2016-aa", "JIS-X-8341-3-2016-SC-4.1.1", skill);
+  assert.equal(result.criterion_procedure.id, "jis2016-sc-4-1-1-parsing");
+  assert.equal(result.audit_method.id, "parsing-legacy");
+});
+
+test("focus order and visibility require observed keyboard paths and remain separate", () => {
+  const order = procedureFor("WCAG-2.2-SC-2.4.3");
+  const visible = procedureFor("WCAG-2.2-SC-2.4.7");
+  for (const procedure of [order, visible]) {
+    assert.deepEqual(procedure.required_evidence_types, ["keyboard_test", "manual_observation"]);
+    assert.equal(procedure.primary_sources.length, 2);
+    assert.ok(procedure.counterexamples.cant_tell.length > 0);
+  }
+  assert.match(order.procedure_steps.join(" "), /visual or DOM order/u);
+  assert.match(visible.procedure_steps.join(" "), /indicator persists/u);
+});
+
+test("SC 2.1.2 checks keyboard exit from contained focus without treating every modal cycle as a trap", () => {
+  const procedure = procedureFor("WCAG-2.2-SC-2.1.2");
+  assert.deepEqual(procedure.primary_sources, [
+    "https://www.w3.org/TR/WCAG22/#no-keyboard-trap",
+    "https://www.w3.org/WAI/WCAG22/Understanding/no-keyboard-trap.html"
+  ]);
+  assert.deepEqual(procedure.required_evidence_types, ["keyboard_test", "manual_observation"]);
+  assert.match(procedure.applicability_steps.join(" "), /not by itself a failure/u);
+  assert.match(procedure.procedure_steps.join(" "), /nonstandard key sequence.*advised/u);
+  assert.match(procedure.procedure_steps.join(" "), /SC 2\.1\.1.*SC 2\.4\.3/u);
+  assert.ok(procedure.counterexamples.pass.length && procedure.counterexamples.fail.length && procedure.counterexamples.cant_tell.length);
+  assert.match(procedure.ai_boundary, /must not infer a profile outcome/u);
+});
+
+test("SC 3.3.3 requires known safe correction guidance after an automatically detected error", () => {
+  const procedure = procedureFor("WCAG-2.2-SC-3.3.3");
+  assert.deepEqual(procedure.primary_sources, [
+    "https://www.w3.org/TR/WCAG22/#error-suggestion",
+    "https://www.w3.org/WAI/WCAG22/Understanding/error-suggestion.html"
+  ]);
+  assert.deepEqual(procedure.required_evidence_types, ["browser_inspection", "manual_observation"]);
+  assert.match(procedure.applicability_steps.join(" "), /automatically detected.*security or content-purpose/u);
+  assert.match(procedure.procedure_steps.join(" "), /do not treat every sensitive form as exempt/u);
+  assert.match(procedure.procedure_steps.join(" "), /SC 3\.3\.1.*SC 3\.3\.2.*SC 3\.3\.4/u);
+  assert.ok(procedure.counterexamples.pass.length && procedure.counterexamples.fail.length && procedure.counterexamples.cant_tell.length);
+  assert.match(procedure.ai_boundary, /must not decide whether an exception applies/u);
+});
+
+test("SC 1.4.3 checks unrounded text contrast with large-text and incidental exceptions", () => {
+  const procedure = procedureFor("WCAG-2.2-SC-1.4.3");
+  assert.deepEqual(procedure.primary_sources, [
+    "https://www.w3.org/TR/WCAG22/#contrast-minimum",
+    "https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html"
+  ]);
+  assert.deepEqual(procedure.required_evidence_types, ["browser_inspection", "manual_observation"]);
+  assert.match(procedure.applicability_steps.join(" "), /placeholder.*hover.*keyboard focus/u);
+  assert.match(procedure.procedure_steps.join(" "), /unrounded ratio.*4\.5:1.*3:1.*equivalent CJK sizing/u);
+  assert.match(procedure.procedure_steps.join(" "), /SC 1\.4\.11/u);
+  assert.match(procedure.counterexamples.fail.join(" "), /4\.49:1/u);
+  assert.ok(procedure.cant_tell_when.length && procedure.counterexamples.pass.length && procedure.counterexamples.cant_tell.length);
+});
+
+test("SC 1.4.11 limits non-text contrast review to required visual information", () => {
+  const procedure = procedureFor("WCAG-2.2-SC-1.4.11");
+  assert.deepEqual(procedure.primary_sources, [
+    "https://www.w3.org/TR/WCAG22/#non-text-contrast",
+    "https://www.w3.org/WAI/WCAG22/Understanding/non-text-contrast.html"
+  ]);
+  assert.deepEqual(procedure.required_evidence_types, ["browser_inspection", "manual_observation"]);
+  assert.match(procedure.procedure_steps.join(" "), /boundary need not be tested.*SC 1\.4\.3.*3:1.*parts needed to understand/u);
+  assert.match(procedure.procedure_steps.join(" "), /inactive component.*unmodified by the author.*nonadjacent states/u);
+  assert.ok(procedure.cant_tell_when.length && procedure.counterexamples.fail.length);
+});
+
+test("SC 1.4.1 requires a visible way to understand author-defined color cues", () => {
+  const procedure = procedureFor("WCAG-2.2-SC-1.4.1");
+  assert.deepEqual(procedure.primary_sources, [
+    "https://www.w3.org/TR/WCAG22/#use-of-color",
+    "https://www.w3.org/WAI/WCAG22/Understanding/use-of-color.html"
+  ]);
+  assert.deepEqual(procedure.required_evidence_types, ["browser_inspection", "manual_observation"]);
+  assert.match(procedure.procedure_steps.join(" "), /visible text.*non-hue cue.*3:1.*specific hue/u);
+  assert.match(procedure.procedure_steps.join(" "), /hidden text alone.*SC 1\.4\.3.*SC 1\.4\.11.*visited history/u);
+  assert.ok(procedure.cant_tell_when.length && procedure.counterexamples.fail.length);
+});
+
+test("SC 3.3.4 checks one working safeguard for consequential submissions", () => {
+  const procedure = procedureFor("WCAG-2.2-SC-3.3.4");
+  assert.deepEqual(procedure.primary_sources, [
+    "https://www.w3.org/TR/WCAG22/#error-prevention-legal-financial-data",
+    "https://www.w3.org/WAI/WCAG22/Understanding/error-prevention-legal-financial-data.html"
+  ]);
+  assert.deepEqual(procedure.required_evidence_types, ["browser_inspection", "manual_observation"]);
+  assert.match(procedure.applicability_steps.join(" "), /legal commitment.*financial transaction.*user-controllable data.*test responses/u);
+  assert.match(procedure.procedure_steps.join(" "), /reversible submission.*input errors.*review, confirmation, and correction.*SC 3\.3\.1.*SC 3\.3\.3/u);
+  assert.match(procedure.cant_tell_when.join(" "), /without causing a real transaction/u);
+});
+
+test("SC 3.3.7 checks repeated entry in the same process and exact exceptions", () => {
+  const procedure = procedureFor("WCAG-2.2-SC-3.3.7");
+  assert.deepEqual(procedure.primary_sources, [
+    "https://www.w3.org/TR/WCAG22/#redundant-entry",
+    "https://www.w3.org/WAI/WCAG22/Understanding/redundant-entry.html"
+  ]);
+  assert.deepEqual(procedure.required_evidence_types, ["browser_inspection", "manual_observation"]);
+  assert.match(procedure.applicability_steps.join(" "), /another domain.*same activity.*later session/u);
+  assert.match(procedure.procedure_steps.join(" "), /auto-populates.*available for selection.*browser autocomplete alone.*essential, security, or invalid-value reason/u);
+  assert.ok(procedure.cant_tell_when.length && procedure.counterexamples.fail.length);
+});
+
+test("SC 3.3.8 reviews every authentication step and its AA exceptions", () => {
+  const procedure = procedureFor("WCAG-2.2-SC-3.3.8");
+  assert.deepEqual(procedure.primary_sources, [
+    "https://www.w3.org/TR/WCAG22/#accessible-authentication-minimum",
+    "https://www.w3.org/WAI/WCAG22/Understanding/accessible-authentication-minimum.html"
+  ]);
+  assert.deepEqual(procedure.required_evidence_types, ["browser_inspection", "manual_observation"]);
+  assert.match(procedure.applicability_steps.join(" "), /second factors.*recovery authentication.*challenges.*initial account creation/u);
+  assert.match(procedure.procedure_steps.join(" "), /complete value can be pasted.*object recognition.*non-text content previously provided by the user/u);
+  assert.match(procedure.cant_tell_when.join(" "), /No authorized test account.*real credentials/u);
+  assert.ok(procedure.counterexamples.pass.length && procedure.counterexamples.fail.length && procedure.counterexamples.cant_tell.length);
+});
+
+test("SC 2.5.8 measures pointer targets and checks spacing before other exceptions", () => {
+  const procedure = procedureFor("WCAG-2.2-SC-2.5.8");
+  assert.deepEqual(procedure.primary_sources, [
+    "https://www.w3.org/TR/WCAG22/#target-size-minimum",
+    "https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html"
+  ]);
+  assert.deepEqual(procedure.required_evidence_types, ["browser_inspection", "manual_observation"]);
+  assert.match(procedure.procedure_steps.join(" "), /24 by 24 CSS pixel square.*24 CSS pixel diameter circle.*same-page control/u);
+  assert.match(procedure.procedure_steps.join(" "), /inline.*unmodified user-agent.*essential-presentation.*legal-presentation/u);
+  assert.match(procedure.counterexamples.fail.join(" "), /keyboard shortcut/u);
+  assert.ok(procedure.cant_tell_when.length && procedure.counterexamples.cant_tell.length);
+});
+
+test("SC 2.5.7 requires a non-drag single-pointer route for author-controlled dragging", () => {
+  const procedure = procedureFor("WCAG-2.2-SC-2.5.7");
+  assert.deepEqual(procedure.primary_sources, [
+    "https://www.w3.org/TR/WCAG22/#dragging-movements",
+    "https://www.w3.org/WAI/WCAG22/Understanding/dragging-movements.html"
+  ]);
+  assert.deepEqual(procedure.required_evidence_types, ["browser_inspection", "manual_observation"]);
+  assert.match(procedure.procedure_steps.join(" "), /one pointer through taps or clicks.*keyboard-only controls.*swipe-only/u);
+  assert.match(procedure.procedure_steps.join(" "), /user agent alone.*fundamentally change/u);
+  assert.match(procedure.counterexamples.fail.join(" "), /keyboard arrow keys.*no click or tap/u);
+  assert.ok(procedure.cant_tell_when.length && procedure.counterexamples.cant_tell.length);
+});
+
+test("SC 2.5.1 separates path-based gestures from dragging and checks a single-pointer route", () => {
+  const procedure = procedureFor("WCAG-2.2-SC-2.5.1");
+  assert.deepEqual(procedure.primary_sources, [
+    "https://www.w3.org/TR/WCAG22/#pointer-gestures",
+    "https://www.w3.org/WAI/WCAG22/Understanding/pointer-gestures.html"
+  ]);
+  assert.deepEqual(procedure.required_evidence_types, ["browser_inspection", "manual_observation"]);
+  assert.match(procedure.applicability_steps.join(" "), /multiple simultaneous pointers.*path.*unrestricted drag-and-drop/u);
+  assert.match(procedure.procedure_steps.join(" "), /one pointer.*keyboard-only.*SC 2\.5\.7.*essential exception/u);
+  assert.match(procedure.counterexamples.fail.join(" "), /horizontal flick.*no tap or click/u);
+  assert.ok(procedure.cant_tell_when.length && procedure.counterexamples.cant_tell.length);
+});
+
+test("SC 2.5.2 distinguishes pointer down/up routes and unsafe verification", () => {
+  const procedure = procedureFor("WCAG-2.2-SC-2.5.2");
+  assert.deepEqual(procedure.primary_sources, [
+    "https://www.w3.org/TR/WCAG22/#pointer-cancellation",
+    "https://www.w3.org/WAI/WCAG22/Understanding/pointer-cancellation.html"
+  ]);
+  assert.deepEqual(procedure.required_evidence_types, ["browser_inspection", "manual_observation"]);
+  assert.match(procedure.procedure_steps.join(" "), /down-event.*up-event.*abort.*undo.*reverses.*essential timing reason/u);
+  assert.match(procedure.cant_tell_when.join(" "), /real consequential action.*no safe fixture/u);
+  assert.ok(procedure.counterexamples.pass.length && procedure.counterexamples.fail.length && procedure.counterexamples.cant_tell.length);
+});
+
+test("SC 2.5.3 compares the visible label with the computed name", () => {
+  const procedure = procedureFor("WCAG-2.2-SC-2.5.3");
+  assert.deepEqual(procedure.primary_sources, [
+    "https://www.w3.org/TR/WCAG22/#label-in-name",
+    "https://www.w3.org/WAI/WCAG22/Understanding/label-in-name.html"
+  ]);
+  assert.match(procedure.procedure_steps.join(" "), /computed accessible name.*aria-label.*same order.*not require.*start/u);
+  assert.match(procedure.applicability_steps.join(" "), /placeholder.*only nearby visible text/u);
+  assert.match(procedure.expected_results.join(" "), /no accessible name does not pass/u);
+  assert.ok(procedure.cant_tell_when.length && procedure.counterexamples.cant_tell.length);
+});
+
+test("SC 2.5.4 checks both alternate controls and motion-response disablement", () => {
+  const procedure = procedureFor("WCAG-2.2-SC-2.5.4");
+  assert.deepEqual(procedure.primary_sources, [
+    "https://www.w3.org/TR/WCAG22/#motion-actuation",
+    "https://www.w3.org/WAI/WCAG22/Understanding/motion-actuation.html"
+  ]);
+  assert.match(procedure.applicability_steps.join(" "), /device motion.*user motion.*geolocation/u);
+  assert.match(procedure.procedure_steps.join(" "), /user interface components.*disables response.*essential/u);
+  assert.match(procedure.expected_results.join(" "), /same outcome.*disable motion response/u);
+  assert.ok(procedure.cant_tell_when.length && procedure.counterexamples.fail.length);
+});
+
+test("page title and link purpose procedures preserve their distinct navigation evidence", () => {
+  const title = procedureFor("WCAG-2.2-SC-2.4.2");
+  const link = procedureFor("WCAG-2.2-SC-2.4.4");
+  assert.ok(title.primary_sources.includes("https://www.w3.org/TR/WCAG22/#page-titled"));
+  assert.match(title.procedure_steps.join(" "), /browser tab.*single-page application view.*site branding alone/u);
+  assert.ok(link.primary_sources.includes("https://www.w3.org/TR/WCAG22/#link-purpose-in-context"));
+  assert.match(link.procedure_steps.join(" "), /computed name.*programmatically determinable context.*ambiguous to users in general/u);
+  assert.match(link.applicability_steps.join(" "), /image-only links.*table cell and associated headers/u);
+  assert.ok(title.cant_tell_when.length && link.cant_tell_when.length);
+});
+
+test("multiple ways and descriptive headings preserve their narrow exceptions and boundaries", () => {
+  const ways = procedureFor("WCAG-2.2-SC-2.4.5");
+  const headings = procedureFor("WCAG-2.2-SC-2.4.6");
+  assert.ok(ways.primary_sources.includes("https://www.w3.org/TR/WCAG22/#multiple-ways"));
+  assert.match(ways.procedure_steps.join(" "), /two working ways.*duplicate link.*process exception/u);
+  assert.ok(headings.primary_sources.includes("https://www.w3.org/TR/WCAG22/#headings-and-labels"));
+  assert.match(headings.applicability_steps.join(" "), /absence of a heading or label alone.*SC 3\.3\.2.*SC 1\.3\.1/u);
+  assert.match(headings.procedure_steps.join(" "), /short word.*SC 4\.1\.2/u);
+});
+
+test("on-focus and on-input procedures distinguish their triggers and context changes", () => {
+  const focus = procedureFor("WCAG-2.2-SC-3.2.1");
+  const input = procedureFor("WCAG-2.2-SC-3.2.2");
+  assert.ok(focus.primary_sources.includes("https://www.w3.org/TR/WCAG22/#on-focus"));
+  assert.match(focus.applicability_steps.join(" "), /receiving focus from activation/u);
+  assert.match(focus.procedure_steps.join(" "), /without activating.*change of context.*advance warning does not/u);
+  assert.ok(input.primary_sources.includes("https://www.w3.org/TR/WCAG22/#on-input"));
+  assert.match(input.applicability_steps.join(" "), /toggle state or become disabled.*submit button/u);
+  assert.match(input.procedure_steps.join(" "), /advised.*before using.*local content changes/u);
+});
+
+test("cross-page consistency procedures preserve relative order and function-based identity", () => {
+  const navigation = procedureFor("WCAG-2.2-SC-3.2.3");
+  const identity = procedureFor("WCAG-2.2-SC-3.2.4");
+  assert.ok(navigation.primary_sources.includes("https://www.w3.org/TR/WCAG22/#consistent-navigation"));
+  assert.match(navigation.procedure_steps.join(" "), /relative order.*Inserted or removed.*user initiated/u);
+  assert.ok(identity.primary_sources.includes("https://www.w3.org/TR/WCAG22/#consistent-identification"));
+  assert.match(identity.applicability_steps.join(" "), /same result when used.*text alternative/u);
+  assert.match(identity.procedure_steps.join(" "), /Exact text need not be identical.*icon is the same.*SC 2\.5\.3/u);
+});
+
+test("language-of-parts and consistent-help procedures preserve exceptions and comparison scope", () => {
+  const language = procedureFor("WCAG-2.2-SC-3.1.2");
+  assert.ok(language.primary_sources.includes("https://www.w3.org/TR/WCAG22/#language-of-parts"));
+  assert.match(language.applicability_steps.join(" "), /proper names.*technical terms.*indeterminate language.*vernacular/u);
+  assert.match(language.procedure_steps.join(" "), /speech output as supporting observation only.*SC 3\.1\.1/u);
+
+  const help = procedureFor("WCAG-2.2-SC-3.2.6");
+  assert.ok(help.primary_sources.includes("https://www.w3.org/TR/WCAG22/#consistent-help"));
+  assert.match(help.applicability_steps.join(" "), /direct links.*page without a help mechanism/u);
+  assert.match(help.procedure_steps.join(" "), /serialized content order.*navigation between pages alone does not qualify/u);
+});
+
+test("meaningful-sequence and sensory-instruction procedures keep their distinct limits", () => {
+  const sequence = procedureFor("WCAG-2.2-SC-1.3.2");
+  assert.ok(sequence.primary_sources.includes("https://www.w3.org/TR/WCAG22/#meaningful-sequence"));
+  assert.match(sequence.procedure_steps.join(" "), /at least one programmatically determinable order.*SC 2\.4\.3/u);
+  assert.match(sequence.expected_results.join(" "), /one correct sequence is needed/u);
+
+  const sensory = procedureFor("WCAG-2.2-SC-1.3.3");
+  assert.ok(sensory.primary_sources.includes("https://www.w3.org/TR/WCAG22/#sensory-characteristics"));
+  assert.match(sensory.applicability_steps.join(" "), /shape.*color.*size.*visual location.*orientation.*sound/u);
+  assert.match(sensory.procedure_steps.join(" "), /Sensory cues may remain.*SC 1\.4\.1/u);
+});
+
+test("orientation and input-purpose procedures retain essential and user-data boundaries", () => {
+  const orientation = procedureFor("WCAG-2.2-SC-1.3.4");
+  assert.ok(orientation.primary_sources.includes("https://www.w3.org/TR/WCAG22/#orientation"));
+  assert.match(orientation.procedure_steps.join(" "), /portrait and landscape.*user-selected system orientation lock.*SC 1\.4\.10/u);
+  assert.match(orientation.expected_results.join(" "), /unless that specific orientation is essential/u);
+
+  const purpose = procedureFor("WCAG-2.2-SC-1.3.5");
+  assert.ok(purpose.primary_sources.includes("https://www.w3.org/TR/WCAG22/#identify-input-purpose"));
+  assert.match(purpose.applicability_steps.join(" "), /current user.*Input Purposes list.*another person/u);
+  assert.match(purpose.procedure_steps.join(" "), /type='email'.*autofill success.*two different listed purposes/u);
+});
+
+test("text-spacing and transient-content procedures retain their exact conditions", () => {
+  const spacing = procedureFor("WCAG-2.2-SC-1.4.12");
+  assert.ok(spacing.primary_sources.includes("https://www.w3.org/TR/WCAG22/#text-spacing"));
+  assert.match(spacing.procedure_steps.join(" "), /all applicable properties together.*1\.5.*2 times.*0\.12.*0\.16/u);
+  assert.match(spacing.applicability_steps.join(" "), /language or script.*images of text/u);
+
+  const transient = procedureFor("WCAG-2.2-SC-1.4.13");
+  assert.ok(transient.primary_sources.includes("https://www.w3.org/TR/WCAG22/#content-on-hover-or-focus"));
+  assert.match(transient.procedure_steps.join(" "), /input error or neither obscures nor replaces.*If hover triggers.*information becomes invalid/u);
+  assert.match(transient.applicability_steps.join(" "), /unmodified user-agent tooltips/u);
+});
+
+test("character-shortcut and time-limit procedures preserve alternatives and exceptions", () => {
+  const shortcut = procedureFor("WCAG-2.2-SC-2.1.4");
+  assert.ok(shortcut.primary_sources.includes("https://www.w3.org/TR/WCAG22/#character-key-shortcuts"));
+  assert.match(shortcut.applicability_steps.join(" "), /multi-character sequences.*non-printable modifier/u);
+  assert.match(shortcut.expected_results.join(" "), /disabled, remapped.*component has focus/u);
+
+  const timing = procedureFor("WCAG-2.2-SC-2.2.1");
+  assert.ok(timing.primary_sources.includes("https://www.w3.org/TR/WCAG22/#timing-adjustable"));
+  assert.match(timing.procedure_steps.join(" "), /ten times.*20 seconds.*ten extensions.*longer than 20 hours/u);
+  assert.match(timing.cant_tell_when.join(" "), /safe permitted state.*disappearing information/u);
+});
+
+test("motion and flash procedures retain distinct timing and safety boundaries", () => {
+  const motion = procedureFor("WCAG-2.2-SC-2.2.2");
+  assert.ok(motion.primary_sources.includes("https://www.w3.org/TR/WCAG22/#pause-stop-hide"));
+  assert.match(motion.applicability_steps.join(" "), /more than five seconds.*do not apply a five-second exception/u);
+  assert.match(motion.procedure_steps.join(" "), /focus stays.*update frequency.*SC 2\.3\.1/u);
+
+  const flash = procedureFor("WCAG-2.2-SC-2.3.1");
+  assert.ok(flash.primary_sources.includes("https://www.w3.org/TR/WCAG22/#three-flashes-or-below-threshold"));
+  assert.match(flash.procedure_steps.join(" "), /safe frame-based method.*every one-second window.*general-flash and red-flash thresholds/u);
+  assert.match(flash.cant_tell_when.join(" "), /reliable capture.*threshold measurements/u);
+});
+
+test("autoplay audio and images-of-text procedures preserve their presentation boundaries", () => {
+  const audio = procedureFor("WCAG-2.2-SC-1.4.2");
+  assert.ok(audio.primary_sources.includes("https://www.w3.org/TR/WCAG22/#audio-control"));
+  assert.match(audio.procedure_steps.join(" "), /independently of overall system volume.*System mute alone/u);
+  assert.match(audio.applicability_steps.join(" "), /more than three seconds.*two-way voice communication/u);
+
+  const image = procedureFor("WCAG-2.2-SC-1.4.5");
+  assert.ok(image.primary_sources.includes("https://www.w3.org/TR/WCAG22/#images-of-text"));
+  assert.match(image.procedure_steps.join(" "), /text alternative exposed only to assistive technology.*Treat logotypes as essential/u);
+  assert.match(image.expected_results.join(" "), /visually customizable.*visible actual text/u);
+});
+
+test("new focus and input-error procedures keep their criterion boundaries and primary sources", () => {
+  const focus = procedureFor("WCAG-2.2-SC-2.4.11");
+  assert.ok(focus.primary_sources.includes("https://www.w3.org/TR/WCAG22/#focus-not-obscured-minimum"));
+  assert.ok(focus.procedure_steps.some((step) => /entirely hides the component/i.test(step)));
+  assert.ok(focus.procedure_steps.some((step) => /without advancing focus/i.test(step)));
+  assert.ok(focus.procedure_steps.some((step) => /2\.4\.7/u.test(step)));
+  assert.ok(focus.counterexamples.fail.some((example) => /entirely covers/i.test(example)));
+
+  const errors = procedureFor("WCAG-2.2-SC-3.3.1");
+  assert.ok(errors.primary_sources.includes("https://www.w3.org/TR/WCAG22/#error-identification"));
+  assert.ok(errors.applicability_steps.some((step) => /automatically detect/i.test(step)));
+  assert.ok(errors.procedure_steps.some((step) => /identity of the item.*what is wrong/i.test(step)));
+  assert.ok(errors.procedure_steps.some((step) => /3\.3\.3/u.test(step)));
+  assert.ok(errors.counterexamples.fail.some((example) => /no text identifies/i.test(example)));
+});
+
+test("reflow and status procedures retain scoped exceptions and distinct speech evidence", () => {
+  const reflow = procedureFor("WCAG-2.2-SC-1.4.10");
+  assert.ok(reflow.primary_sources.includes("https://www.w3.org/TR/WCAG22/#reflow"));
+  assert.match(reflow.procedure_steps.join(" "), /320 CSS pixels.*256 CSS pixels/u);
+  assert.match(reflow.procedure_steps.join(" "), /smallest section/u);
+  assert.ok(reflow.counterexamples.fail.some((example) => /horizontal and vertical scrolling/u.test(example)));
+
+  const status = procedureFor("WCAG-2.2-SC-4.1.3");
+  assert.ok(status.primary_sources.includes("https://www.w3.org/TR/WCAG22/#status-messages"));
+  assert.match(status.applicability_steps.join(" "), /without changing context/u);
+  assert.match(status.procedure_steps.join(" "), /programmatically determinable/u);
+  assert.match(status.procedure_steps.join(" "), /actual announcement separately/u);
+  assert.ok(status.counterexamples.fail.some((example) => /without a role or property/u.test(example)));
 });
 
 test("lookup normalizes an available criterion procedure into an exact versioned queue binding", () => {
@@ -243,21 +627,23 @@ test("lookup normalizes an available criterion procedure into an exact versioned
   });
 });
 
-test("lookup normalizes an unavailable criterion procedure into the exact generic method binding", () => {
-  const result = lookupRequirement("web-modern", "WCAG-2.2-SC-2.2.1", skill);
+test("JIS-specific parsing uses its own procedure without adding WCAG 2.2 SC 4.1.1", () => {
+  const result = lookupRequirement("jis-x-8341-3-2016-aa", "JIS-X-8341-3-2016-SC-4.1.1", skill);
   assert.equal(result.lookup_version, "2.0.0");
+  assert.equal(result.criterion_procedure.requirement_id, "JIS-X-8341-3-2016-SC-4.1.1");
+  assert.match(result.criterion_procedure.applicability_steps.join(" "), /WCAG 2\.2 web-modern has no SC 4\.1\.1/u);
   assert.deepEqual(result.procedure_binding, {
-    procedure_availability: "unavailable",
-    procedure_ref: null,
-    generic_method_ref: "web-audit-methods:1.0.0#timing-and-motion",
-    official_sources: result.criterion.official_method_sources,
-    human_actions: result.audit_method.procedure_steps,
-    required_evidence_types: result.audit_method.required_evidence_types,
-    cant_tell_conditions: [result.audit_method.cant_tell_when]
+    procedure_availability: "available",
+    procedure_ref: "criterion-procedures:1.0.0#jis2016-sc-4-1-1-parsing",
+    generic_method_ref: null,
+    official_sources: result.criterion_procedure.primary_sources,
+    human_actions: result.criterion_procedure.procedure_steps,
+    required_evidence_types: result.criterion_procedure.required_evidence_types,
+    cant_tell_conditions: result.criterion_procedure.cant_tell_when
   });
 });
 
-test("lookup exposes exact versioned bindings sourced from both new criterion procedures", () => {
+test("lookup exposes exact versioned bindings for available criterion procedures", () => {
   const expectedRefs = new Map([
     ["WCAG-2.2-SC-1.1.1", "criterion-procedures:1.0.0#wcag22-sc-1-1-1-non-text-content"],
     ["WCAG-2.2-SC-2.1.1", "criterion-procedures:1.0.0#wcag22-sc-2-1-1-keyboard"],
@@ -266,7 +652,11 @@ test("lookup exposes exact versioned bindings sourced from both new criterion pr
     ["WCAG-2.2-SC-3.3.2", "criterion-procedures:1.0.0#wcag22-sc-3-3-2-labels-or-instructions"],
     ["WCAG-2.2-SC-1.4.4", "criterion-procedures:1.0.0#wcag22-sc-1-4-4-resize-text"],
     ["WCAG-2.2-SC-1.3.1", "criterion-procedures:1.0.0#wcag22-sc-1-3-1-info-and-relationships"],
-    ["WCAG-2.2-SC-4.1.2", "criterion-procedures:1.0.0#wcag22-sc-4-1-2-name-role-value"]
+    ["WCAG-2.2-SC-4.1.2", "criterion-procedures:1.0.0#wcag22-sc-4-1-2-name-role-value"],
+    ["WCAG-2.2-SC-2.4.11", "criterion-procedures:1.0.0#wcag22-sc-2-4-11-focus-not-obscured-minimum"],
+    ["WCAG-2.2-SC-3.3.1", "criterion-procedures:1.0.0#wcag22-sc-3-3-1-error-identification"],
+    ["WCAG-2.2-SC-1.4.10", "criterion-procedures:1.0.0#wcag22-sc-1-4-10-reflow"],
+    ["WCAG-2.2-SC-4.1.3", "criterion-procedures:1.0.0#wcag22-sc-4-1-3-status-messages"]
   ]);
 
   for (const [requirementId, procedureRef] of expectedRefs) {

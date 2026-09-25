@@ -1,0 +1,376 @@
+import { isIP } from "node:net";
+import { declaredFindings, findingPlanMetadata, remediationPlanItems } from "./run-findings.mjs";
+import { groupScreeningProjections, screeningReviewRecord } from "./review-details.mjs";
+import { reviewEntries, resolveHumanReviews, consensusReviewRows, consensusRemediationItems, reviewHistoryForReport } from "./human-review-consensus.mjs";
+import { summarizeParticipantObservations } from "./participant-observation.mjs";
+
+const redacted = "[redacted]";
+const machineFields = new Set([
+  "requirement_id", "profile_requirement_id", "source_kind", "evidence_level", "outcome",
+  "applicability", "report_outcome", "priority", "evidence_status", "id", "level", "group_id"
+]);
+
+export function normalizeReportVisibility(value = "internal") {
+  if (!["internal", "public"].includes(value)) throw new Error("--visibility must be internal or public");
+  return value;
+}
+
+export function normalizeReviewerDisclosure(value) {
+  if (!["include", "redact"].includes(value)) throw new Error("--reviewer-disclosure must be include or redact");
+  return value;
+}
+
+function ipv4Private(value) {
+  const parts = value.split(".").map((part) => Number.parseInt(part, 10));
+  if (parts.length !== 4 || parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) return true;
+  const [a, b, c] = parts;
+  return a === 0 || a === 10 || a === 127
+    || (a === 100 && b >= 64 && b <= 127)
+    || (a === 169 && b === 254)
+    || (a === 172 && b >= 16 && b <= 31)
+    || (a === 192 && b === 168)
+    || (a === 192 && b === 0 && (c === 0 || c === 2))
+    || (a === 198 && (b === 18 || b === 19 || (b === 51 && c === 100)))
+    || (a === 203 && b === 0 && c === 113)
+    || a >= 224;
+}
+
+function ipv6Private(value) {
+  const normalized = value.toLowerCase().replace(/^\[|\]$/gu, "").split("%", 1)[0];
+  return normalized === "::" || normalized === "::1"
+    || normalized.startsWith("fc") || normalized.startsWith("fd")
+    || /^fe[89ab]/u.test(normalized)
+    || normalized.startsWith("ff")
+    || normalized.startsWith("2001:db8:")
+    || normalized.startsWith("::ffff:10.")
+    || normalized.startsWith("::ffff:127.")
+    || normalized.startsWith("::ffff:169.254.")
+    || normalized.startsWith("::ffff:172.16.")
+    || normalized.startsWith("::ffff:192.168.");
+}
+
+function privateHostname(hostname) {
+  const normalized = String(hostname ?? "").toLowerCase().replace(/^\[|\]$/gu, "").replace(/\.$/u, "");
+  const version = isIP(normalized);
+  if (version === 4) return ipv4Private(normalized);
+  if (version === 6) return ipv6Private(normalized);
+  return normalized === "localhost"
+    || !normalized.includes(".")
+    || [".local", ".lan", ".internal", ".corp", ".home.arpa", ".test", ".invalid", ".example"]
+      .some((suffix) => normalized.endsWith(suffix));
+}
+
+function addRedaction(entries, path, reason, action) {
+  const key = `${path}\u0000${reason}\u0000${action}`;
+  if (!entries.keys.has(key)) {
+    entries.keys.add(key);
+    entries.values.push({ path, reason, action });
+  }
+}
+
+function pathLike(value) {
+  return /\bfile:(?:\/{0,2})/iu.test(value)
+    || /\b[A-Za-z]:[\\/](?![\\/])/u.test(value)
+    || /\\\\[^\s\\]/u.test(value)
+    || /(?:^|[\s(])~[\\/]/u.test(value)
+    || /(?:^|[\s(])\.{1,2}[\\/]/u.test(value)
+    || /\/(?:Users|home|private|var\/folders|tmp)\/[\w.~-]+/u.test(value);
+}
+
+function sanitizeUrl(value, location, entries) {
+  const original = String(value ?? "");
+  if (/^file:/iu.test(original) || pathLike(original)) {
+    addRedaction(entries, location, "local_or_file_reference", "redacted");
+    return redacted;
+  }
+  let parsed;
+  try {
+    parsed = new URL(original);
+  } catch {
+    addRedaction(entries, location, "invalid_url_removed", "redacted");
+    return redacted;
+  }
+  if (!["http:", "https:"].includes(parsed.protocol)) {
+    addRedaction(entries, location, "non_http_reference", "redacted");
+    return redacted;
+  }
+  if (privateHostname(parsed.hostname)) {
+    addRedaction(entries, location, "private_or_reserved_host", "redacted");
+    return redacted;
+  }
+  if (parsed.username || parsed.password) {
+    parsed.username = "";
+    parsed.password = "";
+    addRedaction(entries, location, "url_userinfo_removed", "canonicalized");
+  }
+  if (parsed.search) {
+    parsed.search = "";
+    addRedaction(entries, location, "url_query_removed", "canonicalized");
+  }
+  if (parsed.hash) {
+    parsed.hash = "";
+    addRedaction(entries, location, "url_fragment_removed", "canonicalized");
+  }
+  return parsed.toString();
+}
+
+function replacePattern(value, pattern, replacement, location, reason, entries) {
+  let changed = false;
+  const result = value.replace(pattern, () => {
+    changed = true;
+    return replacement;
+  });
+  if (changed) addRedaction(entries, location, reason, "redacted");
+  return result;
+}
+
+function sanitizeText(value, location, entries) {
+  let result = String(value ?? "");
+  result = result.replace(/https?:\/\/[^\s<>()\[\]]+/giu, (url) => sanitizeUrl(url, location, entries));
+  result = replacePattern(result, /\bfile:(?:\/{0,2})[^\s,;]+|\b[A-Za-z]:[\\/](?![\\/])[^\s,;]+|\\\\[^\s,;]+|\/(?:Users|home|private|var\/folders|tmp)\/[^\s,;]+/giu, redacted, location, "local_path_removed", entries);
+  result = replacePattern(result, /\bBearer\s+[A-Za-z0-9._~+\/-]{8,}={0,2}\b/giu, "Bearer [redacted]", location, "authorization_token_removed", entries);
+  result = replacePattern(result, /\b(?:authorization|api[_ -]?key|access[_ -]?token|refresh[_ -]?token|password|secret|session)\s*[:=]\s*[^\s,;]+/giu, "[redacted credential]", location, "credential_removed", entries);
+  result = replacePattern(result, /\b(?:gh[pousr]_[A-Za-z0-9]{20,}|eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{8,})\b/gu, redacted, location, "token_removed", entries);
+  result = replacePattern(result, /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/giu, redacted, location, "email_removed", entries);
+  result = replacePattern(result, /(?<![\w.])(?:\+\d{1,3}[ -]?)?(?:\d[ -]?){8,14}\d(?!\w)/gu, redacted, location, "phone_removed", entries);
+  result = replacePattern(result, /\b(?:DESKTOP|LAPTOP|WIN|MAC|HOST)-[A-Z0-9-]+\b/giu, redacted, location, "machine_identifier_removed", entries);
+  result = result.replace(/\b(?:\d{1,3}\.){3}\d{1,3}\b/gu, (candidate) => {
+    if (!ipv4Private(candidate)) return candidate;
+    addRedaction(entries, location, "private_ip_removed", "redacted");
+    return redacted;
+  });
+  return result;
+}
+
+function sanitizeVersion(value, location, entries) {
+  const normalized = String(value ?? "");
+  if (/^(?:main|master|develop|dev|trunk|head)$/iu.test(normalized) || /^(?:feature|fix|hotfix|release)\//iu.test(normalized)) {
+    addRedaction(entries, location, "branch_reference_removed", "redacted");
+    return redacted;
+  }
+  return sanitizeText(normalized, location, entries);
+}
+
+function sanitizeNested(value, location, entries, key = "") {
+  if (typeof value === "string") return machineFields.has(key) ? value : sanitizeText(value, location, entries);
+  if (Array.isArray(value)) return value.map((item, index) => sanitizeNested(item, `${location}[${index}]`, entries, key));
+  if (value && typeof value === "object") {
+    return Object.fromEntries(Object.entries(value).map(([childKey, item]) => [
+      childKey,
+      sanitizeNested(item, `${location}.${childKey}`, entries, childKey)
+    ]));
+  }
+  return value;
+}
+
+function localizedPublication(locale, visibility) {
+  if (locale === "ja") {
+    return visibility === "public"
+      ? "自動伏字ではすべての機微情報を検出できません。公開前に人によるpublication reviewが必要です。"
+      : "内部用レポートです。伏字前の監査情報を含む可能性があり、公開用ではありません。";
+  }
+  return visibility === "public"
+    ? "Automated redaction cannot detect every sensitive value; human publication review is required."
+    : "Internal report: it may contain unsanitized audit data and is not publication-ready.";
+}
+
+export function buildInternalRunBackedModel({ run, assessment, publicModel, envelopesById }) {
+  const model = structuredClone(publicModel);
+  model.target = structuredClone(run.target);
+  model.scope = structuredClone(run.scope);
+  model.environment = structuredClone(run.environment);
+  model.limitations = structuredClone(assessment.assessment.limitations ?? []);
+  model.publicLimitations = structuredClone(publicModel.limitations ?? []);
+  model.publicAuditContext = structuredClone(publicModel.auditContext);
+  model.publicParticipantSummary = structuredClone(publicModel.participantSummary);
+  model.participantSummary = summarizeParticipantObservations(envelopesById);
+  model.auditContext = {
+    participation_coverage: structuredClone(assessment.assessment.participation_coverage),
+    independent_audit_performed: assessment.assessment.assurance.independent_audit.performed,
+    independent_audit: structuredClone(assessment.assessment.assurance.independent_audit),
+    dossier_prepared: assessment.assessment.assurance.legal_or_procurement_dossier.prepared,
+    dossier: structuredClone(assessment.assessment.assurance.legal_or_procurement_dossier),
+    next_review_at: assessment.assessment.next_review_at,
+    next_review_condition: assessment.assessment.next_review_condition ?? null,
+    next_review_owner: assessment.assessment.next_review_owner ?? null
+  };
+
+  const screenings = [];
+  const humanSources = [];
+  const rawRemediations = [];
+  for (const record of envelopesById.values()) {
+    const envelope = record?.envelope ?? record;
+    if (envelope?.artifact_type === "screening-observations") screenings.push(...(envelope.payload?.observations ?? []));
+    if (envelope?.artifact_type === "declared-human-review") humanSources.push({ payload: envelope.payload, artifact_id: envelope.artifact_id });
+    if (envelope?.artifact_type === "remediation-plan") rawRemediations.push(...remediationPlanItems(envelope.payload));
+  }
+  const resolved = resolveHumanReviews(reviewEntries(humanSources)), humanReviews = consensusReviewRows(resolved);
+  const remediations = consensusRemediationItems(resolved, rawRemediations);
+  const humanByRequirement = new Map(humanReviews.map((review) => [review.requirement_id, review]));
+  const screeningByProfile = groupScreeningProjections(screenings);
+  const rawRationale = (check) => humanByRequirement.get(check.requirement_id)?.rationale
+    ?? screeningByProfile.get(check.requirement_id)?.report_rationale
+    ?? assessment.assessment.results.find((row) => row.requirement_id === check.requirement_id)?.notes
+    ?? check.rationale;
+  const restoreCheck = (check) => ({ ...check, rationale: rawRationale(check),
+    ...(check.screening_observations ? { screening_observations: screeningByProfile.get(check.requirement_id).observations.map(screeningReviewRecord) } : {}) });
+  model.reportChecks = (model.reportChecks ?? []).map(restoreCheck);
+  model.notApplicableChecks = (model.notApplicableChecks ?? []).map(restoreCheck);
+  model.recordedHumanChecks = humanReviews.map((review) => ({
+    requirement_id: review.requirement_id,
+    outcome: review.profile_outcome,
+    rationale: review.rationale,
+    evidence: structuredClone(review.target_specific_evidence ?? []),
+    ...(resolved.modern ? { review_consensus: resolved.groups.get(review.requirement_id).status, human_reviews: reviewHistoryForReport(resolved.groups.get(review.requirement_id)) } : {})
+  }));
+  model.screeningCandidates = screenings.map((observation) => ({
+    ...structuredClone(observation),
+    remediation: remediations.find((item) => item.basis === "unverified_screening_candidate"
+      && (item.observation_refs ? item.observation_refs.some((ref) => ref.requirement_id === observation.requirement_id) : item.requirement_id === observation.requirement_id)) ?? null
+  }));
+  const declaredFindingRequirements = new Set(resolved.findingReviews.filter((review) => declaredFindings(review).length).map((review) => review.requirement_id));
+  model.remediation = remediations.filter((item) => item.basis !== "verified_failure" || !declaredFindingRequirements.has(item.requirement_id)).map((item) => ({
+    requirement_id: item.requirement_id,
+    ...(item.finding_id ? { requirement_ids: item.requirement_ids, observation_ids: item.observation_refs.map((ref) => ref.requirement_id) } : {}),
+    evidence_status: item.basis === "verified_failure" ? "Verified failure" : "Unverified screening candidate",
+    priority: item.priority,
+    location: item.location,
+    affected_users: structuredClone(item.affected_users),
+    issue: item.issue,
+    proposed_change: item.proposed_change,
+    owner: item.owner ?? null,
+    verification: item.verification,
+    residual_limitation: item.residual_limitation
+  }));
+  for (const finding of assessment.assessment.findings ?? []) {
+    if (!finding.requirement_ids.some((id) => declaredFindingRequirements.has(id))) continue;
+    model.remediation.push({
+      requirement_id: finding.requirement_ids[0], evidence_status: "Verified failure",
+      requirement_ids: finding.requirement_ids,
+      observation_ids: remediations.find((item) => item.finding_id === finding.id)?.observation_refs.map((ref) => ref.requirement_id) ?? [],
+      priority: finding.priority, location: finding.location, affected_users: structuredClone(finding.affected_users),
+      issue: finding.observation, remediation_status: finding.remediation_status,
+      proposed_change: finding.remediation, verification: finding.verification, ...findingPlanMetadata(finding, remediations)
+    });
+  }
+  return model;
+}
+
+export function applyReportVisibility(presentation, { visibility = "internal", reviewerDisclosure = "include" } = {}) {
+  const selectedVisibility = normalizeReportVisibility(visibility);
+  const selectedDisclosure = normalizeReviewerDisclosure(reviewerDisclosure);
+  const copy = structuredClone(presentation);
+  const entries = { keys: new Set(), values: [] };
+  copy.publication = {
+    visibility: selectedVisibility,
+    reviewer_disclosure: selectedDisclosure,
+    publication_review_required: selectedVisibility === "public",
+    notice: localizedPublication(copy.locale, selectedVisibility)
+  };
+  if (selectedVisibility === "internal") {
+    delete copy.public_audit_context;
+    delete copy.public_limitations;
+    delete copy.public_participant_summary;
+    return {
+      presentation: copy,
+      manifest: {
+        schema_version: "1.0.0",
+        visibility: "internal",
+        reviewer_disclosure: selectedDisclosure,
+        publication_review_required: false,
+        redactions: []
+      }
+    };
+  }
+
+  // Review histories also occur in finding details and inspection records.
+  // Apply identity disclosure before sanitizing any of those projections.
+  if (selectedDisclosure === "redact") {
+    const redactReviewers = (value, location = "") => {
+      if (!value || typeof value !== "object") return;
+      for (const [key, item] of Object.entries(value)) {
+        const field = location ? `${location}.${key}` : key;
+        if (["reviewer_name", "reviewer_role"].includes(key) && item) {
+          value[key] = redacted;
+          addRedaction(entries, field, "reviewer_identity_redacted", "redacted");
+        } else redactReviewers(item, field);
+      }
+    };
+    redactReviewers(copy);
+  }
+  if (copy.public_audit_context) copy.audit_context = copy.public_audit_context;
+  if (copy.public_limitations) copy.limitations = copy.public_limitations;
+  if (copy.public_participant_summary) copy.participant_summary = copy.public_participant_summary;
+  delete copy.public_audit_context;
+  delete copy.public_limitations;
+  delete copy.public_participant_summary;
+  if (copy.participant_summary) {
+    copy.participant_summary.themes = copy.participant_summary.themes.map((theme, index) => ({
+      ...theme, label: sanitizeText(theme.label, `participant_summary.themes[${index}].label`, entries)
+    }));
+  }
+  if (copy.audit_context) {
+    if (copy.audit_context.independent_audit) addRedaction(entries, "audit_context.independent_audit", "audit_source_withheld", "removed");
+    if (copy.audit_context.dossier) addRedaction(entries, "audit_context.dossier", "dossier_source_withheld", "removed");
+    delete copy.audit_context.independent_audit;
+    delete copy.audit_context.dossier;
+    if (copy.audit_context.next_review_owner) addRedaction(entries, "audit_context.next_review_owner", "owner_identity_redacted", "removed");
+    delete copy.audit_context.next_review_owner;
+    if (copy.audit_context.next_review_condition) {
+      copy.audit_context.next_review_condition = sanitizeText(copy.audit_context.next_review_condition,
+        "audit_context.next_review_condition", entries);
+    }
+  }
+  copy.target.name = sanitizeText(copy.target.name, "target.name", entries);
+  copy.target.version_or_commit = sanitizeVersion(copy.target.version_or_commit, "target.version_or_commit", entries);
+  copy.target.urls_or_files = copy.target.urls_or_files.map((value, index) => sanitizeUrl(value, `target.urls_or_files[${index}]`, entries));
+  if (selectedDisclosure === "redact" && copy.evaluator) {
+    copy.evaluator = redacted;
+    addRedaction(entries, "evaluator", "reviewer_identity_redacted", "redacted");
+  } else if (copy.evaluator) {
+    copy.evaluator = sanitizeText(copy.evaluator, "evaluator", entries);
+  }
+  for (const field of ["included", "excluded", "complete_processes", "third_party_content"]) {
+    copy.scope[field] = (copy.scope[field] ?? []).map((value, index) => sanitizeText(value, `scope.${field}[${index}]`, entries));
+  }
+  for (const field of ["os", "browsers", "assistive_technologies", "input_modes"]) {
+    copy.environment[field] = (copy.environment[field] ?? []).map((value, index) => sanitizeText(value, `environment.${field}[${index}]`, entries));
+  }
+  copy.rows = copy.rows.map((row, index) => ({
+    ...row,
+    primary_url: sanitizeUrl(row.primary_url, `rows[${index}].primary_url`, entries),
+    rationale: sanitizeText(row.rationale, `rows[${index}].rationale`, entries),
+    evidence: sanitizeNested(row.evidence, `rows[${index}].evidence`, entries, "evidence"),
+    human_reviews: sanitizeNested(row.human_reviews, `rows[${index}].human_reviews`, entries, "human_reviews"),
+    screening_observations: sanitizeNested(row.screening_observations, `rows[${index}].screening_observations`, entries, "screening_observations"),
+    queue_context: sanitizeNested(row.queue_context, `rows[${index}].queue_context`, entries, "queue_context"),
+    review_details: sanitizeNested(row.review_details, `rows[${index}].review_details`, entries, "review_details")
+  }));
+  // Full reports render group rows; keep them on the same sanitized objects as summaries.
+  const rowsById = new Map(copy.rows.map((row) => [row.requirement_id, row]));
+  copy.groups = (copy.groups ?? []).map((group) => ({ ...group, rows: group.rows.map((row) => rowsById.get(row.requirement_id)) }));
+  copy.findings = sanitizeNested(copy.findings, "findings", entries, "findings");
+  if (copy.inspection_records) copy.inspection_records = sanitizeNested(copy.inspection_records, "inspection_records", entries, "inspection_records");
+  if (copy.inspection_request) copy.inspection_request = sanitizeNested(copy.inspection_request, "inspection_request", entries, "inspection_request");
+  copy.limitations = copy.limitations.map((value, index) => sanitizeText(value, `limitations[${index}]`, entries));
+  copy.claim.wording = sanitizeText(copy.claim.wording, "claim.wording", entries);
+  copy.claim.reasons = copy.claim.reasons.map((value, index) => sanitizeText(value, `claim.reasons[${index}]`, entries));
+
+  const manifest = {
+    schema_version: "1.0.0",
+    visibility: "public",
+    reviewer_disclosure: selectedDisclosure,
+    publication_review_required: true,
+    redactions: entries.values.sort((left, right) => left.path.localeCompare(right.path, "en")
+      || left.reason.localeCompare(right.reason, "en")
+      || left.action.localeCompare(right.action, "en"))
+  };
+  return { presentation: copy, manifest };
+}
+
+export function addPublicationNotice(markdown, presentation) {
+  const lines = String(markdown).split("\n");
+  const insertion = lines[1] === "" ? 2 : 1;
+  lines.splice(insertion, 0, `> ${presentation.publication.notice}`, "");
+  return lines.join("\n");
+}

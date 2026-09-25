@@ -20,9 +20,9 @@ Markdown remains the default when `--format` is omitted.
 ## 2. Detail and appendix modes / 詳細度と付録
 
 ```sh
-accessibility-audit report --input assessment.json --format markdown --detail summary --output summary.md
-accessibility-audit report --input assessment.json --format markdown --detail full --output full.md
-accessibility-audit report --input assessment.json --format html --detail summary --appendix full.html --output summary.html
+accessibility-audit report --input audit-runs/example/assessment.json --format markdown --detail summary --output audit-runs/example/summary.md
+accessibility-audit report --input audit-runs/example/assessment.json --format markdown --detail full --output audit-runs/example/full.md
+accessibility-audit report --input audit-runs/example/assessment.json --format html --detail summary --appendix audit-runs/example/full.html --output audit-runs/example/summary.html
 ```
 
 - `--detail summary` prioritizes the judgement boundary, key barriers, high-priority follow-up, group counts, provenance, and claim limitations.
@@ -54,8 +54,8 @@ Completion criteria show Recorded, Missing records, or Needs comparison, with ne
 ## 3. Public and internal visibility / 公開用と内部用
 
 ```sh
-accessibility-audit report --input assessment.json --visibility internal --output internal.md
-accessibility-audit report --input assessment.json --visibility public --reviewer-disclosure redact --redaction-manifest redactions.json --output public.md
+accessibility-audit report --input audit-runs/example/assessment.json --visibility internal --output audit-runs/example/internal.md
+accessibility-audit report --input audit-runs/example/assessment.json --visibility public --reviewer-disclosure redact --redaction-manifest audit-runs/example/redactions.json --output audit-runs/example/public-review.md
 ```
 
 `--visibility internal` preserves internal target metadata and is not publication-ready.
@@ -66,6 +66,9 @@ accessibility-audit report --input assessment.json --visibility public --reviewe
 
 Automated redaction is not publication approval. Human publication review remains required.
 自動伏字は公開承認ではありません。公開前の人による確認が必要です。
+
+Keep the public candidate and its internal manifest under `audit-runs/<run-id>/` while reviewing them. For an explicit export, rerun the public report command with a new `--output <approved-delivery-directory>/report.md` path outside the repository and a new `--redaction-manifest audit-runs/<run-id>/export-redactions.json` path. Review the exported file before delivery. Export does not publish the file.
+公開候補と内部用manifestは確認中、`audit-runs/<run-id>/`に置きます。書き出すときは公開用reportコマンドを再実行し、リポジトリ外の新しい`--output <承認済みの納品先>/report.md`と、新しい`--redaction-manifest audit-runs/<run-id>/export-redactions.json`を指定します。書き出したファイルを納品前に確認してください。書き出しだけで公開はされません。
 
 ## 4. HTML semantics / HTMLのセマンティクス
 

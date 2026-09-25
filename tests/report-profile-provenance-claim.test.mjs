@@ -1,3 +1,4 @@
+import { legacyAssessment } from "./helpers/legacy-assessment.mjs";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -170,7 +171,7 @@ test("claim section shows requested and validator maximum tiers with registry-fi
   assert.match(english, /not a formal conformance declaration/iu);
 });
 
-test("a complete synthetic human-review fixture preserves human provenance for all 55 rows without claiming certification", (t) => {
+test("a complete legacy self-declared human-review fixture preserves human provenance for all 55 rows without claiming certification", (t) => {
   const directory = tempDirectory(t);
   const assessmentFile = path.join(directory, "complete-human.json");
   const reportFile = path.join(directory, "complete-human.en.md");
@@ -183,8 +184,11 @@ test("a complete synthetic human-review fixture preserves human provenance for a
   });
   record.assessment.scope.included = ["https://example.com/"];
   for (const row of record.assessment.results) {
-    const requiredEvidenceTypes = lookupRequirement("web-modern", row.requirement_id)
-      .procedure_binding.required_evidence_types;
+    const requirement = lookupRequirement("web-modern", row.requirement_id);
+    const requiredEvidenceTypes = [...new Set([
+      ...requirement.procedure_binding.required_evidence_types,
+      ...requirement.audit_method.required_evidence_types
+    ])];
     row.mapping_status = "human_verified";
     row.outcome = "pass";
     row.method_kind = "manual";
@@ -200,7 +204,7 @@ test("a complete synthetic human-review fixture preserves human provenance for a
   record.assessment.limitations = [
     "This is a synthetic external-review fixture and does not establish reviewer identity or formal conformance."
   ];
-  writeJson(assessmentFile, record);
+  writeJson(assessmentFile, legacyAssessment(record));
 
   const rendered = runCli([
     "report",

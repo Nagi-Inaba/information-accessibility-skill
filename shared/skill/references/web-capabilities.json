@@ -1,0 +1,27 @@
+{
+  "schema_version": "1.0.0",
+  "adapter": "playwright-chromium",
+  "preflight_command": "accessibility-audit preflight-web --browser-channel chrome --format json",
+  "dependencies": { "node": ">=20", "playwright": "1.62.1", "axe-core_for_scan": "4.13.0" },
+  "browser_channels": ["playwright-chromium", "chrome"],
+  "default_required": ["browser_dom", "accessibility_tree", "keyboard_input", "responsive_viewport", "network_fetch"],
+  "capabilities": [
+    { "id": "browser_dom", "checks": ["rendered structure and content"], "next_test": "Install the supported browser adapter and verify rendered DOM on the target." },
+    { "id": "accessibility_tree", "checks": ["exposed roles, names and relationships"], "next_test": "Use a browser adapter with AX-tree access and inspect the target roles and names." },
+    { "id": "keyboard_input", "checks": ["Tab focus order and keyboard reachability"], "next_test": "Run the agreed keyboard path on the target and record focus and state changes." },
+    { "id": "responsive_viewport", "checks": ["narrow viewport and reflow proxy"], "next_test": "Inspect the target at the agreed viewport sizes and complete the human reflow procedure." },
+    { "id": "screen_reader_runtime", "checks": ["actual speech, navigation and assistive-technology behavior"], "next_test": "Arrange a human screen-reader session and record OS, browser, assistive technology, versions and results." },
+    { "id": "network_fetch", "checks": ["permitted target loading through browser request controls"], "next_test": "Verify the adapter request controls, then verify target access under an explicit origin and permission policy." }
+  ],
+  "hosts": [
+    { "id": "codex", "adapter_support": "conditional_on_local_runtime_and_permissions", "native_browser_tools": "not_auto_detected" },
+    { "id": "claude", "adapter_support": "conditional_on_local_runtime_and_permissions", "native_browser_tools": "not_auto_detected" },
+    { "id": "other_node_host", "adapter_support": "conditional_on_local_runtime_and_permissions", "native_browser_tools": "not_auto_detected" }
+  ],
+  "boundaries": [
+    "Capability availability is measured, not inferred from the host name or installed dependency.",
+    "A fixture probe is not target inspection, a network permission grant, or evidence of conformance.",
+    "An accessibility tree is not an actual screen-reader runtime.",
+    "Missing capability leaves affected target checks unconfirmed and profile rows not_tested."
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "schema_version": "1.0.0",
+  "core_registry_version": "17.0.0",
+  "fixer_registry_version": "17.0.0",
+  "optional_skill_files": [
+    "scripts/acquire-fix-lease.mjs",
+    "scripts/apply-authorized-fix.mjs",
+    "scripts/release-fix-lease.mjs",
+    "scripts/validate-fix-authorization.mjs",
+    "scripts/verify-authorized-file.mjs",
+    "scripts/lib/fix-authorization.mjs",
+    "scripts/lib/fix-lease.mjs",
+    "scripts/lib/fix-transaction.mjs",
+    "scripts/lib/fix-verification.mjs",
+    "references/fix-authorization-1.0.0.schema.json",
+    "references/fix-authorization.schema.json",
+    "references/fix-handoff.schema.json",
+    "references/change-record-1.0.0.schema.json",
+    "references/change-record-2.0.0.schema.json",
+    "references/change-record.schema.json"
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "observed_at": "2026-09-25",
+  "WCAG-2.2": {
+    "final_url": "https://www.w3.org/TR/WCAG22/",
+    "sha256": "6e3c5fe397257cae509a2fb4752b73062cf8cbeb92c2cec618989b17e4cf7057"
+  },
+  "WCAG-2.2-ERRATA": {
+    "final_url": "https://www.w3.org/WAI/WCAG22/errata/",
+    "sha256": "c792890e3079110104367626f4a956d434d8bbfd1870a1511732d78189ed1e50"
+  },
+  "WCAG-2.2-UNDERSTANDING": {
+    "final_url": "https://www.w3.org/WAI/WCAG22/Understanding/intro",
+    "sha256": "1b7c8113c8d4d9cc071f810f0a771f34cc057ee371cd5cba4337c888245a35a0"
+  },
+  "WCAG-2.2-TECHNIQUES": {
+    "final_url": "https://www.w3.org/WAI/WCAG22/Techniques/",
+    "sha256": "f70e8d05b77abebab2bd4bcb7eeeaf2ceee45a13257f82e890877f63f92793aa"
+  },
+  "ACT-RULES": {
+    "final_url": "https://www.w3.org/WAI/standards-guidelines/act/rules/",
+    "sha256": "410498c4df4940ef2ebbc0bb4dd59e690aea53f38527e388824a9e45b8df2f11"
+  },
+  "WAIC-JIS-CHECKLIST-2020-12": {
+    "final_url": "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+    "sha256": "1228e28559f944b91b1264d0390a9fda2abbc257b38712b1a15ed8539254f1f7"
+  },
+  "WAIC-JIS-UNDERSTANDING": {
+    "final_url": "https://waic.jp/docs/jis2016/understanding/201604/",
+    "sha256": "d81d09f0058d3c5db74aa3ce4a50307625bf5379c73d8698fe8f07ed85678834"
+  },
+  "DIGITAL-AGENCY-JP-PROFILE": {
+    "final_url": "https://www.digital.go.jp/accessibility-statement",
+    "sha256": "0313376e796e282d177fadf9560bb01fd353455bd09d45852ad02fb94861f0b8"
+  },
+  "WAI-ARIA-1.2": {
+    "final_url": "https://www.w3.org/TR/wai-aria-1.2/",
+    "sha256": "c0fea16fc747779569ab754d2d25bca3e2b7e8a673b8ef5362aeb9ebc73a4849"
+  }
+}

@@ -10,6 +10,7 @@ $packageRoot = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
 $sourceSkill = Join-Path $packageRoot 'codex\skills\information-accessibility-practice'
 $sourceAgentsRoot = Join-Path $packageRoot 'codex\agents'
 $manifestPath = Join-Path $packageRoot 'shared\agents\agent-manifest.json'
+$featurePath = Join-Path $packageRoot 'shared\agents\authorized-fixer-feature.json'
 $verifyScript = Join-Path $PSScriptRoot 'verify-package.mjs'
 $fixerId = 'information-accessibility-authorized-fixer'
 
@@ -291,22 +292,30 @@ function Get-RelativeFiles {
 }
 
 function Assert-DirectoryMirror {
-    param([string]$Expected, [string]$Actual)
-    $expectedFiles = @(Get-RelativeFiles -BasePath $Expected)
+    param([string]$Expected, [string]$Actual, [string[]]$Excluded = @())
+    $expectedFiles = @(Get-RelativeFiles -BasePath $Expected | Where-Object { $Excluded -notcontains ($_.Replace('\', '/')) })
     $actualFiles = @(Get-RelativeFiles -BasePath $Actual)
     if (Compare-Object $expectedFiles $actualFiles) { throw "File-set mismatch between $Expected and $Actual" }
     foreach ($relativePath in $expectedFiles) {
-        $expectedHash = (Get-FileHash -LiteralPath (Join-Path $Expected $relativePath) -Algorithm SHA256).Hash
-        $actualHash = (Get-FileHash -LiteralPath (Join-Path $Actual $relativePath) -Algorithm SHA256).Hash
+        $expectedHash = Get-Sha256 (Join-Path $Expected $relativePath)
+        $actualHash = Get-Sha256 (Join-Path $Actual $relativePath)
         if ($expectedHash -ne $actualHash) { throw "Hash mismatch for $relativePath" }
     }
     return $expectedFiles.Count
 }
 
+function Get-Sha256 {
+    param([string]$Path)
+    $stream = [IO.File]::OpenRead($Path)
+    $sha = [Security.Cryptography.SHA256]::Create()
+    try { return [BitConverter]::ToString($sha.ComputeHash($stream)).Replace('-', '') }
+    finally { $sha.Dispose(); $stream.Dispose() }
+}
+
 function Assert-FileHash {
     param([string]$Expected, [string]$Actual, [string]$Label)
-    $expectedHash = (Get-FileHash -LiteralPath $Expected -Algorithm SHA256).Hash
-    $actualHash = (Get-FileHash -LiteralPath $Actual -Algorithm SHA256).Hash
+    $expectedHash = Get-Sha256 $Expected
+    $actualHash = Get-Sha256 $Actual
     if ($expectedHash -ne $actualHash) { throw "$Label hash mismatch" }
 }
 
@@ -360,7 +369,13 @@ function Remove-CreatedEmptyDirectories {
     }
 }
 
-foreach ($required in @($packageRoot, $sourceSkill, $sourceAgentsRoot, $manifestPath, $verifyScript)) {
+if (-not (Test-Path -LiteralPath $sourceSkill)) {
+    if ($WhatIfPreference) { throw 'Run node scripts/sync-distributions.mjs --write before -WhatIf on a source checkout.' }
+    if (-not (Get-Command node -ErrorAction SilentlyContinue)) { throw 'Node.js is required to generate the package.' }
+    $generated = & node (Join-Path $PSScriptRoot 'sync-distributions.mjs') --write 2>&1
+    if ($LASTEXITCODE -ne 0) { throw "Distribution generation failed: $($generated -join [Environment]::NewLine)" }
+}
+foreach ($required in @($packageRoot, $sourceSkill, $sourceAgentsRoot, $manifestPath, $featurePath, $verifyScript)) {
     if ($null -eq (Get-ItemIfPresent $required)) { throw "Required package path is missing: $required" }
 }
 if (-not (Get-Command node -ErrorAction SilentlyContinue)) { throw 'Node.js is required to validate the package.' }
@@ -377,10 +392,24 @@ $null = Assert-PathState -Expected $manifestState -Label 'Agent manifest after v
 
 try {
     $manifest = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
+    $feature = Get-Content -LiteralPath $featurePath -Raw -Encoding UTF8 | ConvertFrom-Json
 } catch {
     throw "Agent manifest is not valid UTF-8 JSON: $($_.Exception.Message)"
 }
 if ($null -eq $manifest.agents -or @($manifest.agents).Count -eq 0) { throw 'Agent manifest must declare at least one agent.' }
+$registryVersion = (Get-Content -LiteralPath (Join-Path $sourceSkill 'references\orchestration-registry.json') -Raw -Encoding UTF8 | ConvertFrom-Json).schema_version
+if ($feature.schema_version -ne '1.0.0' -or $feature.core_registry_version -ne $registryVersion -or $feature.fixer_registry_version -ne $registryVersion) {
+    throw 'Authorized fixer feature is incompatible with the installed orchestration registry.'
+}
+$optionalFiles = @($feature.optional_skill_files)
+if ($optionalFiles.Count -eq 0 -or @($optionalFiles | Select-Object -Unique).Count -ne $optionalFiles.Count) { throw 'Invalid authorized fixer feature file list.' }
+foreach ($relative in $optionalFiles) {
+    if ($relative -notmatch '^(scripts|references)/[a-z0-9./-]+$' -or $relative.Split('/') -contains '..') { throw "Unsafe optional feature path: $relative" }
+    $sourceOptional = Get-FullPath (Join-Path $sourceSkill $relative)
+    Assert-WithinRoot -Path $sourceOptional -Root $sourceSkill -Label "Optional feature source $relative"
+    $null = Get-PathState -Path $sourceOptional -ExpectedType 'File' -Label "Optional feature source $relative"
+}
+$excludedFiles = if ($IncludeAuthorizedFixer) { @() } else { $optionalFiles }
 $selectedAgents = @($manifest.agents | Where-Object { $_.install_by_default -eq $true })
 if ($IncludeAuthorizedFixer) {
     $fixer = @($manifest.agents | Where-Object { $_.id -eq $fixerId })
@@ -450,7 +479,7 @@ Assert-Disjoint -First $BackupRoot -Second $CodexHome -Label 'Backup root and Co
 $backupOriginalState = Get-PathState -Path $BackupRoot -ExpectedType 'Any' -Label 'Backup root'
 if ($backupOriginalState.Exists) { throw "Backup root already exists; choose a new empty path: $BackupRoot" }
 $backupAncestorState = Get-ExistingAncestorState -Path $BackupRoot -Label 'Backup root'
-$sourceFileCount = @(Get-RelativeFiles -BasePath $sourceSkill).Count
+$sourceFileCount = @(Get-RelativeFiles -BasePath $sourceSkill).Count - $excludedFiles.Count
 
 if ($WhatIfPreference) {
     [pscustomobject]@{
@@ -495,7 +524,12 @@ try {
     $null = Assert-PathState -Expected $sourceSkillState -Label 'Package skill source after staging copy'
     $null = Assert-PathState -Expected $stageState -Label 'Installer staging root after skill copy'
     $stageSkillState = Get-PathState -Path $stageSkill -ExpectedType 'Directory' -Label 'Staged skill'
-    $null = Assert-DirectoryMirror -Expected $sourceSkill -Actual $stageSkill
+    foreach ($relative in $excludedFiles) {
+        $stagedOptional = Get-FullPath (Join-Path $stageSkill $relative)
+        Assert-WithinRoot -Path $stagedOptional -Root $stageSkill -Label "Staged optional feature $relative"
+        Remove-Item -LiteralPath $stagedOptional
+    }
+    $null = Assert-DirectoryMirror -Expected $sourceSkill -Actual $stageSkill -Excluded $excludedFiles
     $null = Assert-PathState -Expected $stageState -Label 'Installer staging root before agent directory creation'
     $stageAgentsAbsent = Get-PathState -Path $stageAgentsRoot -ExpectedType 'Any' -Label 'Staged agents root'
     if ($stageAgentsAbsent.Exists) { throw "Staged agents root appeared before creation: $stageAgentsRoot" }
@@ -635,7 +669,7 @@ try {
         Assert-FileHash -Expected $entry.Source -Actual $entry.Destination -Label "Installed agent $($entry.Id)"
     }
 
-    $installedFileCount = Assert-DirectoryMirror -Expected $sourceSkill -Actual $destinationSkill
+    $installedFileCount = Assert-DirectoryMirror -Expected $sourceSkill -Actual $destinationSkill -Excluded $excludedFiles
     foreach ($entry in $installAgents) { Assert-FileHash -Expected $entry.Source -Actual $entry.Destination -Label "Installed agent $($entry.Id)" }
 
     if ($null -ne $skillRecord.OldState) { Remove-VerifiedItem -State $skillRecord.OldState -ParentState $skillsRootState -Recurse -Label 'Old skill cleanup' }
@@ -707,7 +741,7 @@ try {
                     } else {
                         $agentAlreadyRestored = $false
                         if ($current.Exists) {
-                            $agentAlreadyRestored = (Get-FileHash -LiteralPath $entry.Backup -Algorithm SHA256).Hash -eq (Get-FileHash -LiteralPath $entry.Destination -Algorithm SHA256).Hash
+                            $agentAlreadyRestored = (Get-Sha256 $entry.Backup) -eq (Get-Sha256 $entry.Destination)
                         }
                         if (-not $agentAlreadyRestored) {
                             $restoreIncoming = Join-Path $destinationAgentsRoot (".$($entry.Id).restore-" + [guid]::NewGuid().ToString('N'))

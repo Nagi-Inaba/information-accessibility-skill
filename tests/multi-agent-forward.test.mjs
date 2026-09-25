@@ -1,5 +1,9 @@
+import { createHumanReviewQueue } from "../codex/skills/information-accessibility-practice/scripts/lib/human-review-queue.mjs";
 import assert from "node:assert/strict";
 import crypto from "node:crypto";
+import { createRunEvidenceReference } from "../codex/skills/information-accessibility-practice/scripts/lib/run-evidence.mjs";
+import { fixtureInventory } from "./helpers/measured-targets.mjs";
+import { targetSnapshotIds } from "../codex/skills/information-accessibility-practice/scripts/lib/run-targets.mjs";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -18,6 +22,7 @@ const targetUrl = "http://127.0.0.1:4173/community-open-day/";
 
 const cli = {
   create: path.join(scripts, "create-audit-run.mjs"),
+  bind: path.join(scripts, "bind-run-targets.mjs"),
   register: path.join(scripts, "register-audit-artifact.mjs"),
   generate: path.join(scripts, "generate-assessment.mjs"),
   merge: path.join(scripts, "merge-audit-artifacts.mjs"),
@@ -48,7 +53,8 @@ function dynamicRunId() {
 
 function envelope({ artifactId, artifactType, runId, roleId, createdAt, inputs, payload }) {
   return {
-    schema_version: "2.0.0",
+    schema_version: "4.0.0",
+    target_snapshot_ids: [],
     artifact_id: artifactId,
     artifact_type: artifactType,
     run_id: runId,
@@ -113,19 +119,26 @@ test("installed CLIs carry a local public-like fixture through the read-only age
     "--target-version", "internal/example-branch",
     "--target-ref", targetUrl,
     "--artifact-root", artifactRoot,
-    "--network", "local_read_only",
+    "--network", "local_read_only", "--network-policy", path.join(root, "tests/fixtures/network-policy.json"),
     "--interaction", "safe_read_only",
     "--source-write", "none",
     "--output", runFiles[0]
   ]);
   assertSucceeded(create);
+  const unboundFile = runFiles[0];
+  const unboundBytes = fs.readFileSync(unboundFile);
+  const capture = fs.readFileSync(path.join(targetRoot, "index.html"));
+  const inventoryFile = path.join(artifactRoot, "target-inventory.json");
+  writeJson(inventoryFile, fixtureInventory(readJson(unboundFile), artifactRoot, capture));
+  runFiles[0] = path.join(temp, "audit-run.bound.json");
+  assertSucceeded(runNode(cli.bind, ["--run", unboundFile, "--targets", inventoryFile, "--output", runFiles[0]]));
   const run0 = readJson(runFiles[0]);
-  assert.equal(run0.schema_version, "7.0.0");
+  assert.equal(run0.schema_version, "17.0.0");
   assert.equal(run0.permissions.network, "allowlisted");
   assert.equal(run0.permissions.interaction, "read_only");
   assert.equal(run0.permissions.source_write, "denied");
   assert.equal(run0.permissions.command_execution, "denied");
-  const priorRunBytes = new Map([[runFiles[0], fs.readFileSync(runFiles[0])]]);
+  const priorRunBytes = new Map([[unboundFile, unboundBytes], [runFiles[0], fs.readFileSync(runFiles[0])]]);
 
   const screeningPayload = readJson(path.join(payloadFixture, "screening-observations.json"));
   const queueTemplate = readJson(path.join(payloadFixture, "human-review-queue.json"));
@@ -143,6 +156,12 @@ test("installed CLIs carry a local public-like fixture through the read-only age
     payload: screeningPayload
   });
   const screeningFile = path.join(artifactRoot, "screening-observations.json");
+  fs.writeFileSync(path.join(artifactRoot, "captured-dom.html"), capture);
+  screening.payload.schema_version = "4.0.0";
+  for (const observation of screening.payload.observations) {
+    observation.evidence_refs = [createRunEvidenceReference({ run: run0, targetRef: targetUrl, evidenceType: "dom_snapshot", relativePath: "captured-dom.html", bytes: capture, capturedAt: observation.captured_at })];
+  }
+  screening.target_snapshot_ids = targetSnapshotIds(run0);
   writeJson(screeningFile, screening);
 
   const queueItems = queueTemplate.requirement_ids.map((requirementId) => {
@@ -172,7 +191,9 @@ test("installed CLIs carry a local public-like fixture through the read-only age
       }
     }
   });
+  queue.payload = createHumanReviewQueue({ run: run0, screenings: [screening], skillRoot });
   const queueFile = path.join(artifactRoot, "human-review-queue.json");
+  queue.target_snapshot_ids = targetSnapshotIds(run0);
   writeJson(queueFile, queue);
 
   const remediation = envelope({
@@ -185,6 +206,8 @@ test("installed CLIs carry a local public-like fixture through the read-only age
     payload: remediationPayload
   });
   const remediationFile = path.join(artifactRoot, "remediation-plan.json");
+  remediation.payload.schema_version = "3.0.0";
+  remediation.target_snapshot_ids = targetSnapshotIds(run0);
   writeJson(remediationFile, remediation);
 
   for (const [index, artifactFile] of [screeningFile, queueFile, remediationFile].entries()) {
@@ -250,7 +273,7 @@ test("installed CLIs carry a local public-like fixture through the read-only age
   assert.ok(profileRows.every((item) => item.mapping_status === "unverified" && item.outcome === "not_tested"));
   assert.ok(screeningRows.every((item) => item.mapping_status === "unverified" && item.outcome === "cant_tell"));
   assert.equal(merged.assessment.evidence_level, "E1");
-  assert.equal(JSON.stringify(merged).includes("E2"), false);
+  assert.ok(merged.assessment.results.every((item) => item.evidence_level !== "E2"));
   assert.equal(JSON.stringify(merged).includes("human_verified"), false);
   assert.equal(merged.assessment.results.some((item) => ["pass", "fail", "not_applicable"].includes(item.outcome)), false);
 
@@ -262,7 +285,7 @@ test("installed CLIs carry a local public-like fixture through the read-only age
   const improvement = section(report, "## 4. 改善事項", "## 5. 今後の確認事項");
   const pending = section(report, "## 5. 今後の確認事項", "## 6. 対象範囲と検査環境");
   for (const token of ["WAYFINDING-MAP", "SESSION-DETAILS-CONTROL", "SUPPORT-PREFERENCES-GROUP"]) {
-    assert.doesNotMatch(judgements, new RegExp(token, "u"));
+    assert.match(judgements, new RegExp(token, "u"), "Criterion rows retain the underlying unverified observations");
     assert.match(improvement, new RegExp(token, "u"));
     assert.match(pending, new RegExp(token, "u"));
   }
@@ -272,7 +295,7 @@ test("installed CLIs carry a local public-like fixture through the read-only age
   assert.match(report, /- 要確認: 3/u);
   assert.match(report, /- 未確認: 52/u);
   assert.match(report, /登録済み達成基準: 55\/55/u);
-  assert.match(report, /人による確認済み達成基準: 0\/55/u);
+  assert.match(report, /人手レビューが申告された達成基準: 0\/55/u);
   for (const internal of [
     runId,
     ...finalRun.artifacts.flatMap((item) => [item.artifact_id, item.producer_role]),
@@ -296,6 +319,8 @@ test("installed CLIs carry a local public-like fixture through the read-only age
   const changeOutput = path.join(artifactRoot, "unauthorized-change.json");
   const unauthorized = runNode(cli.fix, [
     "--authorization", missingAuthorization,
+    "--handoff", path.join(artifactRoot, "missing-fix-handoff.json"),
+    "--operator-id", "fixture-operator",
     "--run", runFiles[3],
     "--source-root", targetRoot,
     "--operation", "modify",

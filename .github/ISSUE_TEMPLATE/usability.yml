@@ -3,6 +3,22 @@ description: Report confusing setup, navigation, CLI output, reports, or workflo
 title: "[Usability] "
 labels: [documentation, usability]
 body:
+  - type: markdown
+    attributes:
+      value: "This form is public. Use fictional targets; security reports belong in the private reporting channel."
+  - type: input
+    id: version
+    attributes:
+      label: Package version / full commit / schema version
+    validations:
+      required: true
+  - type: input
+    id: profile
+    attributes:
+      label: Target profile / command / documentation page
+      description: Enter not applicable for a profile-independent request.
+    validations:
+      required: true
   - type: dropdown
     id: area
     attributes:
@@ -34,3 +50,17 @@ body:
     id: improvement
     attributes:
       label: Suggested improvement
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Reproduction context and evidence boundary
+      description: Give the synthetic steps, expected result and environment. Distinguish an observation from an untested suggestion.
+    validations:
+      required: true
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Public disclosure check
+      options:
+        - label: I removed secrets, private targets, personal data and raw audit evidence.
+          required: true

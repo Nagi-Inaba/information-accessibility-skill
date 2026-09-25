@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:information-accessibility:declared-change-record:1.0.0",
+  "title": "Externally Declared Target Change",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "publication", "change_kind", "actor_name", "declarant_name", "declared_at", "summary", "before_version", "after_version", "remediation_ids", "source_artifact_ids", "evidence_refs", "after_target_inventory"],
+  "properties": {
+    "schema_version": { "const": "1.0.0" },
+    "publication": { "const": "private_by_default" },
+    "change_kind": { "enum": ["manual", "vendor", "cms", "design", "pull_request"] },
+    "actor_name": { "type": "string", "minLength": 1, "pattern": "\\S" },
+    "declarant_name": { "type": "string", "minLength": 1, "pattern": "\\S" },
+    "declared_at": { "type": "string", "format": "date-time" },
+    "summary": { "type": "string", "minLength": 1, "pattern": "\\S" },
+    "before_version": { "type": "string", "minLength": 1 },
+    "after_version": { "type": "string", "minLength": 1 },
+    "remediation_ids": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
+    "source_artifact_ids": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "pattern": "^ART-[A-Z0-9][A-Z0-9-]{2,63}$" } },
+    "evidence_refs": { "type": "array", "minItems": 1, "maxItems": 32, "uniqueItems": true, "items": { "type": "object" } },
+    "after_target_inventory": { "type": "object" }
+  }
+}

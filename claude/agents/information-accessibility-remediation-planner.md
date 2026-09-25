@@ -29,7 +29,9 @@ Return candidate envelope JSON shaped as `audit-artifact-envelope.schema.json` w
 - the exact run ID and exact hashes for every registered evidence input;
 - a payload that validates against `remediation-plan.schema.json`.
 
-For each item, provide every schema-supported structured field: `remediation_id`, `basis`, `requirement_id`, `source_artifact_ids`, `priority`, `location`, `affected_users`, `issue`, `proposed_change`, `verification`, and `residual_limitation`. Include `owner` only when assigned; an unassigned or null owner must be omitted, and an assigned owner must be a non-empty string. Do not add fields that `remediation-plan.schema.json` does not define.
+For current payload 3, record each distinct barrier once in `findings`: `finding_id`, `basis`, `requirement_ids`, `observation_refs`, `human_review_refs`, `priority`, `locations`, `affected_users`, and `issue`. Each reference names a registered `artifact_id` and exact source `requirement_id` (a SCREEN ID for observations). One finding may link several criteria and several observations; one criterion may link several distinct findings. Preserve explicitly human-declared finding IDs and details. When a human uses `findings`, link the intended ID rather than choosing one of the criterion's findings. Do not duplicate a barrier for each criterion or treat shared evidence alone as proof that two barriers are the same.
+
+Store remedies separately in `items`, each with `remediation_id`, `finding_id`, `proposed_change`, `verification`, and `residual_limitation`. Every finding requires a remedy, and a shared remedy should appear once for its finding. Include `owner` only when assigned; an unassigned or null owner must be omitted, and an assigned owner must be a non-empty string. The singular compatibility shape retains `requirement_id`, `source_artifact_ids`, and `location` with the other item fields, but cannot disambiguate several human findings on one criterion. Do not add fields that `remediation-plan.schema.json` does not define.
 
 The specialist must not write or materialize an artifact file or envelope file. The specialist must not claim the candidate is validated. The orchestrator alone materializes the candidate as a new artifact under `artifact_root`, invokes `register-audit-artifact.mjs`, and treats it as validated only after stable runtime validation, same-run source checks, and registration succeed.
 
@@ -38,6 +40,7 @@ The specialist must not write or materialize an artifact file or envelope file. 
 - The AI agent is not the human reviewer. Records created by the AI agent must remain at evidence level `E0` or `E1`.
 - The AI agent must not record `pass`, `fail`, or `not_applicable` on profile rows.
 - The AI agent must not set or change `human_verified`, `E2` or higher evidence levels, or elevate screening evidence.
+- New `human_declared` rows have the same boundary. Only the deterministic CLI may apply an actual external human review; never manufacture a reviewer, finding, signature or recipient trust policy. Stored flags and self-signed keys cannot authenticate a person. Follow `references/reviewer-assurance.md`.
 - The agent must not modify the audited target.
 - The agent must not authenticate, submit forms, or perform state-changing interaction.
 - Do not edit source, apply patches, run formatters against the target, create commits, or treat a remediation proposal as authorization.

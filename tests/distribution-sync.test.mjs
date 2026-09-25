@@ -7,6 +7,7 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { buildDistribution } from "../scripts/sync-distributions.mjs";
+import { verifyPackage } from "../scripts/verify-package.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -31,32 +32,63 @@ function copyTree(source, destination) {
   }
 }
 
-function fixture() {
+function fixture({ includeGenerated = true } = {}) {
   const target = fs.mkdtempSync(path.join(os.tmpdir(), "a11y-distribution-"));
-  for (const relative of [
+  const directories = [
     "shared/agents",
+    "shared/skill",
+    "platform/codex/agents",
     "codex/agents",
-    "claude/agents",
-    "codex/skills/information-accessibility-practice",
-    "claude/skills/information-accessibility-practice"
-  ]) {
+    "claude/agents"
+  ];
+  if (includeGenerated) directories.push("codex/skills/information-accessibility-practice", "claude/skills/information-accessibility-practice");
+  for (const relative of directories) {
     copyTree(path.join(root, relative), path.join(target, relative));
   }
   fs.mkdirSync(path.join(target, "scripts"), { recursive: true });
-  for (const script of ["sync-distributions.mjs", "verify-package.mjs"]) {
+  fs.copyFileSync(path.join(root, "THIRD_PARTY_NOTICES.md"), path.join(target, "THIRD_PARTY_NOTICES.md"));
+  for (const script of ["sync-distributions.mjs", "verify-package.mjs", "verify-source-provenance.mjs"]) {
     fs.copyFileSync(path.join(root, "scripts", script), path.join(target, "scripts", script));
   }
   return target;
 }
 
-function withFixture(callback) {
-  const target = fixture();
+function withFixture(callback, options) {
+  const target = fixture(options);
   try {
     return callback(target);
   } finally {
+    const real = fs.realpathSync.native(target), temporary = fs.realpathSync.native(os.tmpdir());
+    if (!real.startsWith(`${temporary}${path.sep}`)) throw new Error(`Fixture escaped temporary directory: ${real}`);
     fs.rmSync(target, { recursive: true, force: true });
   }
 }
+
+test("a source-only checkout generates both existing skill paths", () => withFixture((target) => {
+  const result = buildDistribution(target, { write: true });
+  assert.equal(result.status, "PASS", result.errors.join("\n"));
+  for (const platform of ["codex", "claude"]) {
+    assert.deepEqual(
+      fs.readFileSync(path.join(target, `${platform}/skills/information-accessibility-practice/SKILL.md`)),
+      fs.readFileSync(path.join(target, "shared/skill/SKILL.md"))
+    );
+    if (process.platform !== "win32") {
+      for (const script of ["accessibility-audit.mjs", "render-report.mjs"]) {
+        assert.equal(fs.statSync(path.join(target, `${platform}/skills/information-accessibility-practice/scripts`, script)).mode & 0o111, 0o111);
+      }
+    }
+  }
+  assert.equal(buildDistribution(target).status, "PASS");
+}, { includeGenerated: false }));
+
+test("package JSON validation excludes installed dependencies and private audit output, but still validates source JSON", () => withFixture((target) => {
+  for (const relative of ["node_modules/vendor/tsconfig.json", "audit-runs/partial.json", ".git/private.json"]) {
+    const file = path.join(target, relative); fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, "{ /* not package JSON */", "utf8");
+  }
+  assert.equal(verifyPackage(target).status, "PASS");
+  fs.writeFileSync(path.join(target, "broken-source.json"), "{", "utf8");
+  const result = verifyPackage(target); assert.equal(result.status, "FAIL"); assert.ok(result.errors.some((error) => error.includes("broken-source.json")));
+}));
 
 function fixtureManifest(target) {
   return JSON.parse(fs.readFileSync(path.join(target, "shared/agents/agent-manifest.json"), "utf8"));

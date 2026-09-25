@@ -1,0 +1,3 @@
+# Preserve the exact upstream license pages and their recorded SHA-256 values.
+# Archived upstream terms preserve exact bytes, including original trailing spaces.
+shared/skill/references/licenses/*.html -text whitespace=-blank-at-eol

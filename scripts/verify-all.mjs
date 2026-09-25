@@ -3,8 +3,15 @@ import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
+import { buildDistribution } from "./sync-distributions.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const codexSkill = path.join(root, "codex/skills/information-accessibility-practice");
+const claudeSkill = path.join(root, "claude/skills/information-accessibility-practice");
+if (!fs.existsSync(codexSkill) && !fs.existsSync(claudeSkill)) {
+  const prepared = buildDistribution(root, { write: true });
+  if (prepared.status !== "PASS") throw new Error(`Distribution generation failed: ${prepared.errors.join("; ")}`);
+}
 
 function run(command, args) {
   const result = spawnSync(command, args, { cwd: root, stdio: "inherit", shell: false });

@@ -1,5 +1,10 @@
 # Local audit internals may contain run identifiers, hashes, paths, and raw observations.
 audit-runs/**/*
+node_modules/
+
+# Built from shared/skill; generated for local installation and release archives.
+/codex/skills/information-accessibility-practice/
+/claude/skills/information-accessibility-practice/
 
 # Internal agent-workflow plans and implementation reports are not public package assets.
 .superpowers/

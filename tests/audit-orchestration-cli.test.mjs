@@ -1,4 +1,8 @@
+import { createHumanReviewQueue } from "../codex/skills/information-accessibility-practice/scripts/lib/human-review-queue.mjs";
+import { createNetworkPolicy } from "../codex/skills/information-accessibility-practice/scripts/lib/network-policy.mjs";
 import assert from "node:assert/strict";
+import { fixtureReference, saveFixtureEvidence, fixtureEvidenceSnapshots } from "./helpers/saved-evidence.mjs";
+import { fixtureInventory } from "./helpers/measured-targets.mjs";
 import { createInspectionRequest } from "../codex/skills/information-accessibility-practice/scripts/lib/inspection-request.mjs";
 import crypto from "node:crypto";
 import fs from "node:fs";
@@ -10,6 +14,7 @@ import { fileURLToPath } from "node:url";
 
 import { generateAssessment } from "../codex/skills/information-accessibility-practice/scripts/generate-assessment.mjs";
 import { lookupRequirement } from "../codex/skills/information-accessibility-practice/scripts/show-requirement.mjs";
+import { auditStatus } from "../codex/skills/information-accessibility-practice/scripts/show-audit-status.mjs";
 import {
   loadAuditResources,
   mergeArtifacts as mergeArtifactRecords,
@@ -28,12 +33,16 @@ const registerArtifact = path.join(scripts, "register-audit-artifact.mjs");
 const mergeArtifactsCli = path.join(scripts, "merge-audit-artifacts.mjs");
 const references = path.join(skillRoot, "references");
 const runId = "RUN-20260717T120000Z-TEST0001";
+let activeArtifactRoot;
+const fixtureTargetIds = () => activeArtifactRoot && fs.existsSync(activeArtifactRoot)
+  ? initialRun(activeArtifactRoot).target_inventory.snapshots.map((snapshot) => snapshot.snapshot_id) : [];
 
 function runNode(script, args) {
   return spawnSync(process.execPath, [script, ...args], { encoding: "utf8" });
 }
 
 function writeJson(file, value) {
+  if (value.artifact_type === "screening-observations" && ["3.0.0", "4.0.0"].includes(value.payload.schema_version)) saveFixtureEvidence(path.dirname(file));
   fs.writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`, "utf8");
 }
 
@@ -63,8 +72,9 @@ function resourceVersions(registryFile = "orchestration-registry.json") {
 }
 
 function initialRun(artifactRoot) {
-  return {
-    schema_version: "7.0.0",
+  const resolvedRoot = path.isAbsolute(artifactRoot) ? artifactRoot : activeArtifactRoot;
+  const run = {
+    schema_version: "17.0.0",
     inspection_request: createInspectionRequest("quick", "Identify the next investigation"),
     run_id: runId,
     supersedes_run_id: null,
@@ -74,8 +84,8 @@ function initialRun(artifactRoot) {
     scope: { included: ["http://127.0.0.1:4173/"], excluded: [], complete_processes: [], third_party_content: [], full_pages_reviewed: false },
     environment: { os: ["not_declared"], browsers: [], assistive_technologies: [], input_modes: [] },
     permissions: {
-      network: "allowlisted",
-      interaction: "read_only",
+      network: "allowlisted", network_policy: createNetworkPolicy({ targetOrigins: ["http://127.0.0.1:4173", "https://example.com"], allowLocalhost: true }),
+      interaction: "read_only", interaction_policy: null,
       source_write: "denied",
       command_execution: "denied",
       allowed_actions: ["inspect_without_mutation", "read_allowlisted_resources"],
@@ -87,13 +97,15 @@ function initialRun(artifactRoot) {
     history: [],
     limitations: ["The environment was not declared; no profile outcome has been recorded."]
   };
+  run.target_inventory = fixtureInventory(run, resolvedRoot);
+  return run;
 }
 
 function authorizedInitialRun(artifactRoot) {
   const run = initialRun(artifactRoot);
   run.permissions = {
-    network: "allowlisted",
-    interaction: "read_only",
+    network: "allowlisted", network_policy: createNetworkPolicy({ targetOrigins: ["http://127.0.0.1:4173", "https://example.com"], allowLocalhost: true }),
+    interaction: "read_only", interaction_policy: null,
     source_write: "authorized_only",
     command_execution: "authorized_verification_only",
     allowed_actions: [
@@ -109,7 +121,10 @@ function authorizedInitialRun(artifactRoot) {
 
 function legacyV2InitialRun(artifactRoot) {
   const run = initialRun(artifactRoot);
+  delete run.permissions.network_policy;
+  delete run.permissions.interaction_policy;
   run.schema_version = "2.0.0";
+  delete run.target_inventory;
   delete run.inspection_request;
   run.resource_versions = resourceVersions("orchestration-registry-1.0.0.json");
   delete run.permissions.command_execution;
@@ -121,6 +136,9 @@ function legacyV2InitialRun(artifactRoot) {
 function legacyV3InitialRun(artifactRoot) {
   const run = initialRun(artifactRoot);
   run.schema_version = "3.0.0";
+  delete run.permissions.network_policy;
+  delete run.permissions.interaction_policy;
+  delete run.target_inventory;
   delete run.inspection_request;
   run.resource_versions = resourceVersions("orchestration-registry-2.0.0.json");
   delete run.permissions.command_execution;
@@ -130,6 +148,9 @@ function legacyV3InitialRun(artifactRoot) {
 function legacyV4InitialRun(artifactRoot) {
   const run = initialRun(artifactRoot);
   run.schema_version = "4.0.0";
+  delete run.permissions.network_policy;
+  delete run.permissions.interaction_policy;
+  delete run.target_inventory;
   delete run.inspection_request;
   run.resource_versions = resourceVersions("orchestration-registry-3.0.0.json");
   return run;
@@ -138,6 +159,9 @@ function legacyV4InitialRun(artifactRoot) {
 function legacyV5InitialRun(artifactRoot) {
   const run = initialRun(artifactRoot);
   run.schema_version = "5.0.0";
+  delete run.permissions.network_policy;
+  delete run.permissions.interaction_policy;
+  delete run.target_inventory;
   delete run.inspection_request;
   run.resource_versions = resourceVersions("orchestration-registry-4.0.0.json");
   return run;
@@ -146,6 +170,9 @@ function legacyV5InitialRun(artifactRoot) {
 function legacyV6InitialRun(artifactRoot) {
   const run = initialRun(artifactRoot);
   run.schema_version = "6.0.0";
+  delete run.permissions.network_policy;
+  delete run.permissions.interaction_policy;
+  delete run.target_inventory;
   delete run.inspection_request;
   run.resource_versions = resourceVersions("orchestration-registry-5.0.0.json");
   return run;
@@ -153,7 +180,8 @@ function legacyV6InitialRun(artifactRoot) {
 
 function screeningEnvelope({ artifactId, requirementId, capturedAt = "2026-07-17T12:00:01Z" }) {
   return {
-    schema_version: "2.0.0",
+    schema_version: "4.0.0",
+    target_snapshot_ids: fixtureTargetIds(),
     artifact_id: artifactId,
     artifact_type: "screening-observations",
     run_id: runId,
@@ -161,8 +189,9 @@ function screeningEnvelope({ artifactId, requirementId, capturedAt = "2026-07-17
     created_at: capturedAt,
     inputs: [],
     payload: {
-      schema_version: "2.0.0",
+      schema_version: "4.0.0",
       observations: [{
+        evidence_refs: [fixtureReference(initialRun("artifacts"), capturedAt)],
         requirement_id: requirementId,
         evidence_level: "E1",
         method: "DOM inspection",
@@ -180,8 +209,10 @@ function screeningEnvelope({ artifactId, requirementId, capturedAt = "2026-07-17
 
 function downgradeScreeningEnvelopeToV1(artifact) {
   artifact.schema_version = "1.0.0";
+  delete artifact.target_snapshot_ids;
   artifact.payload.schema_version = "1.0.0";
   for (const observation of artifact.payload.observations) {
+    delete observation.evidence_refs;
     delete observation.profile_requirement_id;
     delete observation.report_outcome;
     delete observation.applicability;
@@ -195,19 +226,7 @@ function queuePayload(requirementId = "WCAG-2.2-SC-1.1.1") {
 }
 
 function queuePayloadFor(requirementIds) {
-  const items = requirementIds.map((requirementId) => ({
-    requirement_id: requirementId,
-    ...lookupRequirement("web-modern", requirementId, skillRoot).procedure_binding
-  }));
-  return {
-    schema_version: "2.0.0",
-    items,
-    procedure_coverage: {
-      total_requirements: items.length,
-      available_procedures: items.filter((item) => item.procedure_availability === "available").length,
-      unavailable_procedures: items.filter((item) => item.procedure_availability === "unavailable").length
-    }
-  };
+  return createHumanReviewQueue({ run: initialRun("artifacts"), manualRequirements: requirementIds, skillRoot });
 }
 
 function artifactEnvelope({
@@ -221,7 +240,8 @@ function artifactEnvelope({
   envelopeRunId = runId
 }) {
   return {
-    schema_version: "2.0.0",
+    schema_version: "4.0.0",
+    target_snapshot_ids: fixtureTargetIds(),
     artifact_id: artifactId,
     artifact_type: artifactType,
     run_id: envelopeRunId,
@@ -238,12 +258,13 @@ function queueEnvelope({ artifactId = "ART-QUEUE-001", inputs = [], payload = qu
 
 function declaredHumanPayload(requirementId = "WCAG-2.2-SC-1.1.1", profileOutcome = "pass") {
   return {
-    schema_version: "1.0.0",
+    schema_version: "3.0.0", reviewer_id: "fixture-reviewer",
     declaration: "I declare that I performed the recorded review as an external human reviewer.",
     reviewer_name: "External Reviewer",
     review_date: "2026-07-17",
     identity_authenticated: false,
     reviews: [{
+      review_id: "HR-FIXTURE-" + requirementId,
       requirement_id: requirementId,
       procedure_availability: "available",
       criterion_procedure_ref: "criterion-procedures:1.0.0#wcag22-sc-1-1-1-non-text-content",
@@ -314,7 +335,7 @@ function legacyFixAuthorizationPayload() {
 
 function remediationPayload(sourceArtifactId, requirementId = "SCREEN-FIRST") {
   return {
-    schema_version: "2.0.0",
+    schema_version: "3.0.0",
     items: [{
       remediation_id: "REM-TEST0001",
       basis: "unverified_screening_candidate",
@@ -333,7 +354,7 @@ function remediationPayload(sourceArtifactId, requirementId = "SCREEN-FIRST") {
 
 function verifiedFailureRemediationPayload(sourceArtifactId, requirementId = "WCAG-2.2-SC-1.1.1") {
   return {
-    schema_version: "2.0.0",
+    schema_version: "3.0.0",
     items: [{
       remediation_id: "REM-FAIL0001",
       basis: "verified_failure",
@@ -403,6 +424,7 @@ function legacyChangePayload() {
 }
 
 function makeHumanReviewRun(artifactRoot, requirementId = "WCAG-2.2-SC-1.1.1") {
+  activeArtifactRoot = artifactRoot;
   const screen = screeningEnvelope({ artifactId: "ART-SCREEN-001", requirementId: "SCREEN-FIRST" });
   const screenFile = path.join(artifactRoot, "screen.json");
   writeJson(screenFile, screen);
@@ -437,6 +459,7 @@ function makeHumanReviewRun(artifactRoot, requirementId = "WCAG-2.2-SC-1.1.1") {
 }
 
 function makeScreeningRemediationRun(artifactRoot) {
+  activeArtifactRoot = artifactRoot;
   const screen = screeningEnvelope({ artifactId: "ART-SCREEN-001", requirementId: "SCREEN-FIRST" });
   const screenFile = path.join(artifactRoot, "screen.json");
   writeJson(screenFile, screen);
@@ -478,6 +501,7 @@ function makeScreeningRemediationRun(artifactRoot) {
 }
 
 function makeVerifiedFailureRemediationRun(artifactRoot, profileOutcome = "fail") {
+  activeArtifactRoot = artifactRoot;
   const fixture = makeHumanReviewRun(artifactRoot);
   fixture.human.payload.reviews[0].profile_outcome = profileOutcome;
   writeJson(fixture.humanFile, fixture.human);
@@ -516,6 +540,7 @@ function makeVerifiedFailureRemediationRun(artifactRoot, profileOutcome = "fail"
 }
 
 function makeRetestRequiredRun(artifactRoot) {
+  activeArtifactRoot = artifactRoot;
   const fixture = makeScreeningRemediationRun(artifactRoot);
   fixture.run.permissions = authorizedInitialRun(artifactRoot).permissions;
   const authorizationPayload = fixAuthorizationPayload();
@@ -555,7 +580,25 @@ function makeRetestRequiredRun(artifactRoot) {
     { from: "remediation_ready", to: "fix_authorized", at: authorization.created_at, actor_role: "declared_authorizer", artifact_ids: [authorization.artifact_id] },
     { from: "fix_authorized", to: "retest_required", at: change.created_at, actor_role: "authorized_fixer", artifact_ids: [change.artifact_id] }
   );
-  return { ...fixture, authorization, authorizationFile, change, changeFile };
+  const frozenRegistry = loadAuditResources(skillRoot).orchestrationRegistries.get("16.0.0");
+  fixture.run.resource_versions.orchestration_registry_version = "16.0.0";
+  fixture.run.resource_versions.orchestration_registry_sha256 = frozenRegistry.sha256;
+  const frozen = new Map();
+  for (const entry of [...fixture.run.artifacts].sort((left, right) => left.created_at.localeCompare(right.created_at))) {
+    const artifact = readJson(path.join(artifactRoot, entry.path));
+    artifact.schema_version = "3.0.0";
+    for (const input of artifact.inputs) if (frozen.has(input.artifact_id)) input.sha256 = frozen.get(input.artifact_id).sha256;
+    if (artifact.artifact_type === "fix-authorization") artifact.payload.remediation_artifact.sha256 = frozen.get(fixture.remediation.artifact_id).sha256;
+    if (artifact.artifact_type === "change-record") artifact.payload.authorization_artifact.sha256 = frozen.get(authorization.artifact_id).sha256;
+    const file = path.join(artifactRoot, `frozen-${entry.artifact_id}.json`);
+    writeJson(file, artifact);
+    entry.path = path.basename(file);
+    entry.sha256 = sha256File(file);
+    frozen.set(entry.artifact_id, { artifact, file, sha256: entry.sha256 });
+  }
+  return { ...fixture, authorization: frozen.get(authorization.artifact_id).artifact,
+    authorizationFile: frozen.get(authorization.artifact_id).file,
+    change: frozen.get(change.artifact_id).artifact, changeFile: frozen.get(change.artifact_id).file };
 }
 
 function rewriteFixtureArtifact(fixture, artifact, file) {
@@ -578,6 +621,9 @@ function assessmentFixture() {
 
 function applyLegacyRunContract(run) {
   run.schema_version = "1.0.0";
+  delete run.permissions.network_policy;
+  delete run.permissions.interaction_policy;
+  delete run.target_inventory;
   delete run.inspection_request;
   run.resource_versions = resourceVersions("orchestration-registry-1.0.0.json");
   delete run.resource_versions.orchestration_registry_sha256;
@@ -645,6 +691,7 @@ function registerEntry(artifactRoot, file, artifact) {
 
 function pureMergeResources(run, artifactRoot) {
   const resources = loadAuditResources(skillRoot);
+  resources.evidence_snapshots_by_path = fs.existsSync(path.join(artifactRoot, "captured-dom.html")) ? fixtureEvidenceSnapshots(artifactRoot) : new Map();
   resources.artifact_snapshots_by_id = new Map(run.artifacts.map((entry) => {
     const file = path.join(artifactRoot, ...entry.path.replace(/^\.\//u, "").split("/"));
     const bytes = fs.readFileSync(file);
@@ -658,6 +705,7 @@ function withTemp(t, callback) {
   t.after(() => fs.rmSync(temp, { recursive: true, force: true }));
   const artifactRoot = path.join(temp, "artifacts");
   fs.mkdirSync(artifactRoot);
+  activeArtifactRoot = artifactRoot;
   return callback({ temp, artifactRoot });
 }
 
@@ -671,6 +719,115 @@ function copyDirectory(source, destination) {
   }
 }
 
+test("RFC 3339 offsets survive CLI registration and merge while reverse-time evidence is rejected", (t) => withTemp(t, ({ temp, artifactRoot }) => {
+  const initialFile = path.join(temp, "run-initial.json");
+  writeJson(initialFile, initialRun(artifactRoot));
+  const screen = screeningEnvelope({ artifactId: "ART-SCREEN-001", requirementId: "SCREEN-FIRST", capturedAt: "2026-07-17T21:00:01.000+09:00" });
+  const screenFile = path.join(artifactRoot, "screen.json");
+  writeJson(screenFile, screen);
+  const queue = queueEnvelope({ inputs: [{ artifact_id: screen.artifact_id, run_id: runId, sha256: sha256File(screenFile) }] });
+  queue.created_at = "2026-07-17T12:00:02Z";
+  const queueFile = path.join(artifactRoot, "queue.json");
+  writeJson(queueFile, queue);
+  const human = artifactEnvelope({
+    artifactId: "ART-HUMAN-001", artifactType: "declared-human-review", roleId: "declared_external_human", producerKind: "external_human",
+    createdAt: "2026-07-17T05:00:03-07:00",
+    inputs: [{ artifact_id: queue.artifact_id, run_id: runId, sha256: sha256File(queueFile) }], payload: declaredHumanPayload()
+  });
+  human.payload.reviews[0].target_specific_evidence[0].captured_at = "2026-07-17T21:00:02.9+09:00";
+  const humanFile = path.join(artifactRoot, "human.json");
+  writeJson(humanFile, human);
+  const files = [screenFile, queueFile, humanFile];
+  const hashes = files.map(sha256File);
+  let previous = initialFile;
+  const runs = [];
+  for (const [index, file] of files.entries()) {
+    const output = path.join(temp, `run-${index}.json`);
+    const result = runNode(registerArtifact, ["--run", previous, "--artifact", file, "--output", output]);
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    runs.push(output);
+    previous = output;
+  }
+  const baseline = path.join(temp, "assessment.json");
+  writeJson(baseline, assessmentFixture());
+  const mergedFile = path.join(temp, "merged.json");
+  const merged = runNode(mergeArtifactsCli, ["--run", previous, "--assessment", baseline, ...files.flatMap((file) => ["--artifact", file]), "--claim-tier", "evaluated_subset", "--output", mergedFile]);
+  assert.equal(merged.status, 0, merged.stderr || merged.stdout);
+  assert.equal(readJson(mergedFile).assessment.claim.requested_tier, "evaluated_subset");
+  assert.deepEqual(files.map(sha256File), hashes);
+  assert.equal(readJson(previous).history[0].at, screen.created_at);
+
+  const reverse = structuredClone(queue);
+  reverse.created_at = "2026-07-18T01:00:00+14:00"; // 11:00Z on July 17: earlier than its input.
+  const reverseFile = path.join(artifactRoot, "reverse.json");
+  writeJson(reverseFile, reverse);
+  const rejectedOutput = path.join(temp, "rejected.json");
+  assertRejected(runNode(registerArtifact, ["--run", runs[0], "--artifact", reverseFile, "--output", rejectedOutput]), /precedes|after its consumer/i);
+  assert.equal(fs.existsSync(rejectedOutput), false);
+  const wrongHistory = readJson(runs[1]);
+  wrongHistory.history[1].at = reverse.created_at;
+  assert.ok(validateAuditRun(wrongHistory, { runFile: runs[1], skillRoot }).errors.some((error) => /earlier|precedes/.test(error)));
+  const impossible = structuredClone(screen);
+  impossible.payload.observations[0].captured_at = "2026-02-30T00:00:00Z";
+  const impossibleFile = path.join(artifactRoot, "impossible.json");
+  writeJson(impossibleFile, impossible);
+  assertRejected(runNode(registerArtifact, ["--run", initialFile, "--artifact", impossibleFile, "--output", rejectedOutput]), /RFC 3339.*2026-09-18T09:00:00\+09:00/);
+}));
+
+test("status distinguishes authorized-change readiness and legacy read-only records", (t) => withTemp(t, ({ temp, artifactRoot }) => {
+  const fixture = makeRetestRequiredRun(artifactRoot);
+  const file = path.join(temp, "retest.json");
+  writeJson(file, fixture.run);
+  const ready = auditStatus(file);
+  assert.equal(ready.valid, true, ready.errors.join("\n"));
+  assert.equal(ready.operations.retest.available, true);
+  assert.deepEqual(ready.next_transitions, []);
+  const authorized = structuredClone(fixture.run);
+  authorized.status = "fix_authorized";
+  authorized.history.pop();
+  authorized.artifacts = authorized.artifacts.filter((item) => item.artifact_type !== "change-record");
+  const authorizedFile = path.join(temp, "authorized.json");
+  writeJson(authorizedFile, authorized);
+  const state = auditStatus(authorizedFile);
+  assert.equal(state.operations.retest.available, false);
+  assert.equal(state.next_transitions[0].to, "retest_required");
+  assert.equal(state.next_transitions[0].permitted, true);
+  const legacyFile = path.join(temp, "legacy.json");
+  writeJson(legacyFile, legacyV6InitialRun(artifactRoot));
+  const legacy = auditStatus(legacyFile);
+  assert.equal(legacy.valid, true, legacy.errors.join("\n"));
+  assert.ok(legacy.warnings.some((warning) => warning.code === "legacy_read_only"));
+  assert.equal(legacy.operations.merge.available, false);
+  assert.ok(legacy.next_transitions.every((transition) => !transition.permitted));
+}));
+
+test("a frozen run remains readable with an exact saved catalog without changing the source run", (t) => withTemp(t, ({ temp, artifactRoot }) => {
+  const run = initialRun(artifactRoot);
+  const resources = loadAuditResources(skillRoot);
+  run.schema_version = "16.0.0";
+  run.resource_versions.orchestration_registry_version = "15.0.0";
+  run.resource_versions.orchestration_registry_sha256 = resources.orchestrationRegistries.get("15.0.0").sha256;
+  const savedSkill = path.join(temp, "saved-skill");
+  const savedReferences = path.join(savedSkill, "references");
+  fs.mkdirSync(savedReferences, { recursive: true });
+  for (const name of ["standards-registry.json", "criteria-catalog.json", "criterion-procedures.json", "web-audit-methods.json"]) {
+    fs.copyFileSync(path.join(references, name), path.join(savedReferences, name));
+  }
+  const catalog = path.join(savedReferences, "criteria-catalog.json");
+  fs.appendFileSync(catalog, "\n");
+  run.resource_versions.criteria_catalog_sha256 = sha256File(catalog);
+  const runFile = path.join(temp, "frozen-run.json");
+  writeJson(runFile, run);
+  const original = fs.readFileSync(runFile);
+  assert.equal(validateAuditRun(run, { skillRoot, runFile }).valid, false);
+  const historical = validateAuditRun(run, { skillRoot, runFile, historicalResourceRoot: savedSkill });
+  assert.equal(historical.valid, true, historical.errors.join("\n"));
+  const cli = runNode(validateRun, ["--input", runFile, "--output", path.join(temp, "historical-validation.json"),
+    "--historical-resources", savedSkill]);
+  assert.equal(cli.status, 0, cli.stderr);
+  assert.deepEqual(fs.readFileSync(runFile), original);
+}));
+
 test("run initialization creates a schema-valid immutable manifest with installed resource hashes", (t) => withTemp(t, ({ temp, artifactRoot }) => {
   const output = path.join(temp, "audit-run.v1.json");
   const result = runNode(createRun, [
@@ -681,14 +838,15 @@ test("run initialization creates a schema-valid immutable manifest with installe
     "--target-version", "fixture-v1",
     "--target-ref", "http://127.0.0.1:4173/",
     "--artifact-root", artifactRoot,
-    "--network", "local_read_only",
+    "--network", "local_read_only", "--network-policy", path.join(root, "tests/fixtures/network-policy.json"),
     "--interaction", "safe_read_only",
     "--source-write", "none",
     "--output", output
   ]);
   assert.equal(result.status, 0, result.stderr || result.stdout);
   const run = readJson(output);
-  assert.equal(run.schema_version, "7.0.0");
+  assert.equal(run.schema_version, "17.0.0");
+  assert.equal(run.target_inventory, null);
   assert.equal(run.status, "initialized");
   assert.equal(run.artifact_root, "artifacts");
   assert.deepEqual(run.permissions, initialRun(artifactRoot).permissions);
@@ -698,7 +856,7 @@ test("run initialization creates a schema-valid immutable manifest with installe
   const overwrite = runNode(createRun, [
     "--run-id", runId, "--profile", "web-modern", "--target-name", "Local fixture",
     "--target-version", "fixture-v1", "--target-ref", "http://127.0.0.1:4173/",
-    "--artifact-root", artifactRoot, "--network", "local_read_only",
+    "--artifact-root", artifactRoot, "--network", "local_read_only", "--network-policy", path.join(root, "tests/fixtures/network-policy.json"),
     "--interaction", "safe_read_only", "--source-write", "none", "--output", output
   ]);
   assert.notEqual(overwrite.status, 0);
@@ -722,8 +880,8 @@ test("current run initialization couples authorized source writes to authorized 
   ]);
   assert.equal(result.status, 0, result.stderr || result.stdout);
   assert.deepEqual(readJson(output).permissions, {
-    network: "denied",
-    interaction: "read_only",
+    network: "denied", network_policy: null,
+    interaction: "read_only", interaction_policy: null,
     source_write: "authorized_only",
     command_execution: "authorized_verification_only",
     allowed_actions: ["execute_authorized_verification_commands", "inspect_without_mutation", "write_authorized_files"],
@@ -746,7 +904,7 @@ test("fresh retest initialization validates its predecessor and copies no prior 
     "--target-version", "fixture-v2",
     "--target-ref", "http://127.0.0.1:4173/",
     "--artifact-root", newArtifactRoot,
-    "--network", "local_read_only",
+    "--network", "local_read_only", "--network-policy", path.join(root, "tests/fixtures/network-policy.json"),
     "--interaction", "safe_read_only",
     "--source-write", "none",
     "--supersedes-run", predecessorFile,
@@ -769,6 +927,10 @@ test("fresh retest initialization validates its predecessor and copies no prior 
   assert.equal(run.permissions.command_execution, "denied");
   assert.deepEqual(run.resource_versions, resourceVersions());
   assert.deepEqual(fs.readdirSync(newArtifactRoot), []);
+  const retestStatus = auditStatus(output, { retestOf: predecessorFile });
+  assert.equal(retestStatus.finding_retest.basis, "successor_declared_human_reviews");
+  assert.ok(retestStatus.finding_retest.findings.length > 0);
+  assert.ok(retestStatus.finding_retest.findings.every((finding) => ["pending", "unmapped"].includes(finding.status)));
 
   const crossRunOutput = path.join(temp, "cross-run.json");
   const copiedOldArtifact = path.join(newArtifactRoot, "copied-old-screen.json");
@@ -788,7 +950,7 @@ test("fresh retest initialization rejects invalid predecessor and scope/root reu
     "--target-name", "Local fixture",
     "--target-version", "fixture-v2",
     "--target-ref", "http://127.0.0.1:4173/",
-    "--network", "local_read_only",
+    "--network", "local_read_only", "--network-policy", path.join(root, "tests/fixtures/network-policy.json"),
     "--interaction", "safe_read_only",
     "--source-write", "none",
     "--supersedes-run", predecessorFile
@@ -822,33 +984,16 @@ test("fresh retest initialization rejects invalid predecessor and scope/root reu
   assertRejected(runNode(createRun, [...baseArgs, "--artifact-root", invalidRoot, "--output", path.join(temp, "invalid-predecessor.json")]), /retest_required|predecessor.*status/i);
 }));
 
-test("change-record registration enforces the referenced authorization change binding", (t) => withTemp(t, ({ temp, artifactRoot }) => {
+test("frozen registry 16 cannot register another change record", (t) => withTemp(t, ({ temp, artifactRoot }) => {
   const fixture = makeRetestRequiredRun(artifactRoot);
   fixture.run.status = "fix_authorized";
   fixture.run.artifacts = fixture.run.artifacts.filter((entry) => entry.artifact_id !== fixture.change.artifact_id);
   fixture.run.history = fixture.run.history.slice(0, -1);
   const runFile = path.join(temp, "fix-authorized-run.json");
   writeJson(runFile, fixture.run);
-  const cases = [
-    ["path", (value) => { value.payload.changed_files[0].path = "other.html"; }],
-    ["operation", (value) => { value.payload.changed_files[0].operation = "delete"; value.payload.changed_files[0].after_sha256 = null; }],
-    ["before hash", (value) => { value.payload.changed_files[0].before_sha256 = "d".repeat(64); }],
-    ["after hash", (value) => { value.payload.changed_files[0].after_sha256 = "e".repeat(64); }],
-    ["authorization id", (value) => { value.payload.authorization_id = "AUTH-20260717-OTHER001"; }],
-    ["command id", (value) => { value.payload.command_results[0].command_id = "VERIFY-OTHER"; }],
-    ["command args", (value) => { value.payload.command_results[0].args = ["run", "other"]; }]
-  ];
-  for (const [label, mutate] of cases) {
-    const forged = structuredClone(fixture.change);
-    mutate(forged);
-    const file = path.join(artifactRoot, `forged-${label.replaceAll(" ", "-")}.json`);
-    writeJson(file, forged);
-    assert.throws(
-      () => registerArtifactRecord(fixture.run, forged, { skillRoot, runFile, artifactFile: file }),
-      /authorization|change binding|authorized command|changed_files/i,
-      label
-    );
-  }
+  assert.throws(() => registerArtifactRecord(fixture.run, fixture.change, {
+    skillRoot, runFile, artifactFile: fixture.changeFile
+  }), /read.only|frozen|legacy/i);
 }));
 
 test("audit-run dispatch maps runs 1/2 to registry 1 through run 7 to registry 6", (t) => withTemp(t, ({ temp, artifactRoot }) => {
@@ -858,8 +1003,8 @@ test("audit-run dispatch maps runs 1/2 to registry 1 through run 7 to registry 6
   const legacyV3SchemaFile = path.join(references, "audit-run-3.0.0.schema.json");
   const legacyV4SchemaFile = path.join(references, "audit-run-4.0.0.schema.json");
   const legacyV5SchemaFile = path.join(references, "audit-run-5.0.0.schema.json");
-  assert.equal(currentSchema.$id, "urn:information-accessibility:audit-run:7.0.0");
-  assert.equal(currentSchema.properties.schema_version.const, "7.0.0");
+  assert.equal(currentSchema.$id, "urn:information-accessibility:audit-run:17.0.0");
+  assert.equal(currentSchema.properties.schema_version.const, "17.0.0");
   assert.equal(readJson(legacyV1SchemaFile).properties.schema_version.const, "1.0.0");
   assert.equal(readJson(legacyV2SchemaFile).properties.schema_version.const, "2.0.0");
   assert.equal(readJson(legacyV3SchemaFile).properties.schema_version.const, "3.0.0");
@@ -871,7 +1016,7 @@ test("audit-run dispatch maps runs 1/2 to registry 1 through run 7 to registry 6
   const registryV2 = readJson(path.join(references, "orchestration-registry-2.0.0.json"));
   const registryV3 = readJson(path.join(references, "orchestration-registry-3.0.0.json"));
   const registryV4 = readJson(path.join(references, "orchestration-registry-4.0.0.json"));
-  assert.equal(currentRegistry.schema_version, "6.0.0");
+  assert.equal(currentRegistry.schema_version, "17.0.0");
   assert.equal(registryV1.schema_version, "1.0.0");
   assert.equal(registryV2.schema_version, "2.0.0");
   assert.equal(registryV3.schema_version, "3.0.0");
@@ -1001,14 +1146,20 @@ test("legacy declared-human runs remain readable without retroactive current bin
   writeJson(fixture.screenFile, screen);
   const human = readJson(fixture.humanFile);
   human.schema_version = "1.0.0";
+  human.payload.schema_version = "1.0.0";
+  delete human.payload.reviewer_id;
+  delete human.payload.reviews[0].review_id;
+  delete human.target_snapshot_ids;
   human.payload.reviews[0].official_sources = [];
   human.payload.reviews[0].target_specific_evidence = human.payload.reviews[0].target_specific_evidence
     .filter((item) => item.type === "manual_observation");
   writeJson(fixture.humanFile, human);
   const queue = readJson(fixture.queueFile);
   queue.schema_version = "1.0.0";
+  delete queue.target_snapshot_ids;
   queue.inputs[0].sha256 = sha256File(fixture.screenFile);
   queue.payload.schema_version = "1.0.0";
+  for (const item of queue.payload.items) for (const field of ["origins", "reason", "priority", "priority_reason", "affected_users", "target_locations", "related_screening_observations", "status"]) delete item[field];
   delete queue.payload.items[0].generic_method_ref;
   delete queue.payload.items[0].official_sources;
   writeJson(fixture.queueFile, queue);
@@ -1059,6 +1210,9 @@ test("latest-only operational gate rejects legacy runs in pure merge while prese
   writeJson(artifactFile, artifact);
   const legacyRun = screenedRun(artifactRoot, artifactFile, artifact);
   legacyRun.schema_version = "1.0.0";
+  delete legacyRun.permissions.network_policy;
+  delete legacyRun.permissions.interaction_policy;
+  delete legacyRun.target_inventory;
   delete legacyRun.inspection_request;
   legacyRun.resource_versions = resourceVersions("orchestration-registry-1.0.0.json");
   delete legacyRun.resource_versions.orchestration_registry_sha256;
@@ -1081,6 +1235,9 @@ test("latest-only operational gate rejects legacy runs in the merge CLI without 
   writeJson(artifactFile, artifact);
   const legacyRun = screenedRun(artifactRoot, artifactFile, artifact);
   legacyRun.schema_version = "1.0.0";
+  delete legacyRun.permissions.network_policy;
+  delete legacyRun.permissions.interaction_policy;
+  delete legacyRun.target_inventory;
   delete legacyRun.inspection_request;
   legacyRun.resource_versions = resourceVersions("orchestration-registry-1.0.0.json");
   delete legacyRun.resource_versions.orchestration_registry_sha256;
@@ -1239,7 +1396,7 @@ test("pure merge rejects a legacy queue payload in a current run", (t) => withTe
       artifacts: [readJson(fixture.screenFile), queue, readJson(fixture.humanFile)],
       registries: pureMergeResources(fixture.run, artifactRoot)
     }),
-    /human-review-queue.*schema_version.*2\.0\.0|current.*payload|orchestration registry/i
+    /human-review-queue.*schema_version.*3\.0\.0|current.*payload|orchestration registry/i
   );
 }));
 
@@ -1278,7 +1435,7 @@ test("schema manifest loader rejects same-version schema swaps and duplicate sch
       const authorization = registry.artifact_types.find((item) => item.id === "fix-authorization");
       const change = registry.artifact_types.find((item) => item.id === "change-record");
       change.schema_versions[0].schema_file = authorization.schema_versions[0].schema_file;
-    }, /canonical artifact type manifest changed|artifact_types.*must equal|duplicate.*schema.*file|schema.*file.*duplicate/i]
+    }, /canonical artifact type manifest changed|canonical change-record manifest changed|artifact_types.*must equal|duplicate.*schema.*file|schema.*file.*duplicate/i]
   ]) {
     const copiedSkill = path.join(temp, label.replaceAll(" ", "-"));
     copyDirectory(path.join(skillRoot, "references"), path.join(copiedSkill, "references"));
@@ -1305,8 +1462,8 @@ test("frozen registry 1 payload compatibility stays fixed at 1.0.0 alongside new
   const frozenPolicy = resources.orchestrationRegistries.get("1.0.0").payloadVersions;
   assert.equal(frozenPolicy.get("human-review-queue"), "1.0.0");
   assert.equal(frozenPolicy.get("remediation-plan"), "1.0.0");
-  assert.equal(resources.currentPayloadVersions.get("human-review-queue"), "2.0.0");
-  assert.equal(resources.currentPayloadVersions.get("remediation-plan"), "2.0.0");
+  assert.equal(resources.currentPayloadVersions.get("human-review-queue"), "3.0.0");
+  assert.equal(resources.currentPayloadVersions.get("remediation-plan"), "3.0.0");
 });
 
 test("each registry derives its own exact per-artifact payload compatibility policy", () => {
@@ -1353,7 +1510,7 @@ test("each registry derives its own exact per-artifact payload compatibility pol
       "change-record": "2.0.0"
     }],
     ["6.0.0", {
-      "screening-observations": "2.0.0",
+      "screening-observations": "3.0.0",
       "human-review-queue": "2.0.0",
       "declared-human-review": "1.0.0",
       "remediation-plan": "2.0.0",
@@ -1361,6 +1518,17 @@ test("each registry derives its own exact per-artifact payload compatibility pol
       "change-record": "2.0.0"
     }]
   ]);
+  expected.set("7.0.0", structuredClone(expected.get("6.0.0")));
+  expected.set("8.0.0", structuredClone(expected.get("7.0.0")));
+  expected.set("9.0.0", structuredClone(expected.get("8.0.0")));
+  expected.set("10.0.0", { ...expected.get("9.0.0"), "human-review-queue": "3.0.0" });
+  expected.set("11.0.0", { ...expected.get("10.0.0"), "screening-observations": "4.0.0" });
+  expected.set("12.0.0", { ...expected.get("11.0.0"), "remediation-plan": "3.0.0", "declared-human-review": "2.0.0" });
+  expected.set("13.0.0", { ...expected.get("12.0.0"), "declared-human-review": "3.0.0" });
+  expected.set("14.0.0", { ...expected.get("13.0.0"), "audit-context": "1.0.0" });
+  expected.set("15.0.0", { ...expected.get("14.0.0"), "participant-usability-observation": "1.0.0" });
+  expected.set("16.0.0", { ...expected.get("15.0.0"), "declared-change-record": "1.0.0" });
+  expected.set("17.0.0", { ...expected.get("16.0.0"), "fix-handoff": "1.0.0", "change-record": "3.0.0" });
   assert.deepEqual([...resources.orchestrationRegistries.keys()], [...expected.keys()]);
   for (const [registryVersion, payloadVersions] of expected) {
     assert.deepEqual(
@@ -1401,9 +1569,12 @@ test("registry 2 rejects remediation artifact payload 2 while registry 3 rejects
     fs.mkdirSync(legacyRoot);
     const legacyFixture = makeScreeningRemediationRun(legacyRoot);
     legacyFixture.run.schema_version = "3.0.0";
+    delete legacyFixture.run.target_inventory;
     delete legacyFixture.run.inspection_request;
     legacyFixture.run.resource_versions = resourceVersions("orchestration-registry-2.0.0.json");
     delete legacyFixture.run.permissions.command_execution;
+    delete legacyFixture.run.permissions.network_policy;
+    delete legacyFixture.run.permissions.interaction_policy;
     let legacyAuthorization;
     let legacyAuthorizationFile;
     if (artifactType === "change-record") {
@@ -1501,12 +1672,12 @@ test("registry 2 rejects remediation artifact payload 2 while registry 3 rejects
   for (const artifact of legacyArtifacts) {
     const validation = validateArtifact(artifact, resources, { allowedPayloadVersions: currentPolicy });
     assert.equal(validation.valid, false, `${artifact.artifact_type} v1 unexpectedly passed registry 3`);
-    assert.match(validation.errors.join("\n"), /payload schema_version.*2\.0\.0|allowed.*2\.0\.0/i);
+    assert.match(validation.errors.join("\n"), /payload schema_version.*(?:2|3)\.0\.0|allowed.*(?:2|3)\.0\.0|cannot output/i);
     const artifactFile = path.join(artifactRoot, `${artifact.artifact_id}.json`);
     writeJson(artifactFile, artifact);
     assert.throws(
       () => registerArtifactRecord(fixture.run, artifact, { skillRoot, runFile: path.join(temp, "run.json"), artifactFile }),
-      /payload schema_version.*2\.0\.0|allowed.*2\.0\.0/i
+      /payload schema_version.*(?:2|3)\.0\.0|allowed.*(?:2|3)\.0\.0|cannot output/i
     );
   }
 }));
@@ -1539,7 +1710,7 @@ test("denied run cannot register, validate, or merge fix authorization and chang
   });
   const changeFile = path.join(artifactRoot, "change.json");
   writeJson(changeFile, change);
-  const permissionPattern = /source_write.*authorized_only[^]*command_execution.*authorized_verification_only|remediation artifact.*permissions/i;
+  const permissionPattern = /source_write.*authorized_only[^]*command_execution.*authorized_verification_only|remediation artifact.*permissions|change-record payload schema_version|cannot output change-record/i;
 
   for (const [artifact, artifactFile] of [[authorization, authorizationFile], [change, changeFile]]) {
     assert.throws(
@@ -1630,7 +1801,10 @@ test("run 3 with frozen registry 2 stays readable but register and merge remain 
   writeJson(artifactFile, artifact);
   const run = screenedRun(artifactRoot, artifactFile, artifact);
   run.schema_version = "3.0.0";
+  delete run.permissions.network_policy;
+  delete run.permissions.interaction_policy;
   delete run.inspection_request;
+  delete run.target_inventory;
   run.resource_versions = resourceVersions("orchestration-registry-2.0.0.json");
   delete run.permissions.command_execution;
   const runFile = path.join(temp, "run-3.json");
@@ -1757,7 +1931,7 @@ test("initialization rejects invalid run IDs and output paths redirected through
     "--inspection-mode", "quick", "--inspection-purpose", "Identify the next investigation",
     "--run-id", "AUDIT-TEST-001", "--profile", "web-modern", "--target-name", "Local fixture",
     "--target-version", "fixture-v1", "--target-ref", "http://127.0.0.1:4173/",
-    "--artifact-root", artifactRoot, "--network", "local_read_only",
+    "--artifact-root", artifactRoot, "--network", "local_read_only", "--network-policy", path.join(root, "tests/fixtures/network-policy.json"),
     "--interaction", "safe_read_only", "--source-write", "none", "--output", invalidOutput
   ]);
   assertRejected(invalid, /run[_ -]?id|RUN-/i);
@@ -1778,7 +1952,7 @@ test("initialization rejects invalid run IDs and output paths redirected through
   const redirected = runNode(createRun, [
     "--run-id", runId, "--profile", "web-modern", "--target-name", "Local fixture",
     "--target-version", "fixture-v1", "--target-ref", "http://127.0.0.1:4173/",
-    "--artifact-root", artifactRoot, "--network", "local_read_only",
+    "--artifact-root", artifactRoot, "--network", "local_read_only", "--network-policy", path.join(root, "tests/fixtures/network-policy.json"),
     "--interaction", "safe_read_only", "--source-write", "none",
     "--output", path.join(redirectedOutput, "run.json")
   ]);
@@ -2048,9 +2222,9 @@ test("registration allows another current-stage screening artifact but rejects a
 
   const initialFile = path.join(temp, "initial-run.json");
   writeJson(initialFile, initialRun(artifactRoot));
-  const queueFile = path.join(artifactRoot, "future-queue.json");
-  writeJson(queueFile, queueEnvelope());
-  const future = runNode(registerArtifact, ["--run", initialFile, "--artifact", queueFile, "--output", path.join(temp, "future-run.json")]);
+  const humanFile = path.join(artifactRoot, "future-human.json");
+  writeJson(humanFile, artifactEnvelope({ artifactId: "ART-FUTURE-HUMAN", artifactType: "declared-human-review", roleId: "declared_external_human", producerKind: "external_human", payload: declaredHumanPayload() }));
+  const future = runNode(registerArtifact, ["--run", initialFile, "--artifact", humanFile, "--output", path.join(temp, "future-run.json")]);
   assertRejected(future, /transition|future|initialized/i);
 }));
 
@@ -2136,7 +2310,7 @@ test("declared external human review updates only the exact profile row and pass
   ]);
   assert.equal(result.status, 0, result.stderr || result.stdout);
   const merged = readJson(output);
-  const reviewed = merged.assessment.results.filter((item) => item.mapping_status === "human_verified");
+  const reviewed = merged.assessment.results.filter((item) => item.mapping_status === "human_declared");
   assert.deepEqual(reviewed.map((item) => item.requirement_id), ["WCAG-2.2-SC-1.1.1"]);
   assert.equal(reviewed[0].outcome, "pass");
   assert.equal(merged.assessment.evidence_level, "E2");
@@ -2188,22 +2362,45 @@ test("declared human review is bound to its registered queue, current procedure,
   assert.match(missingEvidenceType.errors.join("\n"), /required evidence|manual_observation/i);
 }));
 
-test("unavailable declared review uses the queued criterion's current generic method and catalog sources", (t) => withTemp(t, ({ temp, artifactRoot }) => {
+test("public-web additional criterion keeps its WCAG procedure binding through run validation", (t) => withTemp(t, ({ temp, artifactRoot }) => {
+  const id = "WCAG-2.2-ADDITIONAL-SC-3.3.7";
+  const fixture = makeHumanReviewRun(artifactRoot);
+  fixture.run.profile.id = "jp-public-web";
+  const queue = readJson(fixture.queueFile);
+  queue.payload = createHumanReviewQueue({ run: fixture.run, manualRequirements: [id], skillRoot });
+  writeJson(fixture.queueFile, queue);
+  const binding = queue.payload.items[0];
+  const review = fixture.human.payload.reviews[0];
+  review.review_id = "HR-FIXTURE-ADDITIONAL-337";
+  review.requirement_id = id;
+  review.procedure_availability = binding.procedure_availability;
+  review.criterion_procedure_ref = binding.procedure_ref;
+  review.official_sources = binding.official_sources;
+  fixture.human.inputs[0].sha256 = sha256File(fixture.queueFile);
+  writeJson(fixture.humanFile, fixture.human);
+  for (const [artifactId, file] of [[queue.artifact_id, fixture.queueFile], [fixture.human.artifact_id, fixture.humanFile]]) {
+    fixture.run.artifacts.find((entry) => entry.artifact_id === artifactId).sha256 = sha256File(file);
+  }
+  const validation = validateAuditRun(fixture.run, { skillRoot, runFile: path.join(temp, "run.json") });
+  assert.equal(validation.valid, true, validation.errors.join("\n"));
+}));
+
+test("declared review uses the queued criterion's current procedure and official sources", (t) => withTemp(t, ({ temp, artifactRoot }) => {
   const fixture = makeHumanReviewRun(artifactRoot);
   const queue = readJson(fixture.queueFile);
   queue.payload = queuePayload("WCAG-2.2-SC-1.2.1");
   writeJson(fixture.queueFile, queue);
 
-  const resources = loadAuditResources(skillRoot);
-  const catalog = Object.values(resources.criteriaCatalog.catalogs).flat().find((item) => item.id === "WCAG-2.2-SC-1.2.1");
+  const binding = queue.payload.items[0];
   const human = readJson(fixture.humanFile);
   human.inputs[0].sha256 = sha256File(fixture.queueFile);
   human.payload.reviews = [{
+    review_id: "HR-FIXTURE-AVAILABLE",
     requirement_id: "WCAG-2.2-SC-1.2.1",
-    procedure_availability: "unavailable",
-    criterion_procedure_ref: null,
-    generic_method_ref: `web-audit-methods:${resources.auditMethods.schema_version}#${catalog.method_key}`,
-    official_sources: structuredClone(catalog.official_method_sources),
+    procedure_availability: binding.procedure_availability,
+    criterion_procedure_ref: binding.procedure_ref,
+    generic_method_ref: null,
+    official_sources: structuredClone(binding.official_sources),
     target_specific_evidence: [{
       type: "manual_observation",
       location: "media player",
@@ -2214,9 +2411,14 @@ test("unavailable declared review uses the queued criterion's current generic me
       location: "media player",
       observation: "The media alternative was checked with assistive technology.",
       captured_at: "2026-07-17T12:00:04Z"
+    }, {
+      type: "browser_inspection",
+      location: "media player",
+      observation: "The media alternatives were inspected in the browser.",
+      captured_at: "2026-07-17T12:00:04Z"
     }],
     profile_outcome: "pass",
-    rationale: "The queued generic review was completed."
+    rationale: "The queued criterion review was completed."
   }];
   writeJson(fixture.humanFile, human);
   fixture.run.artifacts.find((entry) => entry.artifact_id === queue.artifact_id).sha256 = sha256File(fixture.queueFile);
@@ -2226,20 +2428,20 @@ test("unavailable declared review uses the queued criterion's current generic me
   const baseline = validateAuditRun(fixture.run, { skillRoot, runFile });
   assert.equal(baseline.valid, true, baseline.errors.join("\n"));
 
-  human.payload.reviews[0].generic_method_ref = `web-audit-methods:${resources.auditMethods.schema_version}#adaptable-structure`;
+  human.payload.reviews[0].generic_method_ref = "web-audit-methods:1.0.0#audio-and-video-alternatives";
   writeJson(fixture.humanFile, human);
   fixture.run.artifacts.find((entry) => entry.artifact_id === human.artifact_id).sha256 = sha256File(fixture.humanFile);
   const wrongMethod = validateAuditRun(fixture.run, { skillRoot, runFile });
   assert.equal(wrongMethod.valid, false);
-  assert.match(wrongMethod.errors.join("\n"), /generic_method_ref|current generic method/i);
+  assert.match(wrongMethod.errors.join("\n"), /generic_method_ref|must be null/i);
 
-  human.payload.reviews[0].generic_method_ref = `web-audit-methods:${resources.auditMethods.schema_version}#${catalog.method_key}`;
-  human.payload.reviews[0].official_sources = [catalog.official_method_sources[0]];
+  human.payload.reviews[0].generic_method_ref = null;
+  human.payload.reviews[0].official_sources = ["https://example.invalid/not-authoritative"];
   writeJson(fixture.humanFile, human);
   fixture.run.artifacts.find((entry) => entry.artifact_id === human.artifact_id).sha256 = sha256File(fixture.humanFile);
   const wrongSources = validateAuditRun(fixture.run, { skillRoot, runFile });
   assert.equal(wrongSources.valid, false);
-  assert.match(wrongSources.errors.join("\n"), /official_sources|catalog sources/i);
+  assert.match(wrongSources.errors.join("\n"), /official_sources|registered official sources/i);
 }));
 
 test("merge reconstructs only from an E0 assessment baseline with no prior results, findings, or evidence", (t) => withTemp(t, ({ temp, artifactRoot }) => {
@@ -2301,7 +2503,7 @@ test("merge reconstructs only from an E0 assessment baseline with no prior resul
       "--run", runFile, "--assessment", assessmentFile, "--artifact", screenFile,
       "--output", path.join(temp, `${name}-merged.json`)
     ]);
-    assertRejected(result, /E0 assessment baseline|baseline.*unverified|prior.*screening|prior.*finding|prior.*evidence|current.run provenance/i);
+    assertRejected(result, /E0 assessment baseline|baseline.*unverified|prior.*screening|prior.*finding|prior.*evidence|current.run provenance|mapping_status must be one of/i);
   }
 }));
 
@@ -2316,7 +2518,7 @@ test("merge rejects human result injection that is not the current run's declare
     "--artifact", fixture.screenFile, "--artifact", fixture.queueFile, "--artifact", fixture.humanFile,
     "--output", path.join(temp, "merged.json")
   ]);
-  assertRejected(result, /E0 assessment baseline|current.run provenance|declared review set/i);
+  assertRejected(result, /E0 assessment baseline|current.run provenance|declared review set|mapping_status must be one of/i);
 }));
 
 test("merge rejects unregistered and duplicate declared-human profile rows", (t) => withTemp(t, ({ temp, artifactRoot }) => {
@@ -2352,68 +2554,21 @@ test("merge rejects unregistered and duplicate declared-human profile rows", (t)
   assertRejected(duplicateResult, /duplicate.*WCAG-2\.2-SC-1\.1\.1|profile.*conflict/i);
 }));
 
-test("queue, remediation, authorization, and change records never alter profile outcomes", (t) => withTemp(t, ({ temp, artifactRoot }) => {
-  const screen = screeningEnvelope({ artifactId: "ART-SCREEN-001", requirementId: "SCREEN-FIRST" });
-  const screenFile = path.join(artifactRoot, "screen.json");
-  writeJson(screenFile, screen);
-  const queue = queueEnvelope({ inputs: [{ artifact_id: screen.artifact_id, run_id: runId, sha256: sha256File(screenFile) }] });
-  const queueFile = path.join(artifactRoot, "queue.json");
-  writeJson(queueFile, queue);
-  const remediation = artifactEnvelope({
-    artifactId: "ART-REMEDIATION-001", artifactType: "remediation-plan", roleId: "remediation_planner",
-    createdAt: "2026-07-17T12:00:04Z",
-    inputs: [{ artifact_id: screen.artifact_id, run_id: runId, sha256: sha256File(screenFile) }],
-    payload: remediationPayload(screen.artifact_id)
-  });
-  const remediationFile = path.join(artifactRoot, "remediation.json");
-  writeJson(remediationFile, remediation);
-  const authorizationPayload = fixAuthorizationPayload();
-  authorizationPayload.remediation_artifact.sha256 = sha256File(remediationFile);
-  const authorization = artifactEnvelope({
-    artifactId: "ART-AUTHORIZATION-001", artifactType: "fix-authorization", roleId: "declared_authorizer",
-    producerKind: "external_requester", createdAt: "2026-07-17T12:00:05Z",
-    inputs: [{ artifact_id: remediation.artifact_id, run_id: runId, sha256: sha256File(remediationFile) }],
-    payload: authorizationPayload
-  });
-  const authorizationFile = path.join(artifactRoot, "authorization.json");
-  writeJson(authorizationFile, authorization);
-  const change = artifactEnvelope({
-    artifactId: "ART-CHANGE-001", artifactType: "change-record", roleId: "authorized_fixer",
-    createdAt: "2026-07-17T12:00:06Z",
-    inputs: [
-      { artifact_id: remediation.artifact_id, run_id: runId, sha256: sha256File(remediationFile) },
-      { artifact_id: authorization.artifact_id, run_id: runId, sha256: sha256File(authorizationFile) }
-    ],
-    payload: changePayload(authorization.artifact_id, sha256File(authorizationFile))
-  });
-  const changeFile = path.join(artifactRoot, "change.json");
-  writeJson(changeFile, change);
-  const artifacts = [[screenFile, screen], [queueFile, queue], [remediationFile, remediation], [authorizationFile, authorization], [changeFile, change]];
-  const run = authorizedInitialRun(artifactRoot);
-  run.status = "retest_required";
-  run.artifacts = artifacts.map(([file, artifact]) => registerEntry(artifactRoot, file, artifact)).sort((left, right) => left.artifact_id.localeCompare(right.artifact_id));
-  run.history = [
-    { from: "initialized", to: "screened", at: screen.created_at, actor_role: "e1_inspector", artifact_ids: [screen.artifact_id] },
-    { from: "screened", to: "human_queue_ready", at: queue.created_at, actor_role: "human_queue_planner", artifact_ids: [queue.artifact_id] },
-    { from: "human_queue_ready", to: "remediation_ready", at: remediation.created_at, actor_role: "remediation_planner", artifact_ids: [remediation.artifact_id] },
-    { from: "remediation_ready", to: "fix_authorized", at: authorization.created_at, actor_role: "declared_authorizer", artifact_ids: [authorization.artifact_id] },
-    { from: "fix_authorized", to: "retest_required", at: change.created_at, actor_role: "authorized_fixer", artifact_ids: [change.artifact_id] }
-  ];
+test("frozen change records cannot be merged into a current assessment", (t) => withTemp(t, ({ temp, artifactRoot }) => {
+  const { run } = makeRetestRequiredRun(artifactRoot);
   const runFile = path.join(temp, "run.json");
   const assessmentFile = path.join(temp, "assessment.json");
   const output = path.join(temp, "merged.json");
   const assessment = assessmentFixture();
-  const before = assessment.assessment.results.filter((item) => item.requirement_kind === "profile_requirement").map(({ requirement_id, outcome, mapping_status }) => ({ requirement_id, outcome, mapping_status }));
   writeJson(runFile, run);
   writeJson(assessmentFile, assessment);
   const result = runNode(mergeArtifactsCli, [
     "--run", runFile, "--assessment", assessmentFile,
-    "--artifact", screenFile, "--artifact", queueFile, "--artifact", remediationFile, "--artifact", authorizationFile, "--artifact", changeFile,
+    ...run.artifacts.flatMap((entry) => ["--artifact", path.join(artifactRoot, entry.path)]),
     "--output", output
   ]);
-  assert.equal(result.status, 0, result.stderr || result.stdout);
-  const after = readJson(output).assessment.results.filter((item) => item.requirement_kind === "profile_requirement").map(({ requirement_id, outcome, mapping_status }) => ({ requirement_id, outcome, mapping_status }));
-  assert.deepEqual(after, before);
+  assertRejected(result, /read.only|resource_versions|current resource/i);
+  assert.equal(fs.existsSync(output), false);
 }));
 
 test("registration and merge refuse existing output files", (t) => withTemp(t, ({ temp, artifactRoot }) => {
@@ -2537,7 +2692,7 @@ test("declared human merge preserves the unauthenticated identity limitation", (
     "--output", output
   ]);
   assert.equal(result.status, 0, result.stderr || result.stdout);
-  assert.ok(readJson(output).assessment.limitations.some((item) => /identity.*not authenticated|unauthenticated identity/i.test(item)));
+  assert.ok(readJson(output).assessment.limitations.some((item) => /identity assurance must be reverified.*external trust policy/i.test(item)));
 }));
 
 test("run validation and pure merge enforce the same remediation evidence semantics", (t) => withTemp(t, ({ temp }) => {
@@ -2619,18 +2774,24 @@ test("run validation and pure merge enforce the same remediation evidence semant
 test("legacy run 2 keeps remediation payload 1 readable without retroactive evidence semantics", (t) => withTemp(t, ({ temp, artifactRoot }) => {
   const fixture = makeScreeningRemediationRun(artifactRoot);
   fixture.run.schema_version = "2.0.0";
+  delete fixture.run.permissions.network_policy;
+  delete fixture.run.permissions.interaction_policy;
+  delete fixture.run.target_inventory;
   delete fixture.run.inspection_request;
   fixture.run.resource_versions = resourceVersions("orchestration-registry-1.0.0.json");
   delete fixture.run.permissions.command_execution;
   downgradeScreeningEnvelopeToV1(fixture.screen);
   rewriteFixtureArtifact(fixture, fixture.screen, fixture.screenFile);
   fixture.queue.schema_version = "1.0.0";
+  delete fixture.queue.target_snapshot_ids;
   fixture.queue.inputs[0].sha256 = sha256File(fixture.screenFile);
   fixture.queue.payload.schema_version = "1.0.0";
+  for (const item of fixture.queue.payload.items) for (const field of ["origins", "reason", "priority", "priority_reason", "affected_users", "target_locations", "related_screening_observations", "status"]) delete item[field];
   delete fixture.queue.payload.items[0].generic_method_ref;
   delete fixture.queue.payload.items[0].official_sources;
   rewriteFixtureArtifact(fixture, fixture.queue, fixture.queueFile);
   fixture.remediation.schema_version = "1.0.0";
+  delete fixture.remediation.target_snapshot_ids;
   fixture.remediation.inputs[0].sha256 = sha256File(fixture.screenFile);
   fixture.remediation.payload.schema_version = "1.0.0";
   fixture.remediation.payload.items[0].source_artifact_ids = ["ART-SCREEN-MISSING"];

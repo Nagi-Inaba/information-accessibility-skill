@@ -1,5 +1,6 @@
 {
   "schema_version": "1.0.0",
+  "web_capability_contract": "references/web-capabilities.json",
   "agents": [
     {
       "id": "information-accessibility-reviewer",

@@ -2,6 +2,8 @@
 
 # Information Accessibility Audit Skill and Agent
 
+Installation requires Node.js 20 or later and a pinned source revision. See the [Windows, macOS and Linux install, upgrade, restore and removal guide](docs/installing.md) first.
+
 ## In 30 seconds
 
 This Codex and Claude package reviews whether people can **find information, receive it, understand it, complete the intended action, and check the result later** across websites, applications, documents, slides, videos, and event information.
@@ -40,15 +42,15 @@ See the [architecture and glossary](docs/architecture-and-glossary.md) for the c
 
 ## Supported targets and current limits
 
-The package also includes eleven source-backed [common Web screening patterns](codex/skills/information-accessibility-practice/references/common-web-failure-patterns.json) and a tested [evidence and target identity library](docs/evidence-identity.md).
+The package also includes eleven source-backed [common Web screening patterns](shared/skill/references/common-web-failure-patterns.json) and a tested [evidence and target identity library](docs/evidence-identity.md).
 
 | Target | Natural-language review | Structured screening or standards ledger | Current limit |
 | --- | --- | --- | --- |
 | Website or Web application | Supported | `web-modern`, `jp-public-web`, read-only `scan-web` | A real screen-reader session remains an external human or host capability |
-| PDF, Word document, or slide deck | Supported | Guidance-oriented | No active dedicated profile or formal claim path |
-| Video or audio | Supported | Relevant Web requirements inside a named Web scope | No standalone media profile |
-| Event, meeting, or community process | Supported | Review through five information-use perspectives | No dedicated structured assessment yet |
-| ATAG or authoring process | Reference guidance | Partial reference information | The `authoring-agent` profile is currently inactive |
+| PDF, Word document, or slide deck | Supported | Five-perspective non-Web record, human review, and comparison | No dedicated standards conformance profile |
+| Video or audio | Supported | Five-perspective non-Web record, human review, and comparison | No standalone media standards profile |
+| Event, meeting, or community process | Supported | Five-perspective non-Web record, human review, and comparison | No standards conformance judgement |
+| ATAG or authoring process | Reference guidance | No structured assessment | `authoring-agent` is inactive. Keep Part A host UI separate; distinguish support features and automatic outputs within Part B |
 
 Choose the profile for the standard or policy your assessment uses:
 
@@ -62,7 +64,25 @@ See the [profile selection and migration guide](docs/profile-selection-and-migra
 
 - Node.js 20 or later
 - A local copy of this repository
-- The pinned Playwright, axe-core, and Chromium versions only when using the browser scan
+- The pinned Playwright and axe-core versions, plus host-approved Chromium or installed system Chrome, only when using the browser scan
+
+The CLI can create ledgers, register artifacts, merge, and report without a browser. Live page inspection requires the supported adapter or a host browser tool. Installed packages alone do not establish that inspection works; run the [Web capability preflight](docs/web-inspection.md).
+
+| Host | CLI record operations | DOM, AX, keyboard and viewport | Target network access | Actual screen reader |
+| --- | --- | --- | --- | --- |
+| Codex with a Node host | Supported | Measure with preflight after installing the adapter | Requires runtime, permission and origin configuration | External human session |
+| Claude with a Node host | Supported | Measure with preflight after installing the adapter | Requires runtime, permission and origin configuration | External human session |
+| Other Node host | Supported | Measure with preflight after installing the adapter | Requires runtime, permission and origin configuration | External human session |
+
+Host-native browser tools are not automatically detected. Record measured capabilities separately when using another integration. Missing capabilities leave affected checks unconfirmed with a next test, and profile rows remain `not_tested`.
+
+Run-backed network access requires a [concrete policy and private request logs](shared/skill/references/network-policy.md). Target and standards-source destinations remain separate, and each request also needs caller authorization. Paths this adapter cannot enforce, including cross-origin iframes, stop the capture.
+
+Supervised input requires [concrete operations, a supervisor, expiry and live approval](shared/skill/references/interaction-policy.md). Supervisor details and operation trails stay private. The current adapter supports native Tab/Shift+Tab with page scripts and further network access disabled; CLI capture without live supervision remains read-only.
+
+The [human review signature CLI](shared/skill/references/reviewer-assurance.md) distinguishes declarations, self-signed records, and signatures recognized by a recipient-selected trust policy. Assessment 2.0.0 binds declared rows to portable review records and rederives assurance during validation and reporting. Old `human_verified` rows are displayed as legacy self-declarations. Signatures do not prove review correctness or final-bundle integrity.
+
+The [audit-bundle CLI](shared/skill/references/audit-bundle-attestation.md) verifies saved run, registered artifact, evidence, assessment and report files, plus linked predecessor signatures, offline. It uses externally signed records and recipient-selected trust to distinguish unsigned, self-signed, organizational and other assurances. Complete target-source retention, historical file retention, trusted time and report correctness require separate verification.
 
 ### Codex
 
@@ -73,9 +93,9 @@ powershell -ExecutionPolicy Bypass -File ".\scripts\install-codex.ps1" -WhatIf
 powershell -ExecutionPolicy Bypass -File ".\scripts\install-codex.ps1"
 ```
 
-Specify `-IncludeAuthorizedFixer` only when deliberately installing authorized remediation. The authorized fixer is a read-only handoff agent and does not modify the target. A trusted operator performs the actual bounded change, verification, and rollback after checking external authorization.
+The default installation contains only the audit workflow; fixer agents, commands, and schemas are omitted. Specify `-IncludeAuthorizedFixer` only when deliberately installing authorized remediation. The fixer agent prepares a read-only handoff; a trusted operator performs the bounded change, verification, and rollback after checking external authorization. Both profiles use registry 17.0.0; the installer rejects a mismatched fixer registry version.
 
-On macOS or Linux, copy `codex/skills/information-accessibility-practice/` and the manifest-default agents. See [Getting started](docs/getting-started.md).
+The cross-platform Node installer is `node scripts/install-codex.mjs --dry-run` followed by `node scripts/install-codex.mjs`. See the [installation guide](docs/installing.md) for pinning, upgrade, restore and removal.
 
 ### Claude
 
@@ -92,6 +112,8 @@ node .\scripts\install-claude.mjs
 ```
 
 The multi-agent installation preserves the same role artifact contract as Codex. Use `--reviewer-only` only when the Claude host cannot dispatch specialist agents.
+Claude also defaults to the audit-only profile. Specify `--include-authorized-fixer` to install the optional fixer.
+The Node installer works on Windows, macOS and Linux. See the [installation guide](docs/installing.md) for upgrade, restore and removal.
 
 ### CLI
 
@@ -102,12 +124,18 @@ accessibility-audit --version
 accessibility-audit profiles list --locale en
 accessibility-audit requirements search "focus" --profile web-modern --level AA --locale en
 accessibility-audit screen-reader-checklist --pattern modal-dialog --locale en --format markdown
+accessibility-audit screen-reader-checklist --list-patterns --locale en
 accessibility-audit doctor --locale en
+accessibility-audit preflight-web --browser-channel chrome --locale en --format json
 ```
+
+The npm installation is audit-only as well. Install the optional fixer through the explicit Codex or Claude installer flag.
 
 `--locale ja` and `--locale en` change only human-readable CLI help, profile metadata, requirement list/search/show output, the legacy requirement view, the screen-reader checklist, and reports. Internal IDs, schema keys, enum values, evidence types, and claim tiers remain stable.
 
-These discovery commands are read-only. The standard CLI does not modify the audited target.
+`--pattern all` covers the eight bundled screen-reader patterns and any `--extension <file.json>`, not every UI pattern. A person must verify actual speech on the target device. See the [stateful UI guide](shared/skill/references/screen-reader-stateful-ui.md) for the extension format.
+
+Discovery commands are read-only. `non-web-review` writes only requested new records and does not modify the audited target. Use `non-web-review init` for a document/slide, media item, event, or participation workflow. It creates five initially untested perspectives. `validate`, `report`, and `compare` support human observations, improvements, and later review. Store outputs in a private directory such as `audit-runs/`. This is separate from WCAG/JIS assessment and does not verify the bytes of referenced evidence files.
 
 ## Try it in five minutes
 
@@ -177,17 +205,21 @@ For a new run, use `init` with `--inspection-mode quick|detailed --inspection-pu
 
 ## Detailed documentation
 
+- [Human review records, claim tiers, and audit status (Japanese)](docs/human-review-and-status.md)
+- [Issue priorities and implementation scope (Japanese)](docs/issue-priorities.md)
 - [Getting started: first run and usage paths](docs/getting-started.md)
 - [Runnable examples for all three paths](examples/README.md)
 - [Report formats, HTML accessibility, and verification boundaries](docs/report-formats.md)
 - [Architecture, responsibilities, artifacts, and bilingual glossary](docs/architecture-and-glossary.md)
 - [Browser-based Web inspection and network boundaries](docs/web-inspection.md)
-- [Agent orchestration for Codex](codex/skills/information-accessibility-practice/references/agent-orchestration.md)
+- [Agent orchestration for Codex](shared/skill/references/agent-orchestration.md)
 - [Agent orchestration for Claude](claude/skills/information-accessibility-practice/references/agent-orchestration.md)
-- [Standards assessment and evidence levels](codex/skills/information-accessibility-practice/references/standards-assessment.md)
+- [Standards assessment and evidence levels](shared/skill/references/standards-assessment.md)
 - [Security policy](SECURITY.md)
 - [Contribution guide](CONTRIBUTING.md)
 - [Changelog](CHANGELOG.md)
+- [Supported versions and migration](docs/version-support.md)
+- [Release candidate preparation and publication](docs/releasing.md)
 - [Third-party attribution and terms](THIRD_PARTY_NOTICES.md)
 
 ## Evidence and claim boundary
@@ -203,7 +235,7 @@ AI agents that create or update profile requirement rows keep `mapping_status: "
 
 ## Development and maintenance
 
-Read [CONTRIBUTING.md](CONTRIBUTING.md) before changing the package. Run the full verification command:
+Read [CONTRIBUTING.md](CONTRIBUTING.md) before changing the package. The common skill is edited in `shared/skill`; Codex and Claude skills are generated by synchronization. Run the full verification command:
 
 ```powershell
 node .\scripts\verify-all.mjs
@@ -211,6 +243,16 @@ node .\scripts\verify-all.mjs
 
 Do not place secrets or private evidence in a public issue. Follow [SECURITY.md](SECURITY.md) for security reporting.
 
+Package `0.1.0` is a development version. Record the full commit SHA for reproduction. Release candidates include the package version, commit and SHA-256 inventory; local verification is distinct from a published release.
+
 ## License
 
 Original code and documentation use the [MIT License](LICENSE). Third-party standards metadata remains subject to its source terms. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+The [machine-readable source register](shared/skill/references/third-party-sources.json) records sources, adopted versions, terms and modifications. Markdown/HTML reports retain attribution, and catalog refresh candidates include a companion record requiring renewed source/terms review. Unknown terms are never replaced with MIT; these records do not establish legal clearance for commercial use or redistribution.
+
+Use `review-queue` to create target-bound review candidates. See [human-review queue generation, registration and historical formats](shared/skill/references/human-review-queue.md).
+
+Use `artifact init` to wrap a completed payload for any of the four standard review artifacts, then `artifact validate` after editing and before registration. The CLI supplies IDs, versions, timestamps and input hashes. See [authoring without agent dispatch](shared/skill/references/agent-orchestration.md#authoring-without-agent-dispatch).
+
+Use `human-review export` for CSV, Markdown or Excel worksheets, then `human-review import` to turn the person's answers into a review candidate. See [input fields, partial submissions, multiple reviewers and resubmission (Japanese)](shared/skill/references/human-review-worksheet.md). Import does not authenticate reviewer identity or update the run automatically.

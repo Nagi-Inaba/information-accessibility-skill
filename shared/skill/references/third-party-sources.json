@@ -1,0 +1,291 @@
+{
+  "schema_version": "1.0.0",
+  "checked_on": "2026-09-19",
+  "original_work_license": "MIT",
+  "third_party_relicensed_as_mit": false,
+  "legal_review_status": "not_legally_reviewed",
+  "licenses": [
+    {
+      "id": "w3c-document-2023",
+      "name": "W3C Document License (2023)",
+      "url": "https://www.w3.org/copyright/document-license-2023/",
+      "archived_file": "references/licenses/w3c-document-2023.html",
+      "sha256": "4bc849ad8fc856e93478400332f409d209bdb7ab3ec0f346e88e9c23b6d2b9ae",
+      "checked_on": "2026-09-19"
+    },
+    {
+      "id": "w3c-software-document-2015",
+      "name": "W3C Software and Document License (2015)",
+      "url": "https://www.w3.org/copyright/software-license-2015/",
+      "archived_file": "references/licenses/w3c-software-document-2015.html",
+      "sha256": "254f76f6eb153b1a874645015489f24844fe117585a422f9f53ea3f359806919",
+      "checked_on": "2026-09-19"
+    },
+    {
+      "id": "w3c-software-document-2023",
+      "name": "W3C Software and Document License (2023)",
+      "url": "https://www.w3.org/copyright/software-license-2023/",
+      "archived_file": "references/licenses/w3c-software-document-2023.html",
+      "sha256": "ec32c12624d9dc038328872f288355f9e3ff59f2c1ab575c631868eb894415c1",
+      "checked_on": "2026-09-19"
+    },
+    {
+      "id": "CC-BY-SA-2.1-JP",
+      "name": "Creative Commons 表示–継承 2.1 日本",
+      "url": "https://creativecommons.org/licenses/by-sa/2.1/jp/",
+      "archived_file": null,
+      "sha256": null,
+      "checked_on": "2026-09-19"
+    },
+    {
+      "id": "PDL-1.0",
+      "name": "公共データ利用規約 第1.0版",
+      "url": "https://www.digital.go.jp/resources/open_data/public_data_license_v1.0",
+      "archived_file": null,
+      "sha256": null,
+      "checked_on": "2026-09-19"
+    }
+  ],
+  "sources": [
+    {
+      "id": "WCAG-2.2",
+      "name": "Web Content Accessibility Guidelines (WCAG) 2.2",
+      "publisher": "World Wide Web Consortium (W3C)",
+      "url": "https://www.w3.org/TR/WCAG22/",
+      "version": "W3C Recommendation, 12 December 2024",
+      "version_url": "https://www.w3.org/TR/2024/REC-WCAG22-20241212/",
+      "imported_fields": [
+        "success_criterion",
+        "title_en",
+        "level",
+        "normative_url",
+        "understanding_url",
+        "introduced_in"
+      ],
+      "terms_id": "w3c-document-2023",
+      "terms_evidence_url": "https://www.w3.org/TR/WCAG22/",
+      "terms_status": "primary_source_checked",
+      "legal_review_status": "not_legally_reviewed",
+      "attribution": "Copyright © 2020–2024 World Wide Web Consortium. W3C Recommendation: WCAG 2.2.",
+      "modification_notice": "Nagi-Inaba / information-accessibility-skill extracted A/AA identifiers, titles and levels, and added original routing and evidence classifications. Normative criterion prose is not copied.",
+      "redistribution_notes": "Preserve the source URL, original copyright and document status. Software-supporting derivatives require the W3C derivative notice; do not publish this catalog as a modified W3C specification.",
+      "derivative_notice": "Copyright © 2023 W3C®. This software or document includes material copied from or derived from Web Content Accessibility Guidelines (WCAG) 2.2: https://www.w3.org/TR/WCAG22/.",
+      "reviewed_source_sha256": "6e3c5fe397257cae509a2fb4752b73062cf8cbeb92c2cec618989b17e4cf7057",
+      "checked_on": "2026-09-19",
+      "report_notice": true
+    },
+    {
+      "id": "WAIC-JIS-CHECKLIST-2020-12",
+      "name": "JIS X 8341-3:2016 試験実施ガイドライン・達成基準チェックリストの例",
+      "publisher": "情報通信アクセス協議会・ウェブアクセシビリティ基盤委員会 (WAIC)",
+      "url": "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+      "version": "2020年12月版",
+      "version_url": "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+      "imported_fields": [
+        "success_criterion",
+        "title_ja",
+        "level",
+        "checklist_source_url"
+      ],
+      "terms_id": "CC-BY-SA-2.1-JP",
+      "terms_evidence_url": "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
+      "terms_status": "primary_source_checked",
+      "legal_review_status": "not_legally_reviewed",
+      "attribution": "出典：ウェブアクセシビリティ基盤委員会（WAIC）「JIS X 8341-3:2016 試験実施ガイドライン・達成基準チェックリストの例」（2020年12月版）。",
+      "modification_notice": "Nagi-Inaba / information-accessibility-skill がA/AAの38項目を抽出し、名称の接尾句を整え、独自のIDと対応関係を追加。JIS規格本文は転載していない。",
+      "redistribution_notes": "表示・原資料とライセンスへのリンク・加工表示を維持する。継承条件が適用される翻案部分には同じライセンスが必要。独自コードや監査対象の証拠を一律にCC BY-SAと扱わず、混合データへの適用範囲は再配布前に確認する。JIS原規格そのものの利用許諾を意味しない。",
+      "derivative_notice": null,
+      "reviewed_source_sha256": "1228e28559f944b91b1264d0390a9fda2abbc257b38712b1a15ed8539254f1f7",
+      "checked_on": "2026-09-19",
+      "report_notice": true
+    },
+    {
+      "id": "DIGITAL-AGENCY-JP-PROFILE",
+      "name": "デジタル庁 ウェブアクセシビリティ方針",
+      "publisher": "デジタル庁",
+      "url": "https://www.digital.go.jp/accessibility-statement",
+      "version": "方針ページ最終更新 2026-03-31／利用条件最終更新 2026-05-12",
+      "version_url": "https://www.digital.go.jp/accessibility-statement",
+      "imported_fields": [
+        "追加18項目のsuccess_criterion",
+        "title_ja",
+        "level",
+        "profile_source_url"
+      ],
+      "terms_id": "PDL-1.0",
+      "terms_evidence_url": "https://www.digital.go.jp/copyright-policy",
+      "terms_status": "primary_source_checked",
+      "legal_review_status": "not_legally_reviewed",
+      "attribution": "出典：デジタル庁「ウェブアクセシビリティ」。",
+      "modification_notice": "Nagi-Inaba / information-accessibility-skill が追加18項目を抽出し、独自のID・分類・W3Cメタデータとの対応を追加。デジタル庁の未加工の公式資料として表示しない。",
+      "redistribution_notes": "出典と加工主体を表示する。第三者が権利を持つ部分や個別の利用条件は別途確認する。この方針はデジタル庁の対象範囲に関するもので、日本の全公開Webサイトに一律に課される規格ではない。",
+      "derivative_notice": null,
+      "reviewed_source_sha256": "fbe3a7f99e4d5c2444d0ecfe0227282c9ba009d5b4be9d2c2821c5860e791c18",
+      "checked_on": "2026-09-19",
+      "report_notice": true
+    },
+    {
+      "id": "WAI-ARIA-1.2",
+      "name": "Accessible Rich Internet Applications (WAI-ARIA) 1.2",
+      "publisher": "World Wide Web Consortium (W3C)",
+      "url": "https://www.w3.org/TR/wai-aria-1.2/",
+      "version": "W3C Recommendation, 6 June 2023",
+      "version_url": "https://www.w3.org/TR/2023/REC-wai-aria-1.2-20230606/",
+      "imported_fields": [
+        "document name",
+        "version",
+        "source URLs",
+        "role and attribute identifiers"
+      ],
+      "terms_id": "w3c-software-document-2015",
+      "terms_evidence_url": "https://www.w3.org/TR/wai-aria-1.2/",
+      "terms_status": "primary_source_checked",
+      "legal_review_status": "not_legally_reviewed",
+      "attribution": "Copyright © 2013–2023 World Wide Web Consortium. W3C Recommendation: WAI-ARIA 1.2.",
+      "modification_notice": "Nagi-Inaba / information-accessibility-skill added original screening rules and human-review guidance; no specification prose or example code is bundled.",
+      "redistribution_notes": "Keep the archived full W3C license, pre-existing notices and modification attribution with redistributed metadata. The source links to the 2015 license; do not silently replace it with the 2023 terms.",
+      "derivative_notice": null,
+      "reviewed_source_sha256": null,
+      "checked_on": "2026-09-19",
+      "report_notice": false
+    },
+    {
+      "id": "HTML-ARIA-2026-04-15",
+      "name": "ARIA in HTML",
+      "publisher": "World Wide Web Consortium (W3C)",
+      "url": "https://www.w3.org/TR/html-aria/",
+      "version": "W3C Recommendation, 15 April 2026 (recorded implementation basis)",
+      "version_url": "https://www.w3.org/TR/2026/REC-html-aria-20260415/",
+      "imported_fields": [
+        "document name",
+        "version",
+        "source URLs",
+        "HTML and ARIA identifiers"
+      ],
+      "terms_id": "w3c-software-document-2023",
+      "terms_evidence_url": "https://www.w3.org/TR/2026/REC-html-aria-20260415/",
+      "terms_status": "primary_source_checked",
+      "legal_review_status": "not_legally_reviewed",
+      "attribution": "Copyright © 2026 World Wide Web Consortium. W3C Recommendation: ARIA in HTML, 15 April 2026.",
+      "modification_notice": "Nagi-Inaba / information-accessibility-skill added original screening checks and routing. The newer 11 August 2026 Recommendation has not been applied to these checks.",
+      "redistribution_notes": "Keep the archived full W3C license, pre-existing notices and modification attribution with redistributed metadata. A newer upstream edition requires a separate source and behavior review.",
+      "derivative_notice": null,
+      "reviewed_source_sha256": null,
+      "checked_on": "2026-09-19",
+      "report_notice": false
+    },
+    {
+      "id": "REFERENCE-ONLY-W3C-WAIC",
+      "name": "W3C / WAIC supporting references",
+      "publisher": "W3C; WAIC",
+      "url": "https://www.w3.org/WAI/standards-guidelines/",
+      "version": "Individual linked editions in source-basis.md; no blanket edition or license",
+      "version_url": "https://waic.jp/docs/jis2016/",
+      "imported_fields": [
+        "document identifiers and public reference URLs for Understanding, Techniques, ACT, WCAG-EM, ATAG, APG and WAIC guidance"
+      ],
+      "terms_id": null,
+      "terms_evidence_url": null,
+      "terms_status": "reference_only_terms_unreviewed",
+      "legal_review_status": "not_legally_reviewed",
+      "attribution": "Supporting references: W3C Web Accessibility Initiative and WAIC. Follow each linked document for its own authorship and terms.",
+      "modification_notice": "The review procedures and Japanese explanations are project-authored. No upstream explanatory prose, diagrams or sample code are copied through this reference category.",
+      "redistribution_notes": "A reference URL is not permission to copy the referenced work. Review the particular source and translation terms before importing additional material. Unknown terms are not MIT.",
+      "derivative_notice": null,
+      "reviewed_source_sha256": null,
+      "checked_on": "2026-09-19",
+      "report_notice": false
+    },
+    {
+      "id": "MIC-MICHECKER-FAQ",
+      "name": "みんなの公共サイト運用ガイドライン関連 miChecker FAQ",
+      "publisher": "総務省",
+      "url": "https://www.soumu.go.jp/info-accessibility-portal/assets/documents/webaccessibility/michecker/faq.pdf",
+      "version": "2024年4月版（参照資料）",
+      "version_url": "https://www.soumu.go.jp/info-accessibility-portal/webaccessibility/michecker/",
+      "imported_fields": [
+        "public reference URLs; original screening-pattern classifications informed by the FAQ"
+      ],
+      "terms_id": null,
+      "terms_evidence_url": null,
+      "terms_status": "reference_only_terms_unreviewed",
+      "legal_review_status": "not_legally_reviewed",
+      "attribution": "参照：総務省 miChecker関連FAQ（2024年4月版）。",
+      "modification_notice": "独自の11観測パターンを作成。FAQ本文・図版・ツール出力を配布スキルへ転載していない。",
+      "redistribution_notes": "原資料の利用条件は未確認。docs/sources/micheckerの研究用原本・抽出物はMITと扱わず、スキル配布物から除外する。原本を別途配布する前に提供元の条件を確認する。",
+      "derivative_notice": null,
+      "reviewed_source_sha256": null,
+      "checked_on": "2026-09-19",
+      "report_notice": false
+    },
+    {
+      "id": "ECLIPSE-ACTF-MANUALS",
+      "name": "Eclipse ACTF miChecker manuals",
+      "publisher": "Eclipse ACTF project",
+      "url": "https://github.com/eclipse-actf/org.eclipse.actf/tree/master/org.eclipse.actf.examples.michecker.doc.nl1/manual_src",
+      "version": "Linked upstream manual sources; reference only",
+      "version_url": "https://github.com/eclipse-actf/org.eclipse.actf",
+      "imported_fields": [
+        "public manual links; independently authored evaluation workflow and evidence-field design"
+      ],
+      "terms_id": null,
+      "terms_evidence_url": null,
+      "terms_status": "reference_only_terms_unreviewed",
+      "legal_review_status": "not_legally_reviewed",
+      "attribution": "Reference: Eclipse ACTF project, miChecker manuals.",
+      "modification_notice": "No ACTF code, manual prose, worksheet or application dependency is bundled in the skill.",
+      "redistribution_notes": "Repository and per-file terms have not been cleared for copied material. Do not infer MIT or permission to redistribute manuals from the presence of a link.",
+      "derivative_notice": null,
+      "reviewed_source_sha256": null,
+      "checked_on": "2026-09-19",
+      "report_notice": false
+    }
+  ],
+  "resource_bindings": [
+    {
+      "path": "references/criteria-catalog.json",
+      "canonical_sha256": "be72fa107f94da19b5163d00554c90878941786a270a2e400cbd456cd34196ab",
+      "source_ids": [
+        "WCAG-2.2",
+        "WAIC-JIS-CHECKLIST-2020-12",
+        "DIGITAL-AGENCY-JP-PROFILE"
+      ]
+    },
+    {
+      "path": "references/standards-registry.json",
+      "canonical_sha256": "5e207a14c8d43cd881054c6340bb55c6da0c07b2ef4531b89ad32296e5aee133",
+      "source_ids": [
+        "WCAG-2.2",
+        "WAIC-JIS-CHECKLIST-2020-12",
+        "DIGITAL-AGENCY-JP-PROFILE",
+        "REFERENCE-ONLY-W3C-WAIC"
+      ]
+    },
+    {
+      "path": "references/aria-review-rules.json",
+      "canonical_sha256": "32e3f80fcff6d36d121434ec22e6234cd441c7391d1a39a963c2f5d8a1b104d9",
+      "source_ids": [
+        "WAI-ARIA-1.2",
+        "HTML-ARIA-2026-04-15"
+      ]
+    },
+    {
+      "path": "references/criterion-procedures.json",
+      "canonical_sha256": "b622db1903592490717781421ffc4ec1e2ea1a948282bbbe5cdc94de893707c2",
+      "source_ids": [
+        "WCAG-2.2",
+        "REFERENCE-ONLY-W3C-WAIC"
+      ]
+    },
+    {
+      "path": "references/common-web-failure-patterns.json",
+      "canonical_sha256": "84187fa50c78a9db43965c521ea77648004e1a3a10355c0245ebbc8505b1c2e7",
+      "source_ids": [
+        "MIC-MICHECKER-FAQ",
+        "ECLIPSE-ACTF-MANUALS",
+        "WCAG-2.2",
+        "WAI-ARIA-1.2"
+      ]
+    }
+  ]
+}

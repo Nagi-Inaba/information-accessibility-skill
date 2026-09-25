@@ -1,3 +1,4 @@
+import { legacyAssessment } from "./helpers/legacy-assessment.mjs";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -10,7 +11,7 @@ const registry = JSON.parse(fs.readFileSync(path.join(root, "codex/skills/inform
 const schema = JSON.parse(fs.readFileSync(path.join(root, "codex/skills/information-accessibility-practice/references/assessment-record.schema.json"), "utf8"));
 const catalog = JSON.parse(fs.readFileSync(path.join(root, "codex/skills/information-accessibility-practice/references/criteria-catalog.json"), "utf8"));
 const auditMethods = JSON.parse(fs.readFileSync(path.join(root, "codex/skills/information-accessibility-practice/references/web-audit-methods.json"), "utf8"));
-const template = JSON.parse(fs.readFileSync(path.join(root, "codex/skills/information-accessibility-practice/assets/assessment-record.template.json"), "utf8"));
+const template = legacyAssessment(JSON.parse(fs.readFileSync(path.join(root, "codex/skills/information-accessibility-practice/assets/assessment-record.template.json"), "utf8")));
 
 function record() {
   const value = structuredClone(template);
@@ -208,7 +209,7 @@ test("E2 rejects arbitrary identifiers and automated-only evidence", () => {
   value.assessment.results = [screeningResult({ requirement_id: "NOT-A-REAL-WCAG-ID" })];
   const result = validate(value);
   assert.equal(result.valid, false);
-  assert.ok(result.errors.some((error) => error.includes("must start with SCREEN-") || error.includes("human-verified profile requirement")));
+  assert.ok(result.errors.some((error) => error.includes("must start with SCREEN-") || error.includes("human-declared profile requirement")));
 });
 
 test("E2 rejects fake IDs, a different W3C document, and machine-only evidence", () => {
@@ -226,7 +227,7 @@ test("E2 rejects fake IDs, a different W3C document, and machine-only evidence",
   assert.equal(result.valid, false);
   assert.ok(result.errors.some((error) => error.includes("is not registered")));
   assert.ok(result.errors.some((error) => error.includes("registered source document")));
-  assert.ok(result.errors.some((error) => error.includes("human-verified profile requirement")));
+  assert.ok(result.errors.some((error) => error.includes("human-declared profile requirement")));
 });
 
 test("registered source matching rejects normalized dot-segment escapes", () => {

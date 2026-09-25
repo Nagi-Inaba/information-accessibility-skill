@@ -1,3 +1,4 @@
+import { legacyAssessment } from "./helpers/legacy-assessment.mjs";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import test from "node:test";
@@ -14,10 +15,10 @@ const registry = read("standards-registry.json");
 const schema = read("assessment-record.schema.json");
 const catalog = read("criteria-catalog.json");
 const methods = read("web-audit-methods.json");
-const record = (profile = "web-modern") => generateAssessment(profile, {
+const record = (profile = "web-modern") => legacyAssessment(generateAssessment(profile, {
   targetName: "Reader regression fixture", targetVersion: "fixture-v1", targetRefs: ["https://example.com/"],
   evaluator: "Synthetic reviewer", evaluatedAt: "2026-09-14"
-});
+}));
 function presentation(input, locale) {
   const validation = validateAssessment(input, registry, schema, catalog, methods);
   assert.equal(validation.valid, true, validation.errors.join("\n"));

@@ -33,13 +33,13 @@ test("root help, version, and command help expose discoverable installed capabil
   assert.equal(version.status, 0, version.stderr || version.stdout);
   assert.match(version.stdout, /information-accessibility-practice-cli 0\.1\.0/u);
   assert.match(version.stdout, /standards registry 1\.0\.0/u);
-  assert.match(version.stdout, /audit-run schema 7\.0\.0/u);
+  assert.match(version.stdout, /audit-run schema 17\.0\.0/u);
 
   const initHelp = runCli(["init", "--help"]);
   assert.equal(initHelp.status, 0, initHelp.stderr || initHelp.stdout);
   for (const value of [
     "--run-id", "--profile", "--target-name", "--target-version", "--target-ref",
-    "--artifact-root", "--network", "none", "local_read_only",
+    "--artifact-root", "--network", "--network-policy", "none", "local_read_only",
     "--interaction", "safe_read_only", "human_supervised",
     "--source-write", "authorized_only", "--config", "--output"
   ]) assert.match(initHelp.stdout, new RegExp(value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&"), "u"));
@@ -59,6 +59,18 @@ test("profiles list reports active profiles, counts, versions, and claim ceiling
   assert.equal(output.profiles.find((profile) => profile.id === "jis-x-8341-3-2016-aa").requirement_count, 38);
   assert.equal(output.profiles.find((profile) => profile.id === "web-modern").requirement_count, 55);
   assert.equal(output.profiles.find((profile) => profile.id === "jp-public-web").requirement_count, 56);
+  const minimumCoverage = new Map([
+    ["jis-x-8341-3-2016-aa", 38],
+    ["jp-public-web", 56],
+    ["web-modern", 55]
+  ]);
+  for (const profile of output.profiles) {
+    const coverage = profile.procedure_coverage;
+    assert.equal(coverage.total_requirements, profile.requirement_count);
+    assert.ok(coverage.available_procedures >= minimumCoverage.get(profile.id), profile.id);
+    assert.equal(coverage.available_procedures + coverage.unavailable_procedures, coverage.total_requirements);
+    assert.equal(coverage.percentage, Number((coverage.available_procedures * 100 / coverage.total_requirements).toFixed(1)));
+  }
   assert.ok(output.profiles.every((profile) => profile.active === true));
   assert.ok(output.profiles.every((profile) => typeof profile.claim_ceiling === "string"));
 });
@@ -125,7 +137,7 @@ test("requirements search supports Japanese and English terms plus profile, leve
   ]));
   assert.deepEqual(
     procedure.requirements.map((item) => item.success_criterion),
-    ["1.1.1", "1.3.1", "1.4.4", "2.1.1", "2.4.1", "3.1.1", "3.3.2", "4.1.2"]
+    ["1.1.1", "1.2.1", "1.2.2", "1.2.3", "1.2.4", "1.2.5", "1.3.1", "1.3.2", "1.3.3", "1.3.4", "1.3.5", "1.4.1", "1.4.2", "1.4.3", "1.4.4", "1.4.5", "1.4.10", "1.4.11", "1.4.12", "1.4.13", "2.1.1", "2.1.2", "2.1.4", "2.2.1", "2.2.2", "2.3.1", "2.4.1", "2.4.2", "2.4.3", "2.4.4", "2.4.5", "2.4.6", "2.4.7", "2.4.11", "2.5.1", "2.5.2", "2.5.3", "2.5.4", "2.5.7", "2.5.8", "3.1.1", "3.1.2", "3.2.1", "3.2.2", "3.2.3", "3.2.4", "3.2.6", "3.3.1", "3.3.2", "3.3.3", "3.3.4", "3.3.7", "3.3.8", "4.1.2", "4.1.3"]
   );
 });
 
@@ -140,4 +152,3 @@ test("requirements results expose WCAG/JIS relations and primary guidance links"
   assert.ok(output.requirement.source_urls.some((url) => url.includes("waic.jp")));
   assert.ok(output.requirement.source_urls.some((url) => url.includes("w3.org")));
 });
-

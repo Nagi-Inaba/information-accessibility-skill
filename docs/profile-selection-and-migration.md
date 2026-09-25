@@ -10,7 +10,7 @@ Choose the profile that matches the standard or policy adopted for the assessmen
 
 The composite keeps the 38 JIS requirements and the 18 additional WCAG 2.1/2.2 requirements in separate report groups. Their basis is labeled as a standard or an organizational policy. The registry records that the current Digital Agency policy does not define the repository's exact 18-item set. Do not present that stored set as a general Japanese public-sector requirement or as a new statement of current policy.
 
-The registered sources, scope, and adoption metadata are in [the standards registry](../codex/skills/information-accessibility-practice/references/standards-registry.json). Use `accessibility-audit profiles list --locale en` to inspect the available profiles.
+The registered sources, scope, and adoption metadata are in [the standards registry](../shared/skill/references/standards-registry.json). Use `accessibility-audit profiles list --locale en` to inspect the available profiles.
 
 ## Existing records
 

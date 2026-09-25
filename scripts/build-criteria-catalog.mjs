@@ -3,7 +3,9 @@ import path from "node:path";
 import process from "node:process";
 import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
-import { assertNewOutputPath, writeNewText } from "../codex/skills/information-accessibility-practice/scripts/lib/audit-run.mjs";
+import { assertNewOutputPath, writeNewText } from "../shared/skill/scripts/lib/audit-run.mjs";
+import { catalogCandidateProvenance } from "../shared/skill/scripts/lib/source-provenance.mjs";
+import { verifySourceNotices } from "./verify-source-provenance.mjs";
 
 const sourceUrls = {
   wcag: "https://www.w3.org/TR/WCAG22/",
@@ -216,9 +218,10 @@ export function buildCatalogFromSources({ wcagHtml, jisHtml, japanHtml, verified
 
 function catalogPaths(root) {
   return {
+    source: path.join(root, "shared", "skill", "references", "criteria-catalog.json"),
     codex: path.join(root, "codex", "skills", "information-accessibility-practice", "references", "criteria-catalog.json"),
     claude: path.join(root, "claude", "skills", "information-accessibility-practice", "references", "criteria-catalog.json"),
-    registry: path.join(root, "codex", "skills", "information-accessibility-practice", "references", "standards-registry.json")
+    registry: path.join(root, "shared", "skill", "references", "standards-registry.json")
   };
 }
 
@@ -231,13 +234,15 @@ function catalogRecords(catalog) {
 }
 
 export function verifyStoredCatalog(root) {
+  verifySourceNotices(root);
   const paths = catalogPaths(root);
+  const sourceBytes = fs.readFileSync(paths.source);
   const codexBytes = fs.readFileSync(paths.codex);
   const claudeBytes = fs.readFileSync(paths.claude);
-  if (!codexBytes.equals(claudeBytes)) throw new Error("Stored Codex and Claude catalogs differ");
+  if (!sourceBytes.equals(codexBytes) || !sourceBytes.equals(claudeBytes)) throw new Error("Stored source, Codex, and Claude catalogs differ");
 
   const registry = JSON.parse(fs.readFileSync(paths.registry, "utf8"));
-  for (const [label, bytes] of [["Codex", codexBytes], ["Claude", claudeBytes]]) {
+  for (const [label, bytes] of [["Source", sourceBytes], ["Codex", codexBytes], ["Claude", claudeBytes]]) {
     const catalog = JSON.parse(bytes.toString("utf8"));
     try {
       assertCatalogIntegrity({ ...catalogRecords(catalog), registry });
@@ -259,7 +264,15 @@ function argumentValue(name) {
 }
 
 export function writeCatalogCandidate(output, catalog) {
-  return writeNewText(path.resolve(output), `${JSON.stringify(catalog, null, 2)}\n`);
+  const resolved = path.resolve(output), companion = `${resolved}.sources.json`;
+  assertNewOutputPath(resolved);
+  assertNewOutputPath(companion);
+  const text = `${JSON.stringify(catalog, null, 2)}\n`;
+  const provenance = catalogCandidateProvenance(catalog, Buffer.from(text, "utf8"));
+  // Publish the review record first: a failed catalog write may leave a harmless
+  // orphan companion, but must never publish a catalog without its provenance.
+  writeNewText(companion, `${JSON.stringify(provenance, null, 2)}\n`);
+  return writeNewText(resolved, text);
 }
 
 async function refreshCatalog(root) {
@@ -268,9 +281,10 @@ async function refreshCatalog(root) {
   const output = path.resolve(process.cwd(), outputArgument);
   try {
     assertNewOutputPath(output);
+    assertNewOutputPath(`${output}.sources.json`);
   } catch (error) {
     if (/Refusing to overwrite existing file/u.test(error.message)) {
-      throw new Error(`Refusing to overwrite existing output: ${output}`);
+      throw new Error(`Refusing to overwrite existing output or source companion: ${output}`);
     }
     throw error;
   }
@@ -288,7 +302,7 @@ async function refreshCatalog(root) {
   ]);
   const catalog = buildCatalogFromSources({ wcagHtml, jisHtml, japanHtml, verifiedAt, registry });
   const writtenOutput = writeCatalogCandidate(output, catalog);
-  return { status: "PASS", mode: "refresh", output: writtenOutput, counts: { wcag: 55, jis: 38, japan_additional: 18 } };
+  return { status: "PASS", mode: "refresh", output: writtenOutput, provenance_output: `${writtenOutput}.sources.json`, review_status: "pending_source_license_review", counts: { wcag: 55, jis: 38, japan_additional: 18 } };
 }
 
 async function main() {

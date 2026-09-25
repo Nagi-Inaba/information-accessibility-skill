@@ -6,7 +6,8 @@ import { fileURLToPath } from "node:url";
 
 const scriptRoot = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const agentPrefix = "information-accessibility-";
-const excludedSkillFiles = new Set(["agents/openai.yaml"]);
+const codexOverlayFiles = new Set(["agents/openai.yaml"]);
+export const executableSkillScripts = new Set(["scripts/accessibility-audit.mjs", "scripts/render-report.mjs"]);
 const supportedSchemaKeywords = new Set([
   "$schema", "$id", "title", "description", "type", "additionalProperties", "required",
   "properties", "const", "enum", "minItems", "uniqueItems", "items", "minLength", "pattern"
@@ -371,6 +372,8 @@ export function validateDistribution(root) {
   const roots = {
     packageRoot,
     sharedAgents: path.join(packageRoot, "shared", "agents"),
+    sharedSkill: path.join(packageRoot, "shared", "skill"),
+    codexOverlay: path.join(packageRoot, "platform", "codex", "agents"),
     codexAgents: path.join(packageRoot, "codex", "agents"),
     claudeAgents: path.join(packageRoot, "claude", "agents"),
     codexSkill: path.join(packageRoot, "codex", "skills", "information-accessibility-practice"),
@@ -379,8 +382,12 @@ export function validateDistribution(root) {
 
   try {
     inspectConfinedPath(packageRoot, packageRoot, { mustExist: true, expectedType: "directory", label: "package root" });
-    for (const [name, declaredRoot] of Object.entries(roots).filter(([name]) => name !== "packageRoot")) {
+    for (const [name, declaredRoot] of Object.entries(roots).filter(([name]) => !["packageRoot", "codexSkill", "claudeSkill"].includes(name))) {
       inspectDeclaredRoot(packageRoot, declaredRoot, name);
+    }
+    for (const name of ["codexSkill", "claudeSkill"]) {
+      const inspected = inspectConfinedPath(packageRoot, roots[name], { label: name });
+      if (inspected.exists && !inspected.stats.isDirectory()) throw new Error(`Expected directory for ${name}: ${roots[name]}`);
     }
   } catch (error) {
     return validationFailure([error.message]);
@@ -461,13 +468,25 @@ export function validateDistribution(root) {
 
   let sharedSkillFiles = [];
   try {
-    sharedSkillFiles = walkConfined(roots.codexSkill).filter((file) => !excludedSkillFiles.has(file));
+    sharedSkillFiles = walkConfined(roots.sharedSkill);
+    const overlays = walkConfined(roots.codexOverlay);
+    if (overlays.length !== 1 || !codexOverlayFiles.has(`agents/${overlays[0]}`)) errors.push("Unexpected Codex skill overlay files");
     const sharedSkillFileSet = new Set(sharedSkillFiles);
-    for (const relative of walkConfined(roots.claudeSkill)) {
-      if (!sharedSkillFileSet.has(relative)) errors.push(`Undeclared Claude skill mirror file: ${relative}`);
+    for (const overlay of codexOverlayFiles) {
+      if (sharedSkillFileSet.has(overlay)) errors.push(`Shared skill overlaps Codex overlay: ${overlay}`);
+    }
+    for (const name of ["codexSkill", "claudeSkill"]) {
+      if (!lstatIfPresent(roots[name])) continue;
+      for (const relative of walkConfined(roots[name])) {
+        if (!sharedSkillFileSet.has(relative) && !(name === "codexSkill" && codexOverlayFiles.has(relative))) {
+          errors.push(`Undeclared ${name} generated file: ${relative}`);
+        }
+      }
     }
     for (const relative of sharedSkillFiles) {
-      inspectConfinedPath(roots.claudeSkill, path.join(roots.claudeSkill, ...relative.split("/")), { label: "Claude skill mirror target" });
+      for (const name of ["codexSkill", "claudeSkill"]) {
+        inspectConfinedPath(packageRoot, path.join(roots[name], ...relative.split("/")), { label: `${name} generated target` });
+      }
     }
   } catch (error) {
     errors.push(error.message);
@@ -573,7 +592,7 @@ function captureTransactionEntry(relative, item) {
   const targetIdentity = capturePathIdentity(item.target, `generated target ${relative}`, "file");
   const original = readConfinedFile(item.declaredRoot, item.target, undefined, `generated target ${relative}`);
   assertPathIdentity(item.target, targetIdentity, `generated target ${relative}`, "file");
-  return { relative, ...item, parent, parentIdentity, originalExists: true, original, targetIdentity };
+  return { relative, ...item, parent, parentIdentity, originalExists: true, original, originalMode: inspected.stats.mode & 0o777, targetIdentity };
 }
 
 function assertOriginalTransactionState(entry) {
@@ -601,6 +620,7 @@ function verifyExpectedTransactionState(entry, expectedIdentity) {
   const content = readConfinedFile(entry.declaredRoot, entry.target, undefined, `generated target ${entry.relative}`);
   assertPathIdentity(entry.target, before, `generated target ${entry.relative}`, "file");
   if (!content.equals(entry.expected)) throw new Error(`Generated write verification failed: ${entry.relative}`);
+  if (process.platform !== "win32" && (fs.statSync(entry.target).mode & 0o777) !== (entry.expectedMode ?? 0o644)) throw new Error(`Generated file mode differs: ${entry.relative}`);
   return before;
 }
 
@@ -617,6 +637,7 @@ function verifyRestoredTransactionState(entry) {
   const content = readConfinedFile(entry.declaredRoot, entry.target, undefined, `rollback target ${entry.relative}`);
   assertPathIdentity(entry.target, identity, `rollback target ${entry.relative}`, "file");
   if (!content.equals(entry.original)) throw new Error(`Rollback byte verification failed: ${entry.relative}`);
+  if (process.platform !== "win32" && (fs.statSync(entry.target).mode & 0o777) !== entry.originalMode) throw new Error(`Rollback file mode differs: ${entry.relative}`);
 }
 
 function createStageDirectory(packageRoot) {
@@ -638,7 +659,7 @@ function createStageDirectory(packageRoot) {
   };
 }
 
-function writeExclusiveStageFile(stage, name, data) {
+function writeExclusiveStageFile(stage, name, data, mode = 0o644) {
   assertPathIdentity(stage.parent, stage.parentIdentity, "distribution stage parent", "directory");
   assertPathIdentity(stage.path, stage.identity, "distribution stage", "directory");
   const target = path.join(stage.path, name);
@@ -648,6 +669,7 @@ function writeExclusiveStageFile(stage, name, data) {
   const descriptor = fs.openSync(target, fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_EXCL | noFollow, 0o600);
   try {
     fs.writeFileSync(descriptor, data);
+    if (process.platform !== "win32") fs.fchmodSync(descriptor, mode);
     fs.fsyncSync(descriptor);
   } finally {
     fs.closeSync(descriptor);
@@ -704,7 +726,7 @@ function rollbackTransaction(entries, replaced, stage, errors) {
     try {
       verifyExpectedTransactionState(entry, entry.replacementIdentity);
       if (entry.originalExists) {
-        const rollbackStage = writeExclusiveStageFile(stage, `rollback-${entry.transactionIndex}`, entry.original);
+        const rollbackStage = writeExclusiveStageFile(stage, `rollback-${entry.transactionIndex}`, entry.original, entry.originalMode);
         verifyStageFile(stage, rollbackStage, entry.original);
         verifyExpectedTransactionState(entry, entry.replacementIdentity);
         fs.renameSync(rollbackStage.path, entry.target);
@@ -746,7 +768,7 @@ function writeTransaction(packageRoot, changed, generated, hooks = {}) {
     }));
     stage = createStageDirectory(packageRoot);
     for (const entry of capturedEntries) {
-      entry.staged = writeExclusiveStageFile(stage, `output-${entry.transactionIndex}`, entry.expected);
+      entry.staged = writeExclusiveStageFile(stage, `output-${entry.transactionIndex}`, entry.expected, entry.expectedMode);
     }
 
     hooks.afterStage?.({ entries: capturedEntries.map((entry) => ({ relative: entry.relative, target: entry.target })) });
@@ -781,6 +803,34 @@ function writeTransaction(packageRoot, changed, generated, hooks = {}) {
   return { errors, entries: capturedEntries };
 }
 
+function prepareGeneratedRoots(packageRoot, roots) {
+  const created = [];
+  try {
+    for (const target of [roots.codexSkill, roots.claudeSkill]) {
+      let current = packageRoot;
+      for (const part of path.relative(packageRoot, target).split(path.sep).filter(Boolean)) {
+        const parentIdentity = capturePathIdentity(current, "generated root parent", "directory");
+        const child = path.join(current, part);
+        const inspected = inspectConfinedPath(packageRoot, child, { label: "generated root" });
+        if (!inspected.exists) {
+          assertPathIdentity(current, parentIdentity, "generated root parent", "directory");
+          fs.mkdirSync(child);
+          assertPathIdentity(current, parentIdentity, "generated root parent", "directory");
+          created.push({ path: child, identity: capturePathIdentity(child, "created generated root", "directory") });
+        } else if (!inspected.stats.isDirectory()) {
+          throw new Error(`Expected generated root directory: ${child}`);
+        }
+        current = child;
+      }
+    }
+    return created;
+  } catch (error) {
+    const cleanupErrors = [];
+    cleanupCreatedDirectories(created, cleanupErrors);
+    throw new Error([error.message, ...cleanupErrors].join("; "));
+  }
+}
+
 export function buildDistribution(root, { write = false, hooks = {} } = {}) {
   const validation = validateDistribution(root);
   if (validation.status !== "PASS") return buildFailure(validation);
@@ -806,14 +856,23 @@ export function buildDistribution(root, { write = false, hooks = {} } = {}) {
     });
   }
   for (const relative of validation.sharedSkillFiles) {
-    const source = path.join(validation.roots.codexSkill, ...relative.split("/"));
-    const destination = path.join(validation.roots.claudeSkill, ...relative.split("/"));
-    generated.set(`claude/skills/information-accessibility-practice/${relative}`, {
-      declaredRoot: validation.roots.claudeSkill,
-      target: destination,
-      expected: readConfinedFile(validation.roots.codexSkill, source, undefined, `Codex skill source ${relative}`)
-    });
+    const source = path.join(validation.roots.sharedSkill, ...relative.split("/"));
+    const expected = readConfinedFile(validation.roots.sharedSkill, source, undefined, `shared skill source ${relative}`);
+    for (const name of ["codexSkill", "claudeSkill"]) {
+      const platform = name === "codexSkill" ? "codex" : "claude";
+      generated.set(`${platform}/skills/information-accessibility-practice/${relative}`, {
+        declaredRoot: validation.roots[name],
+        target: path.join(validation.roots[name], ...relative.split("/")),
+        expected,
+        expectedMode: executableSkillScripts.has(relative) ? 0o755 : 0o644
+      });
+    }
   }
+  generated.set("codex/skills/information-accessibility-practice/agents/openai.yaml", {
+    declaredRoot: validation.roots.codexSkill,
+    target: path.join(validation.roots.codexSkill, "agents", "openai.yaml"),
+    expected: readConfinedFile(validation.roots.codexOverlay, path.join(validation.roots.codexOverlay, "openai.yaml"), undefined, "Codex overlay")
+  });
 
   const errors = [];
   const changed = [];
@@ -827,7 +886,7 @@ export function buildDistribution(root, { write = false, hooks = {} } = {}) {
       }
       const content = readConfinedFile(item.declaredRoot, item.target, undefined, `generated target ${relative}`);
       actual.set(relative, content);
-      if (!generatedContentEquals(item, content)) changed.push(relative);
+      if (!generatedContentEquals(item, content) || (process.platform !== "win32" && (inspected.stats.mode & 0o777) !== (item.expectedMode ?? 0o644))) changed.push(relative);
     } catch (error) {
       errors.push(error.message);
     }
@@ -835,8 +894,15 @@ export function buildDistribution(root, { write = false, hooks = {} } = {}) {
   if (errors.length) return buildFailure(validation, errors);
 
   if (write && changed.length) {
+    let createdRoots;
+    try {
+      createdRoots = prepareGeneratedRoots(validation.roots.packageRoot, validation.roots);
+    } catch (error) {
+      return buildFailure(validation, [error.message]);
+    }
     const transaction = writeTransaction(validation.roots.packageRoot, changed, generated, hooks);
     errors.push(...transaction.errors);
+    if (transaction.errors.length) cleanupCreatedDirectories(createdRoots, errors);
     if (!transaction.errors.length) {
       for (const relative of changed) actual.set(relative, generated.get(relative).expected);
     } else {

@@ -1,6 +1,10 @@
-﻿import assert from "node:assert/strict";
+import { createHumanReviewQueue } from "../codex/skills/information-accessibility-practice/scripts/lib/human-review-queue.mjs";
+import { createNetworkPolicy } from "../codex/skills/information-accessibility-practice/scripts/lib/network-policy.mjs";
+import assert from "node:assert/strict";
 import { createInspectionRequest } from "../codex/skills/information-accessibility-practice/scripts/lib/inspection-request.mjs";
 import crypto from "node:crypto";
+import { bindFixtureEvidence } from "./helpers/saved-evidence.mjs";
+import { fixtureInventory } from "./helpers/measured-targets.mjs";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -10,6 +14,8 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { loadAuditResources, registerArtifact, sha256File, validateArtifact, validateAuditRun } from "../codex/skills/information-accessibility-practice/scripts/lib/audit-run.mjs";
 import { lookupRequirement } from "../codex/skills/information-accessibility-practice/scripts/show-requirement.mjs";
+import { auditStatus } from "../codex/skills/information-accessibility-practice/scripts/show-audit-status.mjs";
+import { validateJsonSchema } from "../codex/skills/information-accessibility-practice/scripts/lib/json-schema.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const skillRoot = path.join(root, "codex/skills/information-accessibility-practice");
@@ -118,6 +124,7 @@ function resourceVersions() {
   };
 }
 
+let activeArtifactRoot;
 function withTemp(t, callback) {
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), "a11y-authorized-fixer-"));
   t.after(() => fs.rmSync(temp, { recursive: true, force: true }));
@@ -125,6 +132,7 @@ function withTemp(t, callback) {
   const artifactRoot = path.join(temp, "artifacts");
   fs.mkdirSync(sourceRoot);
   fs.mkdirSync(artifactRoot);
+  activeArtifactRoot = artifactRoot;
   return callback({ temp, sourceRoot, artifactRoot });
 }
 
@@ -138,8 +146,8 @@ function assertRejected(result, pattern) {
 }
 
 function initialRun(artifactRoot) {
-  return {
-    schema_version: "7.0.0",
+  const run = {
+    schema_version: "17.0.0",
     inspection_request: createInspectionRequest("quick", "Identify the next investigation"),
     run_id: RUN_ID,
     supersedes_run_id: null,
@@ -164,8 +172,8 @@ function initialRun(artifactRoot) {
       input_modes: []
     },
     permissions: {
-      network: "allowlisted",
-      interaction: "read_only",
+      network: "allowlisted", network_policy: createNetworkPolicy({ targetOrigins: ["http://127.0.0.1:4173", "https://example.com"], allowLocalhost: true }),
+      interaction: "read_only", interaction_policy: null,
       source_write: "authorized_only",
       command_execution: "authorized_verification_only",
       allowed_actions: [
@@ -182,6 +190,8 @@ function initialRun(artifactRoot) {
     history: [],
     limitations: ["The environment was not declared; no profile outcome has been recorded."]
   };
+  run.target_inventory = fixtureInventory(run, artifactRoot);
+  return run;
 }
 
 function screeningPayload() {
@@ -202,31 +212,13 @@ function screeningPayload() {
   };
 }
 
-function queuePayloadFor(requirementId = "WCAG-2.2-SC-1.1.1") {
-  const binding = lookupRequirement("web-modern", requirementId, skillRoot).procedure_binding;
-  return {
-    schema_version: "2.0.0",
-    items: [{
-      requirement_id: requirementId,
-      procedure_ref: binding.procedure_ref,
-      procedure_availability: binding.procedure_availability,
-      generic_method_ref: binding.generic_method_ref,
-      official_sources: binding.official_sources,
-      human_actions: binding.human_actions,
-      required_evidence_types: binding.required_evidence_types,
-      cant_tell_conditions: binding.cant_tell_conditions
-    }],
-    procedure_coverage: {
-      total_requirements: 1,
-      available_procedures: binding.procedure_availability === "available" ? 1 : 0,
-      unavailable_procedures: binding.procedure_availability === "unavailable" ? 1 : 0
-    }
-  };
+function queuePayloadFor(run, screening) {
+  return createHumanReviewQueue({ run, screenings: [screening], manualRequirements: ["WCAG-2.2-SC-1.1.1"], skillRoot });
 }
 
 function remediationPayload() {
   return {
-    schema_version: "2.0.0",
+    schema_version: "3.0.0",
     items: [{
       remediation_id: "REM-TEST0001",
       basis: "verified_failure",
@@ -246,12 +238,13 @@ function remediationPayload() {
 function declaredHumanReviewPayload(requirementId = "WCAG-2.2-SC-1.1.1") {
   const binding = lookupRequirement("web-modern", requirementId, skillRoot).procedure_binding;
   return {
-    schema_version: "1.0.0",
+    schema_version: "3.0.0", reviewer_id: "fixture-reviewer",
     declaration: "I declare that I performed the review in accordance with the specified requirement.",
     reviewer_name: "Authorized reviewer",
     review_date: "2026-07-18",
     identity_authenticated: false,
     reviews: [{
+      review_id: "HR-FIXTURE-" + requirementId,
       requirement_id: requirementId,
       procedure_availability: binding.procedure_availability,
       criterion_procedure_ref: binding.procedure_availability === "available" ? binding.procedure_ref : null,
@@ -276,7 +269,8 @@ function declaredHumanReviewPayload(requirementId = "WCAG-2.2-SC-1.1.1") {
 
 function artifactEnvelope({ artifactId, artifactType, roleId, producerKind, inputs = [], payload, createdAt }) {
   return {
-    schema_version: "2.0.0",
+    schema_version: "4.0.0",
+    target_snapshot_ids: initialRun(activeArtifactRoot).target_inventory.snapshots.map((snapshot) => snapshot.snapshot_id),
     artifact_id: artifactId,
     artifact_type: artifactType,
     run_id: RUN_ID,
@@ -299,9 +293,9 @@ function registerEntry(artifactRoot, file, artifact) {
   };
 }
 
-function makeRemediationReadyFixture({ sourceRoot, artifactRoot }) {
+function makeRemediationReadyFixture({ sourceRoot, artifactRoot, initialContent = "<h1>fixture</h1>\n" }) {
   const targetFile = path.join(sourceRoot, "index.html");
-  fs.writeFileSync(targetFile, "<h1>fixture</h1>\n", "utf8");
+  fs.writeFileSync(targetFile, initialContent, "utf8");
 
   const screeningFile = path.join(artifactRoot, "screening.json");
   const queueFile = path.join(artifactRoot, "queue.json");
@@ -315,6 +309,7 @@ function makeRemediationReadyFixture({ sourceRoot, artifactRoot }) {
     createdAt: "2026-07-18T10:00:01Z",
     payload: screeningPayload()
   });
+  bindFixtureEvidence(screening, initialRun(artifactRoot), artifactRoot);
   writeJson(screeningFile, screening);
   const screeningSha256 = sha256File(screeningFile);
 
@@ -325,7 +320,7 @@ function makeRemediationReadyFixture({ sourceRoot, artifactRoot }) {
     producerKind: "ai_agent",
     createdAt: "2026-07-18T10:00:02Z",
     inputs: [{ artifact_id: "ART-SCREEN-001", run_id: RUN_ID, sha256: screeningSha256 }],
-    payload: queuePayloadFor()
+    payload: queuePayloadFor(initialRun(artifactRoot), screening)
   });
   writeJson(queueFile, queue);
   const queueSha256 = sha256File(queueFile);
@@ -418,7 +413,9 @@ function makeAuthPayload({
 
 function makeAuthEnvelope(payload, artifactId = "ART-AUTH-001", origin = "external_input") {
   return {
-    schema_version: "2.0.0",
+    schema_version: "4.0.0",
+    target_snapshot_ids: fs.existsSync(path.join(path.dirname(activeArtifactRoot), "target/index.html"))
+      ? initialRun(activeArtifactRoot).target_inventory.snapshots.map((snapshot) => snapshot.snapshot_id) : [],
     artifact_id: artifactId,
     artifact_type: "fix-authorization",
     run_id: payload.run_id,
@@ -552,8 +549,8 @@ test("validate-fix-authorization CLI rejects missing operation permissions and m
   const remediationSha256 = sha256File(fixture.remediationFile);
 
   const deniedCanonicalPermissions = {
-    network: "allowlisted",
-    interaction: "read_only",
+    network: "allowlisted", network_policy: createNetworkPolicy({ targetOrigins: ["http://127.0.0.1:4173", "https://example.com"], allowLocalhost: true }),
+    interaction: "read_only", interaction_policy: null,
     source_write: "denied",
     command_execution: "denied",
     allowed_actions: ["inspect_without_mutation", "read_allowlisted_resources"],
@@ -570,7 +567,7 @@ test("validate-fix-authorization CLI rejects missing operation permissions and m
 
   const permissionCases = [
     [(run) => { run.permissions = { ...deniedCanonicalPermissions }; }, /run\.permissions\.(source_write|command_execution) must be/],
-    [(run) => { run.permissions.command_execution = "denied"; }, /command_execution must be authorized_verification_only|permissions must exactly match/],
+    [(run) => { run.permissions.command_execution = "denied"; }, /command_execution must (?:be authorized_verification_only|equal "authorized_verification_only")|permissions must exactly match/],
     [(run) => { run.permissions.allowed_actions = ["execute_authorized_verification_commands", "inspect_without_mutation", "read_allowlisted_resources"]; }, /permissions must exactly match|allowed_actions/],
     [(run) => { run.permissions.allowed_actions = ["write_authorized_files", "inspect_without_mutation", "read_allowlisted_resources"]; }, /permissions must exactly match|allowed_actions/]
   ];
@@ -593,6 +590,11 @@ test("validate-fix-authorization CLI rejects missing operation permissions and m
 
   const legacyRun = structuredClone(fixture.run);
   legacyRun.schema_version = "3.0.0";
+  delete legacyRun.target_inventory;
+  delete legacyRun.inspection_request;
+  delete legacyRun.permissions.command_execution;
+  delete legacyRun.permissions.network_policy;
+  delete legacyRun.permissions.interaction_policy;
   writeJson(fixture.runFile, legacyRun);
   assertRejected(
     runNode(validateFixAuthorizationScript, [
@@ -1207,6 +1209,29 @@ test("expired lease recovery requires unchanged baseline and exact prior identit
   assert.equal(fs.existsSync(recovered.recovery_tombstone_path), false);
 }));
 
+test("lease recovery validates real instants and preserves expiry across DST offsets and fractions", async (t) => withTemp(t, async ({ temp, sourceRoot, artifactRoot }) => {
+  fs.writeFileSync(path.join(sourceRoot, "index.html"), "baseline\n", "utf8");
+  const lockDir = path.join(temp, "locks");
+  fs.mkdirSync(lockDir);
+  const auth = writeLeaseAuthorization(artifactRoot, sourceRoot);
+  const { acquireFixLease, releaseFixLease } = await import(pathToFileURL(fixLeaseLib));
+  const options = { authorization: auth.authorization, authorizationSha256: auth.authorizationSha256, sourceRoot, lockDir, runId: RUN_ID };
+  assert.throws(() => acquireFixLease({ ...options, now: "2026-02-30T00:00:00Z" }), /real RFC 3339/);
+  const first = acquireFixLease({ ...options, now: "2026-11-01T00:30:00-04:00" });
+  const lease = JSON.parse(fs.readFileSync(first.lease_path, "utf8"));
+  const recovery = { ...options, recoverExpired: true, expectedRunId: RUN_ID, expectedAuthorizationSha256: auth.authorizationSha256 };
+  for (const expires_at of ["2026-02-30T00:00:00Z", "2026-11-01T04:00:00Z"]) {
+    fs.writeFileSync(first.lease_path, JSON.stringify({ ...lease, expires_at }), "utf8");
+    assert.throws(() => acquireFixLease({ ...recovery, now: "2026-11-01T07:00:00Z" }), /real RFC 3339|must be after/);
+    assert.equal(fs.existsSync(first.lease_path), true);
+  }
+  fs.writeFileSync(first.lease_path, JSON.stringify({ ...lease, acquired_at: "2026-11-01T00:30:00-04:00", expires_at: "2026-11-01T01:30:00.000000001-05:00" }), "utf8");
+  assert.throws(() => acquireFixLease({ ...recovery, now: "2026-11-01T01:30:00-05:00" }), /not expired|conflict/);
+  const recovered = acquireFixLease({ ...recovery, now: "2026-11-01T01:30:00.001-05:00" });
+  assert.equal(recovered.recovery.previous_lease_id, first.lease_id);
+  releaseFixLease({ receipt: recovered, runId: RUN_ID, authorizationSha256: auth.authorizationSha256 });
+}));
+
 test("expired recovery fails closed after an allowed path changes or appears", async (t) => withTemp(t, async ({ temp, sourceRoot, artifactRoot }) => {
   const target = path.join(sourceRoot, "index.html");
   fs.writeFileSync(target, "baseline\n", "utf8");
@@ -1391,7 +1416,8 @@ function prepareTransaction({ temp, sourceRoot, artifactRoot }, {
   authorizedNextContent = nextContent,
   verificationMode = "utf8"
 } = {}) {
-  const fixture = makeRemediationReadyFixture({ sourceRoot, artifactRoot });
+  const fixture = makeRemediationReadyFixture({ sourceRoot, artifactRoot,
+    ...(operation !== "create" && target === "index.html" ? { initialContent } : {}) });
   const targetFile = path.join(sourceRoot, ...target.split("/"));
   fs.mkdirSync(path.dirname(targetFile), { recursive: true });
   if (operation === "create") {
@@ -1431,8 +1457,39 @@ function prepareTransaction({ temp, sourceRoot, artifactRoot }, {
     expected_after_sha256: expectedAfterSha256
   }];
   writeJson(authorizationFile, authorization);
+  const authorizedRun = registerArtifact(fixture.run, undefined, {
+    runFile: fixture.runFile, artifactFile: authorizationFile
+  });
+  writeJson(fixture.runFile, authorizedRun);
+  const handoff = artifactEnvelope({
+    artifactId: `ART-HANDOFF-${operation.toUpperCase()}`,
+    artifactType: "fix-handoff",
+    roleId: "authorized_fixer",
+    producerKind: "ai_agent",
+    createdAt: "2026-07-18T10:00:11Z",
+    inputs: [
+      { artifact_id: "ART-REMEDIATION-001", run_id: RUN_ID, sha256: sha256File(fixture.remediationFile) },
+      { artifact_id: authorization.artifact_id, run_id: RUN_ID, sha256: sha256File(authorizationFile) }
+    ],
+    payload: {
+      schema_version: "1.0.0", run_id: RUN_ID,
+      authorization_artifact: { artifact_id: authorization.artifact_id, sha256: sha256File(authorizationFile) },
+      remediation_artifact: authorization.payload.remediation_artifact,
+      source_root: sourceRoot, operation, target,
+      description: `${operation} authorized accessibility fix`,
+      expected_before_sha256: expectedBeforeSha256,
+      expected_after_sha256: expectedAfterSha256,
+      command_ids: ["VERIFY-TRANSACTION"]
+    }
+  });
+  const handoffFile = path.join(artifactRoot, `handoff-${operation}.json`);
+  writeJson(handoffFile, handoff);
+  const readyRun = registerArtifact(authorizedRun, undefined, { runFile: fixture.runFile, artifactFile: handoffFile });
+  writeJson(fixture.runFile, readyRun);
   const args = [
     "--authorization", authorizationFile,
+    "--handoff", handoffFile,
+    "--operator-id", "fixture-operator",
     "--run", fixture.runFile,
     "--source-root", sourceRoot,
     "--operation", operation,
@@ -1446,6 +1503,7 @@ function prepareTransaction({ temp, sourceRoot, artifactRoot }, {
   if (expectedBeforeSha256) args.push("--expected-before-sha256", expectedBeforeSha256);
   return {
     ...fixture,
+    run: readyRun,
     operation,
     target,
     targetFile,
@@ -1453,6 +1511,8 @@ function prepareTransaction({ temp, sourceRoot, artifactRoot }, {
     nextContent,
     authorization,
     authorizationFile,
+    handoff,
+    handoffFile,
     authorizationSha256: sha256File(authorizationFile),
     contentFile,
     expectedBeforeSha256,
@@ -1461,6 +1521,11 @@ function prepareTransaction({ temp, sourceRoot, artifactRoot }, {
     diffOutput: path.join(artifactRoot, `change-${operation}.diff.json`),
     consumptionMarker: path.join(artifactRoot, ".fix-consumption", `${sha256File(authorizationFile)}.json`),
     lockDir,
+    params: {
+      authorizationFile, handoffFile, operatorId: "fixture-operator", runFile: fixture.runFile,
+      sourceRoot, operation, target, description: `${operation} authorized accessibility fix`,
+      commandIds: ["VERIFY-TRANSACTION"], lockDir, output, contentFile, expectedBeforeSha256
+    },
     args
   };
 }
@@ -1469,6 +1534,42 @@ test("authorized fix transaction module exports the single target-write API", as
   const module = await import(pathToFileURL(fixTransactionLib));
   assert.equal(typeof module.applyAuthorizedFix, "function");
 });
+
+test("registered AI handoff alone does not change the target", (t) => withTemp(t, (roots) => {
+  const prepared = prepareTransaction(roots, { operation: "modify" });
+  assert.equal(prepared.run.status, "fix_authorized");
+  assert.equal(prepared.run.artifacts.some((entry) => entry.artifact_type === "fix-handoff"), true);
+  assert.equal(fs.readFileSync(prepared.targetFile, "utf8"), prepared.initialContent);
+  assert.equal(fs.existsSync(prepared.output), false);
+  assert.equal(fs.existsSync(prepared.consumptionMarker), false);
+}));
+
+test("a hand-written executor record cannot borrow the runtime completion receipt", (t) => withTemp(t, (roots) => {
+  const prepared = prepareTransaction(roots, { operation: "modify" });
+  const execution = runNode(applyAuthorizedFixScript, prepared.args);
+  assert.equal(execution.status, 0, runOutput(execution));
+  const forged = JSON.parse(fs.readFileSync(prepared.output, "utf8"));
+  forged.producer.origin = "hand-written-claim";
+  const forgedFile = path.join(roots.artifactRoot, "forged-change.json");
+  writeJson(forgedFile, forged);
+  assert.throws(() => registerArtifact(prepared.run, undefined, {
+    runFile: prepared.runFile, artifactFile: forgedFile
+  }), /execution receipt|registered change record|does not match/i);
+}));
+
+test("current change-record status identifies the trusted runtime executor", async (t) => withTemp(t, async (roots) => {
+  const prepared = prepareTransaction(roots, { operation: "modify" });
+  const execution = runNode(applyAuthorizedFixScript, prepared.args);
+  assert.equal(execution.status, 0, runOutput(execution));
+  const completed = registerArtifact(prepared.run, undefined, {
+    runFile: prepared.runFile, artifactFile: prepared.output
+  });
+  writeJson(prepared.runFile, completed);
+  const status = auditStatus(prepared.runFile);
+  assert.equal(status.valid, true, status.errors.join("\n"));
+  assert.deepEqual(validateJsonSchema(status, JSON.parse(fs.readFileSync(path.join(references, "audit-status.schema.json"), "utf8"))), []);
+  assert.deepEqual(status.warnings.filter((item) => item.code === "legacy_change_provenance"), []);
+}));
 
 for (const operation of ["create", "modify", "delete"]) {
   test(`authorized fix transaction records measured ${operation} and consumes authorization once`, async (t) => withTemp(t, async (roots) => {
@@ -1488,7 +1589,9 @@ for (const operation of ["create", "modify", "delete"]) {
     const validation = validateArtifact(artifact, resources, { allowedPayloadVersions: resources.currentPayloadVersions });
     assert.equal(validation.valid, true, validation.errors.join("\n"));
     assert.equal(artifact.artifact_type, "change-record");
-    assert.equal(artifact.producer.role_id, "authorized_fixer");
+    assert.equal(artifact.producer.role_id, "trusted_fix_executor");
+    assert.equal(artifact.producer.producer_kind, "trusted_runtime");
+    assert.equal(artifact.payload.handoff_artifact.sha256, sha256File(prepared.handoffFile));
     assert.equal(artifact.payload.next_status, "retest_required");
     assert.equal(artifact.payload.authorization_artifact.artifact_id, prepared.authorization.artifact_id);
     assert.equal(artifact.payload.authorization_artifact.sha256, prepared.authorizationSha256);
@@ -1512,10 +1615,6 @@ for (const operation of ["create", "modify", "delete"]) {
 
     const secondOutput = path.join(path.dirname(prepared.output), `second-${operation}.json`);
     const reuseArgs = prepared.args.map((value, index, values) => values[index - 1] === "--output" ? secondOutput : value);
-    if (operation !== "create" && fs.existsSync(prepared.targetFile)) {
-      const expectedIndex = reuseArgs.indexOf("--expected-before-sha256") + 1;
-      reuseArgs[expectedIndex] = sha256File(prepared.targetFile);
-    }
     const reuse = runNode(applyAuthorizedFixScript, reuseArgs);
     assertRejected(reuse, /consumed|single.use|authorization.*used/i);
     assert.equal(fs.existsSync(secondOutput), false);
@@ -1558,12 +1657,14 @@ test("authorization remains consumed after the run artifact tree is cloned", (t)
   const cloneRunFile = path.join(cloneRoot, "run.json");
   fs.copyFileSync(prepared.runFile, cloneRunFile);
   const cloneAuthorizationFile = path.join(cloneArtifactRoot, path.basename(prepared.authorizationFile));
+  const cloneHandoffFile = path.join(cloneArtifactRoot, path.basename(prepared.handoffFile));
   const cloneContentFile = path.join(cloneArtifactRoot, path.basename(prepared.contentFile));
   const cloneOutput = path.join(cloneArtifactRoot, "cloned-change.json");
   const cloneLockDir = path.join(roots.temp, "clone-locks");
   fs.mkdirSync(cloneLockDir);
   const cloneArgs = prepared.args.map((value, index, values) => {
     if (values[index - 1] === "--authorization") return cloneAuthorizationFile;
+    if (values[index - 1] === "--handoff") return cloneHandoffFile;
     if (values[index - 1] === "--run") return cloneRunFile;
     if (values[index - 1] === "--content-file") return cloneContentFile;
     if (values[index - 1] === "--lock-dir") return cloneLockDir;
@@ -1610,17 +1711,7 @@ for (const operation of ["create", "modify", "delete"]) {
     const { applyAuthorizedFix } = await import(pathToFileURL(fixTransactionLib));
     try {
       assert.throws(() => applyAuthorizedFix({
-        authorizationFile: prepared.authorizationFile,
-        runFile: prepared.runFile,
-        sourceRoot: prepared.sourceRoot,
-        operation: prepared.operation,
-        target: prepared.target,
-        description: "parent identity race fixture",
-        commandIds: ["VERIFY-TRANSACTION"],
-        lockDir: prepared.lockDir,
-        output: prepared.output,
-        contentFile: prepared.contentFile,
-        expectedBeforeSha256: prepared.expectedBeforeSha256,
+        ...prepared.params,
         hooks: {
           beforeMutation() {
             fs.renameSync(safeParent, movedParent);
@@ -1649,17 +1740,7 @@ test("post-mutation failure emits no completed change record and still blocks au
   const prepared = prepareTransaction(roots, { operation: "modify" });
   const { applyAuthorizedFix } = await import(pathToFileURL(fixTransactionLib));
   assert.throws(() => applyAuthorizedFix({
-    authorizationFile: prepared.authorizationFile,
-    runFile: prepared.runFile,
-    sourceRoot: prepared.sourceRoot,
-    operation: prepared.operation,
-    target: prepared.target,
-    description: "injected failure fixture",
-    commandIds: ["VERIFY-TRANSACTION"],
-    lockDir: prepared.lockDir,
-    output: prepared.output,
-    contentFile: prepared.contentFile,
-    expectedBeforeSha256: prepared.expectedBeforeSha256,
+    ...prepared.params,
     hooks: { afterMutation() { throw new Error("injected post-mutation failure"); } }
   }), /injected post-mutation failure/i);
   assert.equal(fs.readFileSync(prepared.targetFile, "utf8"), prepared.initialContent);
@@ -1672,17 +1753,7 @@ test("completed change evidence is not published when lease release fails", asyn
   const prepared = prepareTransaction(roots, { operation: "modify" });
   const { applyAuthorizedFix } = await import(pathToFileURL(fixTransactionLib));
   assert.throws(() => applyAuthorizedFix({
-    authorizationFile: prepared.authorizationFile,
-    runFile: prepared.runFile,
-    sourceRoot: prepared.sourceRoot,
-    operation: prepared.operation,
-    target: prepared.target,
-    description: "lease release failure fixture",
-    commandIds: ["VERIFY-TRANSACTION"],
-    lockDir: prepared.lockDir,
-    output: prepared.output,
-    contentFile: prepared.contentFile,
-    expectedBeforeSha256: prepared.expectedBeforeSha256,
+    ...prepared.params,
     hooks: { lease: { afterReleaseRename() { throw new Error("injected lease release failure"); } } }
   }), /injected lease release failure/i);
   assert.equal(fs.existsSync(prepared.output), false);
@@ -1702,17 +1773,7 @@ test("completed change evidence publication never overwrites a concurrently crea
   const blocker = "preexisting concurrent artifact\n";
   const { applyAuthorizedFix } = await import(pathToFileURL(fixTransactionLib));
   assert.throws(() => applyAuthorizedFix({
-    authorizationFile: prepared.authorizationFile,
-    runFile: prepared.runFile,
-    sourceRoot: prepared.sourceRoot,
-    operation: prepared.operation,
-    target: prepared.target,
-    description: "evidence publication collision fixture",
-    commandIds: ["VERIFY-TRANSACTION"],
-    lockDir: prepared.lockDir,
-    output: prepared.output,
-    contentFile: prepared.contentFile,
-    expectedBeforeSha256: prepared.expectedBeforeSha256,
+    ...prepared.params,
     hooks: { beforeEvidencePublish() { fs.writeFileSync(prepared.output, blocker, { encoding: "utf8", flag: "wx" }); } }
   }), /exist|EEXIST|output|publish/i);
   assert.equal(fs.readFileSync(prepared.output, "utf8"), blocker);
@@ -1726,17 +1787,7 @@ test("post-change path replacement cannot commit a stale after hash", async (t) 
   fs.writeFileSync(replacement, "<main>external replacement</main>\n", "utf8");
   const { applyAuthorizedFix } = await import(pathToFileURL(fixTransactionLib));
   assert.throws(() => applyAuthorizedFix({
-    authorizationFile: prepared.authorizationFile,
-    runFile: prepared.runFile,
-    sourceRoot: prepared.sourceRoot,
-    operation: prepared.operation,
-    target: prepared.target,
-    description: "stale after hash fixture",
-    commandIds: ["VERIFY-TRANSACTION"],
-    lockDir: prepared.lockDir,
-    output: prepared.output,
-    contentFile: prepared.contentFile,
-    expectedBeforeSha256: prepared.expectedBeforeSha256,
+    ...prepared.params,
     hooks: { afterMutation() { fs.renameSync(replacement, prepared.targetFile); } }
   }), /changed|identity|rollback failed|manual reconciliation/i);
   assert.equal(fs.existsSync(prepared.output), false);

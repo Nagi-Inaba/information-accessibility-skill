@@ -220,6 +220,8 @@ test("public standalone reports redact nested private data and emit a secret-fre
   assert.equal(rendered.status, 0, rendered.stderr || rendered.stdout);
 
   const report = fs.readFileSync(reportFile, "utf8");
+  assert.match(report, /Third-party metadata attribution/u);
+  assert.ok(report.includes("https://www.w3.org/copyright/document-license-2023/"));
   for (const secret of [
     "alice@example.com",
     "90-1234-5678",
@@ -269,23 +271,12 @@ test("internal reports preserve private audit data and identify themselves as no
 
 test("run-backed reports use the same public policy as standalone reports", (t) => {
   const directory = tempDirectory(t);
-  const generated = runNode(runBackedExample, ["--output", directory]);
+  const generated = runNode(runBackedExample, ["--output", directory, "--target-name", "Internal dashboard for alice@example.com",
+    "--target-ref", "https://10.0.0.8/admin?token=RUN-PRIVATE-TOKEN", "--target-ref", "https://example.com/app?session=RUN-SESSION-SECRET#state"]);
   assert.equal(generated.status, 0, generated.stderr || generated.stdout);
   const scenario = path.join(directory, "screening-only");
   const runFile = path.join(scenario, "audit-run.json");
   const assessmentFile = path.join(scenario, "merged-assessment.json");
-  const run = readJson(runFile);
-  const assessment = readJson(assessmentFile);
-  run.target.name = "Internal dashboard for alice@example.com";
-  run.target.urls_or_files = [
-    "https://10.0.0.8/admin?token=RUN-PRIVATE-TOKEN",
-    "https://example.com/app?session=RUN-SESSION-SECRET#state"
-  ];
-  run.scope.included = [...run.target.urls_or_files];
-  assessment.assessment.target = structuredClone(run.target);
-  assessment.assessment.scope = structuredClone(run.scope);
-  writeJson(runFile, run);
-  writeJson(assessmentFile, assessment);
 
   const reportFile = path.join(directory, "run-public.md");
   const manifestFile = path.join(directory, "run-redactions.json");

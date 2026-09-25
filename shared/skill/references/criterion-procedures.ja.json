@@ -1,0 +1,1478 @@
+{
+  "schema_version": "1.0.0",
+  "locale": "ja",
+  "canonical_schema_version": "1.0.0",
+  "procedures": [
+    {
+      "id": "wcag22-sc-1-1-1-non-text-content",
+      "applicability_steps": [
+        "固定した対象範囲で利用者に提示される各非テキスト項目を洗い出します。画像、SVG、icon、画像control、chart、音声、動画、CAPTCHA、装飾要素を含めます。",
+        "目に見える文脈と操作から、各項目の目的を情報提供、機能・入力、時間依存media、test、感覚的体験、CAPTCHA、装飾・整形・不可視のいずれかに分類します。",
+        "分類理由を記録し、interaction後またはstate変更後に目的が変わる項目を特定します。"
+      ],
+      "procedure_steps": [
+        "該当する各項目について、計算済みのprogrammatic name、text alternative、隣接する同等text、または装飾を支援技術から隠す意図的な仕組みを確認します。",
+        "確認した代替を、固定した対象stateで項目が伝える情報、操作、状態、傾向と比較します。短いlabelだけではchartやdiagramの同等情報を伝えられない場合は、data tableまたは文章による代替も確認します。",
+        "画像controlとinputは許可された操作を実行し、accessible nameがcontrolの目的を説明しているか確認します。この条項の範囲外にある関連問題は別に記録します。",
+        "例外を扱う場合は、attributeが存在するだけで結果とせず、該当する例外条件を満たすか確認します。"
+      ],
+      "expected_results": [
+        "該当する情報提供目的の各項目には、同等の目的を果たし、文脈上必要な情報を伝えるtext alternativeがあります。",
+        "該当する機能目的の各項目には目的を説明するprogrammatic nameがあり、装飾内容は意味のない内容として読み上げられず支援技術から無視されます。",
+        "明示的な例外に該当する項目には、その例外に応じた説明的な識別情報または代替modalityがあります。"
+      ],
+      "cant_tell_when": [
+        "項目の目的、目に見える文脈、stateによって変わる意味、または計算済みの代替を許可範囲で観測できない場合。",
+        "複雑なchart、diagram、media、CAPTCHA、第三者assetについて、同等のtext alternativeまたは例外条件と比較できない場合。"
+      ],
+      "counterexamples": {
+        "pass": [
+          "chartに簡潔なlabelがあり、近接する文章またはdata tableが、chartを利用するために必要な傾向と値を同等に伝えています。",
+          "装飾iconは支援技術から意図的に隠され、隣接するtextが唯一の意味をすでに伝えています。"
+        ],
+        "fail": [
+          "情報提供目的のchartが「画像」やfile名のような一般名だけで公開され、傾向やdataを伝える同等textがありません。",
+          "画像controlに、実行される操作の目的を説明するprogrammatic nameがありません。"
+        ],
+        "cant_tell": [
+          "screenshotではSVGにlabelが見えますが、計算済みnameを確認できず、表示dataが別のtextで完全に提供されているかも判定できません。"
+        ]
+      },
+      "ai_boundary": "AIは非テキスト項目の候補を洗い出し、確認質問を下書きできますが、profile outcome、human_verified mapping、E2以上のclaimを記録してはいけません。外部の人手reviewerが対象固有の証拠とともに条項結果を記録します。"
+    },
+    {
+      "id": "wcag22-sc-1-3-1-info-and-relationships",
+      "applicability_steps": [
+        "固定した対象範囲で視覚または聴覚による提示を通じて伝えられる情報、構造、関係を特定します。heading、list、landmark、table、label、必須表示、field group、state／statusの手掛かりを含めます。",
+        "視覚style、位置、group、色、音が利用できない場合でも、内容の理解または操作に必要となる関係を特定します。",
+        "linearized viewまたはaccessibility treeでしか確認できない内容・技術を記録します。"
+      ],
+      "procedure_steps": [
+        "DOM、accessibility tree、または同等のprogrammatic structureを確認し、同じ対象stateにある視覚的な関係と比較します。",
+        "heading、list、table、form label、grouped control、regionなどの該当構造が、理解・操作に必要な関係を公開しているか、または同等のtext説明が内容の近くにあるか確認します。",
+        "必要に応じてlinearized representationまたは支援技術向け表現で内容を確認し、提示方法が変わっても関係が維持されるか判定します。",
+        "tagの存在だけから結果を推定せず、正確な視覚的関係、programmaticまたはtextによる表現、未解決の境界を記録します。"
+      ],
+      "expected_results": [
+        "提示を通じて伝えられる情報、構造、関係が、対象範囲の内容についてprogrammatically determinedまたはtextで利用可能です。",
+        "table、form field、grouped control、heading、list、regionを解釈するために必要な関係が、提示方法を変えても利用できます。",
+        "semantic markupは見た目だけを作るのではなく、実際の内容の関係を表します。"
+      ],
+      "cant_tell_when": [
+        "視覚的提示とDOM、accessibility tree、linearized representationとの間で該当する関係を比較できない場合。",
+        "動的内容または第三者内容により、必要な関係がprogrammatically determinedまたはtextで利用可能か判定できない場合。"
+      ],
+      "counterexamples": {
+        "pass": [
+          "data tableがrow headerとcolumn headerを公開し、data cellを対応するheaderへ関連付けられます。",
+          "必須fieldのindicatorがtextで説明され、提示だけに依存せず該当form fieldへ関連付けられています。"
+        ],
+        "fail": [
+          "視覚的なheadingが太字paragraphだけで作られ、section構造を伝えるprogrammatic headingまたは近接textがありません。",
+          "table風layoutが視覚的なcolumnを使っていますが、値の解釈に必要なheaderとcellの関係を公開していません。"
+        ],
+        "cant_tell": [
+          "静的screenshotからgrouped formまたはdata tableに見えますが、accessibility tree、linearized content、source上の関係を確認できません。"
+        ]
+      },
+      "ai_boundary": "AIは関係の候補を洗い出し、確認質問を下書きできますが、profile outcome、human_verified mapping、E2以上のclaimを記録してはいけません。外部の人手reviewerが対象固有の証拠とともに条項結果を記録します。"
+    },
+    {
+      "id": "wcag22-sc-3-1-1-language-of-page",
+      "applicability_steps": [
+        "固定した対象範囲の各ページまたは文書と、その全内容における既定の自然言語を特定します。",
+        "markup、HTTP metadata、またはcontent technologyがサポートする同等の仕組みにあるページレベルの言語宣言を確認します。",
+        "文章または句の内部にある言語変更は、別のSC 3.1.2レビューとして扱います。これらはSC 3.1.1の結果を決定しません。"
+      ],
+      "procedure_steps": [
+        "単一の句、navigation label、locale設定ではなく、ページの全内容からページの既定の自然言語を判定します。",
+        "programmatically determinableなページレベルの言語を確認し、有効なlanguage valueでその既定の自然言語を示していることを確認します。",
+        "ページが埋め込まれている、生成されている、または非HTML technologyを通じて配信されている場合、そのtechnologyがサポートする同等のページレベル言語mechanismを確認します。",
+        "観測した既定言語、宣言されたvalueとそのlocation、任意の不一致を記録します。正しい、または欠落しているlanguage-of-parts markupをSC 3.1.1の結果に変換してはいけません。"
+      ],
+      "expected_results": [
+        "対象範囲の各ページの既定の自然言語をプログラムで判定できます。",
+        "ページレベルの宣言がページ全内容の既定言語と一致し、content technologyに有効なvalueを使用しています。",
+        "部分内の言語変更はこの手順の対象外であることを明示したまま、その条項が範囲内ならSC 3.1.2へ引き継ぎます。"
+      ],
+      "cant_tell_when": [
+        "review環境がページ全内容またはプログラムによるページレベル言語のいずれも公開しない場合。",
+        "生成または埋め込み文書を、既定言語と同等の言語metadataの両方を確認できるstateで開けない場合。"
+      ],
+      "counterexamples": {
+        "pass": [
+          "英語ページがroot elementにlang=\"en\"を宣言し、ページ全体の既定言語と一致しています。",
+          "主に日本語のページに英語の製品名がいくつか含まれていますが、ページの既定言語として日本語を正しく宣言しています。"
+        ],
+        "fail": [
+          "既定の自然言語が日本語のページに、プログラムで判定可能なページレベル言語がありません。",
+          "全内容が主にフランス語のページが、ページレベル言語として英語を宣言しています。"
+        ],
+        "cant_tell": [
+          "一部のscreenshotしか利用できないため、ページ全体の既定言語もページレベルのmetadataも判定できません。"
+        ]
+      },
+      "ai_boundary": "AIは言語境界の候補を洗い出し、確認質問を下書きできますが、profile outcome、human_verified mapping、E2以上のclaimを記録してはいけません。外部の人手reviewerが対象固有の証拠とともに条項結果を記録します。"
+    },
+    {
+      "id": "wcag22-sc-2-4-1-bypass-blocks",
+      "applicability_steps": [
+        "固定した対象範囲のページ集合で繰り返されるcontent blockを特定します。共通navigation、header、search region、繰り返されるlink groupなどです。",
+        "対象ページ集合内で実質的に異なる各templateまたは繰り返しblock patternから代表ページを選びます。",
+        "繰り返される各blockを迂回するため利用できるすべてのmechanismを洗い出します。skip link、構造的heading、landmarkまたはregion、その他technologyがサポートするmechanismを含めます。"
+      ],
+      "procedure_steps": [
+        "各繰り返しblockについて、利用者がそのblockを迂回してblock後のcontentに到達できる、少なくとも1つの利用可能なmechanismを特定します。",
+        "操作可能なskip controlを、それがサポートする入力方法で操作し、必要に応じてbrowserまたは支援技術のnavigation viewからheadingやregionなど構造的mechanismを確認します。",
+        "該当する各templateの代表ページでレビューを繰り返し、blockが繰り返される場所でmechanismが利用可能なままであることを確認します。",
+        "繰り返しblock、使用したmechanism、そのdestinationまたはnavigation effect、ページ集合の境界を記録します。別の十分なmechanismが存在する場合はskip linkを必須にしません。"
+      ],
+      "expected_results": [
+        "対象範囲のページ集合で繰り返される各content blockを迂回するmechanismが利用できます。",
+        "利用可能なmechanismにより、利用者はblock全体をもう一度通過せずに、繰り返しblockの後のcontentを公開または到達できます。",
+        "証拠には、どのページ集合と繰り返しblockをテストし、どのbypass mechanismが条項を満たしたかが示されています。"
+      ],
+      "cant_tell_when": [
+        "reviewerが、mechanismが提供されるnavigation modeを使って利用可能なbypass mechanismを確認または操作できない場合。",
+        "対象ページ集合またはruntime personalizationを、ページ間でどのcontent blockが繰り返されるか判定できる程度に固定できない場合。"
+      ],
+      "counterexamples": {
+        "pass": [
+          "「Skip to main content」controlが最初のfocus targetとして存在し、focusをmain article headingへ直接移動します。",
+          "ページが一貫したheadingとlandmark structureを使用しているため、支援技術の利用者は繰り返されるnavigationを越えて後続contentへ移動できます。"
+        ],
+        "fail": [
+          "対象ページ集合でnavigation blockが繰り返されますが、skip control、heading、region、その他のbypass mechanismを利用できません。",
+          "skip linkはありますが、起動しても利用者が同じ繰り返しnavigation block内に残り、他のbypass mechanismもありません。"
+        ],
+        "cant_tell": [
+          "dynamic applicationがprivate script-only shellでnavigationを公開し、繰り返しblockを特定できる決定的なbrowseable stateを観測できません。"
+        ]
+      },
+      "ai_boundary": "AIは繰り返しblockと迂回controlの候補を洗い出せますが、profile outcome、human_verified mapping、E2以上のclaimを記録してはいけません。外部の人手reviewerが対象固有の証拠とともに条項結果を記録します。"
+    },
+    {
+      "id": "wcag22-sc-3-3-2-labels-or-instructions",
+      "applicability_steps": [
+        "固定した対象範囲で、contentが利用者の入力を要求するcontrolを列挙します。text entry、selection、upload、task固有のdata entryを含めます。",
+        "該当controlごとに、要求されるinputと、必要なformat、value、unit、completion constraintを理解するために必要なlabelまたはinstructionを特定します。",
+        "利用者の入力を必要としないcontrolは除外し、関連するprogrammatic associationまたはerror handlingの質問は該当する条項の下で別に記録します。"
+      ],
+      "procedure_steps": [
+        "該当する各input requestを確認し、visibleまたはその他の方法で利用者が利用できるlabelまたはinstructionが要求されたinputを識別していることを確認します。",
+        "instructionが、valueを入力または選択する前に利用者が知る必要のある制約を伝えていることを確認します。必要なformat、range、unit、受け付けるfile type、必須fieldなどです。",
+        "通常のentry stateと、元のinstructionが消える可能性のあるstateでcontrolを確認します。入力中に消えて同等のinstructionが残らない場合、placeholderだけのtextでは不十分です。",
+        "programmatic labelの関係、error identification、error suggestionは、SC 1.3.1、SC 4.1.2、SC 3.3.1、SC 3.3.3の別証拠として記録し、ここで追加の合格条件にはしません。"
+      ],
+      "expected_results": [
+        "contentが利用者の入力を要求する場合、labelまたはinstructionが提供されています。",
+        "提供された情報がinputの目的と、fieldまたはcontrolを完了するために利用者が知る必要のある制約を伝えています。",
+        "条項結果が、別のprogrammatic associationまたはerror correction条項を満たすことに依存していません。"
+      ],
+      "cant_tell_when": [
+        "input requestと利用者に見えるlabelまたはinstructionを、許可されたreview環境で同時に観測できない場合。",
+        "必要なentry stateへ到達できず、inputが要求されたときにどのinstructionが利用可能か判定できない場合。"
+      ],
+      "counterexamples": {
+        "pass": [
+          "date fieldにlabelが付いており、entry前に必要なYYYY-MM-DD formatを示します。",
+          "必須upload fieldが目的を識別し、受け付けるfile typeとsize limitを示します。"
+        ],
+        "fail": [
+          "phone-number fieldが入力を要求しますが、labelもserviceが必要とするformatも提供していません。",
+          "inputがplaceholder textを唯一のinstructionとして使用し、同等のhelp textを残さず入力前にplaceholderが消えます。"
+        ],
+        "cant_tell": [
+          "formがcanvasでrenderされ、reviewerが信頼できる対象stateでcontrolとlabelの関係またはinstruction textを確認できません。"
+        ]
+      },
+      "ai_boundary": "AIはcontrolの候補を洗い出し、質問一覧を下書きできますが、profile outcome、human_verified mapping、E2以上のclaimを記録してはいけません。外部の人手reviewerが対象固有の証拠とともに条項結果を記録します。"
+    },
+    {
+      "id": "wcag22-sc-1-4-4-resize-text",
+      "applicability_steps": [
+        "固定した対象範囲のtextを特定します。この条項で必須となる200% resize testからcaptionとtext画像を除外します。",
+        "assistive technologyを必要とせず200%に到達する、利用者が制御するtext-resizeまたはbrowser mechanismを決定します。",
+        "初期viewport、zoomまたはtext-size設定、content state、およびinteraction後にのみtextが変わるwidgetを記録します。"
+      ],
+      "procedure_steps": [
+        "assistive technologyに頼らず、選択した利用者制御mechanismで該当textを200%に拡大します。",
+        "その設定ですべての対象範囲のtextとtextを含むcontrolを確認し、代表的なtaskを実行してcontentまたはfunctionalityが失われるか判定します。",
+        "clipping、overlap、消失、truncation、操作不能controlは、contentまたはfunctionalityの喪失を引き起こす場合にだけ記録します。固定pixel unitやhorizontal scrollingは、この条項の自動的な不合格ではありません。",
+        "captionとtext画像を必須結果から分け、該当する場合はreflowまたはtwo-dimensional scrollingの問題をSC 1.4.10の下で別に記録します。"
+      ],
+      "expected_results": [
+        "text contentを、content、functionality、またはtask contextを失わずに必要なthresholdまで拡大できます。",
+        "scaleに関係するoverflow、overlap、clippingだけを理由として、必須情報やcontrolが利用できなくなることはありません。",
+        "captionとtext画像は必須結果から除外され、関連するreflowの所見がこの条項の代わりに使われていません。"
+      ],
+      "cant_tell_when": [
+        "page stateを保ったまま確認できる状態で、environmentがbrowser zoomまたはtext scaling controlをブロックする場合。",
+        "固定されたrendering surface（例：変更できないcanvas output）により、scale変更後のtext layoutを直接確認できない場合。"
+      ],
+      "counterexamples": {
+        "pass": [
+          "text sizeを200%にすると、paragraphとcontrol labelがclippingなしにreflowし、必須textが失われません。",
+          "browser zoomを200%にすると一部のhorizontal scrollingが必要ですが、該当するすべてのtextとcontrolは利用可能で機能します。reflowは別に評価します。"
+        ],
+        "fail": [
+          "拡大されたcontentがcontrolと重なり、利用者が必須form elementを起動できません。",
+          "同等のtext sizeを200%にすると、長いlabelがcontainer境界の後ろでtruncationし、隠れたtextに必要なaction instructionが含まれています。"
+        ],
+        "cant_tell": [
+          "pageがscaleを固定するaccessibilityのない第三者rendererを使っており、対象範囲でreflow behaviorを確認できません。"
+        ]
+      },
+      "ai_boundary": "AIはscaleに敏感なlayout領域を洗い出し、checklistを下書きできますが、profile outcome、human_verified mapping、E2以上のclaimを記録してはいけません。外部の人手reviewerが対象固有の証拠とともに条項結果を記録します。"
+    },
+    {
+      "id": "wcag22-sc-2-1-1-keyboard",
+      "applicability_steps": [
+        "review範囲を固定し、control、composite widget、drag／drawing interaction、state依存操作を含む、範囲内のすべての利用者操作可能な機能を洗い出します。",
+        "各機能を公開するために必要な許可済みinteraction stateを特定し、pointerまたは利用できない入力なしでは到達できないstateを記録します。",
+        "開始点と終了点だけでなく利用者の移動経路そのものに目的が依存する機能を特定し、経路依存の例外とする前に具体的な理由を求めます。"
+      ],
+      "procedure_steps": [
+        "必要な許可済みstateへ入り、pointerまたはmouse emulationを代替testに使わず、keyboard interfaceだけですべての該当機能を操作します。",
+        "各操作について、開始state、使用した正確なkeyと順序、観測結果、到達できない機能またはstateを記録します。",
+        "操作が個々のkeystrokeに特定のtimingを要求するか確認します。経路依存の例外を主張する場合は、基礎となる機能、必要な移動経路、開始点と終了点だけでは実行できない理由を記録します。",
+        "keyboard trap、文字key shortcut、focus visibility、focus order、関連問題は対応する別条項へ記録します。この条項では、それらがkeyboard interfaceで機能を操作できないことも示す場合に限り利用します。"
+      ],
+      "expected_results": [
+        "固定した範囲と許可済みinteraction stateにある該当機能を、個々のkeystrokeに特定のtimingを要求せずkeyboard interfaceで操作できます。",
+        "除外する経路依存機能には、目的が開始点と終了点だけでなく移動経路に依存することを示す理由が記録されています。",
+        "review証拠には、keyboard event handlerの存在から操作可能性を推定するのではなく、使用key、観測結果、到達不能な機能が記録されています。"
+      ],
+      "cant_tell_when": [
+        "対話runtime、必要なinteraction state、または該当機能を操作するkeyboard経路へ許可環境で到達できない場合。",
+        "主張された経路依存の例外を操作できない、または移動経路への依存を開始点・終了点だけの操作と区別できない場合。"
+      ],
+      "counterexamples": {
+        "pass": [
+          "custom menuを、許可されたすべてのmenu stateで、個々のkeystroke timingに依存せず文書化されたkeyにより開く、移動する、実行する、閉じることができます。",
+          "freehand drawing機能にはkeyboard操作がありませんが、その目的が開始点・終了点だけでなく利用者の移動経路そのものに依存することをreviewerが確認して記録しています。"
+        ],
+        "fail": [
+          "file pickerはkeyboardで開けますが、利用可能なfile操作の一つがpointerでしか完了できません。",
+          "基礎機能が移動経路に依存しないにもかかわらず、controlが狭いtiming window内に押されたkeyだけを認識します。"
+        ],
+        "cant_tell": [
+          "state依存editor controlは見えますが、reviewerが必要stateへ入れず、許可runtimeでkeyboard sequenceを送れません。"
+        ]
+      },
+      "ai_boundary": "AIは機能、state、keyboard経路の候補を洗い出し、review質問を下書きできますが、profile outcome、human_verified mapping、E2以上のclaimを記録してはいけません。外部の人手reviewerが対象固有のkeyboard testとmanual evidenceに基づいて条項結果を記録します。"
+    },
+    {
+      "id": "wcag22-sc-4-1-2-name-role-value",
+      "applicability_steps": [
+        "固定した対象範囲にあるnativeおよびcustom UI componentを洗い出します。許可されたinteraction後またはstate変更後にだけ現れるcomponentも含めます。",
+        "各componentについて、目に見える目的、期待role、利用者が設定可能なすべてのvalue・state・property、それぞれの設定を要求できる支援技術・accessibility API・同等のaccessibility interface control pathを特定します。",
+        "DOM／accessibility treeへの公開、該当するprogrammatic-set control path、変更動作を許可環境で確認できないcomponentを特定します。status messageだけの動作はSC 4.1.3としてこの手順から除外します。"
+      ],
+      "procedure_steps": [
+        "interaction前に、各native／custom componentをDOMとaccessibility treeで確認し、programmatic name、role、現在の利用者設定可能なvalue・state・propertyを記録します。",
+        "各許可interactionを実行し、変更後のDOMとaccessibility treeを確認して、公開されたname、role、value、state、propertyをcomponentの目に見える動作と比較します。",
+        "該当する利用者設定可能な各value・state・propertyについて、支援技術、accessibility API client、または同等のaccessibility interfaceを使用し、そのinterface経由で異なる許可設定をprogrammatically setする操作を試します。",
+        "各programmatic-set操作の前に現在のvalue・state・propertyと要求設定を記録します。操作後のvalue・state・property、要求設定が反映されたか、programmaticおよび視覚的な観測結果を記録します。",
+        "各変更が支援技術を含むuser agentへ公開・通知されるかを別に観測し、変更前の公開状態、変更後の公開状態、観測した通知を記録します。",
+        "status messageだけの動作はSC 4.1.3として別に記録します。status messageだけをcomponentのname、role、value、state、propertyに関するこの手順の証拠として使用しません。"
+      ],
+      "expected_results": [
+        "該当する各componentが、review対象stateで目的と一致するprogrammatically determinableなnameとroleを公開します。",
+        "該当する利用者設定可能なvalue・state・propertyが、支援技術、accessibility API、または同等のaccessibility interfaceを通じて要求された許可設定を受け付け、その結果の設定を公開します。",
+        "該当するvalue・state・propertyの変更が、支援技術を含むuser agentへ別途公開・通知されます。",
+        "native／custom componentが、各許可interactionの前後で正確なprogrammatic exposureを維持します。"
+      ],
+      "cant_tell_when": [
+        "componentのaccessibility treeへの公開、interaction動作、または支援技術への通知を許可環境で観測できない場合。",
+        "programmatic set操作を発行して観測するための、該当する支援技術、accessibility API、または同等のaccessibility interface control pathを利用できない場合。",
+        "必要stateまたは変更を発生させられず、interaction前後のcomponentを比較できない場合。"
+      ],
+      "counterexamples": {
+        "pass": [
+          "accessibility APIのset requestでcustom sliderを20から40へprogrammatically setでき、結果valueが40として公開され、変更通知が支援技術へ読み上げられます。",
+          "custom disclosureがlabelとbutton roleを公開し、expanded stateを設定する支援技術からの要求を受け付け、要求後のstateを公開して変更を通知します。"
+        ],
+        "fail": [
+          "custom toggleをpointer操作すると変更stateが公開され通知も読み上げられますが、accessibility APIのset requestは失敗し、accessibility interfaceからstateをprogrammatically setできません。",
+          "iconだけのcustom controlが操作を実行しますが、目的を説明するprogrammatically determinableなnameがありません。"
+        ],
+        "cant_tell": [
+          "custom controlのvalueはaccessibility treeに見えますが、set requestを発行して観測できる許可済み支援技術またはaccessibility API control pathがありません。"
+        ]
+      },
+      "ai_boundary": "AIはcomponent候補の洗い出し、取得済みDOM／accessibility tree stateの比較、review質問の下書きを行えますが、profile outcome、human_verified mapping、E2以上のclaimを記録してはいけません。外部の人手reviewerが対象固有のbrowserおよび支援技術の証拠とともに条項結果を記録します。"
+    },
+    {
+      "id": "wcag22-sc-2-4-11-focus-not-obscured-minimum",
+      "applicability_steps": [
+        "固定した画面状態・viewport・zoomでkeyboard focusを受ける部品と、作成者が配置した固定表示・重なり表示を特定します。",
+        "利用者が移動できる内容の初期位置と、利用者が開いた内容をfocusを進めずに閉じるか移動できるかを記録します。"
+      ],
+      "procedure_steps": [
+        "固定header、footer、通知、持続する重なり表示の近くも含め、該当部品をkeyboardで順にfocusし、部品とviewportの状態を記録します。",
+        "各focus位置で、作成者の内容が部品自体を完全に隠すか確認します。利用者が開いた内容が覆う場合、focusを進めずに部品を見せる操作ができるか試します。",
+        "対象のresponsive・zoom状態でも繰り返します。覆う層を記録し、focus indicator自体の見え方を扱う2.4.7と部品の可視性を分けます。"
+      ],
+      "expected_results": [
+        "keyboard focusを受けた部品は少なくとも一部が見えるか、利用者が開いた内容をfocusを進めずに動かして見せられます。",
+        "利用者が移動できる内容は初期位置で確認し、focus indicatorの見た目は別の条項で扱います。"
+      ],
+      "cant_tell_when": [
+        "許可された画面状態でkeyboard focus、部品の境界、または覆う層を観測できない場合。",
+        "利用者が移動・開閉できる内容について、初期位置やfocusを維持したままの表示操作を確認できない場合。"
+      ],
+      "counterexamples": {
+        "pass": [
+          "固定headerの下でfocusしたlinkの一部が見え、どの部品にfocusがあるか確認できます。"
+        ],
+        "fail": [
+          "持続するcookie bannerがkeyboard focusを受けたbuttonを完全に隠し、focusを動かさずにbannerを閉じられません。"
+        ],
+        "cant_tell": [
+          "重なり表示のscreenshotはありますが、その下でfocusしている部品を示すkeyboard操作記録がありません。"
+        ]
+      },
+      "ai_boundary": "AIは重なり表示とfocus経路の候補を示せますが、profile outcome、human_verified mapping、E2以上のclaimを記録してはいけません。外部の人手reviewerが固定した画面状態で部品の可視性を確認します。"
+    },
+    {
+      "id": "wcag22-sc-3-3-1-error-identification",
+      "applicability_steps": [
+        "必須情報の未入力、不正な形式・値、入力値の自動訂正を自動検出する入力手順を特定します。",
+        "該当する検出状態を起こす許可済みの非機微テストデータを選び、対象が検出しない誤りを推測で追加しません。"
+      ],
+      "procedure_steps": [
+        "許可されたform・入力手順で各検出状態を起こし、入力値、field、検出時点、その後の画面状態を記録します。",
+        "利用者向けtextが、誤りのある項目と誤りの内容の両方を示すか確認します。複数の誤りを同時に確認できる場合は各項目を確認します。",
+        "自動訂正した入力を利用者に説明しているか確認します。訂正案は3.3.3、programmatic nameやstateは別の条項として記録します。"
+      ],
+      "expected_results": [
+        "自動検出した各入力誤りについて、該当項目と誤りの内容がtextで示されます。",
+        "送信失敗時にformを黙って再表示するだけで終わらず、値の自動訂正も利用者に説明されます。"
+      ],
+      "cant_tell_when": [
+        "許可されたテストデータで誤りの状態を安全に起こせないか、表示されたtextと該当項目を観測できない場合。",
+        "値の変更が自動訂正か利用者操作か判別できない場合。"
+      ],
+      "counterexamples": {
+        "pass": [
+          "不正な日付を送信すると、日付fieldを特定し、許容範囲外だと説明するtextが表示されます。"
+        ],
+        "fail": [
+          "送信に失敗し、赤い枠だけ付いたformが再表示されますが、誤ったfieldや内容を示すtextがありません。"
+        ],
+        "cant_tell": [
+          "送信後のformのscreenshotだけがあり、送信した値と検証結果の記録がありません。"
+        ]
+      },
+      "ai_boundary": "AIは安全な誤りのテスト例を下書きし表示messageを洗い出せますが、profile outcome、human_verified mapping、E2以上のclaimを記録してはいけません。外部の人手reviewerが各誤りの状態を起こして評価します。"
+    },
+    {
+      "id": "wcag22-sc-1-4-10-reflow",
+      "applicability_steps": [
+        "固定したページで縦スクロール・横スクロールする内容を特定し、読み方向、初期viewport、zoomを記録します。",
+        "表や地図など、利用または意味のため二方向の配置が必要な部分だけを特定し、周囲の文章まで例外に含めません。"
+      ],
+      "procedure_steps": [
+        "縦スクロールする内容を幅320 CSS px相当、横スクロールする内容を高さ256 CSS px相当で表示し、有効寸法を記録します。",
+        "例外に当たらない各部分の文章・ナビゲーション・フォーム・操作部品を読み、操作して、情報の欠落、切れ、二方向スクロールの必要性を記録します。",
+        "例外を主張する場合は必要最小の部分を確認し、周辺の内容が折り返すか確かめます。1.4.4の文字サイズ変更とは別に評価します。"
+      ],
+      "expected_results": [
+        "例外に当たらない部分では、該当寸法で二方向スクロールを要せず情報と機能が保たれます。",
+        "二方向配置の例外は、利用または意味のため必要な部分に限られます。"
+      ],
+      "cant_tell_when": [
+        "有効なviewport、スクロール方向、狭めた状態を確認できない場合。",
+        "主張された例外または影響する機能を、許可された対象で確認できない場合。"
+      ],
+      "counterexamples": {
+        "pass": ["320 CSS pxで表だけが独立してスクロールし、隣の文章と操作部品はページの横スクロールなしで読め、操作できます。"],
+        "fail": ["320 CSS pxで段落と送信ボタンが画面外へはみ出し、読むにも操作するにも縦横両方向のスクロールが必要です。"],
+        "cant_tell": ["狭い画面の画像にスクロールバーはありますが、その領域、影響する部分、情報と操作部品の利用可否が分かりません。"]
+      },
+      "ai_boundary": "AIははみ出し候補とviewportの測定値を示せますが、例外やprofile outcome、human_verified mapping、E2以上のclaimを判定・記録してはいけません。人手reviewerが読む操作と機能を確認します。"
+    },
+    {
+      "id": "wcag22-sc-4-1-3-status-messages",
+      "applicability_steps": [
+        "文脈やfocusを変えず、操作結果、待機、進行、誤りを知らせる更新を特定します。",
+        "focusを受けるdialog、ページ移動、通常の検索結果本文、別の条項で扱う部品の値変更とは分けます。"
+      ],
+      "procedure_steps": [
+        "代表的な状態更新を起こし、可能なら繰り返し更新も試し、表示文、focus、更新時点、accessibility treeを記録します。",
+        "focusを受けずにmessageをプログラムから判別できるroleまたはpropertyを確認し、数字だけでなく必要な文脈が公開されるか確かめます。",
+        "対象スクリーンリーダーを利用できる場合は実際の読み上げを別に記録し、利用できない場合は読み上げを未検証とします。"
+      ],
+      "expected_results": [
+        "該当する状態メッセージは、focusを受けなくてもroleまたはpropertyからプログラムで判別できます。",
+        "更新は結果、待機、進行、誤りを文脈と共に伝え、無関係なfocus移動を状態の意味付けの代わりにしません。"
+      ],
+      "cant_tell_when": [
+        "状態を起こせないか、そのrole、property、message文を観測できない場合。",
+        "更新が状態メッセージか文脈の変更か判定できない場合。"
+      ],
+      "counterexamples": {
+        "pass": ["検索後もfocusは検索部品に残り、「5件の結果」といった状態文が適切なroleまたはpropertyで公開されます。"],
+        "fail": ["保存後に「保存しました」と表示されますが、状態更新として公開するroleやpropertyがありません。"],
+        "cant_tell": ["画像には「保存しました」とありますが、起動操作、focus、accessibility treeの状態は記録されていません。"]
+      },
+      "ai_boundary": "AIは状態の候補と取得済みrole・propertyを確認できますが、実際の読み上げ、profile outcome、human_verified mapping、E2以上のclaimを推定・記録してはいけません。人手reviewerが対象の更新を評価します。"
+    },
+    {
+      "id": "wcag22-sc-2-4-3-focus-order",
+      "applicability_steps": [
+        "固定した対象で、順序が意味や操作に影響するキーボードの逐次focus移動経路と状態を特定します。",
+        "dialog・menu・入力検証などで現れる部品も含め、部品内の矢印キー操作とは分けます。"
+      ],
+      "procedure_steps": [
+        "各状態をキーボードの逐次focus移動でたどり、移動前後の部品と周囲の内容を記録します。",
+        "観測した順序をページの関係と操作課題に照らし、動的領域への出入りやdialogを閉じた後の戻り先も確認します。",
+        "意味や操作を損なう移動を記録します。論理的で操作できる順序なら、見た目やDOM順と異なるだけで不適合にしません。focusの可視性は2.4.7で別に確認します。"
+      ],
+      "expected_results": [
+        "逐次移動の順序が重要な場合、意味と操作性を保つ順序で部品に到達し、操作できます。",
+        "論理的な順序が一つあればよく、見た目とfocusの順序が同一である必要はありません。"
+      ],
+      "cant_tell_when": [
+        "対象の操作状態またはキーボード経路を許可された環境で再現できない場合。",
+        "移動は観測できても、周囲の内容がなく意味や操作への影響を判断できない場合。"
+      ],
+      "counterexamples": {
+        "pass": ["起動部品からdialogを開くと内部の部品へ利用可能な順序で移動し、閉じると起動部品または次の論理的な部品へ戻ります。"],
+        "fail": ["Tabで無関係なフォーム区画を行き来し、入力fieldとその説明が離れて意味を理解できません。"],
+        "cant_tell": ["DOMのtabindex一覧だけがあり、実際のキーボード経路と動的状態は確認されていません。"]
+      },
+      "ai_boundary": "AIはfocus可能な部品や経路案を列挙できますが、DOM順だけからprofile outcome、human_verified mapping、E2以上のclaimを推定・記録してはいけません。人手reviewerが各状態を操作します。"
+    },
+    {
+      "id": "wcag22-sc-2-4-7-focus-visible",
+      "applicability_steps": [
+        "固定した状態のキーボード操作可能な部品と、利用できるキーボード操作modeを特定します。",
+        "動的に現れる部品も含め、表示の有無とfocus順、隠れ、非テキストのcontrastを分けます。"
+      ],
+      "procedure_steps": [
+        "各状態・modeで代表的な部品へキーボードでfocusを移し、部品とfocus位置を示す見た目の変化を記録します。",
+        "短い待機や状態更新の後も、focusがある間は表示が続くか観測します。",
+        "表示がない疑いがあれば実際のfocus位置と、別のキーボード操作modeで表示できるかを確かめます。contrastや隠れは別条項へ記録します。"
+      ],
+      "expected_results": [
+        "キーボード操作可能な画面には、focusの印が対象部品に見える操作modeがあります。",
+        "focusがその部品にある間、見える印が保たれます。"
+      ],
+      "cant_tell_when": [
+        "キーボードfocusの位置を特定できないか、該当する操作modeを利用できない場合。",
+        "focus状態がすぐ消えるか、対象の表示を観測できない場合。"
+      ],
+      "counterexamples": {
+        "pass": ["Tabでボタンに移ると輪郭が見え、次へ移るまでその表示が続きます。"],
+        "fail": ["キーボードfocusのあるボタンで、利用可能な操作modeのいずれにも見える印がありません。"],
+        "cant_tell": ["静止画に輪郭がありますが、キーボード経路と実際のfocus位置が不明です。"]
+      },
+      "ai_boundary": "AIはCSSや取得済みfocus状態から候補を示せますが、styleだけでprofile outcome、human_verified mapping、E2以上のclaimを記録してはいけません。人手reviewerがキーボード操作中の表示を確認します。"
+    },
+    {
+      "id": "wcag22-sc-2-1-2-no-keyboard-trap",
+      "applicability_steps": [
+        "対象範囲でキーボードfocusを受ける部品を特定します。埋め込み内容、編集部品、dialog、popoverと、到達できる各状態も含めます。",
+        "キーボードinterface、browser、OS、部品への到達経路を記録します。開いたdialog内でfocusが循環しても、キーボードでそこから抜けられるなら、それだけでは不適合ではありません。"
+      ],
+      "procedure_steps": [
+        "キーボードだけで代表的な部品へ入り、Tab、Shift+Tab、該当する矢印キー、検査環境の標準的な終了方法でfocusを外へ移せるか試します。",
+        "dialogなどfocusを内部に保つ領域では、キーボードによる閉じ方や退出用部品を試し、領域の外へ出られるか、実際のキー操作と移動先を記録します。",
+        "通常と異なるキー操作が必要なら、必要な時点で利用者に方法が案内されるか確かめ、ポインターを使わず実行できることを確認します。",
+        "全機能をキーボードで操作できるかはSC 2.1.1、退出後のfocus順が意味を保つかはSC 2.4.3で別に評価します。"
+      ],
+      "expected_results": [
+        "キーボードで入った各部品から、埋め込み内容やmodalを含む検査状態で、キーボードinterfaceだけを使ってfocusを外へ移せます。",
+        "その環境で通常の矢印キー、Tab、その他の標準的な方法を超える操作が必要な場合、利用者が実行できる退出方法の案内があります。"
+      ],
+      "cant_tell_when": [
+        "部品またはfocusが閉じ込められる状態に到達できないか、許可された実行環境で移動先を観測できない場合。",
+        "利用できるキーボードinterfaceや環境固有の標準的な退出方法が不明、または特殊な退出操作の案内を確認できない場合。"
+      ],
+      "counterexamples": {
+        "pass": ["modalが開いている間は内部でfocusが循環しますが、キーボードで操作できる「キャンセル」で閉じるとページへfocusが戻ります。"],
+        "fail": ["埋め込みeditorがTabなど試した退出キーを取り込み、使えるキーボード退出方法がないためfocusがeditor内に残ります。"],
+        "cant_tell": ["開いたmodalの画像だけがあり、キーボードで入る操作、退出操作、移動後のfocus位置は観測されていません。"]
+      },
+      "ai_boundary": "AIはfocusを受ける部品と退出案内の候補を示せますが、markupだけでprofile outcome、human_verified mapping、E2以上のclaimを推定・記録してはいけません。人手reviewerが対象のキーボードinterfaceで出入りを確認します。"
+    },
+    {
+      "id": "wcag22-sc-3-3-3-error-suggestion",
+      "applicability_steps": [
+        "固定したフォームや手続で自動検出される入力誤りを特定します。必須値の未入力、許容形式や選択肢から外れた値も含めます。",
+        "各誤りについて有用な修正方法が既知か確認します。例外を適用する前に、セキュリティまたは内容の目的を損なう具体的な理由を記録します。"
+      ],
+      "procedure_steps": [
+        "安全な検査値で代表的な自動検出エラーを起こし、入力欄、拒否された値、検証後の状態、利用者に示された案内を記録します。",
+        "既知の修正規則とエラー後の案内を照合します。単に無効と告げるだけでなく、許容形式や選べる値など修正方法が分かるか確認します。",
+        "セキュリティや目的を理由にした例外は、提案で漏れる具体的な情報や損なわれる操作目的を確かめます。機密性のあるフォームを一律に除外しません。",
+        "誤った項目の文面による特定はSC 3.3.1、入力前の説明はSC 3.3.2、確定前の防止・確認はSC 3.3.4で別に評価します。"
+      ],
+      "expected_results": [
+        "自動検出された入力誤りに安全で既知の修正方法がある場合、利用者が正しい値へ直す手掛かりを受け取れます。",
+        "既知の修正提案を出さない場合は、具体的なセキュリティ上または目的上の支障があります。エラー名だけでは修正案の代わりになりません。"
+      ],
+      "cant_tell_when": [
+        "許可された対象で検証状態を起こせないか、検出後の案内を観測できない場合。",
+        "許容規則、安全な修正方法の有無、または主張されたセキュリティ・目的上の支障を確認できない場合。"
+      ],
+      "counterexamples": {
+        "pass": ["対応外の形式の日付を拒否した後、欄のエラー案内に許容される日付形式が示され、利用者が修正できます。"],
+        "fail": ["既知の不正な日付形式を拒否しても「無効な値」とだけ表示し、安全に示せる許容形式を案内しません。"],
+        "cant_tell": ["フォームの静止画には形式の説明がありますが、自動検出された誤りと、その後の案内は観測されていません。"]
+      },
+      "ai_boundary": "AIは取得済みの検証規則と修正案の候補を列挙できますが、例外の適用やprofile outcome、human_verified mapping、E2以上のclaimを判断・記録してはいけません。人手reviewerが誤りの状態と案内を確認します。"
+    },
+    {
+      "id": "wcag22-sc-1-4-3-contrast-minimum",
+      "applicability_steps": [
+        "固定した状態で見えるテキストと文字画像を列挙します。placeholderやhover・キーボードfocusで現れる文字も含めます。",
+        "実際の文字サイズと太さで通常文字か大きな文字かを分けます。操作不能、装飾、全員に不可視、画像に偶然含まれる文字、ロゴの例外は対象ごとに文脈を記録します。"
+      ],
+      "procedure_steps": [
+        "対象の各文字について、検査状態の実効的な前景色と隣接背景色を確認します。透明度や変化する背景を含め、DOM文字では滑らかに描画された輪郭の画素より指定色・算出色を使い、色、サイズ、太さ、比率を記録します。",
+        "丸める前の比率を通常文字では4.5:1、大きな文字では3:1と比較します。大きな文字かは提供時のサイズで、18 ptの通常文字、14 ptの太字、または同等の日本語・中国語・韓国語文字のサイズに照らして判断します。",
+        "文字画像と状態に応じて現れる文字も確認します。図形の意味や部品の境界はこの条項で判定せず、SC 1.4.11で別に評価します。",
+        "例外は対象ごとに確認します。ロゴ以外のブランド表現や操作可能な部品の文字に、ロゴ・操作不能部品の例外を広げません。"
+      ],
+      "expected_results": [
+        "対象となる通常文字と文字画像は、実効的な背景に対して4.5:1以上です。基準未満の数値を四捨五入して合格にしません。",
+        "対象となる大きな文字は3:1以上で、これを下回る対象には個別に適用できる例外の根拠があります。"
+      ],
+      "cant_tell_when": [
+        "該当状態の実際の前景色や背景色を確定できない場合。例えば変化する画像上の文字の背景を観測できない場合です。",
+        "文字サイズ・太さ、文字画像への該当性、または主張された例外を対象の証拠で確認できない場合。"
+      ],
+      "counterexamples": {
+        "pass": ["有効状態のボタンの通常文字は、表示された背景とのcontrast比が4.7:1です。"],
+        "fail": ["説明文の通常文字は4.49:1です。表示を4.5:1へ丸めても基準は満たしません。"],
+        "cant_tell": ["写真上の薄い文字の画像だけがあり、文字部分の実効背景と文字サイズを確定できません。"]
+      },
+      "ai_boundary": "AIは色の組合せ候補と暫定的な比率を示せますが、scanner結果だけで例外やprofile outcome、human_verified mapping、E2以上のclaimを推定・記録してはいけません。人手reviewerが表示状態と測定値を確認します。"
+    },
+    {
+      "id": "wcag22-sc-1-4-11-non-text-contrast",
+      "applicability_steps": [
+        "操作できる部品やその状態を識別するために必要な視覚的手掛かりを列挙します。アイコンだけの操作部品、選択記号、作成者が指定したfocus表示と到達可能な状態を含めます。",
+        "内容理解に必要な図形部分を特定します。同等の情報を示す可視表示と、個別に主張される操作不能部品、変更していない利用者エージェントの外観、本質的な図形表現の例外を記録します。"
+      ],
+      "procedure_steps": [
+        "必要な非テキストの手掛かりを実際の状態で観察し、それを識別するための隣接色を特定します。ほかの十分な手掛かりで部品を識別できるなら境界線自体の検査は不要です。文字のcontrastはSC 1.4.3で別に評価します。",
+        "手掛かり、状態、実効的な隣接色、丸める前のcontrast比を記録します。透明度、グラデーション、変化する背景を考慮し、必要な手掛かりと各隣接色を3:1の基準で比較します。",
+        "情報を示す図形では、内容理解に必要な線や記号などの部分だけを検査します。見えるラベルや別の利用可能な表示が同じ情報をすでに伝えるか確かめます。",
+        "例外を対象ごとに確認します。操作不能部品が現在操作できないこと、対象の外観が利用者エージェントに決められ作成者に変更されていないこと、または図形の特定の表現を変えると意味が損なわれることを確かめます。隣接しない同一部品の状態間に3:1の変化は要求しません。"
+      ],
+      "expected_results": [
+        "対象となる部品と状態の識別に必要な視覚的手掛かりは、検査した状態で隣接色に対して3:1以上です。",
+        "内容理解に必要な各図形部分は隣接色に対して3:1以上です。それを下回る場合、個別の表現に適用できる例外が記録されています。"
+      ],
+      "cant_tell_when": [
+        "許可された対象で該当する部品の状態や図形、実効的な隣接色を観測・確定できない場合。",
+        "手掛かりの必要性、同等情報の有無、または操作不能・利用者エージェント・本質的表現の例外を証拠から確認できない場合。"
+      ],
+      "counterexamples": {
+        "pass": ["選択状態を示すのに必要なチェック印は、検査状態で隣接する塗り色に対して3.2:1です。"],
+        "fail": ["有効なボタンを識別する唯一の可視手掛かりであるアイコンは、隣接背景に対して2.7:1です。"],
+        "cant_tell": ["薄いグラフ線の画像はありますが、元データのラベルと実際の隣接色を確認できません。"]
+      },
+      "ai_boundary": "AIは手掛かりの候補と暫定的な色の比率を示せますが、scanner結果だけで手掛かりの必要性、例外、profile outcome、human_verified mapping、E2以上のclaimを判断・記録してはいけません。人手reviewerが実際の状態と視覚的な意味を確認します。"
+    },
+    {
+      "id": "wcag22-sc-1-4-1-use-of-color",
+      "applicability_steps": [
+        "固定した内容と到達可能な状態で、意味を持つ色の違いを特定します。リンク、必須・誤入力の欄、状態表示、図表、色を指定する指示を含めます。",
+        "色で示す各意味について、伝える情報、操作、応答、視覚的な区別を特定し、色を見分けにくい利用者にも見える手掛かりがあるか確認します。"
+      ],
+      "procedure_steps": [
+        "通常時と変化後の代表的な状態を文脈ごと観察します。色で伝える各意味について、見える文字、記号、模様、形、下線など色相以外の手掛かりが同じ意味を伝えるか確認します。色名だけの案内は代わりになりません。",
+        "文字や形ではなく明るさの違いを補助的な区別に使う場合、対象の色同士が3:1以上で、特定の色相を見分けなくても意味が分かるか確かめます。ページ背景との個別の比率だけでなく、実際に区別する状態や図表の系列を比較します。",
+        "アクセシブルな名前や画面に見えない文字だけを、この条項で必要な可視の代替手掛かりと取り違えないようにします。プログラムで分かる関係はSC 1.3.1、文字のcontrastはSC 1.4.3、必要な非テキスト手掛かりのcontrastはSC 1.4.11で別に評価します。",
+        "疑われる色の違いがリンクの訪問履歴だけを示す場合は、作成者が定義する通常の状態表示として扱わず、そのブラウザーに依存する状態についてW3Cの解説に従います。"
+      ],
+      "expected_results": [
+        "作成者が制御する色の違いで伝える意味や操作は、十分な色相以外の手掛かり、または特定の色相を知る必要がない場合の十分な明るさの違いによって視覚的に区別できます。",
+        "検査した文脈のフォーム状態、リンク、図形の分類は、色相の名前や違いに頼らず見分けられます。"
+      ],
+      "cant_tell_when": [
+        "許可された対象で色分けされた状態や周囲の文脈に到達・観察できない場合。",
+        "色に割り当てた意味、代替手掛かりの可視性、または明るさの違いを判断する実効色を確認できない場合。"
+      ],
+      "counterexamples": {
+        "pass": ["必須欄を赤く示すとともに、フォーム付近で説明された可視の必須記号を付けています。"],
+        "fail": ["グラフの2系列を赤と緑だけで示し、ラベル、模様、十分な明るさの違いがありません。"],
+        "cant_tell": ["切り抜き画像に赤と緑の入力欄の境界が見えますが、切り抜きの外にあるラベルや検証メッセージは確認できません。"]
+      },
+      "ai_boundary": "AIは色分けの候補と暫定的な輝度比較を示せますが、CSSやアクセシビリティツリーの名前だけから可視の手掛かりが同じ意味を伝えると推定し、profile outcome、human_verified mapping、E2以上のclaimを記録してはいけません。人手reviewerが表示された文脈を確認します。"
+    },
+    {
+      "id": "wcag22-sc-3-3-4-error-prevention-legal-financial-data",
+      "applicability_steps": [
+        "対象ページの最終操作を確認します。法的な約束や金銭取引、保存された利用者管理可能なデータの変更・削除、試験回答の提出に当たるか、何が確定し、誰が対象データを管理できるかを記録します。",
+        "影響の大きい操作は、許可されたテスト用アカウントや非本番の検査値で確認します。安全な経路がなければ、実取引・削除・試験回答の提出をせず、確定前の画面と利用可能な記録を調べます。"
+      ],
+      "procedure_steps": [
+        "対象の操作ごとに確定直前までたどり、提出を取り消せるか、入力誤りを検査して訂正できるか、確定前に内容を見直して確認・修正できるかを特定します。",
+        "取り消し経路については、安全な検査の中で使える取消・復元方法と期限・条件を確認します。担当者に後で相談できるという曖昧な説明だけでは、有効な取り消し方法の証拠になりません。",
+        "入力検査の経路については、安全な値で代表的な誤りを起こし、影響のある操作が完了する前に訂正できるか確かめます。誤りの特定はSC 3.3.1、修正提案はSC 3.3.3で別に記録します。",
+        "確認の経路については、確定前に示される情報または操作を調べ、利用者がそれを見直して確認でき、最終操作前に修正する方法があるか確かめます。"
+      ],
+      "expected_results": [
+        "対象の各提出には、取り消し可能、入力検査と訂正、または確定前の確認・修正のうち、実際に機能する安全策が少なくとも一つあります。",
+        "安全策は操作が重大な結果を生む段階で利用でき、確認者は三つのどの経路で判断したか記録します。"
+      ],
+      "cant_tell_when": [
+        "最終操作の結果や、影響を受ける保存データを利用者が管理できるかを、許可された対象と記録から確定できない場合。",
+        "実取引・削除・試験回答の提出を起こさずに、主張された取消・訂正・確定前の確認を検証する安全な経路や十分な証拠がない場合。"
+      ],
+      "counterexamples": {
+        "pass": ["検査用注文の確定前に品目、数量、支払方法の一覧が表示され、利用者は修正画面へ戻るか注文を取りやめられます。"],
+        "fail": ["アカウント削除の送信で利用者が管理する保存記録を直ちに消去し、有効な復元、入力検査と訂正、確定前の確認・修正がありません。"],
+        "cant_tell": ["実購入画面には後日の取消可能とありますが、取消条件も安全な検査経路も確認できません。"]
+      },
+      "ai_boundary": "AIは重大な結果を生む操作と安全策の候補を示せますが、表示文言だけで取引を取り消せる、訂正方法が機能すると推定し、profile outcome、human_verified mapping、E2以上のclaimを記録してはいけません。人手reviewerが許可された操作経路を確認します。"
+    },
+    {
+      "id": "wcag22-sc-3-3-7-redundant-entry",
+      "applicability_steps": [
+        "対象の複数段階の手続をたどります。必須の別ドメインの段階も含め、同じ活動の中で以前に利用者が入力した情報や手続から提示された情報を再び要求する箇所を特定します。",
+        "連続した手続と、後の別セッション・別活動を区別します。再入力が本質的、安全上必要、以前の値が無効になったという主張は、項目ごとに記録します。"
+      ],
+      "procedure_steps": [
+        "安全な検査値で手続を進め、各項目が最初に入力・提示された箇所と、同じ情報を後で再要求する箇所を記録します。",
+        "再要求の時点で、内容が値を自動入力するか、同じページ上で以前の値を選択できるか確認します。同じ住所を使う選択欄やコピーできる文字も含めます。ブラウザーの自動補完だけでは足りません。",
+        "再入力が残る場合は、本質的・安全上・以前の値が無効という個別の理由を確かめます。パスワード、個人情報、支払情報を一律に例外としません。",
+        "再要求がエラーからの復帰や同じ手続内の外部サービスへの移動に含まれるか記録します。入力説明はSC 3.3.2、エラーの特定はSC 3.3.1で別に評価します。"
+      ],
+      "expected_results": [
+        "同じ手続で以前に入力・提示された情報は、自動入力されるか利用者が選択できる場合を除き、再入力を求められません。",
+        "残る再入力要求には、その項目に適用できる本質的・安全上・以前の値の無効化の理由があり、観測した手続から裏付けられます。"
+      ],
+      "cant_tell_when": [
+        "必須の外部サービスを含め、許可された同じ手続の中で最初の入力と再要求の両方に到達できない場合。",
+        "以前の値、選択方法、または主張された本質的・安全上・値の無効化の理由を証拠から確認できない場合。"
+      ],
+      "counterexamples": {
+        "pass": ["購入手続の後半で請求先住所を尋ねる際、「配送先と同じ」を選択して以前の住所を使えます。"],
+        "fail": ["購入手続の2段階前に入力した企業IDを再び手入力させ、以前の値の提示も適用できる例外もありません。"],
+        "cant_tell": ["最終決済ページしか見られず、以前の入力内容と同じ値を選択できるかが分かりません。"]
+      },
+      "ai_boundary": "AIは再要求の候補や例外の候補を整理できますが、欄の名前だけで値の選択可能性や例外の適用を推定し、profile outcome、human_verified mapping、E2以上のclaimを記録してはいけません。人手reviewerが同じ手続を通して確認します。"
+    },
+    {
+      "id": "wcag22-sc-3-3-8-accessible-authentication-minimum",
+      "applicability_steps": [
+        "固定した範囲で既存アカウントの認証経路を確認します。ログイン、必須の二要素認証、再認証、アカウント復旧時の認証、誤入力やリスク判定で現れる追加課題を含め、初回のアカウント作成とは区別します。",
+        "必須の各段階で、記憶、転記、計算、パズルなどの課題を特定し、代替の認証方法、操作を助ける仕組み、物体の認識、または利用者が以前に提供した非テキストコンテンツの識別のどれを主張するか記録します。"
+      ],
+      "procedure_steps": [
+        "許可されたテスト用アカウントと安全な検査値で到達可能な認証経路をたどり、必須の段階、条件付きの追加課題、利用できる代替方法、認知機能テストなしで進める箇所を記録します。",
+        "認証情報や確認コードについて、パスワード管理ツールや利用者エージェントによる入力、または値全体の貼り付けが可能か確認します。再入力、桁ごとの分割、文字位置の抽出を強制していないか調べ、入力欄の属性だけで仕組みが機能すると推定しません。",
+        "代替方法を主張する場合は、完了まで利用でき、必須の全段階で支援のない認知機能テストを避けられるか確認します。AAの例外を主張する場合は、物体の認識か、利用者が以前に提供した非テキストコンテンツの識別に当たるか確認し、文字の転記や認識を超えるパズルと区別します。",
+        "アカウント復旧と条件付きCAPTCHAを個別に記録します。入力目的の識別はSC 1.3.5、部品の名前はSC 4.1.2、より厳しいAAAの認証要件はSC 3.3.9で別に評価します。"
+      ],
+      "expected_results": [
+        "認証の各必須段階で、支援のない認知機能テストを避ける利用可能な経路があるか、AAで認められる二種類の認識例外のいずれかに該当します。",
+        "貼り付けや自動入力を支援の仕組みとする場合は、検査した経路で認証情報や確認コードの値全体を記憶・転記せずに入力できます。"
+      ],
+      "cant_tell_when": [
+        "許可されたテスト用アカウントや安全な経路がなく、実際の認証情報を露出させたり本番アカウントを変更したりせずに必須の二要素認証、復旧、条件付きの追加課題を確認できない場合。",
+        "主張された代替方法、支援の仕組み、認識例外を実行できないか、許可された対象状態で適用条件を確定できない場合。"
+      ],
+      "counterexamples": {
+        "pass": ["テスト用アカウントのパスワードは管理ツールで入力でき、必須のワンタイムコードは全体を貼り付けられ、その後も記憶や転記を強制する段階がありません。"],
+        "fail": ["必須のワンタイムコードは1桁ずつ手入力する必要があり、貼り付けても最初の欄に1桁だけ入り、利用できる別の認証方法もありません。"],
+        "cant_tell": ["テスト用アカウントでパスワード入力までは確認できましたが、リスクに応じた追加課題と復旧経路に安全に到達できず、認証手続全体は未確認です。"]
+      },
+      "ai_boundary": "AIは認証段階と支援の仕組みの候補を整理できますが、実際の認証情報を使ったり、マークアップだけから自動入力や代替方法の動作を推定したり、許可された認証経路を人が確認せずにprofile outcome、human_verified mapping、E2以上のclaimを記録したりしてはいけません。"
+    },
+    {
+      "id": "wcag22-sc-2-5-8-target-size-minimum",
+      "applicability_steps": [
+        "固定したページと関連する表示幅・表示状態で、作成者が制御するポインター操作のターゲットを調べます。アイコンボタン、リンク、地図の操作部、重なって現れる内容の操作部を含め、検査した表示幅と入力方法を記録します。",
+        "見えている図形の大きさではなく、実際に反応する範囲を特定します。位置によって値を選ぶスライダー、色のグラデーション、編集領域は一つのターゲットとし、サイズを利用者エージェントだけが決める部品を区別します。"
+      ],
+      "procedure_steps": [
+        "各ターゲットの反応領域をCSSピクセルで調べます。水平・垂直の軸に沿う24×24 CSSピクセルの正方形が領域内に完全に収まるか確認します。角丸、切り抜き、不規則な形では外接矩形が24×24でも十分とは限りません。",
+        "小さいターゲットは外接矩形の中心に直径24 CSSピクセルの円を置き、他のターゲットや別の小さいターゲットの円と交差しないか確認します。見た目の隙間やキーボード操作だけを根拠にしません。",
+        "間隔の例外が使えない場合は、同じページで同じ機能を果たし、この条項を満たす別の操作部を確認するか、本文内、利用者エージェントの未変更のサイズ、本質的な表示、法的に必要な表示のどの例外に当たるか個別に確かめます。小さいアイコンや地図の操作部を一律に例外としません。",
+        "対象のターゲット、寸法または形状、隣接する操作部、表示状態、採用した経路や例外を記録します。ポインター操作の代替はSC 2.5.1、ドラッグはSC 2.5.7、より厳しいAAAの44×44 CSSピクセルはSC 2.5.5で別に評価します。"
+      ],
+      "expected_results": [
+        "対象の各ポインターターゲット内に24×24 CSSピクセルの正方形が収まるか、観測した形状と文脈からAAで認められる五つの例外のいずれかを示せます。",
+        "間隔や同等の操作部を根拠にする場合は、検査した表示状態での隣接範囲の測定、または使える同じページの操作部で裏付けられます。"
+      ],
+      "cant_tell_when": [
+        "対象の表示幅や表示状態で、ポインターの反応領域または隣接するターゲットを調べられない場合。",
+        "主張された同じページの同等操作、利用者エージェントの未変更のサイズ、本質的な表示、法的要求を許可された対象と証拠から確定できない場合。"
+      ],
+      "counterexamples": {
+        "pass": ["20×20 CSSピクセルのアイコン操作部と隣の小さい操作部には4 CSSピクセルの隙間があり、直径24ピクセルの円が他のターゲットや小さいターゲットの円と交差しません。"],
+        "fail": ["18×18 CSSピクセルのツールバーの二つのボタンが隣接し、間隔の例外も同じページの同等操作部もありません。キーボードのショートカットはあります。"],
+        "cant_tell": ["画像には二つの小さいアイコンが写っていますが、クリックできる余白と隣接する反応領域を調べられません。"]
+      },
+      "ai_boundary": "AIは小さい操作部の候補や暫定的な寸法を示せますが、画像やCSS宣言だけから実際の反応領域、間隔、例外を推定し、人手で表示対象を確認せずにprofile outcome、human_verified mapping、E2以上のclaimを記録してはいけません。"
+    },
+    {
+      "id": "wcag22-sc-2-5-7-dragging-movements",
+      "applicability_steps": [
+        "ポインターを押して保持したまま動かし、離して操作する、作成者が実装した機能を特定します。並べ替え、スライダー、カルーセル、地図、範囲選択などを含め、検査したポインターと表示状態を記録します。",
+        "内容が制御するドラッグやスクロールと、変更されていないブラウザーや支援技術のスクロールを区別します。ドラッグ自体が特定の機能に本質的だという主張も特定します。"
+      ],
+      "procedure_steps": [
+        "対象の機能ごとに、安全な検査状態でドラッグの結果を確認し、ポインターを押したまま動かさずに一つのポインターによるタップやクリックで同じ結果に到達できるか試します。",
+        "選択してから別の箇所を選ぶ操作、移動ボタン、メニュー、トラックのクリック、ポインターで操作できる文字入力欄などを実行します。一例だけでなく、必要な結果の範囲を扱えるか確認します。",
+        "キーボード専用の操作部はポインターの代替としません。スワイプだけを代替とする場合は経路依存の操作としてSC 2.5.1で別に確認し、ターゲットの大きさはSC 2.5.8で評価します。",
+        "例外を主張する場合は、作成者が変更せず利用者エージェントだけがドラッグ操作を提供しているか、またはドラッグを除くとその機能が根本的に変わり、適合する別の方法では達成できない理由を確かめます。"
+      ],
+      "expected_results": [
+        "作成者が制御するドラッグ機能には、個別に裏付けられた例外がない限り、ドラッグせずに同等の結果へ到達する一つのポインターによる操作経路があります。",
+        "代替経路はポインターを押し続けず、個別の操作で完了し、経路に依存するスワイプや物理キーボードだけを要求しません。"
+      ],
+      "cant_tell_when": [
+        "許可された状態でドラッグ機能、その結果、または主張された代替操作に到達して実行できない場合。",
+        "スクロールを作成者と利用者エージェントのどちらが制御するか、または特定機能にドラッグが本質的かを証拠から確定できない場合。"
+      ],
+      "counterexamples": {
+        "pass": ["ドラッグできるカルーセルに「次へ」「前へ」ボタンもあり、クリックだけで同じ項目へ進めます。"],
+        "fail": ["一覧の並べ替えがドラッグかキーボードの矢印キーでしかできず、クリックやタップで項目を移動する経路がありません。"],
+        "cant_tell": ["録画にはボード上のカードをドラッグする様子が写っていますが、ボードへアクセスできず、メニューや他のポインター操作を試せません。"]
+      },
+      "ai_boundary": "AIはドラッグ操作と代替操作部の候補を列挙できますが、表示名やコードだけからポインターによる代替の動作や例外の適用を推定し、人手で許可された操作を確認せずにprofile outcome、human_verified mapping、E2以上のclaimを記録してはいけません。"
+    },
+    {
+      "id": "wcag22-sc-2-5-1-pointer-gestures",
+      "applicability_steps": [
+        "同時に複数のポインターを使うか、特定の経路・方向・速さを要求する、作成者が提供する機能を特定します。ピンチ操作、複数指のタップ、図形を描く操作、方向を指定したスワイプなどを含みます。",
+        "経路を限定しないドラッグや、内容ではなくOS、ブラウザー、支援技術が提供するジェスチャーと区別し、検査した端末と表示状態を記録します。"
+      ],
+      "procedure_steps": [
+        "対象の各ジェスチャーを許可された状態で実行し、機能上の結果を記録します。経路に依存するか不明な場合は、同じ始点と終点でも異なる経路を通ると動作するか確かめます。",
+        "複数のポインターや決まった経路を使わず、一つのポインターによるタップ、クリック、連続したクリック、メニューなどで同じ結果に到達できるか試します。一方向や一つの値だけでなく、必要な結果を確認します。",
+        "キーボード専用の操作は単一ポインターの代替としません。ドラッグだけの代替はSC 2.5.7で別に確認し、操作の取り消しはSC 2.5.2、ターゲットの大きさはSC 2.5.8で評価します。",
+        "本質性の例外を主張する場合は、その複数指または経路依存の操作を除くと機能が根本的に変わり、適合する経路では同じ結果を達成できない理由を記録します。"
+      ],
+      "expected_results": [
+        "作成者が制御する複数指または経路依存の各機能について、そのジェスチャーが個別に本質的でない限り、決まった経路を要しない単一ポインターの操作経路があります。",
+        "代替のポインター操作は、検査した状態で必要な方向や値を含め、元の操作と同じ機能上の結果を達成します。"
+      ],
+      "cant_tell_when": [
+        "許可された端末や状態で機能、ジェスチャーの結果、または主張された単一ポインターの代替操作を実行できない場合。",
+        "特定の経路が必要か、内容と利用者エージェントのどちらが解釈するか、または本質性の例外の理由を証拠から確定できない場合。"
+      ],
+      "counterexamples": {
+        "pass": ["地図のピンチによる拡大・縮小は、クリックできる拡大・縮小ボタンでも操作できます。"],
+        "fail": ["カルーセルは横方向の素早いスワイプでしか切り替わらず、矢印キーのショートカットはありますがタップやクリックの操作部はありません。"],
+        "cant_tell": ["録画では二本指の操作でグラフが変わりますが、操作部へアクセスできず、一本指で試した結果も確認できません。"]
+      },
+      "ai_boundary": "AIはジェスチャーと操作部の候補を特定できますが、イベント処理や画像だけから単一ポインターの経路が機能する、本質的だと推定し、人手で許可された操作を試さずにprofile outcome、human_verified mapping、E2以上のclaimを記録してはいけません。"
+    },
+    {
+      "id": "wcag22-sc-2-5-2-pointer-cancellation",
+      "applicability_steps": [
+        "固定した範囲で一本のポインターで操作できる機能を特定します。ボタン、タッチ操作部、長押し、ドラッグ操作を含め、重大な結果を生む操作を分けて記録します。",
+        "内容が解釈するポインター操作と、変更されていないブラウザーや支援技術の操作を区別します。ポインターを押した時点での完了が本質的という主張も特定します。"
+      ],
+      "procedure_steps": [
+        "安全な検査状態で対象の操作部を押し、機能の一部が押した時点で実行されるか、離した後に初めて実行されるか観測します。時点を調べるために実際の取引、削除、取り消せない操作を起こしません。",
+        "押した時点で効果が始まり、離した時点で完了する場合は、離す前にポインターを外すなどの中止方法を試し、取り消しに頼る場合は完了後に実際に使えるか確かめます。確認文言だけで中止・取消が機能すると判断しません。",
+        "押した時点で効果が生じる場合は、離すと元に戻るか確かめます。それ以外は、ソフトウェアキーボードのキーや押した瞬間の演奏など、時点が本質的な個別理由を確認し、即時に動く操作を一律に例外としません。",
+        "押す・離す操作の順序、結果、適用した経路（押下時に実行しない、中止・取消、離すと復元、本質性）、検査条件を記録します。重大な提出の安全策はSC 3.3.4、ターゲットの大きさはSC 2.5.8で別に評価します。"
+      ],
+      "expected_results": [
+        "対象の各単一ポインター操作は、押した時点では機能を実行しない、離した時点で完了して有効な中止・取消がある、離すと元に戻る、押した時点での完了が本質的、のいずれかを満たします。",
+        "中止・復元は検査した操作経路で実際に機能し、本質性の例外には機能ごとの理由があります。"
+      ],
+      "cant_tell_when": [
+        "許可されたポインター環境でイベントの順序や、主張された中止・取消・復元を観測できない場合。",
+        "実際に重大な操作を完了する経路しかなく、安全な検査対象や信頼できる記録から動作・本質的な時点を確かめられない場合。"
+      ],
+      "counterexamples": {
+        "pass": ["検査用ボタンは対象上でポインターを離して初めて動作し、離す前にポインターを外せば何も実行されません。"],
+        "fail": ["アカウント削除が押した時点で始まり、離しても復元されず、その時点での実行が本質的な理由もありません。"],
+        "cant_tell": ["本番の支払ボタンはすぐに反応するように見えますが、安全な検査経路やイベント記録がなく、押す時点と離す時点のどちらで確定するか分かりません。"]
+      },
+      "ai_boundary": "AIは押下時のイベント処理や取消操作部の候補を示せますが、マークアップだけから実際のイベント順序や取消の動作を推定し、許可された安全な経路で人が確認せずにprofile outcome、human_verified mapping、E2以上のclaimを記録してはいけません。"
+    },
+    {
+      "id": "wcag22-sc-2-5-3-label-in-name",
+      "applicability_steps": [
+        "固定した範囲で、文字または文字画像を含む見えるラベルを持つユーザーインターフェースの構成要素を特定し、関連する状態ごとにラベルと操作部を記録します。",
+        "操作部の内側や近くの文字からラベルを判断します。見出し、グループの凡例、一般的な説明を個々のラベルと即断しません。近くに他の文字がなければプレースホルダーも候補として検討します。"
+      ],
+      "procedure_steps": [
+        "同じ状態で、表示されたラベルと算出されたアクセシブルな名前を確認します。アクセシビリティツリーなどの公開値を調べ、aria-labelやaria-labelledbyによる上書きも確認します。説明だけでは名前になりません。",
+        "見えるラベルの文字が同じ順序で名前に含まれるか調べます。通常の大文字・小文字や句読点の差は許容し、意味を持つ語句や数式の記号は保ちます。ラベルを名前の先頭に置くことは推奨であり、必須とはしません。",
+        "操作部ごとの表示ラベル、算出名、状態、比較結果を記録します。言語を表さない記号や括弧内の補足文言を除外する場合は理由を記します。省いた重要な情報の伝達はSC 1.3.1、名前の欠落はSC 4.1.2で別に確認します。"
+      ],
+      "expected_results": [
+        "対象の操作部ごとに、算出されたアクセシブルな名前に見えるラベルの文字が含まれ、見える語句を名前として使えます。",
+        "記号または括弧内の補足文言を除外する場合は理由を記録します。見えるラベルがあるのにアクセシブルな名前がない操作部は不適合です。"
+      ],
+      "cant_tell_when": [
+        "関連する同じ状態で、表示ラベルまたは算出されたアクセシブルな名前を確認できない場合。",
+        "個別の見えるラベルと周辺の説明を区別できない、または問題となる記号が言語や数式として意味を持つか確かめられない場合。"
+      ],
+      "counterexamples": {
+        "pass": ["「検索」と表示されたボタンの算出名は「サイト内を検索」です。"],
+        "fail": ["「検索」と表示されたボタンの算出名は、文字を上書きするaria-labelによって「商品を探す」になっています。"],
+        "cant_tell": ["画像には「検索」ボタンがありますが、算出名も信頼できるアクセシビリティツリーの記録も確認できません。"]
+      },
+      "ai_boundary": "AIは表示ラベルと名前の組を提案し、不一致の候補を示せますが、画像やマークアップだけから算出名、ラベルとの関係、記号の例外を推定し、人が表示状態とアクセシビリティ上の公開値を確認せずにprofile outcome、human_verified mapping、E2以上のclaimを記録してはいけません。"
+    },
+    {
+      "id": "wcag22-sc-2-5-4-motion-actuation",
+      "applicability_steps": [
+        "振る・傾ける操作や、カメラで検出する目・顔・手のジェスチャーなど、内容が意図的な端末・利用者の動きを入力として解釈する機能を特定し、端末、許可、状態を記録します。",
+        "入力となる動きと、位置情報・ビーコン、認識対象へカメラを向ける動作、偶発的なセンサー事象、キーボード・マウス・タッチ操作・支援技術に必要な通常の動きを区別します。"
+      ],
+      "procedure_steps": [
+        "安全な検査状態で、動きで起動する各機能と結果を確かめます。同じ結果に、起動に必要な動きをせずユーザーインターフェースの操作部で到達できるか試します。",
+        "内容または確認済みのシステム設定から動きへの反応を無効化し、動かしても機能が起動しないことと、代替の操作部が引き続き使えることを確かめます。",
+        "例外を主張する場合は、動きに使う具体的なアクセシビリティサポーテッドなインターフェース、または動きをなくすと活動が成立しない本質的な理由を記録します。センサーがあるだけで例外とはしません。",
+        "動き、代替操作部、無効化の経路、観測結果、端末条件、例外を記録します。代替操作部のキーボード・ポインター操作は該当する別の条項でも確認します。"
+      ],
+      "expected_results": [
+        "対象の各機能には同じ結果を得られる操作部と、動きへの反応を無効化する有効な方法があります。ただし、サポートされたインターフェースまたは本質性の例外を個別に示せる場合を除きます。",
+        "動きへの反応を無効にすると偶発的な動きで機能が起動せず、代替の操作部は使えます。"
+      ],
+      "cant_tell_when": [
+        "必要なセンサー、許可、端末状態、安全な検査環境を用意できず、動き、代替操作部、無効化の動作を試せない場合。",
+        "システム設定がこの内容の動きへの反応を止めるか、主張するアクセシビリティサポーテッドまたは本質性の例外が適用されるか、証拠から確かめられない場合。"
+      ],
+      "counterexamples": {
+        "pass": ["端末を傾けるとページが進みますが、次へ・前へボタンでも同じページへ到達でき、検査した設定で傾きによる移動を停止できます。"],
+        "fail": ["端末を振ると編集が取り消され、取消ボタンも使えますが、振る操作による取消を停止する方法がありません。"],
+        "cant_tell": ["紹介動画には手の動きでギャラリーを操作するとありますが、許可された検査端末でカメラを使えず、操作部と停止設定も試せません。"]
+      },
+      "ai_boundary": "AIは動きを扱う処理、代替操作部、設定の候補を示せますが、コードや説明だけから実動作や例外を推定し、適切な許可済み端末で人が確認せずにprofile outcome、human_verified mapping、E2以上のclaimを記録してはいけません。"
+    },
+    {
+      "id": "wcag22-sc-2-4-2-page-titled",
+      "applicability_steps": [
+        "固定した範囲のWebページと、主題・目的が変わる関連する遷移や状態を含むアプリケーションの異なる画面を特定します。",
+        "検査した各状態について、実際の主題・目的と利用者エージェントが示すタイトルを記録します。検査環境には適切なブラウザーや文書ビューアーを含めます。"
+      ],
+      "procedure_steps": [
+        "対象のページや画面を開き、ブラウザーのタブ・ウィンドウまたは同等のビューアーに出るタイトルと、確認できる場合は文書タイトルを調べます。",
+        "タイトルを現在の主題・目的と照合します。単一ページアプリケーションの別画面へ遷移したら、その画面を説明するタイトルか確かめます。見出しや流入元リンクと同一文言であることは求めません。",
+        "ページ・画面の識別子、観測したタイトル、主題・目的、不一致を記録します。タイトルがあるだけ、サイト名だけ、ページ本文に見出しがあるだけでは、説明的なページタイトルとは判断しません。"
+      ],
+      "expected_results": [
+        "検査した各Webページは、現在の主題・目的を説明する空でないタイトルを利用者エージェントに公開します。",
+        "アプリケーションが別の画面へ変わった後も、その画面を説明するタイトルがあり、特定の文言や見出しとの一致は不要です。"
+      ],
+      "cant_tell_when": [
+        "許可された環境でページ・別画面に到達できない、または利用者エージェントのタイトルを確認できない場合。",
+        "利用可能な内容から現在の主題・目的を確定できず、タイトルが説明的か判断できない場合。"
+      ],
+      "counterexamples": {
+        "pass": ["職員一覧ページのブラウザータイトルは「職員一覧 | Example」です。"],
+        "fail": ["口座明細ページのタブには「無題」とだけ表示され、本文の見出しにしか明細名がありません。"],
+        "cant_tell": ["画像にページ見出しは写っていますが、ブラウザーのタイトルが見えず、ページも開けません。"]
+      },
+      "ai_boundary": "AIはタイトルとページ主題の候補を抽出できますが、ソースのマークアップや見出しだけから表示中のページ・画面をタイトルが説明していると判断し、人が利用者エージェントのタイトルとページ目的を確認せずにprofile outcome、human_verified mapping、E2以上のclaimを記録してはいけません。"
+    },
+    {
+      "id": "wcag22-sc-2-4-4-link-purpose-in-context",
+      "applicability_steps": [
+        "固定した範囲のリンクを特定します。画像のみ、短い文言の繰り返し、関連する状態で現れるリンクを含め、各リンクの操作または移動先の目的を記録します。",
+        "リンクの文字・アクセシブルな名前と、同じ文、段落、リスト項目、表セルと対応する見出しセル、明示的なアクセシビリティ上の関連付けなど、プログラムで関係を特定できる文脈を識別します。"
+      ],
+      "procedure_steps": [
+        "対象のリンクについて、表示文字、算出名、意味上の関係、目的をブラウザーなどで確認します。文脈の提示を確かめる必要があればキーボードフォーカスや支援技術のナビゲーションを使います。",
+        "リンクの文字だけ、またはプログラムで関係を特定できる文脈を合わせて、無関係な内容へフォーカスを移さず目的が分かるか調べます。見た目だけで近い無関係な見出し、読めない画像の文字、公開されないhrefだけを文脈に数えません。",
+        "目的が不明な場合、一般の利用者にとっても目的が曖昧な場合だけ例外を検討します。リンク、目的、使った文字と文脈、その関係、検査状態、例外理由を記録し、名前の欠落はSC 4.1.2で別に評価します。"
+      ],
+      "expected_results": [
+        "対象の各リンクの目的が、リンクの文字だけ、または文字とプログラムで関係を特定できる文脈を合わせて分かります。",
+        "曖昧さの例外には、その移動先や操作の目的が一般の利用者にも曖昧である根拠があり、文字や関連付けの不足を例外扱いしません。"
+      ],
+      "cant_tell_when": [
+        "許可された状態で、利用可能なリンク先・文脈の証拠を確認しても操作や移動先の目的を確定できない場合。",
+        "算出名や主張する文脈とのプログラム上の関係を確認できず、文脈の利用可能性を検証できない場合。"
+      ],
+      "counterexamples": {
+        "pass": ["「アクセシビリティ方針」というリスト項目内の「詳しく読む」リンクは当該方針に移動し、リスト項目の文字を文脈として使えます。"],
+        "fail": ["単独の「詳しく読む」リンクには移動先を示す関連文字がなく、見た目だけで近い無関係な見出しからしか推測できません。"],
+        "cant_tell": ["録画に「詳細」リンクは写っていますが、移動先と意味上の文脈が不明で、実ページも開けません。"]
+      },
+      "ai_boundary": "AIはリンクと意味上の文脈の候補を集められますが、見た目の近さやURLの形だけから目的が明確だと推定し、人が表示リンク、プログラム上の文脈、実際の目的を確認せずにprofile outcome、human_verified mapping、E2以上のclaimを記録してはいけません。"
+    },
+    {
+      "id": "wcag22-sc-2-4-5-multiple-ways",
+      "applicability_steps": [
+        "固定した範囲で、目的と作成者を共有するWebページの集合を定めます。商品一覧と購入手続など、別の集合を区別します。",
+        "集合内のページを列挙し、手続の結果または必須の途中段階という主張を特定します。手続と、通常の探し方が当てはまらない理由を記録します。"
+      ],
+      "procedure_steps": [
+        "例外を適用しない各ページについて、集合への入口から、ナビゲーション、トップページの一覧、サイトマップ、目次、索引、検索など二つの方法でページを探します。",
+        "両方の経路で同じページに到達し、同じリンクの重複配置や対象ページを返さない検索機能ではなく、異なる探し方になっているか確かめます。ブラウザー履歴や暗記したURLを作成者が提供する経路には数えません。",
+        "手続の例外を主張する場合は、送金確認画面や入力に応じた検索結果など、手続の完了で生成されたページか、手続に必須の段階かを調べます。ページ、集合、二つの経路または例外理由、観測結果を記録します。"
+      ],
+      "expected_results": [
+        "対象となる集合内の各ページを二つ以上の実際に使える方法で探せます。小規模な集合ではトップページの一覧とページ間の移動が別の経路となる場合もあります。",
+        "手続の例外は、特定した手続の結果または途中段階に実際に当たるページだけに限り、サイト全体や通常の内容分類へ一律に適用しません。"
+      ],
+      "cant_tell_when": [
+        "許可された状態でページの集合または主張された二つ目の経路へ到達して試せない場合。",
+        "ページが集合の通常の構成要素か、特定の手続の結果・必須の途中段階かを証拠から判断できない場合。"
+      ],
+      "counterexamples": {
+        "pass": ["レシピのページへはカテゴリーからの移動と、そのレシピを返すサイト内検索の両方で到達できます。"],
+        "fail": ["方針ページへはヘッダーとフッターに重複した同じ案内リンクからしか到達できず、検索や索引でも見つかりません。"],
+        "cant_tell": ["サイトマップに方針ページはありますが、もう一つの経路には検査者が使えないアカウントが必要です。"]
+      },
+      "ai_boundary": "AIはページと経路の候補を整理できますが、重複したリンクを別の方法と数えたり、検索結果への掲載やURLの形だけから手続の例外を推定したり、人が経路と集合の境界を確認せずにprofile outcome、human_verified mapping、E2以上のclaimを記録してはいけません。"
+    },
+    {
+      "id": "wcag22-sc-2-4-6-headings-and-labels",
+      "applicability_steps": [
+        "固定した範囲で実際に提示される見出しとラベルを特定し、関連状態の見える文字や画像ラベルも含め、それぞれが示す節・部品を記録します。",
+        "見出しやラベルがないことだけでこの条項の不適合としません。入力ラベルの必要性はSC 3.3.2、構造の特定はSC 1.3.1で別に評価します。"
+      ],
+      "procedure_steps": [
+        "提示された各見出しと導入される内容、各ラベルと対象部品・文脈を合わせて読みます。表示状態と、画像ラベルの理解に必要な代替テキストを確認します。",
+        "見出しが節の主題を正確に示し、ラベルが文脈中の部品の目的を示すか判断します。短い語、一文字、広く通じる画像でも、その文脈で意味が明確なら足ります。所定の長さや一意性は求めません。",
+        "見出し・ラベルの正確な内容、対応する節・部品、文脈、不一致の理由を記録します。プログラム上の関連付けはSC 1.3.1、入力説明の欠落はSC 3.3.2、アクセシブルな名前はSC 4.1.2で別に確認します。"
+      ],
+      "expected_results": [
+        "提示された見出しは導入する内容の主題・目的を説明し、ラベルは文脈中の対象部品の目的を説明します。",
+        "隠れたアクセシブルな名前が正しくても不正確な見えるラベルを補えず、短くても正確な見出し・ラベルは適合し得ます。"
+      ],
+      "cant_tell_when": [
+        "許可された状態で見出しやラベルに対応する内容・部品を確認できない場合。",
+        "画像ラベルの意味や、短い見出し・ラベルを判断するための文脈を利用可能な証拠から確定できない場合。"
+      ],
+      "counterexamples": {
+        "pass": ["隣接する入力欄に「姓」「名」と付いており、それぞれの入力値を正確に示しています。"],
+        "fail": ["「支払情報」という見出しの節にはアカウント復旧の説明しかなく、主題を誤って示しています。"],
+        "cant_tell": ["切り抜かれた画像に「設定」の見出しがありますが、導入される節は写っていません。"]
+      },
+      "ai_boundary": "AIは見出し・ラベルと内容の候補を比較できますが、マークアップや文字だけから主題の正確さを推定し、人が提示された節・部品と文脈を確認せずにprofile outcome、human_verified mapping、E2以上のclaimを記録してはいけません。"
+    },
+    {
+      "id": "wcag22-sc-3-2-1-on-focus",
+      "applicability_steps": [
+        "固定した範囲でフォーカスできる操作部を、関連状態で現れるものも含めて特定し、ブラウザー、入力方法、初期の文脈を記録します。",
+        "フォーカスが当たることと、起動や値の変更を区別します。マウスでボタンをクリックすると両方が起こり得るため、観測された変化の原因を分けます。"
+      ],
+      "procedure_steps": [
+        "安全な状態で、起動せずに対象の各操作部へキーボードフォーカスを移します。必要に応じて、起動しない入力欄へポインターでフォーカスする経路も試します。",
+        "フォーカスだけでフォーム送信、新しいウィンドウ、別の部品へのフォーカス移動、表示領域やページの移動、ページの意味を大きく変える更新が起きないか観測します。前後のフォーカス先、URL・ウィンドウ、表示領域、内容を記録します。",
+        "利用者を移動させないヒントの表示などの局所的な内容変化と、文脈の変化を区別します。フォーカス順序はSC 2.4.3、設定値の変更はSC 3.2.2で別に評価します。この条項では事前の警告を例外としません。"
+      ],
+      "expected_results": [
+        "対象の操作部にフォーカスが当たることだけでは文脈の変化が始まりません。",
+        "別部品へのフォーカス移動、ナビゲーション、表示領域の変化、ページの意味の大きな変化を伴わなければ、局所的な内容更新は起こり得ます。"
+      ],
+      "cant_tell_when": [
+        "許可された状態で部品にフォーカスできない、または利用可能な証拠から起動とフォーカスを分けられない場合。",
+        "変化後のフォーカス、ウィンドウ、表示領域、内容を十分に観測できず、文脈の変化か判断できない場合。"
+      ],
+      "counterexamples": {
+        "pass": ["検索欄へのフォーカスで小さなヒントが現れても、フォーカスは欄内にとどまり、ページの文脈は変わりません。"],
+        "fail": ["ヘルプ欄へTabキーで移動するだけでダイアログが開き、利用者が起動する前にフォーカスを奪います。"],
+        "cant_tell": ["録画ではボタンのクリック後にダイアログが現れますが、フォーカスと起動のどちらで開いたか分かりません。"]
+      },
+      "ai_boundary": "AIはフォーカス時の処理と文脈変化の候補を示せますが、イベントコードだけから実際の原因や利用者に見える文脈を推定し、人がフォーカスだけの操作を確認せずにprofile outcome、human_verified mapping、E2以上のclaimを記録してはいけません。"
+    },
+    {
+      "id": "wcag22-sc-3-2-2-on-input",
+      "applicability_steps": [
+        "文字入力、チェックボックス、選択肢、状態を切り替えるか無効になるボタンなど、設定・値が持続的に変わる部品を特定し、重大な結果があり得る変更と安全な検査状態を分けます。",
+        "設定の変更とリンク、送信ボタン、ダイアログを開くボタンの起動を区別し、設定変更の前に利用者へ提示される説明を記録します。"
+      ],
+      "procedure_steps": [
+        "安全な検査対象で、追加の送信や移動操作をせずに各設定・値を変更し、フォーカス、ウィンドウ、表示領域、ページの位置、ページの意味を変える内容を観測します。",
+        "設定変更が自動的に文脈を変える場合は、部品を使う前にその動作が、検査した操作方法で利用できる形で説明されていたか確かめます。変更後に初めて示す警告は該当しません。",
+        "関連する入力欄を表示するなどの局所的な内容更新と文脈の変化を区別します。設定の変更、前後の状態、事前説明、観測結果を記録し、フォーカスだけの影響はSC 3.2.1で別に評価します。"
+      ],
+      "expected_results": [
+        "部品の設定変更で文脈は自動的に変わらないか、利用者が使う前にその動作を説明されています。",
+        "基本的な文脈を保つ内容更新は、入力後に起きるという理由だけでは不適合になりません。"
+      ],
+      "cant_tell_when": [
+        "許可された状態で値の変更とその結果を安全に試せない、または観測できない場合。",
+        "事前説明の有無、状態付きボタンが設定を変えたか、結果が文脈の変化か局所的な更新かを証拠から確定できない場合。"
+      ],
+      "counterexamples": {
+        "pass": ["予定入力欄で「会議」を選ぶと参加者欄が現れますが、利用者は同じフォームにとどまります。"],
+        "fail": ["カテゴリーを選ぶだけですぐ別ページへ移動し、その動作の事前説明はありません。"],
+        "cant_tell": ["録画は選択後の新ページから始まり、選択前の説明と変化の原因が見えません。"]
+      },
+      "ai_boundary": "AIは値変更時の処理と事前説明の候補を特定できますが、コードや静的な文字だけから文脈の変化や十分な事前説明を推定し、人が安全な入力経路を確認せずにprofile outcome、human_verified mapping、E2以上のclaimを記録してはいけません。"
+    },
+    {
+      "id": "wcag22-sc-3-2-3-consistent-navigation",
+      "applicability_steps": [
+        "目的と作成者を共有するWebページの集合を固定し、主要メニュー、検索、スキップリンクなど、複数ページで繰り返されるナビゲーションの仕組みを特定します。",
+        "比較するページ、表示領域・レイアウトの状態、案内の見せ方を変える利用者の設定や展開操作を記録します。"
+      ],
+      "procedure_steps": [
+        "関連ページを比較可能な状態で開き、繰り返されるナビゲーションの仕組みと共通項目を、見た目と順次読み取りの順序で列挙します。",
+        "繰り返される仕組みと項目の相対的な順序をページ間で照合します。ページ固有の項目の追加・削除や展開された副メニューがあっても、共通項目の順序が保たれていればよく、絶対位置や固定メニューは求めません。",
+        "順序が変わる場合、利用者の設定、適応的なインターフェース、操作部による変更かを確認します。ページの組、共通項目、観測した順序、状態、利用者が変更した証拠を記録し、探し方の有無はSC 2.4.5で別に評価します。"
+      ],
+      "expected_results": [
+        "同じページ集合で繰り返されるナビゲーションの仕組みと、その共通項目は、同等の状態で比較すると相対的な順序が一致します。",
+        "順序の変更は利用者が起こした場合に限り認められます。ページ固有の項目や副メニューの追加だけでは共通項目の順序違反になりません。"
+      ],
+      "cant_tell_when": [
+        "繰り返される仕組み、または比較対象のページを許可された同等の状態で確認できない場合。",
+        "順次読み取りの順序や、問題となる並べ替えを利用者が起こしたかを証拠から確定できない場合。"
+      ],
+      "counterexamples": {
+        "pass": ["各ページで「ホーム、サービス、連絡先」の順序が保たれ、一つのページだけ「サービス」の下に副メニューがあります。"],
+        "fail": ["同じ主要メニューが一方では「ホーム、サービス、連絡先」、他方では「連絡先、ホーム、サービス」と並び、利用者は変更していません。"],
+        "cant_tell": ["表示幅が不明な二枚の画像には異なるメニューが写っていますが、読み取り順序と利用者設定を確認できません。"]
+      },
+      "ai_boundary": "AIは案内の順序の候補を比較できますが、画像やソース順だけから同等のレイアウト状態、読み取り順序、利用者による変更を推定し、人がページ間を確認せずにprofile outcome、human_verified mapping、E2以上のclaimを記録してはいけません。"
+    },
+    {
+      "id": "wcag22-sc-3-2-4-consistent-identification",
+      "applicability_steps": [
+        "Webページの集合を定め、二ページ以上に現れる機能部品を特定します。アイコンの形や見た目の配置ではなく、使用時に同じ結果になる機能ごとにまとめます。",
+        "対象部品ごとにページ、機能、見える識別表示、算出されたアクセシブルな名前、代替テキストを記録し、似たアイコンでも異なる機能を区別します。"
+      ],
+      "procedure_steps": [
+        "許可された状態で比較する部品の機能を実行するか別の方法で確かめ、同じ機能がページ間で見た目と支援技術向けにどう識別されるか照合します。",
+        "ラベル、アクセシブルな名前、代替テキストに一貫した規則があるか調べます。「4ページへ」「5ページへ」のように対象が変われば完全一致は不要です。同じアイコンでも異なる機能には別の名前が必要になり得ます。",
+        "比較したページ集合、実際の結果、見える識別表示とプログラム上の識別表示、不一致を記録します。別ページにもある機能については同一ページ内の全ての該当部品を含めます。名前の有無はSC 4.1.2、見えるラベルを名前に含むかはSC 2.5.3で別に評価します。"
+      ],
+      "expected_results": [
+        "ページ集合を通じて同じ機能の部品は、見えるラベルとアクセシブルな名前・代替テキストによって一貫して識別できます。",
+        "目的に従った安定した規則で変わる表現は認められ、異なる機能で同じアイコンを使っても同じ識別表示を強制しません。"
+      ],
+      "cant_tell_when": [
+        "許可された状態で比較する部品の実際の結果や該当ページを確認できない場合。",
+        "表示される識別表示、算出された名前、代替テキストを同機能の部品間で十分に比較できない場合。"
+      ],
+      "counterexamples": {
+        "pass": ["続きのページへのリンクが「4ページへ」「5ページへ」と変わり、同じ目的に沿う表現規則を保っています。"],
+        "fail": ["同じサイト内検索を送信するボタンが一方では「検索」、他方では「探す」と表示され、共通の識別規則がありません。"],
+        "cant_tell": ["別ページに似たアイコンがありますが、実際の機能とアクセシブルな名前を確認できません。"]
+      },
+      "ai_boundary": "AIは繰り返されるアイコンや異なる識別表示の候補を示せますが、外観から同じ機能だと推定したり、アクセシブルな名前が違うのに見た目の一致だけで済ませたり、人がページ間の機能と識別表示を確認せずにprofile outcome、human_verified mapping、E2以上のclaimを記録してはいけません。"
+    },
+    {
+      "id": "wcag22-sc-3-1-2-language-of-parts",
+      "applicability_steps": [
+        "表示された本文とアクセシブルなテキストについて、他言語版へのリンクや動的に現れる文章を含め、周囲の文章とは異なる言語を意図した語句を探します。",
+        "言語切替とみなす前に、固有名詞、専門用語、言語を特定できない語、周囲の言語に定着した語句という例外を確認します。明らかに別言語を意図した一語は対象になり得ます。"
+      ],
+      "procedure_steps": [
+        "対象の語句ごとに文脈から意図した言語を確認し、その語句または包含要素の言語指定を調べます。ページ既定の言語と上書きする言語属性も確認します。",
+        "語句の言語がプログラムによって特定可能か確認し、実際の文字列、文脈、言語指定、表示またはアクセシビリティツリーの根拠を記録します。意図や例外に争いがある場合は、その言語を理解する人が判断し、綴りだけで推測しません。",
+        "読み上げ結果は補助的な観察にとどめます。アクセシブルな名前では入れ子の言語指定が失われることがあり、マークアップが正しくても読み上げ機が音声を切り替えないことがあります。ページ既定の言語はSC 3.1.1で別に評価します。"
+      ],
+      "expected_results": [
+        "対象の各語句の言語をプログラムによって特定でき、言語が変わる箇所には必要に応じてページ既定言語の上書きがあります。",
+        "列挙された例外には個別の言語指定を強制せず、読み上げ時の発音だけで適否を決めません。"
+      ],
+      "cant_tell_when": [
+        "利用可能な文脈や言語知識では、意図した言語や、固有名詞・専門用語・言語不明の語・定着した語句という例外の該当性を判断できない場合。",
+        "許可された表示状態で対象の文章や制作者による言語指定を確認できない場合。"
+      ],
+      "counterexamples": {
+        "pass": ["英語ページ内の明らかなフランス語の文にlang='fr'を指定し、別の箇所にある製品名には固有名詞の例外を適用しています。"],
+        "fail": ["英語記事内のスペイン語の段落がlang='en'だけを継承し、言語の上書きがありません。"],
+        "cant_tell": ["切り取られた画像に未知の一語だけがあり、定着した用語か言語切替か判断する文脈がありません。"]
+      },
+      "ai_boundary": "AIは言語切替の候補を示し言語属性を調べられますが、綴りから曖昧な言語の意図や例外を確定したり、人が文脈と制作者による言語指定を確認せずにprofile outcome、human_verified mapping、E2以上のclaimを記録してはいけません。"
+    },
+    {
+      "id": "wcag22-sc-3-2-6-consistent-help",
+      "applicability_steps": [
+        "関連するWebページの集合を定め、二ページ以上に繰り返し現れる支援手段を探します。対象は、人の連絡先、人と連絡する仕組み、自己解決の手段、完全自動の連絡手段で、該当する支援先への直接リンクも含めます。",
+        "比較するページと、表示幅、拡大率、向き、関連するメニュー状態など同じ表示条件を記録します。支援手段のないページ自体はこの条項の不適合ではなく、新たな支援手段の設置も要求しません。"
+      ],
+      "procedure_steps": [
+        "同じ表示条件で、繰り返される支援手段がページ集合で共通する他の内容に対してどの順序にあるか調べます。見た目の座標だけでなく、ページを直列化した内容の順序を確認します。",
+        "順序の違いが疑われる場合、共通する項目のどれが支援手段の前後にあるかページ間で比較します。拡大率や向きの変更など、配置が変わると合理的に予想される利用者の操作による変化か確認します。ページ間の移動だけでは例外になりません。",
+        "比較したページ、繰り返される支援手段または直接リンク、表示条件、内容の順序、該当する利用者操作を記録します。入力欄の補足説明など、列挙された支援手段ではないものはこの条項から分けます。"
+      ],
+      "expected_results": [
+        "ページ集合内で繰り返される対象の支援手段は、同等の表示条件では他のページ内容に対する相対順序を保ちます。ただし、利用者が配置を変える操作を始めた場合は例外です。",
+        "全ページへの支援手段の配置や、直列化した順序が同じ場合の視覚上の完全一致は要求しません。"
+      ],
+      "cant_tell_when": [
+        "繰り返される支援手段、直接リンク、または比較するページを、許可された同等の状態で確認できない場合。",
+        "ページ集合、共通内容の直列化した順序、争点となる変更が利用者の操作によるかを証拠から確定できない場合。"
+      ],
+      "counterexamples": {
+        "pass": ["設置されている各ページの「お問い合わせ」リンクは主案内の後、本文の前にあり、集合内の別ページには支援手段がありません。"],
+        "fail": ["同じ「サポート」リンクが一方では主案内の前、他方では本文の後にあり、表示条件も同じで、配置を変える利用者操作はありません。"],
+        "cant_tell": ["二枚の画像でチャット部品の位置は違いますが、表示条件と周囲の内容の順序が分かりません。"]
+      },
+      "ai_boundary": "AIは繰り返される支援リンクと順序差の候補を示せますが、画像だけからページ集合、同等の表示条件、直列化した順序、例外に当たる利用者操作を推定し、人がページ間を確認せずにprofile outcome、human_verified mapping、E2以上のclaimを記録してはいけません。"
+    },
+    {
+      "id": "wcag22-sc-1-3-2-meaningful-sequence",
+      "applicability_steps": [
+        "手順、文、番号付きリスト、表のセル、複数段組の文章など、順序が意味に影響する表示上の並びを探します。関連する画面幅や展開後の状態も含めます。",
+        "本文と独立した案内や補足欄のように、相対位置が意味を変えない領域は分けます。ページ全体で見た目と完全に同じ順序が必要だと決めつけません。"
+      ],
+      "procedure_steps": [
+        "対象の並びについて、表示内容と文脈から意味を保つ順序を確かめ、検査した状態でDOM、アクセシビリティツリー、直列化した表示などからプログラム上の読み取り順序を調べます。",
+        "単語、段落、手順、関連する内容の意味を保つ順序が、少なくとも一つプログラムによって特定できるか確認します。実際の文章、見える順序と公開された順序、画面幅や状態、公開された順序で読むと意味が変わる箇所を記録します。",
+        "独立した領域の順序が異なっても意味を保つなら認めます。キーボードのフォーカス順序はSC 2.4.3、表見出しなどの関係はSC 1.3.1で別に評価します。"
+      ],
+      "expected_results": [
+        "順序が意味に影響する箇所では、正しい読み取り順序を少なくとも一つプログラムによって特定できます。",
+        "見た目と順序が違っても意味を保つなら、それだけで不適合にせず、正しい順序は一つあれば足ります。"
+      ],
+      "cant_tell_when": [
+        "利用可能な文脈から各部分の意図した関係や意味を保つ順序を確定できない場合。",
+        "許可された環境で関連する動的状態やプログラムに公開された読み取り順序を調べられない場合。"
+      ],
+      "counterexamples": {
+        "pass": ["独立した二つの補足欄が本文の後に読み上げられますが、文や手順はそれぞれ意味が通る順序です。"],
+        "fail": ["二段組の番号付き手順が左右の段を一行ずつ混ぜて公開され、手順の意味が通りません。"],
+        "cant_tell": ["画像には二段組が写っていますが、実際の読み取り順序も文章同士の関係も確認できません。"]
+      },
+      "ai_boundary": "AIは見える順序と公開された順序の差を示せますが、全ての見た目の差が意味を変えると推定したり、DOM順だけで正しい順序と断定したり、人が実際の内容と公開順序を確認せずにprofile outcome、human_verified mapping、E2以上のclaimを記録してはいけません。"
+    },
+    {
+      "id": "wcag22-sc-1-3-3-sensory-characteristics",
+      "applicability_steps": [
+        "内容を理解・操作するための説明を、関連する操作状態も含めて探します。部品、選択肢、エラー、次の手順を指す説明も対象です。",
+        "形、色、大きさ、見た目の位置、向き、音だけで対象を特定する説明を探し、意図した対象と併記された感覚以外の手掛かりを確認します。"
+      ],
+      "procedure_steps": [
+        "感覚的な手掛かりを使わずに各説明に従い、名前や文字など、その文脈で利用できる別の情報から対象の部品・内容を曖昧なく特定できるか確かめます。",
+        "実際の説明文、対象、感覚的な手掛かり、それ以外の手掛かり、検査した状態を記録します。使える代替情報を併記すれば感覚的な手掛かりを残せます。「下のリンク」が読み取り順序で後続する内容を曖昧なく指す場合もあります。",
+        "情報を伝える唯一の手段としての色はSC 1.4.1で別に評価します。この条項は内容を理解・操作するための説明を対象とし、ページ内の全ての視覚・聴覚上の違いを対象にしません。"
+      ],
+      "expected_results": [
+        "対象の説明は、形、色、大きさ、見た目の位置、向き、音だけに頼って理解・操作する内容を特定させません。",
+        "感覚的な説明に、曖昧さのない別の手掛かりを添えれば認められます。"
+      ],
+      "cant_tell_when": [
+        "許可された状態で意図した対象、説明の全文、併記された手掛かりを確認できない場合。",
+        "位置の表現が実際の読み取り順序で曖昧でないか、または手掛かりが操作説明なのかを証拠から確認できない場合。"
+      ],
+      "counterexamples": {
+        "pass": ["「青い保存ボタンを選択」と説明し、そのボタンには見える「保存」の文字と同じアクセシブルな名前があります。"],
+        "fail": ["フォーム送信の説明が「右の丸いボタンを押す」だけで、名前など別の識別情報がありません。"],
+        "cant_tell": ["切り取られた画像には「下の選択肢を選ぶ」とありますが、後続の選択肢や読み取り順序が見えません。"]
+      },
+      "ai_boundary": "AIは感覚に頼る表現と対象候補を示せますが、他の手掛かりが曖昧でないか、位置の表現が読み取り順序に合うかを文字列だけで判断し、人が説明の全文と対象を確認せずにprofile outcome、human_verified mapping、E2以上のclaimを記録してはいけません。"
+    },
+    {
+      "id": "wcag22-sc-1-3-4-orientation",
+      "applicability_steps": [
+        "縦向きと横向きの両方を表示できる端末向けの内容と操作状態を探します。重ね表示、メディア、モバイルフォームの各段階も含め、端末・エミュレーター、OSの向き設定、制作者による制限を記録します。",
+        "制作者が特定の向きを本質的と主張する場合、他の向きで根本的に変わる情報や機能と、別の適合する実現方法があるかを特定します。"
+      ],
+      "procedure_steps": [
+        "端末またはエミュレーターを回転できる状態にして、同じ内容と操作を縦向きと横向きで調べます。制作者が表示を固定したり「端末を回してください」で利用を妨げたりしないか、両方で表示・操作できるか確認します。",
+        "利用者が選んだOS側の向き固定と、コンテンツによる制限を分けます。端末設定、二つの向き、影響を受ける操作、利用可能か、主張された本質的な理由を記録します。",
+        "レスポンシブな配置の変更や、狭い表示幅による別の問題だけで、この条項の不適合にしません。幅によるリフローや欠落は必要に応じてSC 1.4.10で評価します。"
+      ],
+      "expected_results": [
+        "その向きが内容の情報・機能に本質的である場合を除き、表示と操作を縦向きまたは横向きの一方に制限しません。",
+        "向きに応じた配置変更や利用者による端末側の固定だけでは、制作者による向きの制限になりません。"
+      ],
+      "cant_tell_when": [
+        "許可された端末・エミュレーターで両方の向きを表示できない、またはOSの固定とコンテンツの動作を区別できない場合。",
+        "本質的と主張される用途や別の実現方法を、利用可能な操作文脈と証拠から評価できない場合。"
+      ],
+      "counterexamples": {
+        "pass": ["メッセージフォームは回転後に部品の配置を変えますが、両方の向きで閲覧・送信できます。"],
+        "fail": ["向きが本質的でないチケットフォームが、横向きでは全ての操作部品を「縦向きにしてください」に置き換えます。"],
+        "cant_tell": ["横向きの画像に回転を促す表示がありますが、端末設定と縦向きで操作できるかが不明です。"]
+      },
+      "ai_boundary": "AIは向きの固定や回転を促す表示の候補を示せますが、コードや画像だけから端末での実際の動作や本質的な向きの例外を推定し、人が両方の向きを確認せずにprofile outcome、human_verified mapping、E2以上のclaimを記録してはいけません。"
+    },
+    {
+      "id": "wcag22-sc-1-3-5-identify-input-purpose",
+      "applicability_steps": [
+        "現在の利用者に関する情報を集めるフォーム部品を、input、select、textareaを含めて洗い出し、表示ラベルや入力型だけでなく実際の情報の目的を確認します。",
+        "部品ごとに、WCAGの入力目的一覧に該当するか、使用技術が目的のプログラムによる特定を支えるかを確認します。別人の情報や一覧外の目的は対象から分けます。"
+      ],
+      "procedure_steps": [
+        "対象の部品について、有効なHTMLのautocomplete値など、表示状態で制作者が与えた目的のメタデータを調べ、実際に求める情報と照合します。部品、意図した利用者情報、技術の対応、公開された目的、不一致を記録します。",
+        "type='email'のような大まかな入力型と、現在の利用者のメールアドレスという具体的な目的を区別します。ブラウザーでの自動入力の成功や見えるラベルだけで、目的をプログラムで特定可能だと判断しません。",
+        "利用者名またはメールアドレスなど、一つの欄で一覧内の二つの目的を受け付け、技術が両方を指定できない場合は、どちらか一方の指定または指定なしを認めます。ラベルはSC 3.3.2で別に評価します。"
+      ],
+      "expected_results": [
+        "対象となる各部品では、技術が対応している場合、利用者情報の正しい目的をプログラムによって特定できます。ただし、二つの目的を受け付ける欄には例外があります。",
+        "一覧外の目的や別人の情報を集める欄には、この条項による目的の指定を要求しません。"
+      ],
+      "cant_tell_when": [
+        "利用可能なフォームの文脈から、欄で意図する情報や現在の利用者に関するものかを確定できない場合。",
+        "許可された状態で使用技術の目的指定への対応や、制作者が与えたメタデータを調べられない場合。"
+      ],
+      "counterexamples": {
+        "pass": ["利用者自身のメールアドレス欄にはautocomplete='email'があり、別の宛先メール欄は本人のメール欄として扱いません。"],
+        "fail": ["利用者自身の姓を求める欄にtype='text'と見えるラベルだけがあり、対応技術で利用できる目的の指定がありません。"],
+        "cant_tell": ["「連絡先メール」という欄が、現在の利用者と第三者のどちらのアドレスを集めるのかフォームから分かりません。"]
+      },
+      "ai_boundary": "AIは目的のメタデータの欠落や誤りの候補を示せますが、ラベルだけから誰の情報か、技術上の例外や二目的の欄かを推定し、人がフォームの文脈と実際のマークアップを確認せずにprofile outcome、human_verified mapping、E2以上のclaimを記録してはいけません。"
+    },
+    {
+      "id": "wcag22-sc-1-4-12-text-spacing",
+      "applicability_steps": [
+        "行間、段落後の間隔、字間、単語間隔を利用者が上書きできるマークアップ上のテキストを探します。言語と文字体系を記録し、その組合せで使わない属性だけを除外します。",
+        "調整できるテキストと、文字画像、映像に焼き込まれた字幕など、該当するテキストのスタイル属性を使えないものを分けます。"
+      ],
+      "procedure_steps": [
+        "同等の状態で、該当する属性を全て同時に上書きし、他のスタイル属性は変えません。行間は文字サイズの1.5倍以上、段落後の間隔は2倍以上、字間は0.12倍以上、単語間隔は0.16倍以上にします。",
+        "見出し、段落、操作部品、展開後や画面幅の異なる状態で、文字の切れ・重なり、説明の欠落、操作不能を調べます。新しく省略記号が現れる場合は、全文を利用できる手段があるか確かめます。",
+        "上書き値、言語・文字体系の例外、影響を受ける文章、前後の表示と機能を記録します。制作者が初期設定をこの値にすることや間隔調整部品を置くことは不要で、文字の拡大・リフローは各条項で別に評価します。"
+      ],
+      "expected_results": [
+        "該当する間隔値を同時に適用しても、内容や機能を失いません。",
+        "新たに省略された文字列は全文を利用できる場合に限り認め、言語・文字体系で使わない属性は検査を要しません。"
+      ],
+      "cant_tell_when": [
+        "許可された環境で他のスタイルを変えずに指定値を適用・確認できない場合。",
+        "影響を受けた内容、省略された全文、主張された言語・文字体系の例外を証拠から確定できない場合。"
+      ],
+      "counterexamples": {
+        "pass": ["該当する間隔を適用すると狭い案内欄の文字が省略されますが、フォーカスすれば全文を確認できます。"],
+        "fail": ["指定した間隔では高さ固定の見出しの最終行が切れ、欠けた文字を表示する手段がありません。"],
+        "cant_tell": ["画像では文字が切れていますが、適用した間隔値や他のスタイルが変わったか分かりません。"]
+      },
+      "ai_boundary": "AIは間隔値の適用候補と文字の切れを示せますが、CSSや画像だけから全文の利用可能性、言語・文字体系の例外、操作の維持を推定し、人が調整後の内容を確認せずにprofile outcome、human_verified mapping、E2以上のclaimを記録してはいけません。"
+    },
+    {
+      "id": "wcag22-sc-1-4-13-content-on-hover-or-focus",
+      "applicability_steps": [
+        "ポインターのホバーやキーボードのフォーカスで現れ、それを外すと消える、制作者が表示を制御する追加内容を探します。カスタムツールチップ、サブメニュー、非モーダルなポップアップなどが対象です。",
+        "ブラウザー標準の未変更ツールチップと、フォーカスした部品自体が表示されるだけの場合を除きます。ホバー・フォーカスのどちらで現れるか、有意味な内容を覆うか置き換えるかを記録します。"
+      ],
+      "procedure_steps": [
+        "起点にホバーまたはフォーカスを残したまま、有意味な内容を覆うか置き換える追加内容を、起点を離れずに消せるか確かめます。入力エラーを伝える場合、または起点を含む有意味な内容を覆わず置き換えもしない場合は、この消去手段を要求しません。",
+        "ホバーで現れる場合はポインターを起点から追加内容へ移し、その上でも表示が続くか確かめます。ホバーで現れないフォーカス専用の追加内容には、ホバー可能性を要求しません。",
+        "起点と追加内容からホバー・フォーカスを外す、利用者が消す、情報が無効になる、という許された条件まで表示が続くか観測します。起点、表示の変化、遮蔽、消す操作、ポインター経路、消えた時刻と状態を記録します。"
+      ],
+      "expected_results": [
+        "対象の追加内容は、必要な場合に消去でき、ホバーで現れる場合は追加内容上にもポインターを移せ、許された終了条件まで表示が続きます。",
+        "表示を変更していないブラウザー標準のツールチップは対象外です。ホバー内容へのキーボードアクセスはSC 2.1.1で別に評価します。"
+      ],
+      "cant_tell_when": [
+        "許可されたブラウザー状態で表示・消失のきっかけを再現できない、または表示の制御者を特定できない場合。",
+        "有意味な内容の遮蔽、消去時に起点のフォーカス・ホバーを保てるか、内容が消えた理由を証拠から確定できない場合。"
+      ],
+      "counterexamples": {
+        "pass": ["リンクを覆うカスタムツールチップは起点にフォーカスを残してEscで消せ、ポインターをツールチップ上へ移しても表示が続きます。"],
+        "fail": ["ホバーで現れるサブメニューが、ポインターが起点を離れるとすぐ消え、サブメニューへ到達できません。"],
+        "cant_tell": ["画像ではボタンの横にポップアップがありますが、表示のきっかけ、ポインター経路、消す操作が不明です。"]
+      },
+      "ai_boundary": "AIはホバー・フォーカスの処理とポップアップ候補を探せますが、静的なマークアップだけで消去可能性、ホバー可能性、持続性、ブラウザー制御を判断し、人が操作を確認せずにprofile outcome、human_verified mapping、E2以上のclaimを記録してはいけません。"
+    },
+    {
+      "id": "wcag22-sc-2-1-4-character-key-shortcuts",
+      "applicability_steps": [
+        "コンテンツが実装した、英数字・句読点・記号など印字可能な文字だけで起動するショートカットを探します。複数文字の連続入力や、Shiftまたはキーボード配列固有の組合せで入力する文字も含めます。",
+        "CtrlやAltのような印字されないキーを要する操作と、部品にフォーカスがある間だけ文字で選択する操作を分けます。"
+      ],
+      "procedure_steps": [
+        "対象のショートカットを安全な状態で実行し、動作とフォーカスの範囲を確かめます。無効化できるか、印字されないキーを含む操作に割り当て直せるか、対応する部品にフォーカスがある間だけ有効かを確認します。",
+        "設定がある場合は適用して部品外で再試行し、フォーカス限定を主張する場合は部品内外で試します。キーの順序、関連するキーボード配列、フォーカス、動作、設定、結果を記録します。",
+        "印字されないキーを元から含む、または部品のフォーカス中だけ有効な操作に、無効化設定を強制しません。機能をキーボードで操作できるかはSC 2.1.1で別に評価します。"
+      ],
+      "expected_results": [
+        "コンテンツの文字だけのショートカットは、無効化、印字されないキーを含む再割当て、部品へのフォーカス中だけの起動のいずれかを満たします。",
+        "一文字を入力するためにShiftなど物理キーの組合せが必要でも、印字可能な文字列だけの操作にはこの条項を適用します。"
+      ],
+      "cant_tell_when": [
+        "許可された状態で、実際の起動、フォーカス範囲、設定を安全に試せない場合。",
+        "利用できるキーボード配列や証拠から、印字可能な文字だけか、印字されないキーを要するか確定できない場合。"
+      ],
+      "counterexamples": {
+        "pass": ["サイト全体で「k」が次項目へ移動しますが、設定で文字ショートカットを無効化すると起動しなくなります。"],
+        "fail": ["どこでも「s」で選択項目を保管し、無効化・再割当て・部品内フォーカスへの限定の手段がありません。"],
+        "cant_tell": ["説明書に「?」のショートカットがありますが、動作も設定も試せません。"]
+      },
+      "ai_boundary": "AIはキー処理や設定の候補を探せますが、ソースコードだけで実際の起動、フォーカスの限定、再割当ての成功を推定し、人が安全な状態で操作を確認せずにprofile outcome、human_verified mapping、E2以上のclaimを記録してはいけません。"
+    },
+    {
+      "id": "wcag22-sc-2-2-1-timing-adjustable",
+      "applicability_steps": [
+        "セッション失効、時間経過による移動・再読み込み、唯一の情報が消える表示など、読むことや操作に影響するコンテンツ側の各時間制限を洗い出します。ブラウザー・通信など外部の制限と、同じ情報を時間制限なしで得られる経路を分けます。",
+        "各制限の既定時間、影響する作業、代替不可能なリアルタイムイベントの必須部分か、延長が活動を無効にするか、20時間を超えるかを記録します。"
+      ],
+      "procedure_steps": [
+        "安全な検査状態で、利用者が制限に遭う前に無効化できるか、または制限に遭う前に既定の少なくとも10倍まで幅広く調整できるか確かめます。",
+        "そのいずれもなければ、失効前に警告が出て、応答に20秒以上あり、簡単な操作で延長でき、少なくとも10回延長できるか確認します。本番で待つことや繰り返し操作が危険なら安全な試験対象または設定の根拠と実操作を組み合わせ、未確認の動作は判定不能とします。",
+        "調整方法がない場合は、代替不能なリアルタイムイベント、延長すると活動が無効になる本質的な制限、20時間を超える制限の例外を証拠で確認します。時計、警告、応答時間、延長回数、作業結果、例外の理由を記録します。"
+      ],
+      "expected_results": [
+        "対象となるコンテンツ側の各時間制限に、適切な無効化・調整・延長の経路があるか、リアルタイム・本質性・20時間超の例外のいずれかが該当します。",
+        "警告だけ、20秒未満の応答時間、延長が10回未満の場合は延長の条件を満たしません。"
+      ],
+      "cant_tell_when": [
+        "許可された安全な状態で、制限時間、警告の応答時間、延長動作、例外を確認できない場合。",
+        "消える情報を別経路で得られるか、制限がコンテンツ側か外部の仕組みかを証拠から確定できない場合。"
+      ],
+      "counterexamples": {
+        "pass": ["フォームの失効前に利用可能な警告が現れ、簡単な操作で延長する応答時間が30秒あり、試験設定で10回以上延長できます。"],
+        "fail": ["入力途中の申請フォームが5分後に事前設定や警告なしで失効し、入力内容を失います。"],
+        "cant_tell": ["画像にはセッション警告が写りますが、応答可能な時間や延長回数の根拠がありません。"]
+      },
+      "ai_boundary": "AIはタイマー、時間経過後の移動、警告候補を探せますが、宣言だけで実際の時間、繰り返し延長、制限のない代替経路、例外を推定し、人が時間制限付きの作業を確認せずにprofile outcome、human_verified mapping、E2以上のclaimを記録してはいけません。"
+    },
+    {
+      "id": "wcag22-sc-2-2-2-pause-stop-hide",
+      "applicability_steps": [
+        "直接の起動操作なしで始まる、動く・点滅する・スクロールする・自動更新される視覚情報を探します。フォーカス、ホバー、スクロールして表示したことを間接的なきっかけとするものも含め、他の内容と並行して提示されるか記録します。",
+        "動き・点滅・スクロールは5秒を超えるか測り、自動更新には5秒の例外を適用しません。本質的な活動との主張を確認し、音声はSC 1.4.2へ分けます。"
+      ],
+      "procedure_steps": [
+        "対象の動き・点滅・スクロールについて、ページの他の部分を使いながら一時停止・停止・非表示にできるか確かめます。動く項目にフォーカスを残した間だけ止まる仕組みは足りません。",
+        "対象の自動更新について、一時停止・停止・非表示、または更新頻度の調整ができるか確かめます。きっかけ、持続時間または更新間隔、並行する内容、操作手段、実際の結果を記録します。",
+        "活動に本質的との例外を主張する場合、動きや更新を止めると活動が根本的に変わる理由を確認します。閃光はSC 2.3.1で別に評価し、一時停止ボタンがあっても危険な閃光が適合するわけではありません。"
+      ],
+      "expected_results": [
+        "他の内容と並行して自動開始し5秒を超える動き・点滅・スクロールは、本質的でない限り一時停止・停止・非表示にできます。",
+        "他の内容と並行して自動更新する情報は、5秒に満たなくても、本質的でない限り一時停止・停止・非表示または頻度調整ができます。"
+      ],
+      "cant_tell_when": [
+        "許可された安全な状態で、実際のきっかけ、持続時間、並行提示、操作の効果を観測できない場合。",
+        "活動が本質的か、見かけ上の一時停止中もページの他の部分を使えるかを証拠から確定できない場合。"
+      ],
+      "counterexamples": {
+        "pass": ["フォームの横で自動スクロールする株価情報は動き続けますが、一時停止するとフォームを使ったまま表示を止められます。"],
+        "fail": ["記事の横にあるニュース一覧が自動更新され、一時停止・停止・非表示・更新頻度調整の手段がありません。"],
+        "cant_tell": ["画像に動くカルーセルがありますが、開始のきっかけ、持続時間、操作手段を観測できません。"]
+      },
+      "ai_boundary": "AIは動き・更新の候補を探せますが、コードだけで開始のきっかけ、持続時間、操作手段の実効性、活動の本質性を推定し、人が安全な状態で確認せずにprofile outcome、human_verified mapping、E2以上のclaimを記録してはいけません。"
+    },
+    {
+      "id": "wcag22-sc-2-3-1-three-flashes-or-below-threshold",
+      "applicability_steps": [
+        "制作者による映像、アニメーション、広告、画面遷移などから、明るさや飽和した赤が急変する候補を探します。操作後に出るものや繰り返し再生されるものも含めます。",
+        "全画面の映像や最も高いダイナミックレンジの版を含め、利用者が見られる最大の表示規模と関連する版を特定します。表示装置側のちらつきとコンテンツによる閃光を分けます。"
+      ],
+      "procedure_steps": [
+        "閃光が疑われる内容を生で再生する前に、安全なフレーム単位の方法で確認します。ループの境界や同時に閃光する領域を含め、任意の1秒間の一般閃光と赤い閃光の回数を数えます。",
+        "1秒間に3回を超える候補では、妥当性を確認した解析方法と規範の一般閃光・赤い閃光の閾値を使い、最大の表示規模で同時に閃光する面積、明るさ、飽和した赤への変化を評価します。ツールの版、元フレーム、時刻、表示規模、閾値の結果を記録します。",
+        "警告、一時停止ボタン、短い持続時間、テキスト代替だけで不適合な閃光を解消したと扱いません。長い点滅はSC 2.2.2で別に評価します。フレームや閾値の測定が信頼できない場合は、見た目で推測せず判定不能にします。"
+      ],
+      "expected_results": [
+        "任意の1秒間に3回を超える閃光がないか、速い閃光の全てが一般閃光・赤い閃光の両方の閾値未満です。",
+        "関連するループ、同時に閃光する領域、提供される最大の表示を含めて評価します。"
+      ],
+      "cant_tell_when": [
+        "関連するフレーム、時刻、ループ境界、最大表示を安全かつ信頼できる方法で取得できない場合。",
+        "1秒間に3回を超える候補について、一般閃光と赤い閃光の閾値を信頼できる形で測定できない場合。"
+      ],
+      "counterexamples": {
+        "pass": ["ループするアニメーションのフレーム解析で、境界をまたぐ任意の1秒間も一般閃光・赤い閃光がそれぞれ3回以下です。"],
+        "fail": ["妥当性を確認したフレーム解析で、全画面映像の1秒間に閾値を超える大きな一般閃光が4回見つかります。"],
+        "cant_tell": ["圧縮された画面録画に速い赤い閃光らしきものがありますが、欠落フレームと全画面時の規模が不明で確実に測れません。"]
+      },
+      "ai_boundary": "AIは閃光候補を示してフレーム数の確認を支援できますが、普通の再生、警告、妥当性不明の測定から安全を宣言し、人が安全なフレーム証拠と閾値解析を確認せずにprofile outcome、human_verified mapping、E2以上のclaimを記録してはいけません。"
+    },
+    {
+      "id": "wcag22-sc-1-4-2-audio-control",
+      "applicability_steps": [
+        "直接意図した起動操作なしで始まるページ上の音声を探します。メディア、背景音、閲覧中に間接的に始まる音を含め、各音声が3秒を超えて続くか記録します。",
+        "開始が明確に利用者の操作による音声や双方向の音声通話を、自動再生音声と分けます。ブラウザーの自動再生方針と、再生を観測した許可済みの状態を記録します。"
+      ],
+      "procedure_steps": [
+        "対象の自動再生音声ごとに、一時停止・停止する仕組み、またはOS全体の音量から独立した音量調整を探します。実際に再生を止められるか、その音声だけを無音にして読み上げなどの音量を保てるか試します。",
+        "音が鳴っている間に操作手段を見つけて使えるか確認し、音源、開始のきっかけ、持続時間、操作手段の位置、操作、観測した結果を記録します。OS全体をミュートするだけでは足りません。",
+        "検査したブラウザーが自動再生を遮断した場合は、実装を調べ、許可された代表的な状態を探してから判断します。遮断された再生だけで、コンテンツが決して自動再生しないとはしません。視覚的な動きはSC 2.2.2で別に評価します。"
+      ],
+      "expected_results": [
+        "3秒を超える自動再生音声は、一時停止・停止できるか、OS全体の音量と独立して無音にできます。",
+        "利用者が直接起動した再生と3秒以内に終わる自動再生は、この条項の対象になりません。"
+      ],
+      "cant_tell_when": [
+        "許可された代表的な状態で自動再生を観測できない、または持続時間と開始のきっかけを確定できない場合。",
+        "操作手段がOS全体の音量と独立してページ音声を制御するか証拠から確認できない場合。"
+      ],
+      "counterexamples": {
+        "pass": ["ページを開くと背景音楽が3秒を超えて再生されますが、ページ内のミュート操作で読み上げ音声を残して無音にできます。"],
+        "fail": ["宣伝動画の音がページを開くと1分間再生され、一時停止・停止・独立した音量調整がありません。"],
+        "cant_tell": ["ブラウザーが自動再生を遮断し、音が再生されるか、操作手段が働くかを調べる許可済みの状態や根拠がありません。"]
+      },
+      "ai_boundary": "AIは自動再生メディアと操作手段の候補を示せますが、属性やブラウザーによる遮断だけから音の持続時間、操作の効果、独立した音量調整を推定し、人が代表的な状態で観測せずにprofile outcome、human_verified mapping、E2以上のclaimを記録してはいけません。"
+    },
+    {
+      "id": "wcag22-sc-1-4-5-images-of-text",
+      "applicability_steps": [
+        "見た目の効果を得るために人の言語による文字を画像などの非テキストにした箇所を探します。画像の見出し、メニュー、ポスターを含め、写真・図・画面画像など、他の重要な視覚内容を持つ絵の一部にすぎない文字は分けます。",
+        "各文字画像について、使用技術が実際のテキストで意図した見た目を実現できるか、同じ情報が見える実テキストでも示されているかを確認します。"
+      ],
+      "procedure_steps": [
+        "対象の画像と併記された実テキストを調べます。同じ情報を見えて調整可能な実テキストで利用できる場合は、その経路を記録します。支援技術にだけ公開される代替テキストはSC 1.1.1で評価し、それだけでこの視覚的な条項を満たすとはしません。",
+        "それ以外では、画像のフォント・大きさ・前景色・背景を利用者の要件に合わせて変更できるか、特定の見た目が伝える情報に本質的かを調べます。ロゴタイプは本質的と扱い、他の主張は制作者の好みだけでなく伝える情報で検証します。",
+        "実際の文字列、画像の役割、実テキストの経路、文字での再現可能性、調整手段、例外の根拠を記録します。人の言語を表さない記号的な文字と単語・文章も区別します。"
+      ],
+      "expected_results": [
+        "使用技術で見た目を実現できる場合、文字画像だけでなく実テキストで情報を伝えます。ただし文字画像を視覚的に調整できるか、その見た目が本質的な場合は例外です。",
+        "同じ情報を見える実テキストでも提供する画像は条件を満たし、ロゴタイプの特定の見た目は本質的です。"
+      ],
+      "cant_tell_when": [
+        "許可された状態で、画像内の情報、併記された見える文字、実際の調整動作を確認できない場合。",
+        "特定の見た目が本質的か、使用技術で実テキストとして再現可能かを証拠から確定できない場合。"
+      ],
+      "counterexamples": {
+        "pass": ["イベントポスターの画像の横に、同じ催しの情報を選択・表示調整できるページ上の実テキストとして示します。"],
+        "fail": ["サイトの文字技術で見た目を再現できるのに、ページ見出しを単なる画像だけで示し、見える実テキストや例外はありません。"],
+        "cant_tell": ["画像に装飾された文字が写っていますが、実テキストの併記、利用者による調整、意図した見た目を確認できません。"]
+      },
+      "ai_boundary": "AIは文字を含みそうな画像を探せますが、OCRや代替テキストだけを見える実テキストとみなしたり、外観から技術的に再現不能・本質的なデザインと決めたり、人が提示情報と例外を確認せずにprofile outcome、human_verified mapping、E2以上のclaimを記録してはいけません。"
+    },
+    {
+      "id": "wcag22-sc-1-2-1-audio-only-and-video-only-prerecorded",
+      "applicability_steps": ["収録済みの音声のみ、映像のみの媒体を探します。音声と映像が同期する媒体やライブ配信は分けます。テキストの代替と明示され、元のテキスト以上の情報を伝えない媒体かも確認します。", "対象ごとに代替手段の経路、言語、確認した版を記録します。"],
+      "procedure_steps": ["音声のみの場合は実際に聞き、発話、話者の変化、意味のある音、順序、時間に依存する操作の結果が時間依存メディアの代替コンテンツで伝わるか比べます。", "映像のみの場合は無音映像を見て、時間依存メディアの代替コンテンツか音声トラックのいずれかが、動作、画面上の情報、順序、操作の結果を伝えるか比べます。", "媒体の種類、例外の根拠、代替経路、照合した情報と欠落を記録します。会話だけの書き起こしは意味のある非発話音を網羅しません。同期メディアの字幕はSC 1.2.2で扱います。"],
+      "expected_results": ["収録済みの音声のみの媒体には同等の時間依存メディアの代替コンテンツがあり、映像のみの媒体にはその代替コンテンツか同等の音声トラックがあります。", "例外は、テキストの代替と明示され、そのテキスト以上の情報を伝えない媒体に限ります。"],
+      "cant_tell_when": ["元の媒体や代替手段を十分に再生・確認できず、情報や順序を照合できない場合。", "同等とされるテキストとの関係や時間に依存する操作の結果を確かめられない場合。"],
+      "counterexamples": {"pass": ["無音の操作動画に、操作や画面上の説明を順に伝える音声トラックがあります。"], "fail": ["収録済みの音声インタビューに時間依存メディアの代替コンテンツがありません。"], "cant_tell": ["書き起こしへのリンクはありますが、録音を再生できず、発話や重要な音を網羅するか確かめられません。"]},
+      "ai_boundary": "AIは媒体と代替手段の候補を探せますが、書き起こしのリンク、メタデータ、自動音声認識だけで同等性を推定し、人が媒体と代替手段を照合せずにprofile outcome、human_verified mapping、E2以上のclaimを記録してはいけません。"
+    },
+    {
+      "id": "wcag22-sc-1-2-2-captions-prerecorded",
+      "applicability_steps": ["収録済みの音声を含む同期メディアを、言語やプレーヤーの版も含めて探します。テキストの代替と明示され、元のテキスト以上の情報を伝えない媒体か確認します。", "音声のみの録音はSC 1.2.1、ライブの同期メディアはSC 1.2.4に分けます。"],
+      "procedure_steps": ["対象の各版で字幕を有効にして再生するか、常時表示の字幕を確認します。冒頭・中盤・終盤、話者の変化、意味のある非発話音を音声と比べます。", "同期、会話、必要な話者識別、内容理解に必要な音の情報を確認します。媒体の版、字幕の選択、時刻、欠落を記録します。単なる書き起こしや会話だけの字幕では、この条項を満たす根拠になりません。"],
+      "expected_results": ["対象の同期メディアの収録済み音声すべてに同期した字幕があり、発話と意味のある非発話情報、必要な話者識別を伝えます。", "例外は、テキストの代替と明示され、追加情報のない媒体に限ります。"],
+      "cant_tell_when": ["音声や字幕を十分に再生・確認できず、内容や時刻を照合できない場合。", "テキストの代替という例外の主張を、媒体と元のテキストの両方で確かめられない場合。"],
+      "counterexamples": {"pass": ["収録済みの説明動画で、話し声に同期した字幕が重要な警報音と話者も示します。"], "fail": ["収録済みの発話を含む動画に、時刻のない別紙の書き起こしだけがあり、字幕はありません。"], "cant_tell": ["プレーヤーに字幕トラックの表示はありますが、再生できず同期や網羅性を確かめられません。"]},
+      "ai_boundary": "AIは字幕トラックや欠落の候補を探せますが、トラックの存在や自動書き起こしだけで正確な同期字幕と判断し、人が音声と照合せずにprofile outcome、human_verified mapping、E2以上のclaimを記録してはいけません。"
+    },
+    {
+      "id": "wcag22-sc-1-2-3-audio-description-or-media-alternative-prerecorded",
+      "applicability_steps": ["収録済みの同期メディアの映像と、音声解説トラックまたは完全な時間依存メディアの代替コンテンツを探します。映像のみの媒体はSC 1.2.1に分けます。", "テキストの代替と明示され、元のテキスト以上の情報を伝えない媒体か、実際のテキストと照合します。"],
+      "procedure_steps": ["代表的な場面を見聞きし、主音声から伝わらない重要な動作、場面転換、登場人物、画面上の文字や視覚情報を記録します。", "欠けた視覚情報を伝える音声解説、または聴覚・視覚の両情報と時間に依存する操作の結果を正しい順序で伝える完全なテキストの代替コンテンツを確認します。媒体と照合し、欠落と、主音声がすべての重要な視覚情報を伝えている根拠を記録します。", "このレベルA条項を満たす二つの経路のどちらかを記録します。完全なテキスト代替だけでは、別のレベルAA条項SC 1.2.5を満たしません。"],
+      "expected_results": ["収録済みの同期メディアの映像に、重要な視覚情報の音声解説か完全な時間依存メディアの代替コンテンツがあります。ただし、明示されたテキストの代替の例外を除きます。", "重要な視覚情報がすべて既存の音声で伝わる場合、追加の音声解説は不要です。"],
+      "cant_tell_when": ["映像、主音声、音声解説、完全な代替コンテンツを十分に確認できず、網羅性を比べられない場合。", "テキストの代替という例外や、主音声がすべての重要な視覚情報を伝えるという主張を根拠から確定できない場合。"],
+      "counterexamples": {"pass": ["収録済みの操作動画に、発話、示された動作、時間付きの質問と同等の操作を順に伝える完全なテキスト代替があります。"], "fail": ["研修動画に重要な選択肢だけが無音で表示され、ナレーションは触れず、音声解説も完全な代替コンテンツもありません。"], "cant_tell": ["音声解説の選択肢はありますが、トラックを再生できず映像と照合できません。"]},
+      "ai_boundary": "AIは視覚上の出来事や代替手段の候補を示せますが、リンク、字幕、生成した説明だけで同等性を推定し、人が媒体と代替経路を確認せずにprofile outcome、human_verified mapping、E2以上のclaimを記録してはいけません。"
+    },
+    {
+      "id": "wcag22-sc-1-2-4-captions-live",
+      "applicability_steps": ["提供者が配信する、ライブ音声を含む同期メディアを探します。予定された生配信や公演を含め、収録・編集済みの再生とは分け、確認した催し・配信・言語を記録します。", "Webアプリを介した個人間の双方向通話では、通話内容と字幕を誰が提供するかを調べてからアプリ側に欠落を帰属します。すべての通話をアプリの放送コンテンツとみなしません。"],
+      "procedure_steps": ["許可されたライブ配信で字幕を表示・有効化し、実際の発話、話者の変化、意味のある非発話音を、発生時の字幕と比べます。時刻と理解可能性も確認します。", "配信状態、字幕の経路、代表的な時刻、欠落、観測上の制限を記録します。後日字幕付きで公開する録画は、ライブ中の字幕の代わりにはなりません。自動字幕も人による字幕と同様に内容を確認します。"],
+      "expected_results": ["対象となる同期メディアのライブ音声すべてに字幕があり、発話、必要な話者識別、重要な音が催しを追える時点で伝わります。", "個人間の双方向通話で字幕がない場合は、コンテンツ提供者や主催者の役割を確かめてから責任を判断します。"],
+      "cant_tell_when": ["許可された代表的な状態でライブを観測できず、当時の音声と字幕を示す信頼できる記録もない場合。", "双方向通話で字幕を担うのがアプリ、通話者、主催者のいずれか確かめられない場合。"],
+      "counterexamples": {"pass": ["ニュースの生配信に、司会者の発話と重要な警報音を追える字幕があります。"], "fail": ["発話を含む公開生配信にライブ字幕がなく、後日公開の録画だけに字幕が付いています。"], "cant_tell": ["生配信は終了しており、録画にもライブ当時の字幕の提供状況を示す信頼できる記録がありません。"]},
+      "ai_boundary": "AIはライブ配信と字幕の候補を探せますが、後日の録画、字幕切替の表示、自動音声認識だけでライブ中の網羅性を推定し、人が代表的なライブ状態と提供主体を確認せずにprofile outcome、human_verified mapping、E2以上のclaimを記録してはいけません。"
+    },
+    {
+      "id": "wcag22-sc-1-2-5-audio-description-prerecorded",
+      "applicability_steps": ["収録済みの同期メディアの映像を、別版や音声解説トラックも含めて探します。無音の映像のみの媒体はSC 1.2.1、ライブ配信は収録済みコンテンツと分けます。", "テキストの代替として明示された媒体という主張があれば、元のテキストと媒体を確認して、この条項の同期メディアに当たるか判断します。"],
+      "procedure_steps": ["代表的な場面を見聞きし、主音声で既に伝わっていない重要な動作、登場人物、場面転換、画面上の文字を探します。", "提供される音声解説トラックまたは解説付き版を再生し、不足する視覚情報が文脈の中で伝わるか比べます。選択経路、媒体の版、時刻、欠落、既存の音声がすべての重要な視覚情報を伝えているかを記録します。", "レベルAのSC 1.2.3を完全なテキスト代替で満たしていても、このレベルAAの音声解説要件を確認します。書き起こしや字幕だけでは音声解説の代わりになりません。"],
+      "expected_results": ["収録済みの同期メディアでは、重要な視覚情報を音声解説で伝えるか、既存の音声がそのすべてを既に伝えています。", "重要な視覚情報が音声で利用できない場合、完全なテキスト代替だけではこのレベルAA条項を満たしません。"],
+      "cant_tell_when": ["映像、主音声、解説付き版を十分に確認できず、重要な視覚情報と聞こえる情報を比べられない場合。", "既存の音声がすべての重要な視覚情報を伝えるという主張や、同期メディアの対象外という判断を確定できない場合。"],
+      "counterexamples": {"pass": ["収録済みの授業に、操作説明中の重要な画面上の部品と動作を読み上げる解説付き版があります。"], "fail": ["録画された説明では重要な操作が音声で示されず、完全な書き起こしだけがあり、音声解説はありません。"], "cant_tell": ["音声解説トラックの表示はありますが、再生できず映像の内容を網羅するか確かめられません。"]},
+      "ai_boundary": "AIは音声のない視覚上の出来事や解説トラックの候補を示せますが、メタデータ、書き起こし、生成した説明だけで音声の網羅性を推定し、人が映像と聞こえる情報を照合せずにprofile outcome、human_verified mapping、E2以上のclaimを記録してはいけません。"
+    },
+    {
+      "id": "jis2016-sc-4-1-1-parsing",
+      "applicability_steps": ["SC 4.1.1を保持するJIS X 8341-3:2016のprofileだけで使います。WCAG 2.2のweb-modernにはSC 4.1.1がありません。対象範囲でマークアップ言語により実装された配信内容を、関連する生成後の状態と埋め込み文書も含めて探します。", "マークアップ技術と文書状態ごとに、仕様、構文規則、省略できるタグや許される入れ子、確認可能な配信済みソースを特定します。"],
+      "procedure_steps": ["実際に配信されたマークアップと関連する生成後の状態を適切な構文解析器か検証器で調べます。文書・状態、ツール名と版、診断、位置を記録し、無関係な検証警告すべてをSC 4.1.1の失敗と扱いません。", "報告箇所と代表的な要素について、完全な開始・終了タグ、仕様に沿う入れ子、同一要素内の重複属性、文書内のID値の重複を確認します。実際に不正なソースと、HTMLで省略可能な終了タグなど仕様で認められた構造を分けます。", "重要な指摘は配信ソースと解析された木で照合し、規則、位置、状態、仕様上の許容理由を記録します。名前・役割・値・関係性に生じる問題は該当する別条項でも評価し、WCAG 2.2の結果でこのJIS固有行を置き換えません。"],
+      "expected_results": ["対象のマークアップでは、タグが完全で、入れ子が使用技術の仕様に従い、同じ要素内に重複属性がなく、仕様で特に認める場合を除いてID値が一意です。", "構文解析器の警告だけでは失敗とせず、四つの条件のどれに当たるかを該当仕様と照合します。"],
+      "cant_tell_when": ["配信済みマークアップや関連する生成後の状態を取得できないか、使用技術に適した構文解析器と仕様がない場合。", "指摘された記述が該当仕様で許されるか、報告された誤りがどこから生じたかを根拠から確定できない場合。"],
+      "counterexamples": {"pass": ["HTML仕様で認められた終了タグの省略を使い、確認したソースと生成状態に重複属性・IDや不正な入れ子はありません。"], "fail": ["配信されたマークアップで、別々の二つの操作部品に同じIDを付け、仕様上の許容理由もありません。"], "cant_tell": ["検証器は生成された断片に誤りを示しますが、配信状態と使用技術を再現できず、規則や位置を確かめられません。"]},
+      "ai_boundary": "AIは構文診断や重複の候補を集められますが、検証器の全警告を失敗とみなしたり、WCAG 2.2で削除された条項をこのJIS行と混同したり、人がソースと仕様を確認せずにprofile outcome、human_verified mapping、E2以上のclaimを記録してはいけません。"
+    }
+  ]
+}

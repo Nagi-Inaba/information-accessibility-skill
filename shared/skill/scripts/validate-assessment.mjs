@@ -1,0 +1,560 @@
+import fs from "node:fs";
+import path from "node:path";
+import process from "node:process";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import {
+  groupForRequirement,
+  profileConfiguration,
+  recordsForProfile,
+  reportGroups
+} from "./lib/profile-registry.mjs";
+import { validateJsonSchema } from "./lib/json-schema.mjs";
+import { calendarDateExample, dateTimeExample, isCalendarDate, isRfc3339DateTime } from "./lib/date-time.mjs";
+import { assessReviewerProvenance, isHumanReviewMapping, reviewerAssuranceText, validateReviewBindings } from "./lib/assessment-provenance.mjs";
+
+const legacyAssessmentSchema = JSON.parse(fs.readFileSync(new URL("../references/assessment-record-1.0.0.schema.json", import.meta.url), "utf8"));
+const criterionProcedures = JSON.parse(fs.readFileSync(new URL("../references/criterion-procedures.json", import.meta.url), "utf8"));
+
+const tierOrder = [
+  "reference_only",
+  "screened",
+  "evaluated_subset",
+  "evaluated_complete",
+  "conformance_candidate",
+  "human_signoff_required"
+];
+
+const evidenceOrder = ["E0", "E1", "E2", "E3", "E4", "E5"];
+
+function hasText(value) {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function tierAtMost(left, right) {
+  return tierOrder.indexOf(left) <= tierOrder.indexOf(right);
+}
+
+function urlMatchesRegisteredPrefix(source, registeredPrefix) {
+  try {
+    const sourceUrl = new URL(source);
+    const prefixUrl = new URL(registeredPrefix);
+    if (sourceUrl.origin !== prefixUrl.origin) return false;
+    const prefixPath = prefixUrl.pathname;
+    return prefixPath.endsWith("/")
+      ? sourceUrl.pathname.startsWith(prefixPath)
+      : sourceUrl.pathname === prefixPath || sourceUrl.pathname.startsWith(`${prefixPath}/`);
+  } catch {
+    return false;
+  }
+}
+
+function urlEqualsCatalogSource(source, expected) {
+  try {
+    return new URL(source).href === new URL(expected).href;
+  } catch {
+    return false;
+  }
+}
+
+export function classifyClaimBlockers({
+  profileOutcomeCounts = {},
+  missingRequirementIds = [],
+  screeningResults = []
+} = {}) {
+  const profileCounts = {
+    pass: profileOutcomeCounts.pass ?? 0,
+    fail: profileOutcomeCounts.fail ?? 0,
+    not_applicable: profileOutcomeCounts.not_applicable ?? 0,
+    not_tested: (profileOutcomeCounts.not_tested ?? 0) + missingRequirementIds.length,
+    cant_tell: profileOutcomeCounts.cant_tell ?? 0
+  };
+  const profileBlockingOutcomes = ["fail", "not_tested", "cant_tell"]
+    .filter((outcome) => profileCounts[outcome] > 0);
+  const screeningOpenCandidates = [...new Set(screeningResults
+    .filter((result) => result?.requirement_kind === "screening_check"
+      && ["fail", "not_tested", "cant_tell"].includes(result.outcome))
+    .map((result) => result.requirement_id))]
+    .sort((left, right) => String(left).localeCompare(String(right), "en"));
+  return {
+    profile_outcome_counts_for_claim: profileCounts,
+    profile_blocking_outcomes: profileBlockingOutcomes,
+    screening_open_candidates: screeningOpenCandidates
+  };
+}
+
+export function validateAssessment(record, registry, schema, criteriaCatalog, auditMethods, reviewOptions = {}) {
+  const errors = [];
+  const warnings = [];
+  const assessment = record?.assessment;
+
+  if (!schema) {
+    errors.push("assessment schema is required");
+  } else {
+    const selectedSchema = record?.schema_version === "1.0.0" && schema.$id === "urn:information-accessibility:assessment-record:2.0.0" ? legacyAssessmentSchema : schema;
+    validateJsonSchema(record, selectedSchema, "$", errors);
+  }
+
+  if (!["1.0.0", "2.0.0"].includes(record?.schema_version)) {
+    errors.push("schema_version must be 1.0.0 (legacy self-declared) or 2.0.0");
+  }
+  if (!assessment || typeof assessment !== "object") {
+    return { valid: false, errors: ["assessment object is required"], warnings, guard: null };
+  }
+  const reviewerProvenance = assessReviewerProvenance(record, reviewOptions);
+  errors.push(...reviewerProvenance.errors);
+  if (reviewerProvenance.summary.legacy_requirement_count) warnings.push("Legacy human_verified records are self-declared; reviewer identity is not authenticated.");
+
+  const profileId = assessment.profile?.id;
+  const profile = registry.profiles.find((item) => item.id === profileId);
+  if (!profile) {
+    errors.push(`unknown profile: ${String(profileId)}`);
+  }
+  if (assessment.profile?.registry_version !== registry.schema_version) {
+    errors.push(`profile.registry_version must be ${registry.schema_version}`);
+  }
+  let configuration;
+  let catalogRecords = [];
+  let configuredReportGroups = [];
+  if (profile) {
+    try {
+      configuration = profileConfiguration(registry, profileId);
+      if (configuration.active) {
+        catalogRecords = recordsForProfile({ profile, catalog: criteriaCatalog });
+        configuredReportGroups = reportGroups(profile);
+      }
+    } catch (error) {
+      errors.push(error instanceof Error ? error.message : String(error));
+    }
+  }
+  const methodRecords = auditMethods?.methods ?? [];
+  try { errors.push(...validateReviewBindings(record, catalogRecords, auditMethods, criterionProcedures, reviewOptions)); }
+  catch (error) { errors.push(`Invalid human review binding: ${error.message}`); }
+  if (profile?.requirement_ids?.length && catalogRecords.length === 0) errors.push("criteria catalog is required for a standards profile");
+  if (profile?.requirement_ids?.length && methodRecords.length === 0) errors.push("audit methods catalog is required for a standards profile");
+
+  if (!hasText(assessment.target?.name)) errors.push("target.name is required");
+  if (!hasText(assessment.target?.version_or_commit)) errors.push("target.version_or_commit is required");
+  if (!Array.isArray(assessment.target?.urls_or_files)) errors.push("target.urls_or_files must be an array");
+
+  const scope = assessment.scope;
+  for (const key of ["included", "excluded", "complete_processes", "third_party_content"]) {
+    if (!Array.isArray(scope?.[key])) errors.push(`scope.${key} must be an array`);
+  }
+  if (typeof scope?.full_pages_reviewed !== "boolean") errors.push("scope.full_pages_reviewed must be boolean");
+
+  const environment = assessment.environment;
+  for (const key of ["os", "browsers", "assistive_technologies", "input_modes"]) {
+    if (!Array.isArray(environment?.[key])) errors.push(`environment.${key} must be an array`);
+  }
+
+  const results = Array.isArray(assessment.results) ? assessment.results : [];
+  if (!Array.isArray(assessment.results)) errors.push("results must be an array");
+  const seen = new Set();
+  const outcomeCounts = Object.fromEntries(registry.outcomes.map((outcome) => [outcome, 0]));
+  const profileOutcomeCounts = Object.fromEntries(registry.outcomes.map((outcome) => [outcome, 0]));
+  const screeningOutcomeCounts = Object.fromEntries(registry.outcomes.map((outcome) => [outcome, 0]));
+  const profileGroupOutcomeCounts = new Map();
+  let manuallyMappedRequirementCount = 0;
+  const humanVerifiedRequirementIds = new Set();
+
+  results.forEach((result, index) => {
+    const prefix = `results[${index}]`;
+    if (!hasText(result.requirement_id)) {
+      errors.push(`${prefix}.requirement_id is required`);
+    } else if (seen.has(result.requirement_id)) {
+      errors.push(`${prefix}.requirement_id is duplicated: ${result.requirement_id}`);
+    } else {
+      seen.add(result.requirement_id);
+    }
+    if (result.requirement_kind === "screening_check") {
+      if (!result.requirement_id?.startsWith("SCREEN-")) errors.push(`${prefix}.requirement_id must start with SCREEN- for screening_check`);
+      if (result.mapping_status !== "unverified") errors.push(`${prefix}.mapping_status must be unverified for screening_check`);
+    } else if (result.requirement_kind === "profile_requirement") {
+      if (!profile?.requirement_ids?.includes(result.requirement_id)) errors.push(`${prefix}.requirement_id is not registered for profile ${String(profileId)}`);
+      if (!/^https:\/\//i.test(result.requirement_source ?? "")) errors.push(`${prefix}.requirement_source must be an HTTPS source URL`);
+      const sourceRule = profile?.requirement_sources?.find((item) => result.requirement_id?.startsWith(item.id_prefix));
+      if (!sourceRule?.url_prefixes?.some((urlPrefix) => urlMatchesRegisteredPrefix(result.requirement_source, urlPrefix))) {
+        errors.push(`${prefix}.requirement_source does not match the registered source document for ${result.requirement_id}`);
+      }
+      const catalogRecord = catalogRecords.find((item) => item.id === result.requirement_id);
+      const catalogSources = [catalogRecord?.normative_url, catalogRecord?.checklist_source_url, catalogRecord?.profile_source_url].filter(Boolean);
+      if (!catalogRecord || !catalogSources.some((source) => urlEqualsCatalogSource(result.requirement_source, source))) {
+        errors.push(`${prefix}.requirement_source does not match the catalog source for ${result.requirement_id}`);
+      }
+      const manualEvidenceTypes = new Set(["manual_observation", "browser_inspection", "keyboard_test", "assistive_technology_test", "document_structure_inspection"]);
+      const hasManualEvidence = result.evidence?.some((item) => manualEvidenceTypes.has(item.type));
+      const auditMethod = methodRecords.find((item) => item.id === catalogRecord?.method_key);
+      if (!auditMethod) errors.push(`${prefix} has no registered audit playbook for ${catalogRecord?.method_key ?? result.requirement_id}`);
+      const expectedMethodRef = auditMethod ? `web-audit-methods:${auditMethods.schema_version}#${auditMethod.id}` : null;
+      if (result.outcome !== "not_tested" && result.method_ref !== expectedMethodRef) {
+        errors.push(`${prefix}.method_ref must be ${expectedMethodRef}`);
+      }
+      if (["pass", "fail"].includes(result.outcome) && auditMethod && !result.evidence?.some((item) => auditMethod.required_evidence_types.includes(item.type))) {
+        errors.push(`${prefix}.evidence must include a type required by playbook ${auditMethod.id}: ${auditMethod.required_evidence_types.join(", ")}`);
+      }
+      const reviewedByPerson = ["manual", "hybrid"].includes(result.method_kind) && hasManualEvidence;
+      if (result.outcome !== "not_tested" && !isHumanReviewMapping(result)) {
+        errors.push(`${prefix}.mapping_status must be human_declared (legacy: human_verified) for an evaluated profile requirement`);
+      }
+      if (isHumanReviewMapping(result) && !["manual", "hybrid"].includes(result.method_kind)) {
+        errors.push(`${prefix}.method_kind must be manual or hybrid for a human-declared profile requirement`);
+      }
+      if (["pass", "fail"].includes(result.outcome) && !hasManualEvidence) {
+        errors.push(`${prefix}.evidence must include a manual evidence type for a profile-requirement ${result.outcome}`);
+      }
+      if (isHumanReviewMapping(result) && reviewedByPerson && result.outcome !== "not_tested") {
+        manuallyMappedRequirementCount += 1;
+        humanVerifiedRequirementIds.add(result.requirement_id);
+      }
+    }
+    if (!registry.outcomes.includes(result.outcome)) {
+      errors.push(`${prefix}.outcome is invalid: ${String(result.outcome)}`);
+    } else {
+      outcomeCounts[result.outcome] += 1;
+      if (result.requirement_kind === "profile_requirement") {
+        profileOutcomeCounts[result.outcome] += 1;
+        try {
+          const group = groupForRequirement(profile, result.requirement_id);
+          if (!profileGroupOutcomeCounts.has(group)) {
+            profileGroupOutcomeCounts.set(group, Object.fromEntries(registry.outcomes.map((outcome) => [outcome, 0])));
+          }
+          profileGroupOutcomeCounts.get(group)[result.outcome] += 1;
+        } catch (error) {
+          errors.push(`${prefix}.requirement_id cannot be assigned to a report group: ${error instanceof Error ? error.message : String(error)}`);
+        }
+      }
+      if (result.requirement_kind === "screening_check") screeningOutcomeCounts[result.outcome] += 1;
+    }
+    if (!hasText(result.method)) errors.push(`${prefix}.method is required`);
+    if (!Array.isArray(result.evidence)) {
+      errors.push(`${prefix}.evidence must be an array`);
+    } else {
+      if (["pass", "fail"].includes(result.outcome) && result.evidence.length === 0) {
+        errors.push(`${prefix}.evidence is required for ${result.outcome}`);
+      }
+      result.evidence.forEach((evidence, evidenceIndex) => {
+        for (const key of ["type", "location", "observation", "captured_at"]) {
+          if (!hasText(evidence?.[key])) errors.push(`${prefix}.evidence[${evidenceIndex}].${key} is required`);
+        }
+        if (hasText(evidence?.captured_at) && !isRfc3339DateTime(evidence.captured_at)) {
+          errors.push(`${prefix}.evidence[${evidenceIndex}].captured_at must be a real ${dateTimeExample}`);
+        }
+      });
+    }
+    if (["not_applicable", "not_tested", "cant_tell"].includes(result.outcome) && !hasText(result.notes)) {
+      errors.push(`${prefix}.notes must explain ${result.outcome}`);
+    }
+  });
+
+  const findingsProvided = Object.hasOwn(assessment, "findings");
+  const findings = Array.isArray(assessment.findings) ? assessment.findings : [];
+  if (findingsProvided && !Array.isArray(assessment.findings)) errors.push("findings must be an array");
+  const findingIds = new Set();
+  const resultsByRequirementId = new Map(results.filter((result) => hasText(result.requirement_id)).map((result) => [result.requirement_id, result]));
+  const findingRequirementIds = new Set();
+  findings.forEach((finding, index) => {
+    const prefix = `findings[${index}]`;
+    for (const key of ["id", "location", "observation"]) {
+      if (!hasText(finding?.[key])) errors.push(`${prefix}.${key} is required`);
+    }
+    for (const key of ["remediation", "verification"]) {
+      if (finding?.remediation_status === "unplanned") {
+        if (finding[key] !== null) errors.push(`${prefix}.${key} must be null when remediation is unplanned`);
+      } else if (!hasText(finding?.[key])) errors.push(`${prefix}.${key} is required unless remediation_status is unplanned`);
+    }
+    if (hasText(finding?.id)) {
+      if (findingIds.has(finding.id)) errors.push(`${prefix}.id is duplicated: ${finding.id}`);
+      else findingIds.add(finding.id);
+    }
+    if (!["P0", "P1", "P2"].includes(finding?.priority)) errors.push(`${prefix}.priority must be P0, P1, or P2`);
+    if (!Array.isArray(finding?.affected_users) || finding.affected_users.length === 0 || !finding.affected_users.every(hasText)) {
+      errors.push(`${prefix}.affected_users must name at least one affected user group`);
+    }
+    if (!Array.isArray(finding?.requirement_ids) || !finding.requirement_ids.every(hasText)) {
+      errors.push(`${prefix}.requirement_ids must be an array of non-empty identifiers`);
+    } else {
+      for (const requirementId of finding.requirement_ids) {
+        const result = resultsByRequirementId.get(requirementId);
+        if (!result) errors.push(`${prefix}.requirement_ids contains no recorded result: ${requirementId}`);
+        else if (result.outcome !== "fail") errors.push(`${prefix}.requirement_ids must reference a failed result: ${requirementId}`);
+        else findingRequirementIds.add(requirementId);
+      }
+    }
+  });
+  const failedResults = results.filter((item) => item.outcome === "fail");
+  if (failedResults.length > 0 && !findingsProvided) {
+    errors.push("findings is required when assessment contains failed results");
+  }
+  if (findingsProvided) {
+    for (const result of failedResults) {
+      if (!findingRequirementIds.has(result.requirement_id)) {
+        errors.push(`A finding must reference failed requirement: ${result.requirement_id}`);
+      }
+    }
+  }
+
+  const coverage = assessment.participation_coverage;
+  for (const key of ["find", "receive", "understand", "participate", "continue"]) {
+    if (!registry.outcomes.includes(coverage?.[key])) {
+      errors.push(`participation_coverage.${key} is invalid`);
+    }
+  }
+
+  const evidenceLevel = assessment.evidence_level;
+  if (!evidenceOrder.includes(evidenceLevel)) errors.push(`invalid evidence_level: ${String(evidenceLevel)}`);
+  const independentAudit = assessment.assurance?.independent_audit;
+  const dossier = assessment.assurance?.legal_or_procurement_dossier;
+  if (typeof independentAudit?.performed !== "boolean") errors.push("assurance.independent_audit.performed must be boolean");
+  if (typeof independentAudit?.evaluator_independent !== "boolean") errors.push("assurance.independent_audit.evaluator_independent must be boolean");
+  if (!Array.isArray(dossier?.artifacts)) errors.push("assurance.legal_or_procurement_dossier.artifacts must be an array");
+  if (typeof dossier?.prepared !== "boolean") errors.push("assurance.legal_or_procurement_dossier.prepared must be boolean");
+
+  if (evidenceOrder.indexOf(evidenceLevel) >= evidenceOrder.indexOf("E4")) {
+    if (record.schema_version === "2.0.0" && !reviewerProvenance.summary.all_reviewed_requirements_independent) {
+      errors.push("E4+ requires independently authenticated provenance for every evaluated human-review requirement under the recipient's external trust policy.");
+    }
+    if (!independentAudit?.performed || !independentAudit?.evaluator_independent) {
+      errors.push("E4+ requires a performed audit by an independent evaluator");
+    }
+    if (!hasText(independentAudit?.scope_method) || !hasText(independentAudit?.report_location)) {
+      errors.push("E4+ requires an audit scope method and report location");
+    }
+  }
+  if (evidenceLevel === "E5") {
+    if (!dossier?.prepared || !hasText(dossier?.responsible_owner) || !dossier?.artifacts?.length || !dossier.artifacts.every(hasText)) {
+      errors.push("E5 requires a prepared dossier, responsible owner, and at least one dossier artifact");
+    }
+  }
+
+  const requestedTier = assessment.claim?.requested_tier;
+  if (!tierOrder.includes(requestedTier)) errors.push(`invalid claim.requested_tier: ${String(requestedTier)}`);
+  const wording = assessment.claim?.proposed_wording ?? "";
+  for (const prohibited of registry.global_prohibited_claims) {
+    if (wording.toLocaleLowerCase().includes(prohibited.toLocaleLowerCase())) {
+      errors.push(`proposed wording contains prohibited claim: ${prohibited}`);
+    }
+  }
+  const allowedClaimTemplates = registry.claim_templates?.[requestedTier];
+  if (!Array.isArray(allowedClaimTemplates) || allowedClaimTemplates.length === 0) {
+    errors.push(`no registered claim template is available for ${requestedTier}`);
+  } else if (!allowedClaimTemplates.includes(wording)) {
+    errors.push(`proposed wording must exactly match a registered template for ${requestedTier}`);
+  }
+
+  const evidencedScreeningResults = results.filter((result) =>
+    result.requirement_kind === "screening_check"
+      && Array.isArray(result.evidence)
+      && result.evidence.length > 0
+  );
+  let evidenceCeiling = "reference_only";
+  if (evidenceLevel === "E1") {
+    if (evidencedScreeningResults.length === 0) {
+      errors.push("E1 requires at least one screening_check with target-specific evidence");
+    } else {
+      evidenceCeiling = "screened";
+    }
+  }
+  if (evidenceOrder.indexOf(evidenceLevel) >= evidenceOrder.indexOf("E2") && manuallyMappedRequirementCount > 0) {
+    evidenceCeiling = "evaluated_subset";
+  }
+  if (evidenceOrder.indexOf(evidenceLevel) >= evidenceOrder.indexOf("E2") && manuallyMappedRequirementCount === 0) {
+    errors.push("E2+ requires at least one human-declared profile requirement reviewed by a non-automated method");
+  }
+  if (evidenceOrder.indexOf(evidenceLevel) >= evidenceOrder.indexOf("E2")) {
+    if (!assessment.target?.urls_or_files?.length) errors.push("E2+ requires at least one target URL or file");
+    if (!scope?.included?.length) errors.push("E2+ requires a non-empty included scope");
+  }
+  const requiresWebInteractionEvidence = configuration?.requires_web_interaction_evidence === true;
+  if (requiresWebInteractionEvidence && evidenceOrder.indexOf(evidenceLevel) >= evidenceOrder.indexOf("E3")) {
+    if (!scope?.full_pages_reviewed) errors.push("E3+ requires scope.full_pages_reviewed=true for Web profiles");
+    if (!Array.isArray(scope?.complete_processes) || scope.complete_processes.length === 0) {
+      errors.push("E3+ requires at least one complete process");
+    }
+    if (!environment?.input_modes?.includes("keyboard")) errors.push("E3+ requires keyboard interaction evidence");
+    if (!environment?.os?.length || !environment?.browsers?.length) errors.push("E3+ requires real OS and browser environments");
+    if (!environment?.assistive_technologies?.length) errors.push("E3+ requires relevant assistive-technology evidence");
+    const profileEvidenceTypes = new Set(results
+      .filter((result) => result.requirement_kind === "profile_requirement" && isHumanReviewMapping(result))
+      .flatMap((result) => result.evidence?.map((item) => item.type) ?? []));
+    if (!profileEvidenceTypes.has("keyboard_test")) errors.push("E3+ requires at least one keyboard_test evidence item on a human-declared profile requirement");
+    if (!profileEvidenceTypes.has("assistive_technology_test")) errors.push("E3+ requires at least one assistive_technology_test evidence item on a human-declared profile requirement");
+  }
+
+  let maxTier = evidenceCeiling;
+  const reviewerCeiling = reviewerProvenance.summary.all_reviewed_requirements_authenticated ? "human_signoff_required" : "evaluated_subset";
+  if (!tierAtMost(maxTier, reviewerCeiling)) maxTier = reviewerCeiling;
+  if (profile) {
+    const profileCeiling = profile.claim_rules.claim_ceiling;
+    if (!tierAtMost(maxTier, profileCeiling)) maxTier = profileCeiling;
+    if (profile.implementation_status !== "active") maxTier = "reference_only";
+    if (profile.criteria_catalog_status !== "complete" && tierOrder.indexOf(maxTier) > tierOrder.indexOf("evaluated_subset")) {
+      maxTier = "evaluated_subset";
+    }
+  }
+
+  const expectedRequirementIdsForClaim = profile?.requirement_ids ?? [];
+  const recordedRequirementIdsForClaim = results
+    .filter((result) => result.requirement_kind === "profile_requirement"
+      && expectedRequirementIdsForClaim.includes(result.requirement_id))
+    .map((result) => result.requirement_id);
+  const missingRequirementIdsForClaim = expectedRequirementIdsForClaim
+    .filter((id) => !recordedRequirementIdsForClaim.includes(id));
+  const claimBlockerSummary = classifyClaimBlockers({
+    profileOutcomeCounts,
+    missingRequirementIds: missingRequirementIdsForClaim,
+    screeningResults: results
+  });
+  const blockingOutcomes = claimBlockerSummary.profile_blocking_outcomes;
+  if (blockingOutcomes.length > 0 && tierOrder.indexOf(maxTier) > tierOrder.indexOf("evaluated_subset")) {
+    maxTier = "evaluated_subset";
+  }
+  if (tierOrder.includes(requestedTier) && !tierAtMost(requestedTier, maxTier)) {
+    errors.push(`requested tier ${requestedTier} exceeds guard ceiling ${maxTier}`);
+  }
+  if (tierOrder.indexOf(maxTier) < tierOrder.indexOf("conformance_candidate")) {
+    const normalizedWording = wording.normalize("NFKC").toLocaleLowerCase().replace(/[\p{Pd}_]+/gu, " ");
+    const formalDeterminationTerms = /\b(?:conform(?:s|ed|ance|ant)?|compli(?:es|ed|ant|ance)?|certif(?:y|ies|ied|ication)|meets?|satisf(?:y|ies|ied))\b|準拠|適合|認証|対応済み|問題なし|満た(?:す|した|して|している|しています)/iu;
+    if (formalDeterminationTerms.test(normalizedWording)) {
+      errors.push(`proposed wording uses a formal conformance determination term above guard ceiling ${maxTier}`);
+    }
+  }
+
+  if (["metadata_only", "metadata_complete"].includes(profile?.criteria_catalog_status)) {
+    warnings.push("The profile contains criterion metadata, not complete evaluation methods; complete coverage cannot be proven in this release.");
+  }
+  if ([assessment.target?.name, assessment.target?.version_or_commit, assessment.evaluator].some((value) => value === "REPLACE_ME")) {
+    errors.push("Template placeholders must be replaced before validation.");
+  }
+  if (!isCalendarDate(assessment.evaluated_at)) errors.push(`evaluated_at must be a real calendar date in ${calendarDateExample}`);
+    if (assessment.next_review_at !== null && !isCalendarDate(assessment.next_review_at)) {
+      errors.push(`next_review_at must be a real calendar date in ${calendarDateExample} or null`);
+    }
+    const owner = assessment.next_review_owner ?? null;
+    const condition = assessment.next_review_condition ?? null;
+    if (("next_review_owner" in assessment || "next_review_condition" in assessment)
+        && ((assessment.next_review_at === null && (owner !== null || condition !== null))
+          || (assessment.next_review_at !== null && (!hasText(owner) || !hasText(condition))))) {
+      errors.push("next_review_at, next_review_owner, and next_review_condition must be set together.");
+    }
+
+  const expectedRequirementIds = expectedRequirementIdsForClaim;
+  const recordedRequirementIds = recordedRequirementIdsForClaim;
+  const missingRequirementIds = missingRequirementIdsForClaim;
+  const extraRequirementIds = results
+    .filter((result) => result.requirement_kind === "profile_requirement" && !expectedRequirementIds.includes(result.requirement_id))
+    .map((result) => result.requirement_id);
+  const evaluatedRequirementCount = humanVerifiedRequirementIds.size;
+const reportProfileOutcomeCounts = { ...profileOutcomeCounts };
+reportProfileOutcomeCounts.not_tested += missingRequirementIds.length;
+const reportProfileGroupOutcomeCounts = new Map(
+  [...profileGroupOutcomeCounts].map(([groupId, counts]) => [groupId, { ...counts }])
+);
+for (const requirementId of missingRequirementIds) {
+  try {
+    const group = groupForRequirement(profile, requirementId);
+    if (!reportProfileGroupOutcomeCounts.has(group)) {
+      reportProfileGroupOutcomeCounts.set(
+        group,
+        Object.fromEntries(registry.outcomes.map((outcome) => [outcome, 0]))
+      );
+    }
+    reportProfileGroupOutcomeCounts.get(group).not_tested += 1;
+  } catch (error) {
+    errors.push(`Missing profile requirement cannot be assigned to a report group: ${requirementId} (${error instanceof Error ? error.message : String(error)})`);
+  }
+}
+
+return {
+    valid: errors.length === 0,
+    errors,
+    warnings,
+    guard: {
+      profile_id: profileId ?? null,
+      requested_tier: requestedTier ?? null,
+      max_tier: maxTier,
+      reviewer_assurance_ceiling: reviewerCeiling,
+      reviewer_assurance: reviewerProvenance.summary,
+      reviewer_assurance_text: {
+        ja: reviewerAssuranceText(reviewerProvenance.summary, "ja"),
+        en: reviewerAssuranceText(reviewerProvenance.summary, "en")
+      },
+      assured_claim_wording: requestedTier === "evaluated_subset" ? (reviewerProvenance.summary.all_reviewed_requirements_authenticated ? {
+        ja: "一部の条項について、受領者の外部信頼方針で署名者を確認した人手レビュー記録があります。全条項は評価していません。",
+        en: "Selected requirements have human-review records whose signer identities were authenticated under the recipient's external trust policy; the full requirement set was not reviewed."
+      } : {
+        ja: "一部の条項について人手レビューが申告されています。すべての担当者の本人性を確認したものではなく、全条項は評価していません。",
+        en: "Selected requirements have declared human-review records; reviewer identity is not authenticated for all records. The full requirement set was not reviewed."
+      }) : { en: registry.claim_templates?.[requestedTier]?.[0] ?? "", ja: registry.claim_templates?.[requestedTier]?.[1] ?? "" },
+      blocking_outcomes: blockingOutcomes,
+      profile_blocking_outcomes: claimBlockerSummary.profile_blocking_outcomes,
+      screening_open_candidates: claimBlockerSummary.screening_open_candidates,
+      outcome_counts: outcomeCounts,
+      outcome_counts_scope: "all_results_legacy_aggregate",
+      profile_outcome_counts: reportProfileOutcomeCounts,
+      profile_group_outcome_counts: Object.fromEntries(reportProfileGroupOutcomeCounts),
+      report_groups: configuredReportGroups.map(({ id, label }) => ({ id, label })),
+      screening_outcome_counts: screeningOutcomeCounts,
+      catalog_coverage: {
+        expected: expectedRequirementIds.length,
+        recorded: recordedRequirementIds.length,
+        missing_ids: missingRequirementIds,
+        extra_ids: extraRequirementIds,
+        complete: expectedRequirementIds.length > 0 && missingRequirementIds.length === 0 && extraRequirementIds.length === 0
+      },
+      evaluation_coverage: {
+        human_declared: evaluatedRequirementCount,
+        human_authenticated: reviewerProvenance.summary.authenticated_requirement_count,
+        ...(record.schema_version === "1.0.0" ? { human_verified: evaluatedRequirementCount } : {}),
+        not_tested: profileOutcomeCounts.not_tested,
+        cant_tell: profileOutcomeCounts.cant_tell,
+        complete: expectedRequirementIds.length > 0 && evaluatedRequirementCount === expectedRequirementIds.length && profileOutcomeCounts.not_tested === 0 && profileOutcomeCounts.cant_tell === 0
+      },
+      formal_claim_requires_human_signoff: true
+    }
+  };
+}
+
+function readJson(filePath) {
+  return JSON.parse(fs.readFileSync(filePath, "utf8").replace(/^\uFEFF/, ""));
+}
+
+const isMain = process.argv[1] && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url;
+if (isMain) {
+  async function runValidationCli() {
+    try {
+      const positional = [], options = {}, flags = new Map([["--run", "run"], ["--trust-policy", "trustPolicy"], ["--trust-policy-sha256", "trustPolicySha256"]]);
+      const args = process.argv.slice(2);
+      for (let index = 0; index < args.length; index++) {
+        const arg = args[index];
+        if (!arg.startsWith("--")) { positional.push(arg); continue; }
+        const key = flags.get(arg), value = args[++index];
+        if (!key || !value || value.startsWith("--") || options[key] !== undefined) throw new Error(`Invalid, repeated or missing argument: ${arg}`);
+        options[key] = value;
+      }
+      if (!positional.length || positional.length > 5) throw new Error("Usage: node validate-assessment.mjs <assessment.json> [registry.json] [schema.json] [catalog.json] [methods.json] [--run run.json] [--trust-policy policy.json --trust-policy-sha256 hash]");
+      const { loadReviewTrust, readReviewJson } = await import("./lib/review-trust-input.mjs");
+      const { assertStableFile, validateAuditRun } = await import("./lib/audit-run.mjs");
+      const { reviewerVerificationOptions } = await import("./lib/assessment-provenance.mjs");
+      const input = readReviewJson(positional[0], "assessment"), trustInput = loadReviewTrust(options);
+      const snapshots = [input.snapshot, ...trustInput.snapshots];
+      let reviewOptions = { trust: trustInput.trust };
+      if (options.run) {
+        const runInput = readReviewJson(options.run, "audit run");
+        const runValidation = validateAuditRun(runInput.value, { runFile: runInput.snapshot.path });
+        if (!runValidation.valid) throw new Error(`Audit run validation failed: ${runValidation.errors.join("; ")}`);
+        reviewOptions = reviewerVerificationOptions({ run: runInput.value, envelopesById: runValidation.envelopesById, trust: trustInput.trust });
+        snapshots.push(runInput.snapshot, ...[...runValidation.envelopesById.values()].map((item) => item.snapshot), ...runValidation.evidenceSnapshots.values());
+      }
+      const references = ["standards-registry.json", "assessment-record.schema.json", "criteria-catalog.json", "web-audit-methods.json"]
+        .map((name, index) => readJson(positional[index + 1] ?? fileURLToPath(new URL(`../references/${name}`, import.meta.url))));
+      const result = validateAssessment(input.value, ...references, reviewOptions);
+      for (const snapshot of snapshots) assertStableFile(snapshot, "assessment verification input");
+      console.log(JSON.stringify(result, null, 2));
+      process.exit(result.valid ? 0 : 1);
+    } catch (error) {
+      console.error(error instanceof Error ? error.message : String(error));
+      process.exit(2);
+    }
+  }
+  runValidationCli();
+}

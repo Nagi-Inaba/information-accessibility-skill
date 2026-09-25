@@ -37,6 +37,7 @@ test("scan-web finds machine violations and enforces the bounded network policy"
   try {
     const { port } = server.address();
     const { scan, context } = await runAutomatedWebScan({
+      browserChannel: process.env.A11Y_BROWSER_CHANNEL,
       url: `http://127.0.0.1:${port}/`,
       profile: "web-modern",
       allowLocalhost: true,
@@ -92,6 +93,7 @@ test("scan-web rejects a redirect to an origin that was not allowed", {
     const { port } = source.address();
     await assert.rejects(
       runAutomatedWebScan({
+        browserChannel: process.env.A11Y_BROWSER_CHANNEL,
         url: `http://127.0.0.1:${port}/`,
         profile: "web-modern",
         allowLocalhost: true,

@@ -50,7 +50,7 @@ test("standalone reference-only records render as guidance rather than a standar
 });
 
 test("run-backed reporting counts every missing profile row as untested and marks the handoff", () => {
-  const expectedRequirementIds = ["WCAG-2.2-SC-1.1.1", "WCAG-2.2-SC-1.3.1"];
+  const expectedRequirementIds = [...registry.profiles.find((profile) => profile.id === "web-modern").requirement_ids].sort((a, b) => a.localeCompare(b, "en"));
   const run = {
     target: {
       name: "Public fixture",
@@ -74,28 +74,10 @@ test("run-backed reporting counts every missing profile row as untested and mark
     artifacts: [],
     history: []
   };
-  const assessment = {
-    assessment: {
-      results: [],
-      findings: [],
-      evaluated_at: "2026-08-22",
-      limitations: [
-        "All profile requirements are initialized as not_tested; no accessibility conclusion has been made.",
-        "Automated checks, if added, are supporting screening evidence and do not determine requirement outcomes."
-      ],
-      claim: {
-        requested_tier: "reference_only",
-        proposed_wording: "Reference-only fixture"
-      },
-      evidence_level: "E0"
-    }
-  };
-  const resources = {
-    standardsRegistry: {
-      schema_version: "1.0.0",
-      profiles: [{ id: "web-modern", requirement_ids: expectedRequirementIds }]
-    }
-  };
+  const assessment = generateAssessment("web-modern", { targetName: run.target.name, targetVersion: run.target.version_or_commit,
+    targetRefs: run.target.urls_or_files, evaluator: "Synthetic coordinator", evaluatedAt: "2026-08-22" });
+  assessment.assessment.results = [];
+  const resources = { standardsRegistry: registry, assessmentSchema: schema, criteriaCatalog: catalog, auditMethods: methods };
 
   const model = buildPublicReportModel({
     run,
@@ -105,16 +87,16 @@ test("run-backed reporting counts every missing profile row as untested and mark
   });
 
   assert.equal(model.catalogCoverage.recorded, 0);
-  assert.equal(model.catalogCoverage.expected, 2);
-  assert.equal(model.reportOutcomeCounts.not_tested, 2);
-  assert.equal(model.profileOutcomeCounts.not_tested, 2);
+  assert.equal(model.catalogCoverage.expected, 55);
+  assert.equal(model.reportOutcomeCounts.not_tested, 55);
+  assert.equal(model.profileOutcomeCounts.not_tested, 55);
   assert.deepEqual(model.reportChecks.map((item) => item.requirement_id), expectedRequirementIds);
   assert.ok(model.reportChecks.every((item) => item.outcome === "not_tested"));
 
   const report = renderRunBackedReport(model);
   assert.match(report, /^> 文書区分：検査・改善ハンドオフ（規格参照のみ）$/mu);
   assert.match(report, /^- 総合判定: 未確認$/mu);
-  assert.match(report, /^- 登録済み達成基準: 0\/2$/mu);
+  assert.match(report, /^- 登録済み達成基準: 0\/55$/mu);
   assert.doesNotMatch(report, /^- 総合判定: 適合$/mu);
 });
 

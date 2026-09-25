@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { schemaFixtureReference } from "./helpers/saved-evidence.mjs";
 import { createInspectionRequest } from "../codex/skills/information-accessibility-practice/scripts/lib/inspection-request.mjs";
 import fs from "node:fs";
 import path from "node:path";
@@ -34,7 +35,8 @@ function schemaErrors(value, schemaName) {
 
 function validAuditRun() {
   return {
-    schema_version: "7.0.0",
+    schema_version: "17.0.0",
+    target_inventory: null,
     inspection_request: createInspectionRequest("quick", "Identify the next investigation"),
     run_id: runId,
     supersedes_run_id: null,
@@ -62,8 +64,8 @@ function validAuditRun() {
       input_modes: ["keyboard"]
     },
     permissions: {
-      network: "denied",
-      interaction: "read_only",
+      network: "denied", network_policy: null,
+      interaction: "read_only", interaction_policy: null,
       source_write: "denied",
       command_execution: "denied",
       allowed_actions: ["inspect_without_mutation"],
@@ -71,7 +73,7 @@ function validAuditRun() {
     },
     resource_versions: {
       standards_registry_version: "1.0.0",
-      orchestration_registry_version: "6.0.0",
+      orchestration_registry_version: "16.0.0",
       orchestration_registry_sha256: sha256,
       criteria_catalog_sha256: sha256,
       criterion_procedures_sha256: sha256,
@@ -98,8 +100,9 @@ function validRunArtifact() {
 
 function validScreeningPayload() {
   return {
-    schema_version: "2.0.0",
+    schema_version: "4.0.0",
     observations: [{
+      evidence_refs: [schemaFixtureReference(createdAt)],
       requirement_id: "SCREEN-AXE-SERIOUS",
       evidence_level: "E1",
       method: "Automated scan followed by read-only inspection",
@@ -116,7 +119,7 @@ function validScreeningPayload() {
 
 function validHumanQueuePayload() {
   return {
-    schema_version: "2.0.0",
+    schema_version: "3.0.0",
     items: [{
       requirement_id: "WCAG-2.2-SC-1.1.1",
       procedure_availability: "available",
@@ -128,6 +131,9 @@ function validHumanQueuePayload() {
       ],
       human_actions: ["Inspect the target-specific alternative and visible purpose."],
       required_evidence_types: ["browser_inspection", "manual_observation"],
+      origins: ["manual"], reason: "Review requested", priority: "unprioritized", priority_reason: "Impact unknown", affected_users: [],
+      target_locations: [{ target_snapshot_id: "snapshot-fixture", target_ref: "fixture.html", location: "Main image", required_state: "Initial state" }],
+      related_screening_observations: [], status: "pending",
       cant_tell_conditions: ["The computed accessible name cannot be inspected."]
     }],
     procedure_coverage: {
@@ -174,12 +180,13 @@ test("optional signal provenance preserves legacy reports and never turns no-sig
 function validDeclaredHumanReviewPayload(availability = "available") {
   const available = availability === "available";
   return {
-    schema_version: "1.0.0",
+    schema_version: "3.0.0", reviewer_id: "fixture-reviewer",
     declaration: "I declare that I performed the described target-specific review.",
     reviewer_name: "Declared Reviewer",
     review_date: "2026-07-17",
     identity_authenticated: false,
     reviews: [{
+      review_id: "HR-FIXTURE-" + "WCAG-2.2-SC-1.1.1",
       requirement_id: "WCAG-2.2-SC-1.1.1",
       procedure_availability: availability,
       criterion_procedure_ref: available
@@ -201,7 +208,7 @@ function validDeclaredHumanReviewPayload(availability = "available") {
 
 function validRemediationPayload() {
   return {
-    schema_version: "2.0.0",
+    schema_version: "3.0.0",
     items: [{
       remediation_id: "REM-ABC12345",
       basis: "unverified_screening_candidate",
@@ -219,18 +226,19 @@ function validRemediationPayload() {
   };
 }
 
-test("current queue and remediation schemas are version 2 while frozen version 1 schemas remain readable", async () => {
+test("current queue 3 and remediation 3 preserve frozen version 1 reading", async () => {
   const currentQueue = readReferenceJson("human-review-queue.schema.json");
   const legacyQueue = readReferenceJson("human-review-queue-1.0.0.schema.json");
   const currentRemediation = readReferenceJson("remediation-plan.schema.json");
   const legacyRemediation = readReferenceJson("remediation-plan-1.0.0.schema.json");
-  assert.equal(currentQueue.properties.schema_version.const, "2.0.0");
+  assert.equal(currentQueue.properties.schema_version.const, "3.0.0");
   assert.equal(legacyQueue.properties.schema_version.const, "1.0.0");
-  assert.equal(currentRemediation.properties.schema_version.const, "2.0.0");
+  assert.equal(currentRemediation.properties.schema_version.const, "3.0.0");
   assert.equal(legacyRemediation.properties.schema_version.const, "1.0.0");
 
   const legacyQueueValue = structuredClone(validHumanQueuePayload());
   legacyQueueValue.schema_version = "1.0.0";
+  for (const field of ["origins", "reason", "priority", "priority_reason", "affected_users", "target_locations", "related_screening_observations", "status"]) delete legacyQueueValue.items[0][field];
   delete legacyQueueValue.items[0].generic_method_ref;
   delete legacyQueueValue.items[0].official_sources;
   assert.deepEqual(await schemaErrors(legacyQueueValue, "human-review-queue-1.0.0.schema.json"), []);
@@ -245,25 +253,43 @@ test("current queue and remediation schemas are version 2 while frozen version 1
   assert.notDeepEqual(await schemaErrors(legacyRemediationValue, "remediation-plan.schema.json"), []);
 });
 
-test("versioned contracts freeze prior runs while run 7, registry 6, and envelope 2 are current", async () => {
+test("versioned contracts freeze prior runs while run 17, registry 17, and envelope 4 are current", async () => {
   const versions = [
-    ["orchestration-registry.json", "schema_version", "6.0.0"],
+    ["orchestration-registry.json", "schema_version", "17.0.0"],
+    ["orchestration-registry-16.0.0.json", "schema_version", "16.0.0"],
+    ["orchestration-registry-15.0.0.json", "schema_version", "15.0.0"],
+    ["orchestration-registry-14.0.0.json", "schema_version", "14.0.0"],
+    ["orchestration-registry-13.0.0.json", "schema_version", "13.0.0"],
+    ["orchestration-registry-6.0.0.json", "schema_version", "6.0.0"],
     ["orchestration-registry-5.0.0.json", "schema_version", "5.0.0"],
     ["orchestration-registry-4.0.0.json", "schema_version", "4.0.0"],
     ["orchestration-registry-3.0.0.json", "schema_version", "3.0.0"],
     ["orchestration-registry-2.0.0.json", "schema_version", "2.0.0"],
-    ["orchestration-registry.schema.json", "schema", "6.0.0"],
+    ["orchestration-registry.schema.json", "schema", "17.0.0"],
+    ["orchestration-registry-16.0.0.schema.json", "schema", "16.0.0"],
+    ["orchestration-registry-15.0.0.schema.json", "schema", "15.0.0"],
+    ["orchestration-registry-14.0.0.schema.json", "schema", "14.0.0"],
+    ["orchestration-registry-13.0.0.schema.json", "schema", "13.0.0"],
+    ["orchestration-registry-6.0.0.schema.json", "schema", "6.0.0"],
     ["orchestration-registry-5.0.0.schema.json", "schema", "5.0.0"],
     ["orchestration-registry-4.0.0.schema.json", "schema", "4.0.0"],
     ["orchestration-registry-2.0.0.schema.json", "schema", "2.0.0"],
-    ["audit-run.schema.json", "schema", "7.0.0"],
+    ["audit-run.schema.json", "schema", "17.0.0"],
+    ["audit-run-16.0.0.schema.json", "schema", "16.0.0"],
+    ["audit-run-15.0.0.schema.json", "schema", "15.0.0"],
+    ["audit-run-14.0.0.schema.json", "schema", "14.0.0"],
+    ["audit-run-7.0.0.schema.json", "schema", "7.0.0"],
+    ["audit-artifact-envelope.schema.json", "schema", "4.0.0"],
+    ["audit-artifact-envelope-3.0.0.schema.json", "schema", "3.0.0"],
+    ["audit-artifact-envelope-2.0.0.schema.json", "schema", "2.0.0"],
     ["audit-run-6.0.0.schema.json", "schema", "6.0.0"],
     ["audit-run-5.0.0.schema.json", "schema", "5.0.0"],
     ["audit-run-4.0.0.schema.json", "schema", "4.0.0"],
     ["audit-run-3.0.0.schema.json", "schema", "3.0.0"],
     ["fix-authorization.schema.json", "schema", "2.0.0"],
     ["fix-authorization-1.0.0.schema.json", "schema", "1.0.0"],
-    ["change-record.schema.json", "schema", "2.0.0"],
+    ["change-record.schema.json", "schema", "3.0.0"],
+    ["change-record-2.0.0.schema.json", "schema", "2.0.0"],
     ["change-record-1.0.0.schema.json", "schema", "1.0.0"]
   ];
   for (const [file, kind, expected] of versions) {
@@ -281,7 +307,7 @@ test("versioned contracts freeze prior runs while run 7, registry 6, and envelop
 
   const currentChange = validChangeRecordPayload();
   const legacyChange = validLegacyChangeRecordPayload();
-  assert.deepEqual(await schemaErrors(currentChange, "change-record.schema.json"), []);
+  assert.deepEqual(await schemaErrors(currentChange, "change-record-2.0.0.schema.json"), []);
   assert.notDeepEqual(await schemaErrors(currentChange, "change-record-1.0.0.schema.json"), []);
   assert.deepEqual(await schemaErrors(legacyChange, "change-record-1.0.0.schema.json"), []);
   assert.notDeepEqual(await schemaErrors(legacyChange, "change-record.schema.json"), []);
@@ -405,11 +431,12 @@ function validEnvelope(artifactType = "screening-observations") {
     "declared-human-review": ["declared_external_human", "external_human", "declared-reviewer"],
     "remediation-plan": ["remediation_planner", "ai_agent", "information-accessibility-remediation-planner"],
     "fix-authorization": ["declared_authorizer", "external_requester", "declared-requester"],
-    "change-record": ["authorized_fixer", "ai_agent", "information-accessibility-authorized-fixer"]
+    "change-record": ["trusted_fix_executor", "trusted_runtime", "local_authorized_fix_runtime"]
   };
   const [role_id, producer_kind, origin] = producerByType[artifactType];
   return {
-    schema_version: "2.0.0",
+    schema_version: "4.0.0",
+    target_snapshot_ids: [],
     artifact_id: "ART-SCREENING-001",
     artifact_type: artifactType,
     run_id: runId,
@@ -606,7 +633,13 @@ test("the orchestration registry fixes the complete role, artifact, and transiti
     ["declared_external_human", null, "external_human", "declared-human-review", true, false, false],
     ["remediation_planner", "information-accessibility-remediation-planner", "ai_agent", "remediation-plan", false, false, true],
     ["declared_authorizer", null, "external_requester", "fix-authorization", false, false, false],
-    ["authorized_fixer", "information-accessibility-authorized-fixer", "ai_agent", "change-record", false, true, false]
+    ["authorized_fixer", "information-accessibility-authorized-fixer", "ai_agent", "fix-handoff", false, false, false],
+    ["trusted_fix_executor", null, "trusted_runtime", "change-record", false, true, false],
+    ["declared_context_reviewer", null, "external_human", "audit-context", false, false, false],
+    ["declared_context_owner", null, "external_requester", "audit-context", false, false, false],
+    ["declared_participant_facilitator", null, "external_human", "participant-usability-observation", false, false, false],
+    ["declared_change_reviewer", null, "external_human", "declared-change-record", false, false, false],
+    ["declared_change_owner", null, "external_requester", "declared-change-record", false, false, false]
   ];
   assert.deepEqual(registry.roles.map((role) => [
     role.id,
@@ -625,87 +658,276 @@ test("the orchestration registry fixes the complete role, artifact, and transiti
     assert.notEqual(role.output_type, "fix-authorization", role.id);
   }
   const writers = registry.roles.filter((role) => role.can_write_target);
-  assert.deepEqual(writers.map((role) => role.id), ["authorized_fixer"]);
+  assert.deepEqual(writers.map((role) => role.id), ["trusted_fix_executor"]);
   assert.equal(writers[0].install_by_default, false);
 
   assert.deepEqual(registry.artifact_types, [
     {
-      id: "audit-run",
-      latest_schema_version: "7.0.0",
-      schema_versions: [
-        { version: "1.0.0", schema_file: "audit-run-1.0.0.schema.json", mode: "read_only" },
-        { version: "2.0.0", schema_file: "audit-run-2.0.0.schema.json", mode: "read_only" },
-        { version: "3.0.0", schema_file: "audit-run-3.0.0.schema.json", mode: "read_only" },
-        { version: "4.0.0", schema_file: "audit-run-4.0.0.schema.json", mode: "read_only" },
-        { version: "5.0.0", schema_file: "audit-run-5.0.0.schema.json", mode: "read_only" },
-        { version: "6.0.0", schema_file: "audit-run-6.0.0.schema.json", mode: "read_only" },
-        { version: "7.0.0", schema_file: "audit-run.schema.json", schema_sha256: "f1def19770734c8634b528eba7b139b23362c1ed7623927cabaeb211a20a4e6c", mode: "current" }
-      ]
+  "id": "audit-run",
+  "latest_schema_version": "17.0.0",
+  "schema_versions": [
+    {
+      "version": "1.0.0",
+      "schema_file": "audit-run-1.0.0.schema.json",
+      "mode": "read_only"
     },
     {
-      id: "screening-observations",
-      latest_schema_version: "2.0.0",
-      schema_versions: [
-        { version: "1.0.0", schema_file: "screening-observations-1.0.0.schema.json", mode: "read_only" },
-        { version: "2.0.0", schema_file: "screening-observations.schema.json", schema_sha256: "4711a800166bd214d00189062ce35f69ac3446e6673315a8751dd0dbe1a58215", mode: "current" }
-      ]
+      "version": "2.0.0",
+      "schema_file": "audit-run-2.0.0.schema.json",
+      "mode": "read_only"
     },
     {
-      id: "human-review-queue",
-      latest_schema_version: "2.0.0",
-      schema_versions: [
-        { version: "1.0.0", schema_file: "human-review-queue-1.0.0.schema.json", mode: "read_only" },
-        { version: "2.0.0", schema_file: "human-review-queue.schema.json", schema_sha256: "a067686abafc4f8a2661c9b19410d4f27b409f697f6c89b289960ba51b129533", mode: "current" }
-      ]
+      "version": "3.0.0",
+      "schema_file": "audit-run-3.0.0.schema.json",
+      "mode": "read_only"
     },
     {
-      id: "declared-human-review",
-      latest_schema_version: "1.0.0",
-      schema_versions: [{ version: "1.0.0", schema_file: "declared-human-review.schema.json", schema_sha256: "8c63d384fdd60d0fde6d3ac67fdcd946b6ce0a667b393c033eaf04f1dafdd790", mode: "current" }]
+      "version": "4.0.0",
+      "schema_file": "audit-run-4.0.0.schema.json",
+      "mode": "read_only"
     },
     {
-      id: "remediation-plan",
-      latest_schema_version: "2.0.0",
-      schema_versions: [
-        { version: "1.0.0", schema_file: "remediation-plan-1.0.0.schema.json", mode: "read_only" },
-        { version: "2.0.0", schema_file: "remediation-plan.schema.json", schema_sha256: "b8036ca3587b1a91a89baa034ac4807f5f228ed6bbb1d6e898e96c5ce6b79f92", mode: "current" }
-      ]
+      "version": "5.0.0",
+      "schema_file": "audit-run-5.0.0.schema.json",
+      "mode": "read_only"
     },
+    {
+      "version": "6.0.0",
+      "schema_file": "audit-run-6.0.0.schema.json",
+      "mode": "read_only"
+    },
+    {
+      "version": "7.0.0",
+      "schema_file": "audit-run-7.0.0.schema.json",
+      "mode": "read_only"
+    },
+    {
+      "version": "8.0.0",
+      "schema_file": "audit-run-8.0.0.schema.json",
+      "mode": "read_only"
+    },
+    {
+      "version": "9.0.0",
+      "schema_file": "audit-run-9.0.0.schema.json",
+      "mode": "read_only"
+    },
+    {
+      "version": "10.0.0",
+      "schema_file": "audit-run-10.0.0.schema.json",
+      "mode": "read_only"
+    },
+    {
+      "version": "11.0.0",
+      "schema_file": "audit-run-11.0.0.schema.json",
+      "schema_sha256": "62b7906ef2cf5a489bb0260cea57beffd2a306b70dfcc88bf067dd4594fe3cbe",
+      "mode": "read_only"
+    },
+    {
+      "version": "12.0.0",
+      "schema_file": "audit-run-12.0.0.schema.json",
+      "schema_sha256": "836344169a4f237e4d724ce26501ad43712fb7b2e5028be73ad279e389788cce",
+      "mode": "read_only"
+    },
+    {
+      "version": "13.0.0",
+      "schema_file": "audit-run-13.0.0.schema.json",
+      "schema_sha256": "2c4b852b3599e036fda577f52b04933f4ddb7ab53a3e8f399f2b99c30713e187",
+      "mode": "read_only"
+    },
+    {
+      "version": "14.0.0",
+      "schema_file": "audit-run-14.0.0.schema.json",
+      "schema_sha256": "8a5c491996266461da52a9adb87642b5899f1035b0755c8398e4f6b52898e92b",
+      "mode": "read_only"
+    },
+    {
+      "version": "15.0.0",
+      "schema_file": "audit-run-15.0.0.schema.json",
+      "schema_sha256": "41b6084e4fd0215e52513593002d0bed572a4a9d1ee664179b28a82a6a573bcc",
+      "mode": "read_only"
+    },
+    {
+      "version": "16.0.0",
+      "schema_file": "audit-run-16.0.0.schema.json",
+      "schema_sha256": "8bcde1ab78b5dffeb75112b31eb12aa7d8186275ea239f347ff87ea5551846fa",
+      "mode": "read_only"
+    },
+    {
+      "version": "17.0.0",
+      "schema_file": "audit-run.schema.json",
+      "schema_sha256": "d0743603d79d416ff454a9969bbe35dbbf11495dd6174884183417ccd8c740a7",
+      "mode": "current"
+    }
+  ]
+},
+    {
+  "id": "screening-observations",
+  "latest_schema_version": "4.0.0",
+  "schema_versions": [
+    {
+      "version": "1.0.0",
+      "schema_file": "screening-observations-1.0.0.schema.json",
+      "mode": "read_only"
+    },
+    {
+      "version": "2.0.0",
+      "schema_file": "screening-observations-2.0.0.schema.json",
+      "mode": "read_only"
+    },
+    {
+      "version": "3.0.0",
+      "schema_file": "screening-observations-3.0.0.schema.json",
+      "schema_sha256": "268da46d8988039e5ff272166fa2ab13c3492a6a164ecadbb3ac07f47691e33b",
+      "mode": "read_only"
+    },
+    {
+      "version": "4.0.0",
+      "schema_file": "screening-observations.schema.json",
+      "schema_sha256": "0d1836dd7fa397ec46688810c2d1403320da9fb499a4c1d5746681873803c315",
+      "mode": "current"
+    }
+  ]
+},
+    {
+  "id": "human-review-queue",
+  "latest_schema_version": "3.0.0",
+  "schema_versions": [
+    {
+      "version": "1.0.0",
+      "schema_file": "human-review-queue-1.0.0.schema.json",
+      "mode": "read_only"
+    },
+    {
+      "version": "2.0.0",
+      "schema_file": "human-review-queue-2.0.0.schema.json",
+      "mode": "read_only"
+    },
+    {
+      "version": "3.0.0",
+      "schema_file": "human-review-queue.schema.json",
+      "schema_sha256": "65144521b4ae8723e0188f6b71ad2d64b42077eacdf2a0f36675b19c071e2827",
+      "mode": "current"
+    }
+  ]
+},
+    {
+  "id": "declared-human-review",
+  "latest_schema_version": "3.0.0",
+  "schema_versions": [
+    {
+      "version": "1.0.0",
+      "schema_file": "declared-human-review-1.0.0.schema.json",
+      "schema_sha256": "f4732affdb197ae02d56bf1cdccda2978422b127a1b8c5f173ed452ba1198f7a",
+      "mode": "read_only"
+    },
+    {
+      "version": "2.0.0",
+      "schema_file": "declared-human-review-2.0.0.schema.json",
+      "schema_sha256": "4474360f5eb63e75485acfa45bf832fe4bc2d2cc92d7beaf87beae059ed0c41e",
+      "mode": "read_only"
+    },
+    {
+      "version": "3.0.0",
+      "schema_file": "declared-human-review.schema.json",
+      "schema_sha256": "e8fd6e691a184f1261e716aea7c22902d9a01e32d95dc365374ad6783d1841e3",
+      "mode": "current"
+    }
+  ]
+},
+    {
+  "id": "remediation-plan",
+  "latest_schema_version": "3.0.0",
+  "schema_versions": [
+    {
+      "version": "1.0.0",
+      "schema_file": "remediation-plan-1.0.0.schema.json",
+      "mode": "read_only"
+    },
+    {
+      "version": "2.0.0",
+      "schema_file": "remediation-plan-2.0.0.schema.json",
+      "schema_sha256": "b8036ca3587b1a91a89baa034ac4807f5f228ed6bbb1d6e898e96c5ce6b79f92",
+      "mode": "read_only"
+    },
+    {
+      "version": "3.0.0",
+      "schema_file": "remediation-plan.schema.json",
+      "schema_sha256": "a0758d53df985a561f49219d556f564894676743b960919f2187298f2059f934",
+      "mode": "current"
+    }
+  ]
+},
     {
       id: "fix-authorization",
       latest_schema_version: "2.0.0",
       schema_versions: [
         { version: "1.0.0", schema_file: "fix-authorization-1.0.0.schema.json", mode: "read_only" },
-        { version: "2.0.0", schema_file: "fix-authorization.schema.json", schema_sha256: "8dfb9241a6f75d5dd9225d3f8b7e57ea2f3b8e3e6ac442a9493ed0a80a2b0cb7", mode: "current" }
+        { version: "2.0.0", schema_file: "fix-authorization.schema.json", schema_sha256: "13579db07d5c0f86f70fd41bb490ad61167051372072ad633ed0c9c1775a5e62", mode: "current" }
       ]
     },
     {
+      id: "fix-handoff", latest_schema_version: "1.0.0",
+      schema_versions: [{ version: "1.0.0", schema_file: "fix-handoff.schema.json",
+        schema_sha256: "bf68ce1f29a71b342590c0c7fe3b05ba2b14092c8f1787571efd4675bb7f87a7", mode: "current" }]
+    },
+    {
       id: "change-record",
-      latest_schema_version: "2.0.0",
+      latest_schema_version: "3.0.0",
       schema_versions: [
         { version: "1.0.0", schema_file: "change-record-1.0.0.schema.json", mode: "read_only" },
         {
           version: "2.0.0",
-          schema_file: "change-record.schema.json",
-          schema_sha256: "304927774cbdb78f8f770736b0cbfa4b591b858ab78b3f1f2ad310c036b631da",
+          schema_file: "change-record-2.0.0.schema.json",
+          schema_sha256: "0e7318a19b0a7e8b69ab2c30ab613866666cd4892f04721c419cb128a10fcb84",
+          mode: "read_only"
+        },
+        {
+          version: "3.0.0", schema_file: "change-record.schema.json",
+          schema_sha256: "bc6ff9de4c38ffc6a0dbe936b1469663f0674cb8d397889daa57a539f4d40407",
           mode: "current"
         }
+      ]
+    },
+    {
+      id: "audit-context",
+      latest_schema_version: "1.0.0",
+      schema_versions: [
+        { version: "1.0.0", schema_file: "audit-context.schema.json",
+          schema_sha256: "d52cdbc6ea3d374402a15effce7135f7b15d6702714a6ff1ce108dfe9ebc0403", mode: "current" }
+      ]
+    },
+    {
+      id: "participant-usability-observation",
+      latest_schema_version: "1.0.0",
+      schema_versions: [
+        { version: "1.0.0", schema_file: "participant-usability-observation.schema.json",
+          schema_sha256: "01aa3142de8929e26dafbc290f323807ec9572364ef61591355b2ea4b0f21d75", mode: "current" }
+      ]
+    },
+    {
+      id: "declared-change-record",
+      latest_schema_version: "1.0.0",
+      schema_versions: [
+        { version: "1.0.0", schema_file: "declared-change-record.schema.json",
+          schema_sha256: "70053c9ccd8ec947604de5f9d8177d482a1b711e265abc18bfe8995285fa9094", mode: "current" }
       ]
     }
   ]);
   assert.deepEqual(registry.transitions, [
+    { from: "initialized", to: "human_queue_ready", required_artifact_types: ["human-review-queue"] },
     { from: "initialized", to: "screened", required_artifact_types: ["screening-observations"] },
     { from: "screened", to: "human_queue_ready", required_artifact_types: ["human-review-queue"] },
     { from: "human_queue_ready", to: "human_review_recorded", required_artifact_types: ["declared-human-review"] },
     { from: "human_queue_ready", to: "remediation_ready", required_artifact_types: ["remediation-plan"] },
     { from: "human_review_recorded", to: "remediation_ready", required_artifact_types: ["remediation-plan"] },
     { from: "remediation_ready", to: "fix_authorized", required_artifact_types: ["fix-authorization"] },
-    { from: "fix_authorized", to: "retest_required", required_artifact_types: ["change-record"] }
+    { from: "fix_authorized", to: "retest_required", required_artifact_types: ["change-record"] },
+    { from: "remediation_ready", to: "retest_required", required_artifact_types: ["declared-change-record"] }
   ]);
   for (const transition of registry.transitions) {
     for (const artifactType of transition.required_artifact_types) {
       const producers = registry.roles.filter((role) => role.output_type === artifactType);
-      assert.equal(producers.length, 1, `${artifactType} must have exactly one producer`);
+      assert.equal(producers.length, artifactType === "declared-change-record" ? 2 : 1, `${artifactType} has unexpected producers`);
       if (artifactType === "fix-authorization") assert.notEqual(producers[0].producer_kind, "ai_agent");
     }
   }
@@ -802,8 +1024,8 @@ test("audit-run 6 permissions grant only authorized verification command executi
 
   const authorized = validAuditRun();
   authorized.permissions = {
-    network: "denied",
-    interaction: "read_only",
+    network: "denied", network_policy: null,
+    interaction: "read_only", interaction_policy: null,
     source_write: "authorized_only",
     command_execution: "authorized_verification_only",
     allowed_actions: ["execute_authorized_verification_commands", "inspect_without_mutation", "write_authorized_files"],
@@ -888,7 +1110,7 @@ test("audit-run rejects malformed IDs, hashes, paths, artifacts, and transition 
   }
 });
 
-test("frozen envelope 1 binds legacy artifact types while envelope 2 defers producer meaning to the registry", async () => {
+test("frozen envelopes remain readable while envelope 4 binds measured target IDs", async () => {
   for (const type of [
     "screening-observations",
     "human-review-queue",
@@ -898,13 +1120,20 @@ test("frozen envelope 1 binds legacy artifact types while envelope 2 defers prod
     "change-record"
   ]) {
     const legacy = validEnvelope(type);
+    if (type === "change-record") legacy.producer = {
+      role_id: "authorized_fixer", producer_kind: "ai_agent", origin: "information-accessibility-authorized-fixer"
+    };
     legacy.schema_version = "1.0.0";
+    delete legacy.target_snapshot_ids;
     assert.deepEqual(await schemaErrors(legacy, "audit-artifact-envelope-1.0.0.schema.json"), [], type);
+    legacy.schema_version = "2.0.0";
+    assert.deepEqual(await schemaErrors(legacy, "audit-artifact-envelope-2.0.0.schema.json"), [], type);
     assert.deepEqual(await schemaErrors(validEnvelope(type), "audit-artifact-envelope.schema.json"), [], type);
   }
 
   const unauthorized = validEnvelope("fix-authorization");
   unauthorized.schema_version = "1.0.0";
+  delete unauthorized.target_snapshot_ids;
   unauthorized.producer = {
     role_id: "e1_inspector",
     producer_kind: "ai_agent",
@@ -914,6 +1143,7 @@ test("frozen envelope 1 binds legacy artifact types while envelope 2 defers prod
 
   const elevated = validEnvelope("screening-observations");
   elevated.schema_version = "1.0.0";
+  delete elevated.target_snapshot_ids;
   elevated.producer.role_id = "declared_authorizer";
   elevated.producer.producer_kind = "external_requester";
   assert.notDeepEqual(await schemaErrors(elevated, "audit-artifact-envelope-1.0.0.schema.json"), []);
@@ -943,7 +1173,7 @@ test("type-specific payload schemas accept complete bounded records", async () =
     [validDeclaredHumanReviewPayload("unavailable"), "declared-human-review.schema.json"],
     [validRemediationPayload(), "remediation-plan.schema.json"],
     [validFixAuthorizationPayload(), "fix-authorization.schema.json"],
-    [validChangeRecordPayload(), "change-record.schema.json"]
+    [validChangeRecordPayload(), "change-record-2.0.0.schema.json"]
   ];
   for (const [value, schemaName] of fixtures) {
     assert.deepEqual(await schemaErrors(value, schemaName), [], schemaName);
@@ -1081,24 +1311,24 @@ test("change record 2 enforces operation hashes, structured command results, lea
   const create = validChangeRecordPayload();
   create.changed_files[0].operation = "create";
   create.changed_files[0].before_sha256 = null;
-  assert.deepEqual(await schemaErrors(create, "change-record.schema.json"), []);
+  assert.deepEqual(await schemaErrors(create, "change-record-2.0.0.schema.json"), []);
 
   const deleted = validChangeRecordPayload();
   deleted.changed_files[0].operation = "delete";
   deleted.changed_files[0].after_sha256 = null;
-  assert.deepEqual(await schemaErrors(deleted, "change-record.schema.json"), []);
+  assert.deepEqual(await schemaErrors(deleted, "change-record-2.0.0.schema.json"), []);
 
   const signaled = validChangeRecordPayload();
   signaled.command_results[0].status = "signaled";
   signaled.command_results[0].exit_code = null;
   signaled.command_results[0].signal = "SIGTERM";
-  assert.deepEqual(await schemaErrors(signaled, "change-record.schema.json"), []);
+  assert.deepEqual(await schemaErrors(signaled, "change-record-2.0.0.schema.json"), []);
 
   const spawnError = validChangeRecordPayload();
   spawnError.command_results[0].status = "spawn_error";
   spawnError.command_results[0].exit_code = null;
   spawnError.command_results[0].signal = null;
-  assert.deepEqual(await schemaErrors(spawnError, "change-record.schema.json"), []);
+  assert.deepEqual(await schemaErrors(spawnError, "change-record-2.0.0.schema.json"), []);
 
   const mutations = [
     ["absolute path", (value) => { value.changed_files[0].path = "C:\\target\\index.html"; }],
@@ -1125,7 +1355,7 @@ test("change record 2 enforces operation hashes, structured command results, lea
   for (const [label, mutate] of mutations) {
     const value = validChangeRecordPayload();
     mutate(value);
-    assert.notDeepEqual(await schemaErrors(value, "change-record.schema.json"), [], label);
+    assert.notDeepEqual(await schemaErrors(value, "change-record-2.0.0.schema.json"), [], label);
   }
 });
 

@@ -2,6 +2,8 @@
 
 # 情報アクセシビリティ監査スキル／エージェント
 
+導入にはNode.js 20以上と版を固定したソースが必要です。[3 OS共通の導入・更新・復元・削除手順](docs/installing.md)を先に確認してください。
+
 ## 30秒で分かる概要
 
 Webサイト、アプリ、文書、スライド、動画、イベント案内などについて、**情報を見つけ、受け取り、理解し、目的の行動を完了し、後から確認できるか**を調べるCodex／Claude向けパッケージです。
@@ -40,15 +42,15 @@ AIと自動検査が作るものは、原則として問題候補やE0／E1のsc
 
 ## 対応対象と現在の制限
 
-出典付きの[Webスクリーニング11パターン](codex/skills/information-accessibility-practice/references/common-web-failure-patterns.json)と、[証拠・対象の識別情報を扱うライブラリ](docs/evidence-identity.md)も利用できます。
+出典付きの[Webスクリーニング11パターン](shared/skill/references/common-web-failure-patterns.json)と、[証拠・対象の識別情報を扱うライブラリ](docs/evidence-identity.md)も利用できます。
 
 | 対象 | 自然言語レビュー | 構造化screening／規格台帳 | 現在の制限 |
 | --- | --- | --- | --- |
 | Webサイト／Webアプリ | 対応 | WCAG・JISの各プロファイル、読取り専用`scan-web` | 実機スクリーンリーダー確認は外部の人またはホスト機能が必要 |
-| PDF／Word／スライド | 対応 | ガイダンス中心 | 専用のactive profileと正式なclaim経路は未実装 |
-| 動画／音声 | 対応 | Web範囲内の関連条項確認 | 単独media profileは未実装 |
-| イベント／会議／コミュニティ | 対応 | 情報利用の5観点によるレビュー | 専用の構造化assessmentは未実装 |
-| ATAG／authoring process | 参照ガイダンス | 一部の参照情報 | `authoring-agent` profileは現在inactive |
+| PDF／Word／スライド | 対応 | 5観点の非Web記録・人手確認・比較 | 専用の規格適合profileは未実装 |
+| 動画／音声 | 対応 | 5観点の非Web記録・人手確認・比較 | 単独media規格profileは未実装 |
+| イベント／会議／コミュニティ | 対応 | 5観点の非Web記録・人手確認・比較 | 規格適合判定の対象外 |
+| ATAG／authoring process | 参照ガイダンス | 構造化assessmentなし | `authoring-agent`はinactive。Part Aのhost UIを分け、Part B内の作者支援機能と自動生成物を区別する |
 
 評価に使う規格・方針に合わせて、次のプロファイルを選びます。
 
@@ -62,7 +64,25 @@ AIと自動検査が作るものは、原則として問題候補やE0／E1のsc
 
 - Node.js 20以上
 - リポジトリのローカルコピー
-- browser scanを使う場合のみ、指定版のPlaywright、axe-core、Chromium
+- browser scanを使う場合のみ、指定版のPlaywright、axe-core、ホストで利用を認められたChromiumまたはシステムChrome
+
+CLIの台帳作成・登録・統合・レポート機能は、ブラウザなしで動作します。実ページの検査には、対応adapterまたはホストのbrowser toolが必要です。パッケージの存在だけで検査可能と判断せず、[実Web検査の事前確認](docs/web-inspection.md)を行います。
+
+| 実行環境 | CLIの記録処理 | DOM・AX・キーボード・画面幅 | 対象への通信 | スクリーンリーダー実機 |
+| --- | --- | --- | --- | --- |
+| Codex + Nodeホスト | 対応 | adapter導入後にpreflightで実測 | runtime・権限・origin設定が必要 | 外部の人による確認 |
+| Claude + Nodeホスト | 対応 | adapter導入後にpreflightで実測 | runtime・権限・origin設定が必要 | 外部の人による確認 |
+| その他のNodeホスト | 対応 | adapter導入後にpreflightで実測 | runtime・権限・origin設定が必要 | 外部の人による確認 |
+
+ホスト固有のbrowser toolは自動検出しません。別の統合を使う場合は、その実測結果を記録してください。能力不足の確認項目は未確認として次のテストを示し、profileは`not_tested`を維持します。
+
+run-backedの実通信には、[具体的な通信方針と非公開ログ](shared/skill/references/network-policy.md)が必要です。対象と規格資料の許可先を分け、実行時にも呼出側の許可を照合します。別originのiframeなど、現在のadapterで強制を確認できない経路は停止します。
+
+監督付きの入力操作には、[操作範囲・承認者・期限と実行時の承認](shared/skill/references/interaction-policy.md)が必要です。承認者情報と操作履歴は内部に保存し、公開レポートには出しません。現在はスクリプトと追加通信を停止したページでのTab／Shift+Tabに対応し、実行時の承認がないCLI処理はread-onlyになります。
+
+[人手レビューの署名検証CLI](shared/skill/references/reviewer-assurance.md)は、自己申告・自己署名・受領者の信頼方針で認められた署名を区別します。新しいassessment 2.0.0の結果行に元のレビュー記録を結び付け、検証・レポート生成のたびに保証水準を再計算します。旧形式の`human_verified`は「旧形式の自己申告」と表示します。署名はレビュー内容の正しさや最終bundle全体の完全性を証明しません。
+
+[audit-bundle CLI](shared/skill/references/audit-bundle-attestation.md)は、保存したrun・登録artifact・証拠・assessment・レポートの実ファイルと、前段の署名への連結をオフラインで照合します。外部で署名した記録と受領者の信頼方針を使い、未署名・自己署名・組織署名等を区別します。保存した全対象ソース、過去ファイルの保存状態、信頼できる時刻、報告内容の正しさは別途確認が必要です。
 
 ### Codex
 
@@ -73,9 +93,9 @@ powershell -ExecutionPolicy Bypass -File ".\scripts\install-codex.ps1" -WhatIf
 powershell -ExecutionPolicy Bypass -File ".\scripts\install-codex.ps1"
 ```
 
-認可済み修正を明示的に導入する場合だけ`-IncludeAuthorizedFixer`を指定します。認可済み修正agentは読み取り専用のhandoffを作成し、対象を直接変更しません。実際の変更、検証、rollbackは、外部許可を確認した信頼された運用者が行います。
+既定導入は監査専用で、修正用agent・CLI・schemaを含みません。認可済み修正が必要な場合だけ`-IncludeAuthorizedFixer`を指定します。agentは読み取り専用のhandoffを作成し、対象の変更・検証・rollbackは、外部許可を確認した信頼された運用者が行います。両構成はregistry 17.0.0を共有し、異なるregistry版の修正機能は導入を拒否します。
 
-macOS／Linuxでは`codex/skills/information-accessibility-practice/`とmanifestで既定指定されたagentを配置します。詳細は[はじめに](docs/getting-started.md)を参照してください。
+Windows／macOS／Linux共通のNode installerは`node scripts/install-codex.mjs --dry-run`と`node scripts/install-codex.mjs`です。更新・復元・削除と版固定は[導入手順](docs/installing.md)を参照してください。
 
 ### Claude
 
@@ -92,6 +112,8 @@ node .\scripts\install-claude.mjs
 ```
 
 multi-agent構成はCodex版と同じrole artifact contractを維持します。specialist agentをdispatchできない場合だけ`--reviewer-only`を使用します。
+Claudeも既定は監査専用です。修正機能の明示導入には`--include-authorized-fixer`を指定します。
+Node installerはWindows／macOS／Linuxに対応します。更新・復元・削除は[導入手順](docs/installing.md)を参照してください。
 
 ### CLI
 
@@ -102,12 +124,18 @@ accessibility-audit --version
 accessibility-audit profiles list --locale ja
 accessibility-audit requirements search "focus" --profile web-modern --level AA --locale ja
 accessibility-audit screen-reader-checklist --pattern modal-dialog --locale ja --format markdown
+accessibility-audit screen-reader-checklist --list-patterns --locale ja
 accessibility-audit doctor --locale ja
+accessibility-audit preflight-web --browser-channel chrome --locale ja --format json
 ```
+
+このnpm導入も監査専用です。修正機能はCodex／Claude installerの明示オプションから導入してください。
 
 `--locale ja`と`--locale en`は、CLI help、profile、条項一覧・検索・表示、legacy requirement表示、スクリーンリーダーチェックリスト、レポートの人向け文字列だけを切り替えます。内部ID、schema key、enum、証拠型、claim tierは変更しません。
 
-これらのdiscovery commandはread-onlyです。標準CLIは監査対象を変更しません。
+スクリーンリーダーの`--pattern all`は同梱8パターンと指定した`--extension <file.json>`の範囲です。実機の読み上げは人が確認し、未掲載のUIは別途評価してください。拡張ファイルの形式は[状態付きUIの手順](shared/skill/references/screen-reader-stateful-ui.md)に記載しています。
+
+探索系commandはread-onlyです。`non-web-review`は指定した新規記録ファイルだけを書き、監査対象を変更しません。非Web対象は`non-web-review init`で文書・スライド、動画・音声、イベント、参加導線のいずれかを選び、5観点の未実施記録を作れます。`validate`、`report`、`compare`で人手確認・改善案・再確認を扱います。出力は`audit-runs/`などの非公開フォルダに保存してください。これはWCAG／JISの評価台帳ではなく、根拠ファイルの実バイト照合も行いません。
 
 ## 5分で試す
 
@@ -177,17 +205,21 @@ https://example.com/
 
 ## 詳細ドキュメント
 
+- [人手レビューの記録・主張範囲・監査の状態確認](docs/human-review-and-status.md)
+- [Issueの優先順位と実装範囲](docs/issue-priorities.md)
 - [はじめに：最初の1回と利用経路](docs/getting-started.md)
 - [実行可能な3経路のexamples](examples/README.md)
 - [レポート形式、HTMLアクセシビリティ、検証境界](docs/report-formats.md)
 - [アーキテクチャ、役割、成果物、日英用語集](docs/architecture-and-glossary.md)
 - [実Web検査とbrowser／network境界](docs/web-inspection.md)
-- [Codex向けagent orchestration](codex/skills/information-accessibility-practice/references/agent-orchestration.md)
+- [Codex向けagent orchestration](shared/skill/references/agent-orchestration.md)
 - [Claude向けagent orchestration](claude/skills/information-accessibility-practice/references/agent-orchestration.md)
-- [規格assessmentと証拠レベル](codex/skills/information-accessibility-practice/references/standards-assessment.md)
+- [規格assessmentと証拠レベル](shared/skill/references/standards-assessment.md)
 - [セキュリティ方針](SECURITY.md)
 - [コントリビューション手順](CONTRIBUTING.md)
 - [変更履歴](CHANGELOG.md)
+- [対応版と移行方針](docs/version-support.md)
+- [配布候補の作成とリリース手順](docs/releasing.md)
 - [第三者資料の帰属と利用条件](THIRD_PARTY_NOTICES.md)
 
 ## 証拠と主張の境界
@@ -203,7 +235,7 @@ AIエージェントが作成または更新するプロファイル要件行は
 
 ## 開発と保守
 
-変更前に[CONTRIBUTING.md](CONTRIBUTING.md)を確認してください。通常の完全検証は次です。
+変更前に[CONTRIBUTING.md](CONTRIBUTING.md)を確認してください。共通skillは`shared/skill`が編集元で、Codex／Claude向けskillは同期生成物です。通常の完全検証は次です。
 
 ```powershell
 node .\scripts\verify-all.mjs
@@ -211,6 +243,16 @@ node .\scripts\verify-all.mjs
 
 セキュリティ上の問題は公開Issueへ秘密情報を貼らず、[SECURITY.md](SECURITY.md)の案内に従ってください。
 
+現在のpackage `0.1.0` は開発版です。再現にはcommit SHAも記録してください。配布候補には版とcommit、SHA-256一覧を添え、公開済みreleaseとローカルでの検証結果を区別します。
+
 ## ライセンス
 
 オリジナルのコードと文書は[MIT License](LICENSE)です。第三者規格メタデータには各提供元の条件が残ります。詳細は[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)を確認してください。
+
+出典・採用版・利用条件・加工内容は[機械可読の出典台帳](shared/skill/references/third-party-sources.json)に記録しています。Markdown／HTMLレポートにも帰属表示を付け、カタログ更新候補には利用条件の再確認待ちを示す付属ファイルを生成します。利用条件が未確認の資料をMITで補完せず、商用利用や再配布の権利確認が完了したとも扱いません。
+
+対象箇所に結び付いた確認候補は `review-queue` で作成できます。[人手確認queueの作成・登録・旧形式の扱い](shared/skill/references/human-review-queue.md)を参照してください。
+
+記入済みのpayloadから4種類の標準artifactを作る場合は `artifact init`、編集後の登録前確認には `artifact validate` を使います。ID・版・日時・入力hashはCLIが設定します。[エージェントなしでの作成手順](shared/skill/references/agent-orchestration.md#authoring-without-agent-dispatch)を参照してください。
+
+登録済みのキューは `human-review export` でCSV・Markdown・Excelへ出力し、確認者の記入後に `human-review import` でレビュー候補へ変換できます。[入力方法、一部提出、複数の確認者、再提出の扱い](shared/skill/references/human-review-worksheet.md)を確認してください。取り込みでは本人性を認証せず、runも自動更新しません。
