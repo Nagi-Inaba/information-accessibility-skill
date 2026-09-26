@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
@@ -8,7 +7,6 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const skillRoot = path.join(root, "codex", "skills", "information-accessibility-practice");
 const references = path.join(skillRoot, "references");
-const sourceRoot = path.join(root, "docs", "sources", "michecker");
 const validatorUrl = pathToFileURL(path.join(skillRoot, "scripts", "lib", "json-schema.mjs"));
 
 function readJson(file) {
@@ -45,17 +43,15 @@ test("common Web catalog contains the eleven source-derived tool-independent pat
   assert.match(catalog.patterns.find((item) => item.id === "SCREEN-WEB-DUPLICATE-ID").claim_boundary, /not automatically a failure/i);
 });
 
-test("the official FAQ source pack preserves the original PDF and readable extraction", () => {
-  const record = readJson(path.join(sourceRoot, "source-record.json"));
-  const pdf = path.join(root, ...record.local_pdf.split("/"));
-  const extracted = path.join(root, ...record.local_extracted_text.split("/"));
-  const bytes = fs.readFileSync(pdf);
-  assert.equal(bytes.subarray(0, 5).toString("ascii"), "%PDF-");
-  assert.equal(bytes.length, record.pdf_bytes);
-  assert.equal(crypto.createHash("sha256").update(bytes).digest("hex"), record.pdf_sha256);
-  assert.equal(record.pdf_pages, 17);
-  const text = fs.readFileSync(extracted, "utf8");
-  assert.match(text, /2024年4月版/u);
-  assert.match(text, /## Page 17/u);
-  assert.ok(text.length > 10000);
+test("screening patterns retain the official FAQ source and attribution without research copies", () => {
+  const catalog = readJson(path.join(references, "common-web-failure-patterns.json"));
+  const manifest = readJson(path.join(references, "third-party-sources.json"));
+  const source = manifest.sources.find((item) => item.id === "MIC-MICHECKER-FAQ");
+  assert.ok(source);
+  assert.equal(new URL(source.url).hostname, "www.soumu.go.jp");
+  assert.match(source.version, /2024年4月版/u);
+  assert.match(source.attribution, /総務省/u);
+  assert.equal(source.terms_id, null);
+  assert.equal(source.terms_status, "reference_only_terms_unreviewed");
+  assert.ok(catalog.patterns.every((item) => item.primary_sources.includes(source.url)));
 });

@@ -212,7 +212,7 @@
       "legal_review_status": "not_legally_reviewed",
       "attribution": "参照：総務省 miChecker関連FAQ（2024年4月版）。",
       "modification_notice": "独自の11観測パターンを作成。FAQ本文・図版・ツール出力を配布スキルへ転載していない。",
-      "redistribution_notes": "原資料の利用条件は未確認。docs/sources/micheckerの研究用原本・抽出物はMITと扱わず、スキル配布物から除外する。原本を別途配布する前に提供元の条件を確認する。",
+      "redistribution_notes": "原資料の利用条件は未確認。研究用原本・抽出全文は公開ソースツリーおよびスキル配布物に含めず、公式出典へのリンクと独自の分類を保持する。原本を別途配布する前に提供元の条件を確認する。",
       "derivative_notice": null,
       "reviewed_source_sha256": null,
       "checked_on": "2026-09-19",

@@ -9,6 +9,7 @@ Thank you for improving the information-accessibility skill package.
 3. Preserve Codex and Claude distribution parity for shared runtime files.
 4. Add or update regression tests for behavior changes.
 5. Do not commit raw real-audit artifacts, credentials, private URLs, local paths, or personally identifying evidence. Reviewed public case-study documents must meet the conditions below.
+6. Keep agent work plans, internal implementation reviews, status notes, and research originals or full-text extractions outside the public source tree. Use issues, pull requests, and the changelog for public progress; retain official source links and attribution in the source register.
 
 ## Public case-study documents
 

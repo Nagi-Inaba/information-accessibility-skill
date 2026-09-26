@@ -1,6 +1,6 @@
 # Public audit case studies and feedback
 
-This directory contains reviewed, public case-study documents and user feedback about the accessibility skill. These documents are edited summaries, not a store for raw audit artifacts or independently verified conformance results. `docs/reviews/` covers this repository's tooling design and implementation plans.
+This directory contains reviewed, public case-study documents and user feedback about the accessibility skill. These documents are edited summaries, not a store for raw audit artifacts or independently verified conformance results.
 
 - [Transportation-Accessibility detail case study](2026-09-06-transportation-accessibility-detail-review.md): a contributor's static-screening observations, edited on 2026-09-14 to distinguish evidence from untested behavior and list all 55 web-modern criteria individually. This edit is not a fresh audit of the live site.
 - [Follow-up and improvement criteria](2026-09-06-transportation-accessibility-detail-review-followup.md): the reported usability problems, unresolved anchor-navigation hypothesis, reproduction steps, and four proposed skill improvements with acceptance criteria. The improvements remain unimplemented.

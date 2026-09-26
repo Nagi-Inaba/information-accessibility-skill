@@ -35,7 +35,7 @@ The five-gate participation model organizes practical accessibility review acros
 - `common-web-failure-patterns.json` contains eleven original, tool-independent screening patterns derived from the April 2024 FAQ and rechecked against current W3C sources. The catalog preserves ambiguous mappings as human-review candidates. It does not reproduce the FAQ text or convert a tool message into a WCAG or JIS result.
 - `screening-observations.schema.json` records `candidate_issue`, `no_automated_signal`, or `inconclusive` separately from report outcomes. It also records collection method, tool name and version, rule ID, target DOM reference, and viewport when available.
 - A mapped screening observation must be routed through an input-linked human-review queue. In particular, no automated signal is never treated as a pass.
-- The FAQ research original, extracted text, integrity hash, and related manual links are retained outside the distributed skill under `docs/sources/michecker/`.
+- The FAQ is referenced by its official URL above. Research originals and full-text extractions are not included in the public source tree or distributed skill.
 - The ACTF evaluation flow and worksheet informed the separation of signal triage, target-specific human judgement, and reproducible evidence fields. No ACTF code, result adapter, CSV parser, or application dependency is bundled.
 
 ## Distribution Boundary
