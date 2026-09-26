@@ -206,7 +206,7 @@ For a new run, use `init` with `--inspection-mode quick|detailed --inspection-pu
 ## Detailed documentation
 
 - [Human review records, claim tiers, and audit status (Japanese)](docs/human-review-and-status.md)
-- [Issue priorities and implementation scope (Japanese)](docs/issue-priorities.md)
+- [Feature requests, bugs, and progress](https://github.com/Nagi-Inaba/information-accessibility-skill/issues)
 - [Getting started: first run and usage paths](docs/getting-started.md)
 - [Runnable examples for all three paths](examples/README.md)
 - [Report formats, HTML accessibility, and verification boundaries](docs/report-formats.md)

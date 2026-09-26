@@ -49,6 +49,8 @@ function fixture(t) {
   write(path.join(checkout, "docs/reviews/private-review.md"), "DO_NOT_SHIP_INTERNAL_REVIEW");
   write(path.join(checkout, ".env"), "DO_NOT_SHIP_ENV_SECRET");
   run("git", ["init", "--quiet"], checkout);
+  // Exercise archive filtering even when ignored research files were force-added.
+  run("git", ["add", "--force", "--", "docs/sources/research-original.txt", "docs/reviews/private-review.md"], checkout);
   commitFixture(checkout);
   write(path.join(checkout, "audit-runs/private.json"), JSON.stringify({ private: "DO_NOT_SHIP_AUDIT_EVIDENCE" }));
   return { base, checkout };

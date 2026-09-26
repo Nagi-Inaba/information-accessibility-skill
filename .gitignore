@@ -9,3 +9,8 @@ node_modules/
 # Internal agent-workflow plans and implementation reports are not public package assets.
 .superpowers/
 docs/superpowers/
+
+# Internal review/status records and research originals stay outside the public tree.
+/docs/reviews/
+/docs/sources/
+/docs/issue-priorities.md

@@ -8,6 +8,8 @@ This project uses a Keep a Changelog-style structure. Until a tagged release is 
 
 ### Changed
 
+- Removed internal plans, implementation reviews, status notes, and research source copies from the public source tree; retained official source links and attribution.
+
 - Reviewed the Digital Agency accessibility policy against the monitored source on 2026-09-25. The 18 additional criterion mappings and routing are unchanged; the catalog source hash, review date and attribution binding now match the reviewed page.
 
 ### Added
