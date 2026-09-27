@@ -220,6 +220,7 @@ For a new run, use `init` with `--inspection-mode quick|detailed --inspection-pu
 - [Changelog](CHANGELOG.md)
 - [Supported versions and migration](docs/version-support.md)
 - [Release candidate preparation and publication](docs/releasing.md)
+- [CLI reference for every command](docs/cli-reference.md)
 - [Third-party attribution and terms](THIRD_PARTY_NOTICES.md)
 
 ## Evidence and claim boundary

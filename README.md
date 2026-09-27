@@ -220,6 +220,7 @@ https://example.com/
 - [変更履歴](CHANGELOG.md)
 - [対応版と移行方針](docs/version-support.md)
 - [配布候補の作成とリリース手順](docs/releasing.md)
+- [全コマンドのCLIリファレンス](docs/cli-reference.md)
 - [第三者資料の帰属と利用条件](THIRD_PARTY_NOTICES.md)
 
 ## 証拠と主張の境界
