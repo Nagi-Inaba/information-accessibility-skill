@@ -43,6 +43,8 @@ node scripts/build-criteria-catalog.mjs --check
 node --test tests/*.test.mjs
 ```
 
+`docs/cli-reference.md` is generated from the CLI command registry. After adding or changing a command, its options, or its localized help, run `node scripts/build-cli-reference.mjs --write`; `tests/cli-reference.test.mjs` fails when the committed page is out of date.
+
 Platform-specific behavior must remain covered by the Ubuntu/Windows CI matrix.
 
 ## Source and distribution parity
