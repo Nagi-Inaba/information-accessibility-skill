@@ -65,7 +65,7 @@ test("release archive pins the source, preserves every manifest byte and exclude
   assert.equal(hash(fs.readFileSync(archive)), manifest.archive.sha256);
   const extracted = path.join(base, "extracted");
   fs.mkdirSync(extracted);
-  run("tar", ["-xzf", archive, "-C", extracted], checkout);
+  run("tar", ["-xzf", path.relative(extracted, archive).split(path.sep).join("/")], extracted);
   const packageRoot = path.join(extracted, result.archive.replace(/\.tar\.gz$/u, ""));
   const walk = directory => fs.readdirSync(directory, { withFileTypes: true }).flatMap(entry => entry.isDirectory()
     ? walk(path.join(directory, entry.name)) : [path.relative(packageRoot, path.join(directory, entry.name)).split(path.sep).join("/")]);
