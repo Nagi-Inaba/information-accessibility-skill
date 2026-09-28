@@ -81,7 +81,8 @@ function verifyArchive(archive, stem, files) {
   try {
     const archiveFile = path.join(temporary, "candidate.tar.gz");
     fs.writeFileSync(archiveFile, archive, { flag: "wx", mode: 0o600 });
-    const extraction = spawnSync("tar", ["-xzf", archiveFile, "-C", temporary], { maxBuffer: 1024 * 1024, timeout: 30_000, windowsHide: true });
+    // Relative operands keep GNU tar (Git for Windows) from reading "C:" as a remote host.
+    const extraction = spawnSync("tar", ["-xzf", "candidate.tar.gz"], { cwd: temporary, maxBuffer: 1024 * 1024, timeout: 30_000, windowsHide: true });
     if (extraction.error) throw extraction.error;
     if (extraction.status !== 0) throw new Error("Release archive extraction failed; a tar implementation supporting gzip is required.");
     const extractedRoot = path.join(temporary, stem);
@@ -123,7 +124,7 @@ function archiveCommittedSource(root, commit, sourceFiles, stem) {
     const sourceArchive = git(root, ["-c", "core.autocrlf=false", "archive", "--format=tar", "--prefix=source/", commit, "--", ...sourcePaths]);
     const inputArchive = path.join(temporary, "source.tar");
     fs.writeFileSync(inputArchive, sourceArchive, { flag: "wx" });
-    const extraction = spawnSync("tar", ["-xf", inputArchive, "-C", temporary], { maxBuffer: 1024 * 1024, timeout: 30_000, windowsHide: true });
+    const extraction = spawnSync("tar", ["-xf", "source.tar"], { cwd: temporary, maxBuffer: 1024 * 1024, timeout: 30_000, windowsHide: true });
     if (extraction.error) throw extraction.error;
     if (extraction.status !== 0) throw new Error("Committed source extraction failed.");
     const stageRoot = path.join(temporary, "source");
