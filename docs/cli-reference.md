@@ -11,19 +11,19 @@ The Japanese blocks are the actual `--locale ja` output. Text without a Japanese
 
 | Command / コマンド | Summary | 概要 |
 | --- | --- | --- |
-| [`artifact`](#artifact) | Wrap a completed payload in a run-bound candidate, or check it before registration. | （英語のみ） |
-| [`review-queue`](#review-queue) | Create a target-bound human review candidate from registered observations and explicit requirements. | （英語のみ） |
+| [`artifact`](#artifact) | Wrap a completed payload in a run-bound candidate, or check it before registration. | 完成したpayloadをrunに紐づく候補artifactへ包むか、登録前に検査します。 |
+| [`review-queue`](#review-queue) | Create a target-bound human review candidate from registered observations and explicit requirements. | 登録済みobservationと明示した条項から、対象に紐づく人手レビュー候補を作成します。 |
 | [`audit-bundle`](#audit-bundle) | Prepare or verify offline commitments to audit files and a signed predecessor chain. | 保存した監査ファイルと前段の署名を、オフラインで準備・照合します。 |
-| [`human-review`](#human-review) | Export/import human review worksheets; prepare, verify or apply portable review records. | （英語のみ） |
-| [`network-policy`](#network-policy) | Propose concrete target and official-source network scopes without granting or using network access. | （英語のみ） |
-| [`import`](#import) | Import native axe-core results as private, run-bound screening candidates. | （英語のみ） |
-| [`bind-targets`](#bind-targets) | Remeasure and bind a target inventory once, before any artifact registration. | （英語のみ） |
-| [`compare-targets`](#compare-targets) | Compare the measured identities of two bound runs without contacting live targets. | （英語のみ） |
-| [`capture-targets`](#capture-targets) | Measure file, Git, HTTP or saved web-state identities into a private run companion. | （英語のみ） |
-| [`bind-evidence`](#bind-evidence) | Bind an existing private evidence file to one draft screening observation. | （英語のみ） |
-| [`compare-runs`](#compare-runs) | Compare a linked retest with its predecessor using registered findings, human outcomes and screening signals. | （英語のみ） |
-| [`compare-evidence`](#compare-evidence) | Compare validated saved evidence before and after a change, for private review. | （英語のみ） |
-| [`lifecycle`](#lifecycle) | Create immutable private finding-management revisions linked to registered audit findings. | （英語のみ） |
+| [`human-review`](#human-review) | Export/import human review worksheets; prepare, verify or apply portable review records. | 人手レビューのworksheetを書き出し・取り込み、持ち運べるレビュー記録を準備・照合・適用します。 |
+| [`network-policy`](#network-policy) | Propose concrete target and official-source network scopes without granting or using network access. | network接続を許可も使用もせずに、対象と公式資料のnetwork範囲を具体的に提案します。 |
+| [`import`](#import) | Import native axe-core results as private, run-bound screening candidates. | axe-coreの結果を、runに紐づく非公開のscreening候補として取り込みます。 |
+| [`bind-targets`](#bind-targets) | Remeasure and bind a target inventory once, before any artifact registration. | artifactを登録する前に一度だけ、対象inventoryを再測定して固定します。 |
+| [`compare-targets`](#compare-targets) | Compare the measured identities of two bound runs without contacting live targets. | 実際の対象へ接続せずに、固定済みの2つのrunの測定済み識別情報を比較します。 |
+| [`capture-targets`](#capture-targets) | Measure file, Git, HTTP or saved web-state identities into a private run companion. | file、Git、HTTP、保存済みWeb状態の識別情報を測定し、非公開のrun付属ファイルへ記録します。 |
+| [`bind-evidence`](#bind-evidence) | Bind an existing private evidence file to one draft screening observation. | 既存の非公開証拠fileを、下書きのscreening observation 1件へ紐づけます。 |
+| [`compare-runs`](#compare-runs) | Compare a linked retest with its predecessor using registered findings, human outcomes and screening signals. | 登録済みfinding、人手outcome、screening signalを使い、再検査runを前のrunと比較します。 |
+| [`compare-evidence`](#compare-evidence) | Compare validated saved evidence before and after a change, for private review. | 変更前後の検証済み保存証拠を、非公開レビュー用に比較します。 |
+| [`lifecycle`](#lifecycle) | Create immutable private finding-management revisions linked to registered audit findings. | 登録済みの監査findingに紐づく、不変で非公開のfinding管理revisionを作成します。 |
 | [`status`](#status) | Read run state, evidence coverage, validation, successor warnings and next operations. | 監査の状態、証拠の範囲、検証結果、後続runと次の操作を読み取ります。 |
 | [`init`](#init) | Create a new immutable audit run. | 新しい不変のaudit runを作成します。 |
 | [`assessment`](#assessment) | Create a validator-valid assessment record or an explicit placeholder template. | validator-validなassessment recordまたは明示的なplaceholder templateを作成します。 |
@@ -31,9 +31,9 @@ The Japanese blocks are the actual `--locale ja` output. Text without a Japanese
 | [`profiles`](#profiles) | List active standards profiles, counts, groups, sources, and claim ceilings. | activeな規格profile、件数、group、source、claim上限を一覧表示します。 |
 | [`requirements`](#requirements) | List, search, or show WCAG/JIS requirements without requiring internal IDs. | 内部IDを知らなくてもWCAG・JIS条項を一覧・検索・表示できます。 |
 | [`requirement`](#requirement) | Show one registered requirement by exact internal ID (legacy-compatible entry point). | 正確な内部IDで登録済み条項を1件表示します（legacy互換入口）。 |
-| [`preflight-web`](#preflight-web) | Measure Web inspection capabilities on an isolated fixture without inspecting a target. | （英語のみ） |
+| [`preflight-web`](#preflight-web) | Measure Web inspection capabilities on an isolated fixture without inspecting a target. | 対象を検査せずに、分離したfixtureでWeb検査の実行能力を測定します。 |
 | [`doctor`](#doctor) | Diagnose Node, package, registry, distribution, and optional browser capabilities. | Node、package、registry、distribution、任意browser capabilityを診断します。 |
-| [`non-web-review`](#non-web-review) | Create, validate, report, and compare private participation reviews for non-Web targets. | （英語のみ） |
+| [`non-web-review`](#non-web-review) | Create, validate, report, and compare private participation reviews for non-Web targets. | Web以外の対象について、非公開の参加レビューを作成・検証・報告・比較します。 |
 | [`screen-reader-checklist`](#screen-reader-checklist) | Show supporting checks for stateful UI and screen-reader behavior. | 状態を持つUIとscreen-reader動作の補助checkを表示します。 |
 | [`validate-run`](#validate-run) | Validate an immutable audit run and write a new validation record. | 不変のaudit runを検証し、新しいvalidation recordを書き出します。 |
 | [`validate-assessment`](#validate-assessment) | Validate an assessment and print its coverage and claim guard result. | assessmentを検証し、coverageとclaim guard結果を表示します。 |
@@ -111,19 +111,19 @@ Recommended private output: audit-runs/<run-id>/; explicitly export and review p
   --locale <ja|en>             表示言語。jaまたはenを指定します。
 
 コマンド:
-  artifact                 Wrap a completed payload in a run-bound candidate, or check it before registration.
-  review-queue             Create a target-bound human review candidate from registered observations and explicit requirements.
+  artifact                 完成したpayloadをrunに紐づく候補artifactへ包むか、登録前に検査します。
+  review-queue             登録済みobservationと明示した条項から、対象に紐づく人手レビュー候補を作成します。
   audit-bundle             保存した監査ファイルと前段の署名を、オフラインで準備・照合します。
-  human-review             Export/import human review worksheets; prepare, verify or apply portable review records.
-  network-policy           Propose concrete target and official-source network scopes without granting or using network access.
-  import                   Import native axe-core results as private, run-bound screening candidates.
-  bind-targets             Remeasure and bind a target inventory once, before any artifact registration.
-  compare-targets          Compare the measured identities of two bound runs without contacting live targets.
-  capture-targets          Measure file, Git, HTTP or saved web-state identities into a private run companion.
-  bind-evidence            Bind an existing private evidence file to one draft screening observation.
-  compare-runs             Compare a linked retest with its predecessor using registered findings, human outcomes and screening signals.
-  compare-evidence         Compare validated saved evidence before and after a change, for private review.
-  lifecycle                Create immutable private finding-management revisions linked to registered audit findings.
+  human-review             人手レビューのworksheetを書き出し・取り込み、持ち運べるレビュー記録を準備・照合・適用します。
+  network-policy           network接続を許可も使用もせずに、対象と公式資料のnetwork範囲を具体的に提案します。
+  import                   axe-coreの結果を、runに紐づく非公開のscreening候補として取り込みます。
+  bind-targets             artifactを登録する前に一度だけ、対象inventoryを再測定して固定します。
+  compare-targets          実際の対象へ接続せずに、固定済みの2つのrunの測定済み識別情報を比較します。
+  capture-targets          file、Git、HTTP、保存済みWeb状態の識別情報を測定し、非公開のrun付属ファイルへ記録します。
+  bind-evidence            既存の非公開証拠fileを、下書きのscreening observation 1件へ紐づけます。
+  compare-runs             登録済みfinding、人手outcome、screening signalを使い、再検査runを前のrunと比較します。
+  compare-evidence         変更前後の検証済み保存証拠を、非公開レビュー用に比較します。
+  lifecycle                登録済みの監査findingに紐づく、不変で非公開のfinding管理revisionを作成します。
   status                   監査の状態、証拠の範囲、検証結果、後続runと次の操作を読み取ります。
   init                     新しい不変のaudit runを作成します。
   assessment               validator-validなassessment recordまたは明示的なplaceholder templateを作成します。
@@ -131,9 +131,9 @@ Recommended private output: audit-runs/<run-id>/; explicitly export and review p
   profiles                 activeな規格profile、件数、group、source、claim上限を一覧表示します。
   requirements             内部IDを知らなくてもWCAG・JIS条項を一覧・検索・表示できます。
   requirement              正確な内部IDで登録済み条項を1件表示します（legacy互換入口）。
-  preflight-web            Measure Web inspection capabilities on an isolated fixture without inspecting a target.
+  preflight-web            対象を検査せずに、分離したfixtureでWeb検査の実行能力を測定します。
   doctor                   Node、package、registry、distribution、任意browser capabilityを診断します。
-  non-web-review           Create, validate, report, and compare private participation reviews for non-Web targets.
+  non-web-review           Web以外の対象について、非公開の参加レビューを作成・検証・報告・比較します。
   screen-reader-checklist  状態を持つUIとscreen-reader動作の補助checkを表示します。
   validate-run             不変のaudit runを検証し、新しいvalidation recordを書き出します。
   validate-assessment      assessmentを検証し、coverageとclaim guard結果を表示します。
@@ -172,7 +172,7 @@ Notes:
 ### 日本語
 
 ```text
-Wrap a completed payload in a run-bound candidate, or check it before registration.
+完成したpayloadをrunに紐づく候補artifactへ包むか、登録前に検査します。
 
 使用方法:
   accessibility-audit artifact init --run <run.json> --type <type> --payload <payload.json> [--input <registered-ART-id>] [--artifact-id <ART-id>] --output <artifacts/new-candidate.json>
@@ -206,7 +206,7 @@ Notes:
 ### 日本語
 
 ```text
-Create a target-bound human review candidate from registered observations and explicit requirements.
+登録済みobservationと明示した条項から、対象に紐づく人手レビュー候補を作成します。
 
 使用方法:
   accessibility-audit review-queue --run <run.json> --artifact-id <ART-id> --output <artifacts/new-queue.json> [--scope screening|profile_all] [--requirement <profile-requirement-id>]
@@ -292,7 +292,7 @@ Notes:
 ### 日本語
 
 ```text
-Export/import human review worksheets; prepare, verify or apply portable review records.
+人手レビューのworksheetを書き出し・取り込み、持ち運べるレビュー記録を準備・照合・適用します。
 
 使用方法:
   accessibility-audit human-review prepare --assessment <assessment.json> --review <declared-review.json> --reviewer-id <id> --output <new-record.json>
@@ -326,7 +326,7 @@ Notes:
 ### 日本語
 
 ```text
-Propose concrete target and official-source network scopes without granting or using network access.
+network接続を許可も使用もせずに、対象と公式資料のnetwork範囲を具体的に提案します。
 
 使用方法:
   accessibility-audit network-policy [--target <URL>] [--exact-target <URL>] [--include-official-sources true] [--profile <id>] [--method GET|HEAD] [--allow-localhost true] [--output <new-policy.json>]
@@ -355,7 +355,7 @@ Notes:
 ### 日本語
 
 ```text
-Import native axe-core results as private, run-bound screening candidates.
+axe-coreの結果を、runに紐づく非公開のscreening候補として取り込みます。
 
 使用方法:
   accessibility-audit import axe --run <bound-run.json> --input <artifacts/axe.json> --output <artifacts/new-screening.json> [--target-ref <declared-URL>] [--configuration <artifacts/config.json>] [--record-output <artifacts/new-import.json>] [--artifact-id <ART-id>]
@@ -383,7 +383,7 @@ Notes:
 ### 日本語
 
 ```text
-Remeasure and bind a target inventory once, before any artifact registration.
+artifactを登録する前に一度だけ、対象inventoryを再測定して固定します。
 
 使用方法:
   accessibility-audit bind-targets --run <unbound-run.json> --targets <artifacts/targets.json> [--allow-origin <origin>] [--allow-url <exact-URL>] [--allow-localhost true] [--network-log-output <artifacts/network.json>] --output <new-bound-run.json>
@@ -409,7 +409,7 @@ Notes:
 ### 日本語
 
 ```text
-Compare the measured identities of two bound runs without contacting live targets.
+実際の対象へ接続せずに、固定済みの2つのrunの測定済み識別情報を比較します。
 
 使用方法:
   accessibility-audit compare-targets --before <run.json> --after <run.json> --output <after-artifacts/new-target-comparison.json>
@@ -437,7 +437,7 @@ Notes:
 ### 日本語
 
 ```text
-Measure file, Git, HTTP or saved web-state identities into a private run companion.
+file、Git、HTTP、保存済みWeb状態の識別情報を測定し、非公開のrun付属ファイルへ記録します。
 
 使用方法:
   accessibility-audit capture-targets --run <run.json> --specs <target-specs.json> [--after-version <new-version>] [--allow-origin <origin>] [--allow-url <exact-URL>] [--allow-localhost true] [--network-log-output <artifacts/network.json>] --output <artifacts/new-targets.json>
@@ -466,7 +466,7 @@ Notes:
 ### 日本語
 
 ```text
-Bind an existing private evidence file to one draft screening observation.
+既存の非公開証拠fileを、下書きのscreening observation 1件へ紐づけます。
 
 使用方法:
   accessibility-audit bind-evidence --run <run.json> --artifact <draft.json> --observation <SCREEN-id> --file <saved-file> --type <dom_snapshot|accessibility_tree|screenshot|interaction_log|network_log|other> --target-ref <declared-target> --captured-at <RFC3339> [--snapshot-id <id>] --output <new-artifact.json>
@@ -494,7 +494,7 @@ Notes:
 ### 日本語
 
 ```text
-Compare a linked retest with its predecessor using registered findings, human outcomes and screening signals.
+登録済みfinding、人手outcome、screening signalを使い、再検査runを前のrunと比較します。
 
 使用方法:
   accessibility-audit compare-runs --before <old-run.json> --after <retest-run.json> --output <after-artifacts/delta.json> --report <after-artifacts/delta.md> [--mapping <private-mapping.json>]
@@ -521,7 +521,7 @@ Notes:
 ### 日本語
 
 ```text
-Compare validated saved evidence before and after a change, for private review.
+変更前後の検証済み保存証拠を、非公開レビュー用に比較します。
 
 使用方法:
   accessibility-audit compare-evidence --before <run.json> --after <run.json> --output <new-private-comparison.json>
@@ -549,7 +549,7 @@ Notes:
 ### 日本語
 
 ```text
-Create immutable private finding-management revisions linked to registered audit findings.
+登録済みの監査findingに紐づく、不変で非公開のfinding管理revisionを作成します。
 
 使用方法:
   accessibility-audit lifecycle init --run <run.json> --finding <finding-id> --output <artifacts/lifecycle-1.json> [--updated-at <RFC3339>]
@@ -925,7 +925,7 @@ Notes:
 ### 日本語
 
 ```text
-Measure Web inspection capabilities on an isolated fixture without inspecting a target.
+対象を検査せずに、分離したfixtureでWeb検査の実行能力を測定します。
 
 使用方法:
   accessibility-audit preflight-web [--browser-channel chrome] [--require <comma-separated-capabilities>] [--format text|json]
@@ -998,7 +998,7 @@ Notes:
 ### 日本語
 
 ```text
-Create, validate, report, and compare private participation reviews for non-Web targets.
+Web以外の対象について、非公開の参加レビューを作成・検証・報告・比較します。
 
 使用方法:
   accessibility-audit non-web-review init --kind <document-slide|media-content|event-community|participation-workflow> --id <id> --name <name> --version <version> --scope <scope> --output <new.json>
