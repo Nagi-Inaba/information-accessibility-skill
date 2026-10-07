@@ -72,14 +72,16 @@ test("the skill runtime has no static import cycles", () => {
   assert.deepEqual(cycles(), []);
 });
 
-// The network guard and the safe file layer must stay below the audit control plane and the CLI scripts, so a
-// low-level helper can never pull in the code that depends on it.
+// The network guard, the safe file layer and the public-report sanitizer must stay below the audit control plane
+// and the CLI scripts, so a low-level helper can never pull in the code that depends on it.
 const leafImports = new Map([
   ["lib/text-order.mjs", []],
   ["lib/network-address.mjs", []],
   ["lib/inspection-endpoint.mjs", ["lib/network-address.mjs"]],
   ["lib/canonical-json.mjs", []],
-  ["lib/safe-file-io.mjs", ["lib/canonical-json.mjs"]]
+  ["lib/safe-file-io.mjs", ["lib/canonical-json.mjs"]],
+  ["lib/report-judgement.mjs", []],
+  ["lib/public-report-sanitizer.mjs", ["lib/network-address.mjs"]]
 ]);
 
 for (const [leaf, allowed] of leafImports) {
