@@ -7,7 +7,7 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { verifyPackage } from "./verify-package.mjs";
 import { buildDistribution, executableSkillScripts } from "./sync-distributions.mjs";
-import { assertNewOutputPath, writeNewText } from "../shared/skill/scripts/lib/audit-run.mjs";
+import { assertNewOutputPath, writeNewText } from "../shared/skill/scripts/lib/safe-file-io.mjs";
 
 const defaultRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const rootFiles = new Set(["README.md", "README.en.md", "LICENSE", "SECURITY.md", "CONTRIBUTING.md", "CHANGELOG.md", "THIRD_PARTY_NOTICES.md", "release-files.json", ".gitattributes", ".gitignore"]);

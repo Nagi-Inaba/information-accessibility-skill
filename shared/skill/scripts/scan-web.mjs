@@ -4,7 +4,7 @@ import path from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
 
-import { assertNewOutputPath, writeNewJson } from "./lib/audit-run.mjs";
+import { assertNewOutputPath, writeNewJson } from "./lib/safe-file-io.mjs";
 import { normalizeOrigin, runAutomatedWebScan } from "./lib/automated-web-scan.mjs";
 import { prepareNetworkCapture } from "./lib/network-cli.mjs";
 

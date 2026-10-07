@@ -2,7 +2,7 @@ import path from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
 
-import { assertStableFile, writeNewJson } from "./lib/audit-run.mjs";
+import { assertStableFile, writeNewJson } from "./lib/safe-file-io.mjs";
 import {
   acquireFixLease,
   assertLeaseOutputPath,

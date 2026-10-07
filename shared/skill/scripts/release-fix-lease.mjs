@@ -2,7 +2,7 @@ import path from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
 
-import { assertStableFile, readStableFile } from "./lib/audit-run.mjs";
+import { assertStableFile, readStableFile } from "./lib/safe-file-io.mjs";
 import { loadFixAuthorization, releaseFixLease } from "./lib/fix-lease.mjs";
 
 function parseArgs(argv) {

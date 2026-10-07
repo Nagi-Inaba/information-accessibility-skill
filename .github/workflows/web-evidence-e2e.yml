@@ -6,6 +6,7 @@ on:
       - "shared/skill/scripts/capture-web-evidence.mjs"
       - "shared/skill/scripts/scan-web.mjs"
       - "shared/skill/scripts/lib/automated-web-scan.mjs"
+      - "**/scripts/lib/inspection-endpoint.mjs"
       - "tests/web-evidence-*.test.mjs"
       - "**/scripts/preflight-web.mjs"
       - "**/scripts/lib/web-capabilities.mjs"

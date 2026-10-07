@@ -70,3 +70,30 @@ test("public visibility rejects malformed URLs without recursion and preserves o
   assert.ok(manifest.redactions.some((entry) => entry.reason === "authorization_token_removed"));
   assert.equal(JSON.stringify(manifest).includes("EDGE-SECRET-1234567890"), false);
 });
+
+function sanitizedTargetUrl(url) {
+  const candidate = presentation();
+  candidate.target.urls_or_files = [url];
+  return applyReportVisibility(candidate, { visibility: "public", reviewerDisclosure: "redact" });
+}
+
+test("public visibility withholds every non-public target host, including IPv6 and reserved-name forms", () => {
+  // Same address space the Web network guard refuses; the URL parser rewrites mapped-IPv4 to hex groups.
+  for (const url of [
+    "http://10.0.0.5/", "http://192.88.99.1/", "http://[::ffff:10.0.0.5]/", "http://[::ffff:172.17.0.1]/",
+    "http://[::ffff:192.168.1.1]/", "http://[::ffff:7f00:1]/", "http://[64:ff9b::a00:1]/", "http://[2002:7f00:1::]/",
+    "http://[fec0::1]/", "http://[100::1]/", "http://[2001::1]/", "http://app.localhost/",
+    "http://printer.localdomain/", "http://intranet.corp/"
+  ]) {
+    const { presentation: sanitized, manifest } = sanitizedTargetUrl(url);
+    assert.equal(sanitized.target.urls_or_files[0], "[redacted]", url);
+    assert.ok(manifest.redactions.some((entry) => entry.reason === "private_or_reserved_host"), url);
+  }
+});
+
+test("public visibility keeps ordinary public hosts", () => {
+  for (const url of ["https://example.com/", "http://8.8.8.8/", "http://[2001:4860:4860::8888]/"]) {
+    const { presentation: sanitized } = sanitizedTargetUrl(url);
+    assert.equal(sanitized.target.urls_or_files[0], url, url);
+  }
+});

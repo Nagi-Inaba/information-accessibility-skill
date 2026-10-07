@@ -3,7 +3,7 @@ import path from "node:path";
 import process from "node:process";
 import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
-import { assertNewOutputPath, writeNewText } from "../shared/skill/scripts/lib/audit-run.mjs";
+import { assertNewOutputPath, writeNewText } from "../shared/skill/scripts/lib/safe-file-io.mjs";
 import { catalogCandidateProvenance } from "../shared/skill/scripts/lib/source-provenance.mjs";
 import { verifySourceNotices } from "./verify-source-provenance.mjs";
 

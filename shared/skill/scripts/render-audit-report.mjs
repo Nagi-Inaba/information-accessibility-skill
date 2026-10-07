@@ -2,6 +2,7 @@ import fs from "node:fs";
 import { publicQueueItem, queueReviewLines } from "./lib/human-review-queue.mjs";
 import { renderSourceNoticesMarkdown } from "./lib/source-provenance.mjs";
 import { networkScopeSummary, networkScopeText } from "./lib/network-policy.mjs";
+import { hasReservedHostnameSuffix, isNonPublicHostname, isPrivateAddress, isPrivateIpv4 } from "./lib/network-address.mjs";
 import { interactionScopeSummary, interactionScopeText } from "./lib/interaction-policy.mjs";
 import { guardScreeningProjection, groupScreeningProjections, screeningProjections, screeningReviewRecord, reviewDetailLines } from "./lib/review-details.mjs";
 import { isIP } from "node:net";
@@ -466,91 +467,14 @@ function isMachineSpecificEnvironmentValue(value) {
     .some((match) => /[0-9.-]/u.test(match[1]));
   return /\blocalhost\b/iu.test(normalized)
     || hostnameTokens.some((token) => hasReservedHostnameSuffix(token))
-    || ipv4Tokens.some((token) => isNonPublicIpv4(token))
-    || ipv6Tokens.some((token) => isIP(token) === 6 && isNonPublicIpv6(token))
+    || ipv4Tokens.some((token) => isPrivateIpv4(token))
+    || ipv6Tokens.some((token) => isIP(token) === 6 && isPrivateAddress(token))
     || contextualHostname.test(normalized)
     || identifierIsHostname
     || /\b(?:DESKTOP|LAPTOP)-[A-Za-z0-9-]+\b/iu.test(normalized)
     || /\b[A-Za-z0-9][A-Za-z0-9._-]*-(?:PC|MAC|LAPTOP|DESKTOP|WS[0-9A-Z-]{2,})\b/iu.test(normalized)
     || /\b(?:WIN|MAC|HOST)-[A-Za-z0-9-]{3,}\b/iu.test(normalized)
     || /\b[A-Za-z0-9][A-Za-z0-9_-]*\.(?:local|lan)\b/iu.test(normalized);
-}
-
-const reservedHostnameSuffixes = [
-  "local",
-  "lan",
-  "internal",
-  "localhost",
-  "invalid",
-  "test",
-  "example",
-  "corp",
-  "localdomain",
-  "home.arpa"
-];
-
-function hasReservedHostnameSuffix(hostname) {
-  const normalized = hostname.toLowerCase().replace(/\.$/u, "");
-  return reservedHostnameSuffixes.some((suffix) => normalized === suffix || normalized.endsWith(`.${suffix}`));
-}
-
-function isNonPublicIpv4(hostname) {
-  const octets = hostname.split(".").map((part) => Number.parseInt(part, 10));
-  if (octets.length !== 4 || octets.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) return true;
-  const [first, second, third] = octets;
-  return first === 0
-    || first === 10
-    || first === 127
-    || (first === 100 && second >= 64 && second <= 127)
-    || (first === 169 && second === 254)
-    || (first === 172 && second >= 16 && second <= 31)
-    || (first === 192 && second === 168)
-    || (first === 192 && second === 0 && (third === 0 || third === 2))
-    || (first === 198 && (second === 18 || second === 19 || (second === 51 && third === 100)))
-    || (first === 203 && second === 0 && third === 113)
-    || first >= 224;
-}
-
-function expandIpv6(hostname) {
-  const normalized = hostname.toLowerCase().replace(/^\[|\]$/gu, "").split("%", 1)[0];
-  const halves = normalized.split("::");
-  if (halves.length > 2) return null;
-  const left = halves[0] ? halves[0].split(":") : [];
-  const right = halves.length === 2 && halves[1] ? halves[1].split(":") : [];
-  const missing = halves.length === 2 ? 8 - left.length - right.length : 0;
-  const parts = [...left, ...Array.from({ length: missing }, () => "0"), ...right];
-  if (parts.length !== 8 || parts.some((part) => !/^[0-9a-f]{1,4}$/u.test(part))) return null;
-  return parts.map((part) => Number.parseInt(part, 16));
-}
-
-function isNonPublicIpv6(hostname) {
-  const parts = expandIpv6(hostname);
-  if (!parts) return true;
-  const allZero = parts.every((part) => part === 0);
-  const loopback = parts.slice(0, 7).every((part) => part === 0) && parts[7] === 1;
-  const ipv4Mapped = parts.slice(0, 5).every((part) => part === 0) && parts[5] === 0xffff;
-  const ipv4Compatible = parts.slice(0, 6).every((part) => part === 0) && !allZero && !loopback;
-  if (ipv4Mapped || ipv4Compatible) {
-    const ipv4 = `${parts[6] >> 8}.${parts[6] & 0xff}.${parts[7] >> 8}.${parts[7] & 0xff}`;
-    if (isNonPublicIpv4(ipv4)) return true;
-  }
-  return allZero
-    || loopback
-    || (parts[0] & 0xfe00) === 0xfc00
-    || (parts[0] & 0xffc0) === 0xfe80
-    || (parts[0] & 0xffc0) === 0xfec0
-    || (parts[0] & 0xff00) === 0xff00
-    || (parts[0] === 0x2001 && parts[1] === 0x0db8);
-}
-
-function isNonPublicHostname(hostname) {
-  const normalized = hostname.toLowerCase().replace(/^\[|\]$/gu, "").replace(/\.$/u, "");
-  const ipVersion = isIP(normalized);
-  if (ipVersion === 4) return isNonPublicIpv4(normalized);
-  if (ipVersion === 6) return isNonPublicIpv6(normalized);
-  return normalized === "localhost"
-    || !normalized.includes(".")
-    || hasReservedHostnameSuffix(normalized);
 }
 
 function isBranchLikeVersion(value) {

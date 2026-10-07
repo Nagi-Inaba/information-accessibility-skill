@@ -6,12 +6,12 @@ import https from "node:https";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { assertStableFile, inspectRealComponents, readStableFile, resolveInside } from "./audit-run.mjs";
+import { assertStableFile, inspectRealComponents, readStableFile, resolveInside } from "./safe-file-io.mjs";
 import { canonicalJson } from "./canonical-json.mjs";
 import { isRfc3339DateTime } from "./date-time.mjs";
 import { isSafeRelativePath } from "./evidence-identity-validation.mjs";
 import { createTargetIdentity, targetDigest, targetIdentityErrors, compareTargetIdentities } from "./target-identity.mjs";
-import { parseTargetUrl, resolveInspectionEndpoint } from "../capture-web-evidence.mjs";
+import { parseTargetUrl, resolveInspectionEndpoint } from "./inspection-endpoint.mjs";
 
 const MAX_BYTES = 50 * 1024 * 1024;
 const DEFAULT_BYTES = 10 * 1024 * 1024;
