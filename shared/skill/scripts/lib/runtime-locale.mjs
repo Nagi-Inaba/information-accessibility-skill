@@ -7,8 +7,6 @@ const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
 const defaultSkillRoot = path.dirname(path.dirname(scriptDirectory));
 const localeFile = path.join(defaultSkillRoot, "references/runtime-locales.json");
 const checklistLocaleFile = path.join(defaultSkillRoot, "references/screen-reader-ui-checks.ja.json");
-const methodLocaleFile = path.join(defaultSkillRoot, "references/web-audit-methods.ja.json");
-const procedureLocaleFile = path.join(defaultSkillRoot, "references/criterion-procedures.ja.json");
 
 function readJson(file) {
   return JSON.parse(fs.readFileSync(file, "utf8").replace(/^\uFEFF/u, ""));

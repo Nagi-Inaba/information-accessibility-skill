@@ -140,24 +140,6 @@ function canonicalSourceDirectory(rootPath, errors) {
   }
 }
 
-function canonicalPath(filePath) {
-  return path.resolve(filePath);
-}
-
-function fileIsUnderRoot(targetPath, rootPath) {
-  const target = canonicalPath(targetPath);
-  const root = canonicalPath(rootPath);
-  if (target === root) return true;
-  const relative = path.relative(root, target);
-  if (!relative || relative.startsWith("..") || path.isAbsolute(relative)) return false;
-  const normalized = relative.split(path.sep).join("/");
-  return !normalized.startsWith("..") && !path.isAbsolute(normalized);
-}
-
-function relativePath(targetPath, rootPath) {
-  return path.relative(canonicalPath(rootPath), canonicalPath(targetPath)).split(path.sep).join("/");
-}
-
 function addError(errors, message) {
   errors.push(message);
 }
@@ -377,7 +359,6 @@ export function validateAuthorizedTarget({ authorization, targetFile, sourceRoot
     return { errors, warnings };
   }
 
-  const canonicalSourceRoot = validatedSourceRoot.canonical;
   const canonicalAuthSourceRoot = validatedAuthSourceRoot.canonical;
 
   let targetCandidate = targetFile;

@@ -11,6 +11,10 @@ export function pathKey(value) {
   return process.platform === "win32" ? normalized.toLowerCase() : normalized;
 }
 
+export function samePath(left, right) {
+  return pathKey(left) === pathKey(right);
+}
+
 export function isWithinPath(parent, candidate) {
   const relative = path.relative(path.resolve(parent), path.resolve(candidate));
   return relative === "" || (!path.isAbsolute(relative) && relative !== ".." && !relative.startsWith(`..${path.sep}`));

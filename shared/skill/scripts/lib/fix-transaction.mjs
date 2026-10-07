@@ -18,19 +18,11 @@ import { acquireFixLease, DEFAULT_FIX_LEASE_DIRECTORY, releaseFixLease } from ".
 import { executeAuthorizedVerificationCommands } from "./fix-verification.mjs";
 import { FIX_LEDGER_DIRECTORY, fixLedgerPaths } from "./fix-ledger-path.mjs";
 import { executionReceiptRelativePath, expectedExecutionReceipt } from "./fix-execution-evidence.mjs";
+import { pathKey, samePath } from "./safe-file-io.mjs";
 
 const SHA256_PATTERN = /^[a-f0-9]{64}$/u;
 const MAX_TEXT_BYTES = 1024 * 1024;
 export const DEFAULT_FIX_CONSUMPTION_LEDGER_DIRECTORY = FIX_LEDGER_DIRECTORY;
-
-function pathKey(value) {
-  const normalized = path.normalize(path.resolve(value));
-  return process.platform === "win32" ? normalized.toLowerCase() : normalized;
-}
-
-function samePath(left, right) {
-  return pathKey(left) === pathKey(right);
-}
 
 function pathsOverlap(left, right) {
   const leftToRight = path.relative(path.resolve(left), path.resolve(right));

@@ -14,21 +14,13 @@ import {
 } from "./audit-run.mjs";
 import { validateAuthorizedTarget } from "./fix-authorization.mjs";
 import { compareInstants, dateTimeExample, isRfc3339DateTime } from "./date-time.mjs";
+import { pathKey, samePath } from "./safe-file-io.mjs";
 
 export const FIX_LEASE_VERSION = "1.0.0";
 export const FIX_LEASE_TTL_MS = 120 * 60 * 1000;
 export const DEFAULT_FIX_LEASE_DIRECTORY = path.join(os.tmpdir(), "information-accessibility-practice", "fix-leases");
 
 const SHA256_PATTERN = /^[a-f0-9]{64}$/u;
-
-function pathKey(value) {
-  const normalized = path.normalize(path.resolve(value));
-  return process.platform === "win32" ? normalized.toLowerCase() : normalized;
-}
-
-function samePath(left, right) {
-  return pathKey(left) === pathKey(right);
-}
 
 function isStrictlyInside(parent, candidate) {
   const relative = path.relative(path.resolve(parent), path.resolve(candidate));
