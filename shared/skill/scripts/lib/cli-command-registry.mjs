@@ -393,43 +393,6 @@ const definitions = [
 
 export const commandDefinitions = new Map(definitions.map((definition) => [definition.name, Object.freeze(definition)]));
 
-function renderOption(item) {
-  const left = `${item.flag}${item.value ? ` ${item.value}` : ""}`;
-  return `  ${left.padEnd(40)} ${item.description}`;
-}
-
-export function rootHelpText() {
-  const commandLines = [...commandDefinitions].map(([name, definition]) => `  ${name.padEnd(24)} ${definition.summary}`);
-  return [
-    "Information Accessibility Audit CLI",
-    "",
-    "Usage:",
-    "  accessibility-audit <command> [options]",
-    "  accessibility-audit --version",
-    "",
-    "Global options:",
-    "  --help, -h                 Show this help.",
-    "  --version                  Show package and installed contract versions.",
-    "",
-    "Commands:",
-    ...commandLines,
-    "",
-    "This command is a thin, read-only control-plane wrapper around the installed skill runtime.",
-    "It does not evaluate conformance by itself and does not expose target mutation.",
-    "Run accessibility-audit <command> --help for command-specific usage."
-  ].join("\n");
-}
-
-export function commandHelpText(name) {
-  const definition = commandDefinitions.get(name);
-  if (!definition) throw new Error(`Unknown command: ${name}`);
-  const lines = [definition.summary, "", "Usage:", ...definition.usage.map((usage) => `  ${usage}`)];
-  if (definition.options?.length) lines.push("", "Options:", ...definition.options.map(renderOption));
-  if (definition.defaults?.length) lines.push("", "Defaults:", ...definition.defaults.map((value) => `  ${value}`));
-  if (definition.notes?.length) lines.push("", "Notes:", ...definition.notes.map((value) => `  - ${value}`));
-  return lines.join("\n");
-}
-
 function readJson(file) {
   return JSON.parse(fs.readFileSync(file, "utf8").replace(/^\uFEFF/u, ""));
 }

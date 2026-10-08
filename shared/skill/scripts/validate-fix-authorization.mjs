@@ -1,7 +1,6 @@
 import fs from "node:fs";
-import path from "node:path";
 import process from "node:process";
-import { readStableFile, assertStableFile } from "./lib/audit-run.mjs";
+import { readStableFile, assertStableFile } from "./lib/safe-file-io.mjs";
 import { validateFixAuthorization } from "./lib/fix-authorization.mjs";
 
 function parseArguments(argv) {

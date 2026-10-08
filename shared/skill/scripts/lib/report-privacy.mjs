@@ -1,4 +1,4 @@
-import { isIP } from "node:net";
+import { isNonPublicHostname, isPrivateIpv4 } from "./network-address.mjs";
 import { declaredFindings, findingPlanMetadata, remediationPlanItems } from "./run-findings.mjs";
 import { groupScreeningProjections, screeningReviewRecord } from "./review-details.mjs";
 import { reviewEntries, resolveHumanReviews, consensusReviewRows, consensusRemediationItems, reviewHistoryForReport } from "./human-review-consensus.mjs";
@@ -18,46 +18,6 @@ export function normalizeReportVisibility(value = "internal") {
 export function normalizeReviewerDisclosure(value) {
   if (!["include", "redact"].includes(value)) throw new Error("--reviewer-disclosure must be include or redact");
   return value;
-}
-
-function ipv4Private(value) {
-  const parts = value.split(".").map((part) => Number.parseInt(part, 10));
-  if (parts.length !== 4 || parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) return true;
-  const [a, b, c] = parts;
-  return a === 0 || a === 10 || a === 127
-    || (a === 100 && b >= 64 && b <= 127)
-    || (a === 169 && b === 254)
-    || (a === 172 && b >= 16 && b <= 31)
-    || (a === 192 && b === 168)
-    || (a === 192 && b === 0 && (c === 0 || c === 2))
-    || (a === 198 && (b === 18 || b === 19 || (b === 51 && c === 100)))
-    || (a === 203 && b === 0 && c === 113)
-    || a >= 224;
-}
-
-function ipv6Private(value) {
-  const normalized = value.toLowerCase().replace(/^\[|\]$/gu, "").split("%", 1)[0];
-  return normalized === "::" || normalized === "::1"
-    || normalized.startsWith("fc") || normalized.startsWith("fd")
-    || /^fe[89ab]/u.test(normalized)
-    || normalized.startsWith("ff")
-    || normalized.startsWith("2001:db8:")
-    || normalized.startsWith("::ffff:10.")
-    || normalized.startsWith("::ffff:127.")
-    || normalized.startsWith("::ffff:169.254.")
-    || normalized.startsWith("::ffff:172.16.")
-    || normalized.startsWith("::ffff:192.168.");
-}
-
-function privateHostname(hostname) {
-  const normalized = String(hostname ?? "").toLowerCase().replace(/^\[|\]$/gu, "").replace(/\.$/u, "");
-  const version = isIP(normalized);
-  if (version === 4) return ipv4Private(normalized);
-  if (version === 6) return ipv6Private(normalized);
-  return normalized === "localhost"
-    || !normalized.includes(".")
-    || [".local", ".lan", ".internal", ".corp", ".home.arpa", ".test", ".invalid", ".example"]
-      .some((suffix) => normalized.endsWith(suffix));
 }
 
 function addRedaction(entries, path, reason, action) {
@@ -94,7 +54,7 @@ function sanitizeUrl(value, location, entries) {
     addRedaction(entries, location, "non_http_reference", "redacted");
     return redacted;
   }
-  if (privateHostname(parsed.hostname)) {
+  if (isNonPublicHostname(parsed.hostname)) {
     addRedaction(entries, location, "private_or_reserved_host", "redacted");
     return redacted;
   }
@@ -135,7 +95,7 @@ function sanitizeText(value, location, entries) {
   result = replacePattern(result, /(?<![\w.])(?:\+\d{1,3}[ -]?)?(?:\d[ -]?){8,14}\d(?!\w)/gu, redacted, location, "phone_removed", entries);
   result = replacePattern(result, /\b(?:DESKTOP|LAPTOP|WIN|MAC|HOST)-[A-Z0-9-]+\b/giu, redacted, location, "machine_identifier_removed", entries);
   result = result.replace(/\b(?:\d{1,3}\.){3}\d{1,3}\b/gu, (candidate) => {
-    if (!ipv4Private(candidate)) return candidate;
+    if (!isPrivateIpv4(candidate)) return candidate;
     addRedaction(entries, location, "private_ip_removed", "redacted");
     return redacted;
   });

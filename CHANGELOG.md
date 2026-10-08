@@ -123,6 +123,7 @@ This project uses a Keep a Changelog-style structure. Until a tagged release is 
 - Assessment generation now separates templates from validated records and uses the shared safe writer.
 - Additional WCAG requirement IDs used by `jp-public-web` are accepted by screening validation.
 - Formal claim blockers are separated from auxiliary screening candidates.
+- Public report visibility (`report --visibility public`) now withholds every target host that the Web network guard refuses, and records the reason in the redaction manifest. This adds IPv4-mapped, NAT64, 6to4 and site-local IPv6 forms, `192.88.99.0/24`, and `*.localhost` / `*.localdomain` names. Earlier builds kept some of these hosts; regenerate public reports made with them and complete publication review again.
 
 ## Compatibility notes
 

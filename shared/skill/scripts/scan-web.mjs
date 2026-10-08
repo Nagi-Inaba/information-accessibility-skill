@@ -4,7 +4,7 @@ import path from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
 
-import { assertNewOutputPath, writeNewJson } from "./lib/audit-run.mjs";
+import { assertNewOutputPath, pathKey, writeNewJson } from "./lib/safe-file-io.mjs";
 import { normalizeOrigin, runAutomatedWebScan } from "./lib/automated-web-scan.mjs";
 import { prepareNetworkCapture } from "./lib/network-cli.mjs";
 
@@ -110,11 +110,6 @@ export function parseScanWebArgs(argv) {
   options.viewport = { width: options.width, height: options.height };
   if (options.browserChannel !== undefined && options.browserChannel !== "chrome") throw new ScanWebUsageError("--browser-channel accepts only chrome.");
   return options;
-}
-
-function pathKey(value) {
-  const resolved = path.resolve(value);
-  return process.platform === "win32" ? resolved.toLowerCase() : resolved;
 }
 
 function outputPath(value, label) {

@@ -2,7 +2,7 @@
 import crypto from "node:crypto";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { assertStableFile, writeNewJson } from "./lib/audit-run.mjs";
+import { assertStableFile, writeNewJson } from "./lib/safe-file-io.mjs";
 import { readReviewJson, loadReviewTrust } from "./lib/review-trust-input.mjs";
 import { prepareAuditBundle, verifyAuditBundle, verifyAuditBundleChain, bundleAssuranceOrder } from "./lib/audit-bundle.mjs";
 

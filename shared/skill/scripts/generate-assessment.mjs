@@ -3,7 +3,7 @@ import crypto from "node:crypto";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { writeNewJson } from "./lib/audit-run.mjs";
+import { writeNewJson } from "./lib/safe-file-io.mjs";
 import { profileConfiguration, recordsForProfile } from "./lib/profile-registry.mjs";
 import { validateAssessment } from "./validate-assessment.mjs";
 

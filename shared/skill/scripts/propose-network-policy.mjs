@@ -1,6 +1,6 @@
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { assertStableFile, readStableFile, writeNewJson } from "./lib/audit-run.mjs";
+import { assertStableFile, readStableFile, writeNewJson } from "./lib/safe-file-io.mjs";
 import { createNetworkPolicy, networkUrl } from "./lib/network-policy.mjs";
 
 const skillRoot = path.dirname(path.dirname(fileURLToPath(import.meta.url)));

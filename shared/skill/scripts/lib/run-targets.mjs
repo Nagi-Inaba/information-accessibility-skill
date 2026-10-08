@@ -1,6 +1,6 @@
 import { canonicalJson } from "./canonical-json.mjs";
 import { targetDigest, targetIdentityErrors, compareTargetIdentities } from "./target-identity.mjs";
-import { observeTarget, observeLocalTarget, assertTargetUnchanged } from "./target-observer.mjs";
+import { observeTarget, observeLocalTarget } from "./target-observer.mjs";
 import { assertNetworkPolicy } from "./network-policy.mjs";
 
 const checks = new WeakMap();

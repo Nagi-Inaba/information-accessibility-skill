@@ -1,20 +1,16 @@
-import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { spawnSync as defaultSpawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 import { validateAuthorizedTarget } from "./fix-authorization.mjs";
+import { sha256Bytes } from "./safe-file-io.mjs";
 
 const VERIFIER_EXECUTABLE = "a11y-file-verify";
 const ALLOWED_MODES = new Set(["exists", "utf8", "json"]);
 const DEFAULT_TIMEOUT_MS = 30_000;
 const MAX_OUTPUT_BYTES = 1024 * 1024;
 const verifierScript = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "verify-authorized-file.mjs");
-
-function sha256Bytes(bytes) {
-  return crypto.createHash("sha256").update(bytes).digest("hex");
-}
 
 function utcSeconds(value) {
   const date = value instanceof Date ? value : new Date(value);

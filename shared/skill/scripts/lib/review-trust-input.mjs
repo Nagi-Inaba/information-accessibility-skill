@@ -1,5 +1,5 @@
 import path from "node:path";
-import { readStableFile } from "./audit-run.mjs";
+import { readStableFile } from "./safe-file-io.mjs";
 import { parseAttestationJson } from "./attestation-canonical.mjs";
 import { createAttestationTrust } from "./attestation-verifier.mjs";
 

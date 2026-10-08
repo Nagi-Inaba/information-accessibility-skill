@@ -12,6 +12,7 @@ import {
 } from "../capture-web-evidence.mjs";
 import { validateJsonSchema } from "./json-schema.mjs";
 import { canonicalJson as artifactJson } from "./canonical-json.mjs";
+import { sanitizeNetworkUrl } from "./inspection-endpoint.mjs";
 
 const LIMITS = { text: 2_000, contextItems: 100, contextNodes: 20, frameEntries: 50, contextBytes: 512 * 1024 };
 const VERSIONS = { axe: "4.13.0", playwright: "1.62.1" };
@@ -52,25 +53,12 @@ function canonical(value) {
   return value;
 }
 
-function canonicalJson(value) {
+function compactCanonicalJson(value) {
   return JSON.stringify(canonical(value));
 }
 
 function readJson(file) {
   return JSON.parse(fs.readFileSync(file, "utf8").replace(/^\uFEFF/u, ""));
-}
-
-function sanitizeUrl(value) {
-  try {
-    const url = new URL(value);
-    url.username = "";
-    url.password = "";
-    url.search = "";
-    url.hash = "";
-    return url.href;
-  } catch {
-    return "withheld-invalid-url";
-  }
 }
 
 export function truncateCodePoints(value, limit = LIMITS.text) {
@@ -152,11 +140,11 @@ function normalizeRule(rule, kind, source, frame, engine, profileMap) {
     targets: [], identity_targets: [], html: "", html_truncated: false,
     failure_summary: "", failure_summary_truncated: false
   }]) {
-    const identity = canonicalJson({
+    const identity = compactCanonicalJson({
       engine,
       rule_id: rule.id,
       frame_path: frame.path,
-      frame_url: sanitizeUrl(frame.url),
+      frame_url: sanitizeNetworkUrl(frame.url),
       targets: node.identity_targets,
       failure_summary: node.failure_summary,
       impact: rule.impact ?? null
@@ -176,7 +164,7 @@ function normalizeRule(rule, kind, source, frame, engine, profileMap) {
     criterion_relation: "reference_only",
     profile_requirement_ids: profileIds,
     occurrence_count: groupedNodes.length,
-    frame: { path: frame.path, url: sanitizeUrl(frame.url) },
+    frame: { path: frame.path, url: sanitizeNetworkUrl(frame.url) },
     nodes: groupedNodes.map(({ identity_targets: _ignored, ...node }) => node)
   }));
 }
@@ -259,8 +247,8 @@ export function buildAutomatedScanContext(scan, sourceScanSha256) {
     stability: "experimental",
     source_scan_sha256: sourceScanSha256,
     target: {
-      requested_url: sanitizeUrl(scan.target.requested_url),
-      final_url: sanitizeUrl(scan.target.final_url),
+      requested_url: sanitizeNetworkUrl(scan.target.requested_url),
+      final_url: sanitizeNetworkUrl(scan.target.final_url),
       http_status: scan.target.http_status,
       dom_sha256: scan.target.dom_sha256,
       ax_tree_sha256: scan.target.ax_tree_sha256
@@ -310,7 +298,7 @@ export function buildAutomatedScanContext(scan, sourceScanSha256) {
 }
 
 export function scanSha256(scan) {
-  return sha256(canonicalJson(scan));
+  return sha256(compactCanonicalJson(scan));
 }
 
 function packageVersion(name) {
@@ -471,12 +459,12 @@ export async function runAutomatedWebScan(options) {
             frame: descriptor,
             engine: { name: "axe-core", version: axeVersion }
           }));
-          entries.push({ frame_path: descriptor.path, url: sanitizeUrl(descriptor.url), status: "succeeded", reason: null });
+          entries.push({ frame_path: descriptor.path, url: sanitizeNetworkUrl(descriptor.url), status: "succeeded", reason: null });
         } catch (caught) {
           const reason = truncateCodePoints(caught instanceof Error ? caught.message : String(caught), 500).value;
-          entries.push({ frame_path: descriptor.path, url: sanitizeUrl(descriptor.url), status: "failed", reason });
+          entries.push({ frame_path: descriptor.path, url: sanitizeNetworkUrl(descriptor.url), status: "failed", reason });
           aggregate.review_candidates.push({
-            dedup_key: sha256(`frame-error:${descriptor.path}:${sanitizeUrl(descriptor.url)}:${reason}`),
+            dedup_key: sha256(`frame-error:${descriptor.path}:${sanitizeNetworkUrl(descriptor.url)}:${reason}`),
             kind: "review_candidate",
             source: "axe-frame-error",
             rule_id: "frame-scan",
@@ -487,7 +475,7 @@ export async function runAutomatedWebScan(options) {
             criterion_relation: "reference_only",
             profile_requirement_ids: [],
             occurrence_count: 1,
-            frame: { path: descriptor.path, url: sanitizeUrl(descriptor.url) },
+            frame: { path: descriptor.path, url: sanitizeNetworkUrl(descriptor.url) },
             nodes: []
           });
         }
@@ -497,7 +485,7 @@ export async function runAutomatedWebScan(options) {
       const reflow = await reflowProbe(session.page, options.reflowWidth ?? 320, viewport, profileMap);
       if (reflow.candidates.length) {
         aggregate.review_candidates.push({
-          dedup_key: sha256(canonicalJson({ rule: "reflow-overflow", candidates: reflow.candidates })),
+          dedup_key: sha256(compactCanonicalJson({ rule: "reflow-overflow", candidates: reflow.candidates })),
           kind: "review_candidate",
           source: "internal-reflow-probe",
           rule_id: "reflow-overflow",
@@ -508,7 +496,7 @@ export async function runAutomatedWebScan(options) {
           criterion_relation: "reference_only",
           profile_requirement_ids: reflow.profile_requirement_ids,
           occurrence_count: reflow.candidates.length,
-          frame: { path: "0", url: sanitizeUrl(session.finalUrl.href) },
+          frame: { path: "0", url: sanitizeNetworkUrl(session.finalUrl.href) },
           nodes: []
         });
       }
@@ -568,7 +556,7 @@ export async function runAutomatedWebScan(options) {
           reflow,
           blocked_requests: evidence.network.blocked_requests
         },
-        raw_result_sha256: sha256(canonicalJson(rawResults)),
+        raw_result_sha256: sha256(compactCanonicalJson(rawResults)),
         interpretation: "Automated scan results are machine observations and do not by themselves determine formal WCAG conformance."
       };
       validate(scan, path.join(skillRoot, "references", "automated-web-scan.schema.json"), "Automated scan");

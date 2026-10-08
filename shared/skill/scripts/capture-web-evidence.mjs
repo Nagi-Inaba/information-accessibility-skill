@@ -1,11 +1,9 @@
 import crypto from "node:crypto";
-import { lookup } from "node:dns/promises";
-import { isIP, createServer } from "node:net";
+import { createServer } from "node:net";
 import path from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
-
-import { assertNewOutputPath, writeNewJson } from "./lib/audit-run.mjs";
+import { assertNewOutputPath, writeNewJson } from "./lib/safe-file-io.mjs";
 import { canonicalJson } from "./lib/canonical-json.mjs";
 import { createNetworkSession } from "./lib/network-transport.mjs";
 import { prepareNetworkCapture } from "./lib/network-cli.mjs";
@@ -13,178 +11,18 @@ import { installBrowserNetworkGateway } from "./lib/browser-network-gateway.mjs"
 import { createBrowserInteractionAdapter } from "./lib/browser-interaction-adapter.mjs";
 import { createInteractionSession } from "./lib/interaction-session.mjs";
 import { assertWebCapabilities, browserLaunchOptions, loadWebRuntime, preflightWeb, unavailableWebCapabilities, WebCapabilityError } from "./lib/web-capabilities.mjs";
+import { WebInspectionError, sanitizeNetworkUrl, parseTargetUrl, resolveInspectionEndpoint, buildHostResolverRules } from "./lib/inspection-endpoint.mjs";
+
+export { WebInspectionError, sanitizeNetworkUrl, parseTargetUrl, resolveInspectionEndpoint, buildHostResolverRules } from "./lib/inspection-endpoint.mjs";
+export { isPrivateAddress } from "./lib/network-address.mjs";
 
 const DEFAULT_VIEWPORT = { width: 1280, height: 800 };
 const SAFE_LOCAL_PROTOCOLS = new Set(["about:", "blob:", "data:"]);
 const MAX_BLOCKED_REQUEST_ENTRIES = 500;
 const MAX_BLOCKED_CHANNEL_ENTRIES = 100;
 
-export class WebInspectionError extends Error {
-  constructor(message, { exitCode = 3, code = "WEB_INSPECTION_ERROR", cause } = {}) {
-    super(message, cause ? { cause } : undefined);
-    this.name = "WebInspectionError";
-    this.exitCode = exitCode;
-    this.code = code;
-  }
-}
-
 export function sha256(value) {
   return crypto.createHash("sha256").update(value).digest("hex");
-}
-
-function normalizeIpLiteral(value) {
-  return String(value)
-    .trim()
-    .replace(/^\[|\]$/gu, "")
-    .replace(/%.+$/u, "")
-    .toLowerCase();
-}
-
-function isPrivateIpv4(address) {
-  const octets = address.split(".").map(Number);
-  if (octets.length !== 4 || octets.some((value) => !Number.isInteger(value) || value < 0 || value > 255)) return true;
-  const [a, b, c] = octets;
-  return a === 0
-    || a === 10
-    || (a === 100 && b >= 64 && b <= 127)
-    || a === 127
-    || (a === 169 && b === 254)
-    || (a === 172 && b >= 16 && b <= 31)
-    || (a === 192 && b === 0 && c === 0)
-    || (a === 192 && b === 0 && c === 2)
-    || (a === 192 && b === 168)
-    || (a === 192 && b === 88 && c === 99)
-    || (a === 198 && (b === 18 || b === 19))
-    || (a === 198 && b === 51 && c === 100)
-    || (a === 203 && b === 0 && c === 113)
-    || a >= 224;
-}
-
-function mappedIpv4FromIpv6(address) {
-  const lower = normalizeIpLiteral(address);
-  if (!lower.startsWith("::ffff:")) return null;
-  const dottedMatch = /(?:^|:)(\d{1,3}(?:\.\d{1,3}){3})$/u.exec(lower);
-  if (dottedMatch) return dottedMatch[1];
-  if (!lower.startsWith("::ffff:")) return null;
-  const tail = lower.slice("::ffff:".length).split(":");
-  if (tail.length !== 2 || tail.some((part) => !/^[a-f0-9]{1,4}$/u.test(part))) return null;
-  const high = Number.parseInt(tail[0], 16);
-  const low = Number.parseInt(tail[1], 16);
-  return `${high >>> 8}.${high & 0xff}.${low >>> 8}.${low & 0xff}`;
-}
-
-export function isPrivateAddress(value) {
-  let address = normalizeIpLiteral(value);
-  const family = isIP(address);
-  if (family === 4) return isPrivateIpv4(address);
-  if (family !== 6) return false;
-  address = new URL(`http://[${address}]/`).hostname.slice(1, -1);
-
-  const mapped = mappedIpv4FromIpv6(address);
-  if (mapped) return isPrivateIpv4(mapped);
-
-  if (address === "::" || address === "::1") return true;
-  const firstGroup = Number.parseInt(address.split(":")[0] || "0", 16);
-  // Fail closed outside globally routable unicast, including site-local,
-  // discard-only, NAT64 and other special-use prefixes.
-  if ((firstGroup & 0xe000) !== 0x2000) return true;
-  if (firstGroup === 0x2001 && Number.parseInt(address.split(":")[1] || "0", 16) < 0x200) return true;
-  if (firstGroup === 0x3fff && Number.parseInt(address.split(":")[1] || "0", 16) < 0x1000) return true;
-  if ((firstGroup & 0xffc0) === 0xfe80) return true;
-  if ((firstGroup & 0xfe00) === 0xfc00) return true;
-  if ((firstGroup & 0xff00) === 0xff00) return true;
-  if (address.startsWith("2001:db8:") || address === "2001:db8::") return true;
-  if (address.startsWith("2001:0:") || address === "2001::") return true;
-  if (address.startsWith("2002:")) return true;
-  return false;
-}
-
-function isExplicitLoopback(hostname) {
-  const normalized = normalizeIpLiteral(hostname);
-  return normalized === "localhost"
-    || normalized === "localhost.localdomain"
-    || normalized === "::1"
-    || (isIP(normalized) === 4 && normalized.startsWith("127."));
-}
-
-export function sanitizeNetworkUrl(value) {
-  try {
-    const url = new URL(value);
-    url.username = "";
-    url.password = "";
-    url.search = "";
-    url.hash = "";
-    return url.href;
-  } catch {
-    return "withheld-invalid-url";
-  }
-}
-
-export function parseTargetUrl(value, { allowLocalhost = false } = {}) {
-  let url;
-  try {
-    url = new URL(value);
-  } catch (cause) {
-    throw new WebInspectionError("Target URL is invalid.", { exitCode: 2, code: "INVALID_TARGET_URL", cause });
-  }
-  if (!["http:", "https:"].includes(url.protocol)) {
-    throw new WebInspectionError("Target URL must use http or https.", { exitCode: 3, code: "UNSAFE_TARGET_PROTOCOL" });
-  }
-  if (url.username || url.password) {
-    throw new WebInspectionError("Target URL must not contain credentials.", { exitCode: 3, code: "TARGET_CREDENTIALS_DENIED" });
-  }
-  if (!allowLocalhost && isExplicitLoopback(url.hostname)) {
-    throw new WebInspectionError("Localhost targets require --allow-localhost.", { exitCode: 3, code: "LOCALHOST_DENIED" });
-  }
-  return url;
-}
-
-export async function resolveInspectionEndpoint(url, { allowLocalhost = false } = {}) {
-  const hostname = normalizeIpLiteral(url.hostname);
-  if (isIP(hostname)) {
-    if (isPrivateAddress(hostname) && !(allowLocalhost && isExplicitLoopback(hostname))) {
-      throw new WebInspectionError("Private, loopback, link-local, or reserved target addresses are denied by default.", {
-        exitCode: 3,
-        code: "PRIVATE_ADDRESS_DENIED"
-      });
-    }
-    return { hostname, address: hostname, family: isIP(hostname) };
-  }
-
-  let records;
-  try {
-    records = await lookup(hostname, { all: true, verbatim: true });
-  } catch (cause) {
-    throw new WebInspectionError("Target hostname did not resolve.", { exitCode: 3, code: "DNS_RESOLUTION_FAILED", cause });
-  }
-  if (!records.length) {
-    throw new WebInspectionError("Target hostname did not resolve.", { exitCode: 3, code: "DNS_RESOLUTION_FAILED" });
-  }
-  if (records.some((record) => isPrivateAddress(record.address))) {
-    const loopbackOnly = records.every((record) => isExplicitLoopback(record.address));
-    if (!(allowLocalhost && isExplicitLoopback(hostname) && loopbackOnly)) {
-      throw new WebInspectionError("Target hostname resolves to a private, loopback, link-local, or reserved address.", {
-        exitCode: 3,
-        code: "PRIVATE_DNS_RESULT_DENIED"
-      });
-    }
-  }
-  const preferred = records.find((record) => record.family === 4) ?? records[0];
-  return { hostname, address: normalizeIpLiteral(preferred.address), family: preferred.family };
-}
-
-export function buildHostResolverRules(endpoints) {
-  const maps = [];
-  const exclusions = [];
-  for (const endpoint of endpoints) {
-    if (isIP(endpoint.hostname)) {
-      exclusions.push(`EXCLUDE ${endpoint.hostname}`);
-      continue;
-    }
-    const address = endpoint.family === 6 ? `[${endpoint.address}]` : endpoint.address;
-    maps.push(`MAP ${endpoint.hostname} ${address}`);
-  }
-  return [...maps, ...exclusions, "MAP * ~NOTFOUND"].join(", ");
 }
 
 async function resolveAllowedEndpoints(requested, allowedOrigins, options) {

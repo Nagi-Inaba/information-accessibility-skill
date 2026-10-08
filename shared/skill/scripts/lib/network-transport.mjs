@@ -1,6 +1,6 @@
 import http from "node:http";
 import https from "node:https";
-import { resolveInspectionEndpoint } from "../capture-web-evidence.mjs";
+import { resolveInspectionEndpoint } from "./inspection-endpoint.mjs";
 import { assertNetworkPolicy, assertNetworkRequest, callerNetworkScope, networkPolicyHash } from "./network-policy.mjs";
 
 const freeze = (value) => {

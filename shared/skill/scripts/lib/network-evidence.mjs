@@ -1,5 +1,5 @@
 import { networkPolicyHash, networkRequestDecision, NETWORK_ADAPTERS } from "./network-policy.mjs";
-import { isPrivateAddress } from "../capture-web-evidence.mjs";
+import { isPrivateAddress } from "./network-address.mjs";
 import { isIP } from "node:net";
 
 const instant = (value) => typeof value === "string" && /^\d{4}-\d{2}-\d{2}T/u.test(value) && Number.isFinite(Date.parse(value));
