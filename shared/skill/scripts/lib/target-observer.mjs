@@ -1,8 +1,6 @@
 import crypto from "node:crypto";
 import { createNetworkSession } from "./network-transport.mjs";
 import fs from "node:fs";
-import http from "node:http";
-import https from "node:https";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
@@ -11,7 +9,7 @@ import { canonicalJson } from "./canonical-json.mjs";
 import { isRfc3339DateTime } from "./date-time.mjs";
 import { isSafeRelativePath } from "./evidence-identity-validation.mjs";
 import { createTargetIdentity, targetDigest, targetIdentityErrors, compareTargetIdentities } from "./target-identity.mjs";
-import { parseTargetUrl, resolveInspectionEndpoint } from "./inspection-endpoint.mjs";
+import { parseTargetUrl } from "./inspection-endpoint.mjs";
 
 const MAX_BYTES = 50 * 1024 * 1024;
 const DEFAULT_BYTES = 10 * 1024 * 1024;
@@ -55,108 +53,24 @@ function fileObservation(spec, options) {
   return { snapshot, files: [file], bytes: file.bytes };
 }
 
-function permittedOrigins(policy) {
-  if (policy?.network !== "allowlisted" || !Array.isArray(policy.allowedOrigins) || !policy.allowedOrigins.length) throw new Error("HTTP target observation requires an explicit network allowlist.");
-  return new Set(policy.allowedOrigins.map((value) => {
-    const url = parseTargetUrl(value, { allowLocalhost: policy.allowLocalhost === true });
-    if (url.pathname !== "/" || url.search || url.hash) throw new Error("Allowed origins must not contain a path, query or fragment.");
-    return url.origin;
-  }));
-}
-
-function deadline(promise, signal) {
-  if (signal.aborted) return Promise.reject(signal.reason);
-  return new Promise((resolve, reject) => {
-    const abort = () => reject(signal.reason);
-    signal.addEventListener("abort", abort, { once: true });
-    promise.then(resolve, reject).finally(() => signal.removeEventListener("abort", abort));
-  });
-}
-
-async function retrieve(url, endpoint, options, signal) {
-  return await new Promise((resolve, reject) => {
-    const transport = url.protocol === "https:" ? https : http;
-    const request = transport.request(url, {
-      method: "GET", agent: false, autoSelectFamily: false, signal,
-      lookup: (_hostname, lookupOptions, callback) => lookupOptions?.all
-        ? callback(null, [{ address: endpoint.address, family: endpoint.family }])
-        : callback(null, endpoint.address, endpoint.family),
-      headers: { "accept-encoding": "identity", "user-agent": "information-accessibility-target-observer/1", "connection": "close" },
-      maxHeaderSize: 16384
-    }, (response) => {
-      const chunks = [];
-      let size = 0;
-      response.on("data", (chunk) => {
-        size += chunk.length;
-        if (size > options.maxBytes) {
-          response.destroy(new Error(`HTTP response exceeds the ${options.maxBytes}-byte limit.`));
-          return;
-        }
-        chunks.push(chunk);
-      });
-      response.on("error", reject);
-      response.on("end", () => resolve({ status: response.statusCode, headers: response.headers, bytes: Buffer.concat(chunks, size) }));
-    });
-    request.on("error", reject);
-    request.end();
-  });
-}
-
 async function httpObservation(spec, options) {
   exactSpec(spec, ["kind", "target_ref"]);
-  if (options.runNetworkPolicy || options.runId) {
-    const session = createNetworkSession({ runId: options.runId, policy: options.runNetworkPolicy, caller: options.networkPolicy });
-    const response = await session.fetch({ url: spec.target_ref, method: "GET", resource_type: "main_document" });
-    const header = (name) => typeof response.headers[name] === "string" ? response.headers[name] : null;
-    const sha256 = targetDigest(response.bytes);
-    const snapshot = createTargetIdentity({ kind: "http", targetRef: spec.target_ref,
-      identity: { requested_url: spec.target_ref, final_url: response.final_url, status: response.status,
-        etag: header("etag"), last_modified: header("last-modified"), content_type: header("content-type"), content_encoding: header("content-encoding"),
-        response_sha256: sha256, size: response.bytes.length, redirects: response.redirects, request_profile: "credential_free_get_identity_encoding_v1" },
-      evidenceBindings: [{ evidence_type: "other", sha256 }],
-      limitations: ["Captures one credential-free HTTP response under the saved run policy and explicit caller authorization.",
-        "Dynamic responses can drift between requests; rendered or authenticated states require an explicitly captured web state."] });
-    return { snapshot, files: [], bytes: response.bytes, network: session.log() };
+  // Retrieval always goes through the logged, size-bounded network session under the saved run policy.
+  if (!options.runNetworkPolicy || !options.runId) {
+    throw new Error("HTTP target observation requires the saved run network policy and run ID; use the run target commands.");
   }
-  const policy = options.networkPolicy;
-  const origins = permittedOrigins(policy);
-  const requested = parseTargetUrl(spec.target_ref, { allowLocalhost: policy.allowLocalhost === true });
-  requested.hash = "";
-  let current = requested;
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(new Error("HTTP target observation timed out.")), options.timeoutMs);
-  timer.unref();
-  const redirects = [];
-  const endpoints = [];
-  const visited = new Set();
-  try {
-    while (true) {
-      if (!origins.has(current.origin)) throw new Error("Target or redirect origin is outside the explicit network allowlist.");
-      if (visited.has(current.href)) throw new Error("HTTP target redirect loop detected.");
-      visited.add(current.href);
-      const endpoint = await deadline(resolveInspectionEndpoint(current, { allowLocalhost: policy.allowLocalhost === true }), controller.signal);
-      endpoints.push(endpoint);
-      const response = await retrieve(current, endpoint, options, controller.signal);
-      if ([301, 302, 303, 307, 308].includes(response.status)) {
-        if (redirects.length >= 5) throw new Error("HTTP target exceeded the redirect limit.");
-        if (typeof response.headers.location !== "string") throw new Error("HTTP target redirect has no Location.");
-        const next = parseTargetUrl(new URL(response.headers.location, current).href, { allowLocalhost: policy.allowLocalhost === true });
-        next.hash = "";
-        redirects.push({ from: current.href, to: next.href, status: response.status });
-        current = next;
-        continue;
-      }
-      const header = (name) => typeof response.headers[name] === "string" ? response.headers[name] : null;
-      const sha256 = targetDigest(response.bytes);
-      const snapshot = createTargetIdentity({ kind: "http", targetRef: spec.target_ref,
-        identity: { requested_url: requested.href, final_url: current.href, status: response.status,
-          etag: header("etag"), last_modified: header("last-modified"), content_type: header("content-type"), content_encoding: header("content-encoding"),
-          response_sha256: sha256, size: response.bytes.length, redirects, request_profile: "credential_free_get_identity_encoding_v1" },
-        evidenceBindings: [{ evidence_type: "other", sha256 }],
-        limitations: ["Captures one credential-free HTTP response, without executing JavaScript or authenticating.", "Dynamic responses can drift between requests; rendered or authenticated states require an explicitly captured web state."] });
-      return { snapshot, files: [], bytes: response.bytes, network: { dns_binding: "pinned_per_request", endpoints } };
-    }
-  } finally { clearTimeout(timer); }
+  const session = createNetworkSession({ runId: options.runId, policy: options.runNetworkPolicy, caller: options.networkPolicy });
+  const response = await session.fetch({ url: spec.target_ref, method: "GET", resource_type: "main_document" });
+  const header = (name) => typeof response.headers[name] === "string" ? response.headers[name] : null;
+  const sha256 = targetDigest(response.bytes);
+  const snapshot = createTargetIdentity({ kind: "http", targetRef: spec.target_ref,
+    identity: { requested_url: spec.target_ref, final_url: response.final_url, status: response.status,
+      etag: header("etag"), last_modified: header("last-modified"), content_type: header("content-type"), content_encoding: header("content-encoding"),
+      response_sha256: sha256, size: response.bytes.length, redirects: response.redirects, request_profile: "credential_free_get_identity_encoding_v1" },
+    evidenceBindings: [{ evidence_type: "other", sha256 }],
+    limitations: ["Captures one credential-free HTTP response under the saved run policy and explicit caller authorization.",
+      "Dynamic responses can drift between requests; rendered or authenticated states require an explicitly captured web state."] });
+  return { snapshot, files: [], bytes: response.bytes, network: session.log() };
 }
 
 function gitExecutable(root) {

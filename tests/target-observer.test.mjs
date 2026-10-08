@@ -9,6 +9,7 @@ import test from "node:test";
 import { observeTarget, assertTargetUnchanged } from "../codex/skills/information-accessibility-practice/scripts/lib/target-observer.mjs";
 import { targetDigest, targetIdentityErrors, compareTargetIdentities } from "../codex/skills/information-accessibility-practice/scripts/lib/target-identity.mjs";
 import { assertStableFile, readStableFile } from "../codex/skills/information-accessibility-practice/scripts/lib/audit-run.mjs";
+import { createNetworkPolicy } from "../codex/skills/information-accessibility-practice/scripts/lib/network-policy.mjs";
 
 function temporary(t) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "a11y-target-identity-"));
@@ -126,6 +127,8 @@ test("Git records untracked and deleted files, and refuses executable filters an
   assert.equal(fs.existsSync(marker), false);
 });
 
+const observeRunId = "RUN-20260918T000000Z-OBSERVE1";
+
 async function serverFixture(t) {
   let body = "<main>Static response</main>";
   let etag = '"version-1"';
@@ -135,56 +138,67 @@ async function serverFixture(t) {
     if (request.url === "/redirect") { response.writeHead(302, { location: "/page" }); response.end(); return; }
     if (request.url === "/outside") { response.writeHead(302, { location: "http://169.254.169.254/metadata" }); response.end(); return; }
     if (request.url === "/loop") { response.writeHead(302, { location: "/loop" }); response.end(); return; }
-    if (request.url === "/slow") return;
+    if (request.url === "/encoded") { response.writeHead(200, { "content-encoding": "gzip" }); response.end(body); return; }
     response.writeHead(200, { "content-type": "text/html", etag, "last-modified": "Fri, 18 Sep 2026 00:00:00 GMT" });
     response.end(request.url === "/dynamic" ? `${body} ${count}` : body);
   });
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
   t.after(() => new Promise((resolve) => { server.closeAllConnections(); server.close(resolve); }));
   const origin = `http://127.0.0.1:${server.address().port}`;
-  return { origin, policy: { network: "allowlisted", allowedOrigins: [origin], allowLocalhost: true },
+  const caller = { network: "allowlisted", allowedOrigins: [origin], allowLocalhost: true };
+  const runPolicy = createNetworkPolicy({ targetOrigins: [origin], allowLocalhost: true });
+  return { origin, caller, runPolicy, options: { runId: observeRunId, runNetworkPolicy: runPolicy, networkPolicy: caller },
     setBody(value) { body = value; }, setEtag(value) { etag = value; }, requestCount() { return count; } };
 }
 
 test("HTTP identities pin endpoints and preserve final URL, response hash, headers and retrieval time", async (t) => {
   const server = await serverFixture(t);
-  const spec = { kind: "http", target_ref: `${server.origin}/redirect#content` };
-  const options = { networkPolicy: server.policy };
-  const before = await observeTarget(spec, options);
+  const spec = { kind: "http", target_ref: `${server.origin}/redirect` };
+  const before = await observeTarget(spec, server.options);
   assert.equal(before.snapshot.identity.final_url, `${server.origin}/page`);
   assert.equal(before.snapshot.identity.redirects.length, 1);
   assert.equal(before.snapshot.identity.etag, '"version-1"');
   assert.equal(before.snapshot.identity.response_sha256, targetDigest(before.bytes));
-  assert.equal(before.network.dns_binding, "pinned_per_request");
+  assert.equal(before.network.kind, "network-request-log");
+  assert.equal(before.network.entries.length, 2);
+  assert.ok(before.network.entries.every((entry) => entry.pinned_address === "127.0.0.1" && entry.request_sent && entry.outcome === "succeeded"));
   assert.ok(before.snapshot.captured_at);
-  await assertTargetUnchanged(before.snapshot, spec, options);
+  await assertTargetUnchanged(before.snapshot, spec, server.options);
   server.setEtag('"version-2"');
-  await assert.rejects(assertTargetUnchanged(before.snapshot, spec, options), (error) => error.comparison.changed_identity_fields.includes("etag"));
+  await assert.rejects(assertTargetUnchanged(before.snapshot, spec, server.options), (error) => error.comparison.changed_identity_fields.includes("etag"));
   server.setBody("<main>New response</main>");
-  const after = await observeTarget(spec, options);
+  const after = await observeTarget(spec, server.options);
   assert.ok(compareTargetIdentities(before.snapshot, after.snapshot).changed_identity_fields.includes("response_sha256"));
 });
 
 test("dynamic HTTP responses cannot be silently reused as the same snapshot", async (t) => {
   const server = await serverFixture(t);
   const spec = { kind: "http", target_ref: `${server.origin}/dynamic` };
-  const options = { networkPolicy: server.policy };
-  const before = await observeTarget(spec, options);
+  const before = await observeTarget(spec, server.options);
   assert.ok(before.snapshot.limitations.some((item) => item.includes("Dynamic")));
-  await assert.rejects(assertTargetUnchanged(before.snapshot, spec, options), /Target drift/);
+  await assert.rejects(assertTargetUnchanged(before.snapshot, spec, server.options), /Target drift/);
 });
 
-test("HTTP observation fails closed for network denial, credentials, redirects, size and elapsed time", async (t) => {
+test("HTTP observation needs the saved run policy and fails closed before or during transmission", async (t) => {
   const server = await serverFixture(t);
   const spec = { kind: "http", target_ref: `${server.origin}/page` };
-  await assert.rejects(observeTarget(spec), /explicit network allowlist/);
-  await assert.rejects(observeTarget(spec, { networkPolicy: { ...server.policy, network: "denied" } }), /allowlist/);
+  const retired = /saved run network policy and run ID/;
+  await assert.rejects(observeTarget(spec), retired);
+  await assert.rejects(observeTarget(spec, { networkPolicy: server.caller }), retired);
+  await assert.rejects(observeTarget(spec, { runId: observeRunId, networkPolicy: server.caller }), retired);
+  await assert.rejects(observeTarget(spec, { runNetworkPolicy: server.runPolicy, networkPolicy: server.caller }), retired);
+  await assert.rejects(observeTarget(spec, { ...server.options, networkPolicy: { ...server.caller, network: "denied" } }), /allowlist|caller/i);
+  await assert.rejects(observeTarget({ ...spec, target_ref: spec.target_ref.replace("http://", "http://user:secret@") }, server.options), /credentials|Network operation stopped/);
+  await assert.rejects(observeTarget({ ...spec, target_ref: `${spec.target_ref}#fragment` }, server.options), /fragments|Network operation stopped/);
   assert.equal(server.requestCount(), 0);
-  await assert.rejects(observeTarget({ ...spec, target_ref: spec.target_ref.replace("http://", "http://user:secret@") }, { networkPolicy: server.policy }), /credentials/);
-  await assert.rejects(observeTarget({ ...spec, target_ref: `${server.origin}/outside` }, { networkPolicy: server.policy }), /outside.*allowlist/);
-  await assert.rejects(observeTarget({ ...spec, target_ref: `${server.origin}/loop` }, { networkPolicy: server.policy }), /loop/);
-  await assert.rejects(observeTarget(spec, { networkPolicy: server.policy, maxBytes: 3 }), /byte limit/);
-  await assert.rejects(observeTarget({ ...spec, target_ref: `${server.origin}/slow` }, { networkPolicy: server.policy, timeoutMs: 40 }), /timed out|aborted/i);
+  await assert.rejects(observeTarget({ ...spec, target_ref: `${server.origin}/outside` }, server.options), (error) => /Network operation stopped/.test(error.message) && error.networkLog?.entries.some((entry) => entry.decision === "denied"));
+  await assert.rejects(observeTarget({ ...spec, target_ref: `${server.origin}/loop` }, server.options), /redirect_loop/);
+  await assert.rejects(observeTarget({ ...spec, target_ref: `${server.origin}/encoded` }, server.options), /unexpected_content_encoding/);
+  // The abort and size-limit codes race, so the log is the stable evidence of a transmitted-then-failed request.
+  await assert.rejects(observeTarget(spec, { ...server.options, runNetworkPolicy: { ...server.runPolicy, max_response_bytes: 3 } }), (error) => {
+    const entry = error.networkLog.entries[0];
+    return entry.decision === "allowed" && entry.outcome === "failed" && entry.request_sent === true && entry.response_bytes > 3;
+  });
 });
 
 function webState(t) {
