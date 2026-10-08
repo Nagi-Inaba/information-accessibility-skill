@@ -1,6 +1,6 @@
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { assertNewOutputPath, assertStableFile, readStableFile, validateAuditRun, writeNewJson, writeNewText } from "./lib/audit-run.mjs";
+import { assertNewOutputPath, assertStableFile, assertValidatedRunStable, readStableFile, validateAuditRun, writeNewJson, writeNewText } from "./lib/audit-run.mjs";
 import { buildRetestDelta, renderRetestDelta } from "./lib/retest-delta.mjs";
 
 function parseOptions(argv) {
@@ -45,8 +45,7 @@ export function main(argv = process.argv.slice(2)) {
   const assertInputsStable = () => {
     for (const input of [before, after]) {
       assertStableFile(input.snapshot, "comparison run");
-      for (const { snapshot } of input.validation.envelopesById.values()) assertStableFile(snapshot, "registered artifact");
-      for (const snapshot of input.validation.evidenceSnapshots.values()) assertStableFile(snapshot, "raw evidence");
+      assertValidatedRunStable(input.validation);
     }
     if (mappingSnapshot) assertStableFile(mappingSnapshot, "comparison mapping");
   };

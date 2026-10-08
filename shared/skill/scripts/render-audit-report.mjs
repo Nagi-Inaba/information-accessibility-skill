@@ -7,7 +7,7 @@ import { reviewDetailLines } from "./lib/review-details.mjs";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { assertStableFile, readStableFile, validateAuditRun, writeNewText } from "./lib/audit-run.mjs";
+import { assertStableFile, assertValidatedRunStable, readStableFile, validateAuditRun, writeNewText } from "./lib/audit-run.mjs";
 import { validateAssessment } from "./validate-assessment.mjs";
 import { reviewerAssuranceText, reviewerVerificationOptions, displayedEvidenceLevel } from "./lib/assessment-provenance.mjs";
 import { loadReviewTrust } from "./lib/review-trust-input.mjs";
@@ -457,13 +457,11 @@ function main() {
       resources: runValidation.resources,
       trust: trustInput.trust
     }));
-    const artifactSnapshots = [...runValidation.envelopesById.values()].map((record) => record.snapshot).filter(Boolean);
     const output = writeNewText(path.resolve(options.output), report, {
       beforeWrite() {
         assertStableFile(runSnapshot, "audit run");
         assertStableFile(assessmentSnapshot, "merged assessment");
-        for (const snapshot of artifactSnapshots) assertStableFile(snapshot, "registered artifact");
-        for (const snapshot of runValidation.evidenceSnapshots.values()) assertStableFile(snapshot, "raw evidence");
+        assertValidatedRunStable(runValidation);
         for (const snapshot of trustInput.snapshots) assertStableFile(snapshot, "external reviewer trust policy");
       }
     });

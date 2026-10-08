@@ -10,7 +10,7 @@ import { validateParticipantBindings, collectParticipantEvidence } from "./parti
 import { validateDeclaredChangeBindings, collectDeclaredChangeEvidence } from "./declared-change.mjs";
 import { collectFixExecutionEvidence } from "./fix-execution-evidence.mjs";
 import { targetBindingErrors } from "./run-targets.mjs";
-import { pathKey, parseJsonBytes, readStableFile, resolveInside } from "./safe-file-io.mjs";
+import { pathKey, parseJsonBytes, readStableFile, assertStableFile, resolveInside } from "./safe-file-io.mjs";
 import { defaultSkillRoot, loadAuditResources } from "./audit-resources.mjs";
 import { auditRunRegistryCompatibility, auditRunEnvelopeCompatibility } from "./orchestration-contracts.mjs";
 import { artifactRootFor, validateArtifact, registeredArtifactPath, canonicalPermissions, remediationPermissionError, validateRegisteredArtifactEntries, validateArtifactEnvelopeSemantics, validateHumanQueueBindings, validateScreeningProfileBindings, validateDeclaredHumanBindings, validateRemediationBindings } from "./audit-artifact-validation.mjs";
@@ -223,4 +223,23 @@ export function validateAuditRun(run, { skillRoot = defaultSkillRoot, runFile, r
   errors.push(...fixEvidence.errors);
   return { valid: errors.length === 0, errors, resources: runResources, artifactRoot, envelopesById, historicalResourceSnapshots,
     evidenceSnapshots: new Map([...evidence.snapshots, ...contextEvidence.snapshots, ...participantEvidence.snapshots, ...changeEvidence.snapshots, ...fixEvidence.snapshots]) };
+}
+
+// The one list of files validateAuditRun read. A command that writes after validating must confirm each of them still
+// holds the validated bytes. Use the two functions below instead of looping over the collections by hand: a collection
+// missing from a hand-written loop is a time-of-check to time-of-use gap, and a new collection is added only here.
+function* validatedRunInputs(validation) {
+  for (const snapshot of validation.historicalResourceSnapshots ?? []) yield { kind: "historical", snapshot };
+  for (const { snapshot } of validation.envelopesById?.values() ?? []) yield { kind: "artifact", snapshot };
+  for (const snapshot of validation.evidenceSnapshots?.values() ?? []) yield { kind: "evidence", snapshot };
+}
+
+export function validatedRunSnapshots(validation) {
+  return [...validatedRunInputs(validation)].map(({ snapshot }) => snapshot);
+}
+
+// Labels name the input in the failure message; pass { artifact, evidence, historical } to override the defaults.
+export function assertValidatedRunStable(validation, labels = {}) {
+  const names = { artifact: "registered artifact", evidence: "raw evidence", historical: "historical resource", ...labels };
+  for (const { kind, snapshot } of validatedRunInputs(validation)) assertStableFile(snapshot, names[kind]);
 }

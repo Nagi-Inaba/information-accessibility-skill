@@ -1,6 +1,6 @@
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { assertNewOutputPath, assertStableFile, readStableFile, validateAuditRun, validateArtifact, writeNewJson } from "./lib/audit-run.mjs";
+import { assertNewOutputPath, assertStableFile, assertValidatedRunStable, readStableFile, validateAuditRun, validateArtifact, writeNewJson } from "./lib/audit-run.mjs";
 import { createHumanReviewQueue, queueContextErrors } from "./lib/human-review-queue.mjs";
 
 export function main(argv = process.argv.slice(2)) {
@@ -39,8 +39,7 @@ export function main(argv = process.argv.slice(2)) {
   const errors = [...schema.errors, ...queueContextErrors(run, new Map([...validation.envelopesById, [artifact.artifact_id, artifact]]), profileIds)];
   if (errors.length) throw new Error(errors.join("\n"));
   assertStableFile(snapshot, "audit run");
-  for (const record of validation.envelopesById.values()) assertStableFile(record.snapshot, "registered artifact");
-  for (const evidence of validation.evidenceSnapshots.values()) assertStableFile(evidence, "saved evidence");
+  assertValidatedRunStable(validation, { evidence: "saved evidence" });
   writeNewJson(output, artifact);
   process.stdout.write(`${JSON.stringify({ status: "candidate", output, items: artifact.payload.items.length, priority: "unprioritized" })}\n`);
 }

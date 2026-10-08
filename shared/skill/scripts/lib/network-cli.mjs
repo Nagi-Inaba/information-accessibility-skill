@@ -1,5 +1,5 @@
 import path from "node:path";
-import { readStableFile, validateAuditRun, assertStableFile, assertNewOutputPath, writeNewJson } from "./audit-run.mjs";
+import { readStableFile, validateAuditRun, assertStableFile, assertValidatedRunStable, assertNewOutputPath, writeNewJson } from "./audit-run.mjs";
 import { assertNetworkPolicy, callerNetworkScope, networkPolicyHash } from "./network-policy.mjs";
 
 export async function withNetworkEvidenceOutput({ run, artifactRoot, output, needsNetwork, inputs = [], otherOutputs = [] }, operation) {
@@ -44,8 +44,7 @@ export function prepareNetworkCapture(options, outputs = []) {
   options.networkCaller = caller;
   return { save(log) {
     assertStableFile(snapshot, "network run input");
-    for (const record of validation.envelopesById.values()) assertStableFile(record.snapshot, "registered artifact");
-    for (const raw of validation.evidenceSnapshots.values()) assertStableFile(raw, "raw evidence");
+    assertValidatedRunStable(validation);
     writeNewJson(output, log);
   } };
 }

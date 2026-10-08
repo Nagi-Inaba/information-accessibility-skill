@@ -533,7 +533,7 @@ if (isMain) {
       }
       if (!positional.length || positional.length > 5) throw new Error("Usage: node validate-assessment.mjs <assessment.json> [registry.json] [schema.json] [catalog.json] [methods.json] [--run run.json] [--trust-policy policy.json --trust-policy-sha256 hash]");
       const { loadReviewTrust, readReviewJson } = await import("./lib/review-trust-input.mjs");
-      const { assertStableFile, validateAuditRun } = await import("./lib/audit-run.mjs");
+      const { assertStableFile, validateAuditRun, validatedRunSnapshots } = await import("./lib/audit-run.mjs");
       const { reviewerVerificationOptions } = await import("./lib/assessment-provenance.mjs");
       const input = readReviewJson(positional[0], "assessment"), trustInput = loadReviewTrust(options);
       const snapshots = [input.snapshot, ...trustInput.snapshots];
@@ -543,7 +543,7 @@ if (isMain) {
         const runValidation = validateAuditRun(runInput.value, { runFile: runInput.snapshot.path });
         if (!runValidation.valid) throw new Error(`Audit run validation failed: ${runValidation.errors.join("; ")}`);
         reviewOptions = reviewerVerificationOptions({ run: runInput.value, envelopesById: runValidation.envelopesById, trust: trustInput.trust });
-        snapshots.push(runInput.snapshot, ...[...runValidation.envelopesById.values()].map((item) => item.snapshot), ...runValidation.evidenceSnapshots.values());
+        snapshots.push(runInput.snapshot, ...validatedRunSnapshots(runValidation));
       }
       const references = ["standards-registry.json", "assessment-record.schema.json", "criteria-catalog.json", "web-audit-methods.json"]
         .map((name, index) => readJson(positional[index + 1] ?? fileURLToPath(new URL(`../references/${name}`, import.meta.url))));

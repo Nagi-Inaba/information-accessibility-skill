@@ -1,7 +1,7 @@
 import path from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
-import { readStableFile, assertStableFile, writeNewJson, validateAuditRun, loadAuditResources } from "./lib/audit-run.mjs";
+import { readStableFile, assertStableFile, writeNewJson, validateAuditRun, validatedRunSnapshots, loadAuditResources } from "./lib/audit-run.mjs";
 import { validateAssessment } from "./validate-assessment.mjs";
 import { parseAttestationJson } from "./lib/attestation-canonical.mjs";
 import { createAttestationTrust } from "./lib/attestation-verifier.mjs";
@@ -85,8 +85,8 @@ export function runHumanReviewCommand(argv) {
     const source = validation.envelopesById.get(options["--artifact-id"]);
     if (!source || source.envelope.artifact_type !== "declared-human-review") throw new Error("--artifact-id must select a registered declared-human-review in the supplied run.");
     // Every registered artifact must have an unambiguous JSON representation.
-    for (const entry of validation.envelopesById.values()) { parseAttestationJson(entry.snapshot.bytes); snapshots.push(entry.snapshot); }
-    snapshots.push(...validation.evidenceSnapshots.values());
+    for (const entry of validation.envelopesById.values()) parseAttestationJson(entry.snapshot.bytes);
+    snapshots.push(...validatedRunSnapshots(validation));
     context = humanReviewRunContext({ run, artifact: source.envelope, artifactSha256: source.snapshot.sha256 });
     sourceArtifactBytes = source.snapshot.bytes;
     review = source.envelope.payload;

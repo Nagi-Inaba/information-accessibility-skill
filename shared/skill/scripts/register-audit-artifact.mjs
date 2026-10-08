@@ -5,6 +5,7 @@ import { withNetworkEvidenceOutput } from "./lib/network-cli.mjs";
 
 import {
   assertStableFile,
+  assertValidatedRunStable,
   assertNewOutputPath,
   readStableFile,
   registerArtifactChecked,
@@ -65,8 +66,7 @@ export async function main(argv = process.argv.slice(2)) {
   assertStableFile(artifactSnapshot, "artifact input");
   const finalValidation = validateAuditRun(next, { runFile });
   if (!finalValidation.valid) throw new Error(`Registered audit run failed final validation:\n- ${finalValidation.errors.join("\n- ")}`);
-  for (const { snapshot } of finalValidation.envelopesById.values()) assertStableFile(snapshot, "registered artifact");
-  for (const snapshot of finalValidation.evidenceSnapshots.values()) assertStableFile(snapshot, "raw evidence");
+  assertValidatedRunStable(finalValidation);
   writeNewJson(output, next);
   process.stdout.write(`${JSON.stringify({ status: "PASS", run_id: next.run_id, run_status: next.status, artifact_id: artifact.artifact_id, output })}\n`);
 }

@@ -20,13 +20,13 @@ import { pathKey, isWithinPath, hasTraversal, inspectRealComponents, parseJsonBy
 import { defaultSkillRoot, loadAuditResources } from "./audit-resources.mjs";
 import { compareText } from "./text-order.mjs";
 import { roleFor, validateArtifact, registeredArtifactPath, canonicalPermissions, remediationPermissionError, validateFixHandoffBinding, validateChangeRecordAuthorizationBinding, assertCurrentOperationalRun } from "./audit-artifact-validation.mjs";
-import { validateAuditRun } from "./audit-run-validation.mjs";
+import { validateAuditRun, assertValidatedRunStable } from "./audit-run-validation.mjs";
 
 export { canonicalJson } from "./canonical-json.mjs";
 export { inspectRealComponents, prepareSafeOutputDirectory, assertNewOutputPath, writeNewJson, writeNewText, writeNewBytes, sha256Bytes, sha256File, readStableFile, assertStableFile, resolveInside } from "./safe-file-io.mjs";
 export { loadAuditResources, defaultSkillRoot } from "./audit-resources.mjs";
 export { validateArtifact, validateArtifactCandidate, validateHumanReviewCandidate } from "./audit-artifact-validation.mjs";
-export { validateAuditRun } from "./audit-run-validation.mjs";
+export { validateAuditRun, assertValidatedRunStable, validatedRunSnapshots } from "./audit-run-validation.mjs";
 export { mergeArtifacts } from "./audit-run-merge.mjs";
 
 function normalizePermission(value, aliases, name) {
@@ -257,7 +257,6 @@ export function registerArtifact(run, artifact, options = {}) {
   const nextValidation = validateAuditRun(next, { skillRoot, runFile: options.runFile });
   if (!nextValidation.valid) throw new Error(`Registered run is invalid:\n- ${nextValidation.errors.join("\n- ")}`);
   assertStableFile(snapshot, "artifact file");
-  for (const { snapshot: registeredSnapshot } of nextValidation.envelopesById.values()) assertStableFile(registeredSnapshot, "registered artifact");
-  for (const evidenceSnapshot of nextValidation.evidenceSnapshots.values()) assertStableFile(evidenceSnapshot, "raw evidence");
+  assertValidatedRunStable(nextValidation);
   return next;
 }

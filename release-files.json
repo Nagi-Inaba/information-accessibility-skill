@@ -438,6 +438,7 @@
     "tests/target-observer.test.mjs",
     "tests/target-registration.test.mjs",
     "tests/unified-cli.test.mjs",
+    "tests/validated-run-stability.test.mjs",
     "tests/web-capabilities-e2e.test.mjs",
     "tests/web-capabilities.test.mjs",
     "tests/web-evidence-adapter.test.mjs",

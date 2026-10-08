@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { isDeepStrictEqual } from "node:util";
-import { assertNewOutputPath, assertStableFile, readStableFile, resolveInside, validateAuditRun, writeNewJson } from "./audit-run.mjs";
+import { assertNewOutputPath, assertStableFile, assertValidatedRunStable, readStableFile, resolveInside, validateAuditRun, validatedRunSnapshots, writeNewJson } from "./audit-run.mjs";
 import { compareInstants, isCalendarDate } from "./date-time.mjs";
 import { reviewEntries, resolveHumanReviews, consensusReviewRows, consensusRemediationItems } from "./human-review-consensus.mjs";
 import { validateJsonSchema } from "./json-schema.mjs";
@@ -98,8 +98,7 @@ function validateClosure(record, run, validation, runFile) {
     path.resolve(successorValidation.artifactRoot, state.closure.verification_file), { existing: true });
   const evidence = readStableFile(evidencePath, { label: "closure verification evidence" });
   if (evidence.sha256 !== state.closure.verification_sha256) throw new Error("Closure verification evidence hash mismatch.");
-  return [retestSnapshot, evidence, ...[...successorValidation.envelopesById.values()].map((item) => item.snapshot),
-    ...successorValidation.evidenceSnapshots.values()];
+  return [retestSnapshot, evidence, ...validatedRunSnapshots(successorValidation)];
 }
 
 function validateRecord(record, previous, source, run, validation, runFile) {
@@ -252,8 +251,7 @@ export function writeLifecycle(output, record, { run, validation, runFile, input
   inputSnapshots.push(...validateRecord(record, previous, source, run, validation, runFile));
   const stable = () => {
     for (const snapshot of inputSnapshots) assertStableFile(snapshot, "lifecycle input");
-    for (const item of validation.envelopesById.values()) assertStableFile(item.snapshot, "registered artifact");
-    for (const snapshot of validation.evidenceSnapshots.values()) assertStableFile(snapshot, "raw evidence");
+    assertValidatedRunStable(validation);
   };
   return writeNewJson(target, record, { beforeWrite: stable });
 }

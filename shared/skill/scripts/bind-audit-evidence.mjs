@@ -1,6 +1,6 @@
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { assertNewOutputPath, assertStableFile, readStableFile, resolveInside, validateAuditRun, validateArtifact, writeNewJson } from "./lib/audit-run.mjs";
+import { assertNewOutputPath, assertStableFile, assertValidatedRunStable, readStableFile, resolveInside, validateAuditRun, validateArtifact, writeNewJson } from "./lib/audit-run.mjs";
 import { createRunEvidenceReference, collectScreeningEvidence } from "./lib/run-evidence.mjs";
 
 function parseArgs(argv) {
@@ -55,8 +55,8 @@ export function main(argv = process.argv.slice(2)) {
   assertStableFile(runSnapshot, "audit run");
   assertStableFile(artifactSnapshot, "draft artifact");
   assertStableFile(snapshot, "raw evidence");
-  for (const { snapshot: registered } of validation.envelopesById.values()) assertStableFile(registered, "registered artifact");
-  for (const raw of [...validation.evidenceSnapshots.values(), ...evidence.snapshots.values()]) assertStableFile(raw, "raw evidence");
+  assertValidatedRunStable(validation);
+  for (const raw of evidence.snapshots.values()) assertStableFile(raw, "raw evidence");
   writeNewJson(output, artifact);
   process.stdout.write(`${JSON.stringify({ status: "PASS", output, observation: options.observation, evidence_count: observation.evidence_refs.length })}\n`);
 }

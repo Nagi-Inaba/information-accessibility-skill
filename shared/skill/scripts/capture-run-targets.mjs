@@ -1,6 +1,6 @@
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { assertNewOutputPath, assertStableFile, readStableFile, validateAuditRun, writeNewJson } from "./lib/audit-run.mjs";
+import { assertNewOutputPath, assertStableFile, assertValidatedRunStable, readStableFile, validateAuditRun, writeNewJson } from "./lib/audit-run.mjs";
 import { observeRunTargetsWithEvidence } from "./lib/run-targets.mjs";
 import { afterChangeRun } from "./lib/declared-change.mjs";
 import { networkPolicyHash } from "./lib/network-policy.mjs";
@@ -66,8 +66,7 @@ export async function main(argv = process.argv.slice(2)) {
   const { inventory, networkEvidence } = captured;
   assertStableFile(runSnapshot, "audit run input");
   assertStableFile(specsSnapshot, "target specifications");
-  for (const { snapshot } of validation.envelopesById.values()) assertStableFile(snapshot, "registered artifact");
-  for (const snapshot of validation.evidenceSnapshots.values()) assertStableFile(snapshot, "raw evidence");
+  assertValidatedRunStable(validation);
   if (networkOutput) writeNewJson(networkOutput, { schema_version: "1.0.0", kind: "run-network-evidence", run_id: run.run_id,
     network_policy_sha256: needsNetwork ? networkPolicyHash(run.permissions.network_policy) : null,
     publication: "private_by_default", observations: networkEvidence });

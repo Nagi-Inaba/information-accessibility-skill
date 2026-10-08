@@ -8,6 +8,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import {
   assertNewOutputPath,
   assertStableFile,
+  assertValidatedRunStable,
   readStableFile,
   validateAuditRun,
   writeNewJson,
@@ -323,15 +324,10 @@ function renderRunBacked(options) {
     rendered.report = decorate(rendered.report);
     if (rendered.appendix) rendered.appendix = decorate(rendered.appendix);
   }
-  const artifactSnapshots = [...runValidation.envelopesById.values()]
-    .map((record) => record.snapshot)
-    .filter(Boolean);
   const assertInputsStable = () => {
     assertStableFile(runSnapshot, "audit run");
     assertStableFile(assessmentSnapshot, "run-backed assessment");
-    for (const snapshot of artifactSnapshots) assertStableFile(snapshot, "registered artifact");
-    for (const snapshot of runValidation.evidenceSnapshots.values()) assertStableFile(snapshot, "raw evidence");
-    for (const snapshot of runValidation.historicalResourceSnapshots ?? []) assertStableFile(snapshot, "historical resource");
+    assertValidatedRunStable(runValidation);
     for (const snapshot of lifecycleSnapshots) assertStableFile(snapshot, "lifecycle input");
     for (const snapshot of trustInput.snapshots) assertStableFile(snapshot, "external reviewer trust policy");
   };
