@@ -12,6 +12,7 @@ import { normalizeRuntimeLocale, runtimeLocaleFromEnvironment } from "./lib/runt
 const scriptRoot = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.dirname(scriptRoot);
 const require = createRequire(import.meta.url);
+const minimumNodeMajor = 22;
 
 function readJson(file) {
   return JSON.parse(fs.readFileSync(file, "utf8").replace(/^\uFEFF/u, ""));
@@ -69,8 +70,8 @@ export function diagnose(root = skillRoot) {
   }
 
   const nodeMajor = Number.parseInt(process.versions.node.split(".", 1)[0], 10);
-  const nodeSupported = Number.isInteger(nodeMajor) && nodeMajor >= 20;
-  if (!nodeSupported) errors.push(`Node.js 20 or newer is required; found ${process.versions.node}.`);
+  const nodeSupported = Number.isInteger(nodeMajor) && nodeMajor >= minimumNodeMajor;
+  if (!nodeSupported) errors.push(`Node.js ${minimumNodeMajor} or newer is required; found ${process.versions.node}.`);
 
   let manifest = { name: "unknown", version: "unknown", bin: {} };
   try {
@@ -100,7 +101,7 @@ export function diagnose(root = skillRoot) {
     status,
     node: {
       version: process.versions.node,
-      required: ">=20",
+      required: `>=${minimumNodeMajor}`,
       supported: nodeSupported,
       platform: process.platform,
       architecture: process.arch

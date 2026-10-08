@@ -2,7 +2,7 @@
   "schema_version": "1.0.0",
   "adapter": "playwright-chromium",
   "preflight_command": "accessibility-audit preflight-web --browser-channel chrome --format json",
-  "dependencies": { "node": ">=20", "playwright": "1.62.1", "axe-core_for_scan": "4.13.0" },
+  "dependencies": { "node": ">=22", "playwright": "1.62.1", "axe-core_for_scan": "4.13.0" },
   "browser_channels": ["playwright-chromium", "chrome"],
   "default_required": ["browser_dom", "accessibility_tree", "keyboard_input", "responsive_viewport", "network_fetch"],
   "capabilities": [

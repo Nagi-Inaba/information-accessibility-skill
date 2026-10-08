@@ -2,7 +2,7 @@
 
 # Information Accessibility Audit Skill and Agent
 
-Installation requires Node.js 20 or later and a pinned source revision. See the [Windows, macOS and Linux install, upgrade, restore and removal guide](docs/installing.md) first.
+Installation requires Node.js 22 or later and a pinned source revision. See the [Windows, macOS and Linux install, upgrade, restore and removal guide](docs/installing.md) first.
 
 ## In 30 seconds
 
@@ -62,7 +62,7 @@ See the [profile selection and migration guide](docs/profile-selection-and-migra
 
 ## Requirements and installation
 
-- Node.js 20 or later
+- Node.js 22 or later
 - A local copy of this repository
 - The pinned Playwright and axe-core versions, plus host-approved Chromium or installed system Chrome, only when using the browser scan
 
