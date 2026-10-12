@@ -2,7 +2,7 @@
 
 # Information Accessibility Audit Skill and Agent
 
-Installation requires Node.js 20 or later and a pinned source revision. See the [Windows, macOS and Linux install, upgrade, restore and removal guide](docs/installing.md) first.
+Installation requires Node.js 22 or later and a pinned source revision. See the [Windows, macOS and Linux install, upgrade, restore and removal guide](docs/installing.md) first.
 
 ## In 30 seconds
 
@@ -62,7 +62,7 @@ See the [profile selection and migration guide](docs/profile-selection-and-migra
 
 ## Requirements and installation
 
-- Node.js 20 or later
+- Node.js 22 or later
 - A local copy of this repository
 - The pinned Playwright and axe-core versions, plus host-approved Chromium or installed system Chrome, only when using the browser scan
 
@@ -181,6 +181,12 @@ node .\codex\skills\information-accessibility-practice\scripts\generate-assessme
 
 The [artifact map](docs/architecture-and-glossary.md) lists the typical producer, inputs, purpose, and publication boundary for every artifact. See the [report-format guide](docs/report-formats.md) for format-specific support.
 
+Use `review-queue` to create target-bound review candidates. See [human-review queue generation, registration and historical formats](shared/skill/references/human-review-queue.md).
+
+Use `artifact init` to wrap a completed payload for any of the four standard review artifacts, then `artifact validate` after editing and before registration. The CLI supplies IDs, versions, timestamps and input hashes. See [authoring without agent dispatch](shared/skill/references/agent-orchestration.md#authoring-without-agent-dispatch).
+
+Use `human-review export` for CSV, Markdown or Excel worksheets, then `human-review import` to turn the person's answers into a review candidate. See [input fields, partial submissions, multiple reviewers and resubmission (Japanese)](shared/skill/references/human-review-worksheet.md). Import does not authenticate reviewer identity or update the run automatically.
+
 ## Live Web inspection
 
 `scan-web` uses pinned Playwright and axe-core versions to inspect a public URL without mutating it. Automated results are never promoted directly to formal WCAG or JIS pass or fail outcomes.
@@ -251,9 +257,3 @@ The first [v0.1.0 prerelease](https://github.com/Nagi-Inaba/information-accessib
 Original code and documentation use the [MIT License](LICENSE). Third-party standards metadata remains subject to its source terms. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 The [machine-readable source register](shared/skill/references/third-party-sources.json) records sources, adopted versions, terms and modifications. Markdown/HTML reports retain attribution, and catalog refresh candidates include a companion record requiring renewed source/terms review. Unknown terms are never replaced with MIT; these records do not establish legal clearance for commercial use or redistribution.
-
-Use `review-queue` to create target-bound review candidates. See [human-review queue generation, registration and historical formats](shared/skill/references/human-review-queue.md).
-
-Use `artifact init` to wrap a completed payload for any of the four standard review artifacts, then `artifact validate` after editing and before registration. The CLI supplies IDs, versions, timestamps and input hashes. See [authoring without agent dispatch](shared/skill/references/agent-orchestration.md#authoring-without-agent-dispatch).
-
-Use `human-review export` for CSV, Markdown or Excel worksheets, then `human-review import` to turn the person's answers into a review candidate. See [input fields, partial submissions, multiple reviewers and resubmission (Japanese)](shared/skill/references/human-review-worksheet.md). Import does not authenticate reviewer identity or update the run automatically.
