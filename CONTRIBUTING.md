@@ -28,11 +28,11 @@ The accepted PR records the submitted version and the maintainer's corrections; 
 Run the unified verifier before requesting review:
 
 ```sh
-npm install --no-save --ignore-scripts --package-lock=false exceljs@4.4.0
-node scripts/verify-all.mjs
+npm install
+npm run verify
 ```
 
-Install test dependencies at the repository root so that local `node_modules` is not part of a skill distribution. XLSX tests use the same pinned ExcelJS version as the CLI package; its dependencies retain their own licenses and are not vendored in release archives.
+`npm install` reads the root `package.json` (test dependencies only; the installable CLI package is `shared/skill/package.json`) and `.npmrc` (no lockfile, no install scripts). The root manifest pins the project root, so a stray `package.json` or `node_modules` in a parent directory cannot capture the install. Install at the repository root so that local `node_modules` is not part of a skill distribution. XLSX tests use the same pinned ExcelJS version as the CLI package; its dependencies retain their own licenses and are not vendored in release archives. Node.js 22 or later is required; CI runs Node.js 22 and 24.
 
 For focused work, the underlying checks are:
 
@@ -45,7 +45,7 @@ node --test tests/*.test.mjs
 
 `docs/cli-reference.md` is generated from the CLI command registry. After adding or changing a command, its options, or its localized help, run `node scripts/build-cli-reference.mjs --write`; `tests/cli-reference.test.mjs` fails when the committed page is out of date.
 
-Platform-specific behavior must remain covered by the Ubuntu/Windows CI matrix.
+Platform-specific behavior must remain covered by the Ubuntu/Windows/macOS CI matrix.
 
 ## Source and distribution parity
 

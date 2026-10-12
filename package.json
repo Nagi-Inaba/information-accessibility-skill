@@ -1,0 +1,16 @@
+{
+  "name": "information-accessibility-skill-workspace",
+  "private": true,
+  "description": "Development workspace for verification. The installable CLI package is shared/skill/package.json.",
+  "scripts": {
+    "sync": "node scripts/sync-distributions.mjs --write",
+    "verify": "node scripts/verify-all.mjs"
+  },
+  "devDependencies": {
+    "exceljs": "4.4.0"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "license": "MIT"
+}
