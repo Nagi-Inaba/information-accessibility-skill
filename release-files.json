@@ -425,6 +425,7 @@
     "tests/retest-delta.test.mjs",
     "tests/run-evidence.test.mjs",
     "tests/run-targets.test.mjs",
+    "tests/runtime-baseline.test.mjs",
     "tests/runtime-locale.test.mjs",
     "tests/runtime-procedure-locale.test.mjs",
     "tests/scan-web-cli.test.mjs",
