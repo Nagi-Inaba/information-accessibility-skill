@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { assertNewOutputPath, assertStableFile, readStableFile, resolveInside, validateAuditRun, validateArtifactCandidate, writeNewJson } from "./lib/audit-run.mjs";
+import { assertNewOutputPath, assertStableFile, readStableFile, resolveInside, validateAuditRun, validatedRunSnapshots, validateArtifactCandidate, writeNewJson } from "./lib/audit-run.mjs";
 import { parseAttestationJson } from "./lib/attestation-canonical.mjs";
 import { createRunEvidenceReference } from "./lib/run-evidence.mjs";
 
@@ -34,11 +34,8 @@ export function main(argv = process.argv.slice(2)) {
   const runFile = path.resolve(options.run), run = read(runFile);
   const validation = validateAuditRun(run, { runFile });
   if (!validation.valid) throw new Error(validation.errors.join("\n"));
-  for (const { snapshot } of validation.envelopesById.values()) {
-    parseAttestationJson(snapshot.bytes);
-    snapshots.push(snapshot);
-  }
-  snapshots.push(...validation.evidenceSnapshots.values());
+  for (const { snapshot } of validation.envelopesById.values()) parseAttestationJson(snapshot.bytes);
+  snapshots.push(...validatedRunSnapshots(validation));
   let artifact, output;
   if (action === "init") {
     if (!types.includes(options.type)) throw new Error(`--type must be one of: ${types.join(", ")}`);

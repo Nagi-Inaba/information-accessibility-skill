@@ -1,6 +1,6 @@
 import path from "node:path";
 import { randomUUID } from "node:crypto";
-import { assertNewOutputPath, assertStableFile, readStableFile, validateAuditRun, writeNewBytes, validateHumanReviewCandidate } from "./lib/audit-run.mjs";
+import { assertNewOutputPath, assertStableFile, readStableFile, validateAuditRun, validatedRunSnapshots, writeNewBytes, validateHumanReviewCandidate } from "./lib/audit-run.mjs";
 import { parseAttestationJson } from "./lib/attestation-canonical.mjs";
 import { worksheetItems, createWorksheetRows, encodeCsv, decodeCsv, encodeMarkdown, decodeMarkdown, reviewFromWorksheet, worksheetLimit } from "./lib/human-review-worksheet.mjs";
 import { compareInstants } from "./lib/date-time.mjs";
@@ -43,7 +43,7 @@ export async function runWorksheetCommand(argv) {
   const relative = path.relative(validation.artifactRoot, output);
   if (!relative || path.isAbsolute(relative) || relative.split(path.sep).includes("..")) throw new Error("Worksheet and artifact outputs must be within the private artifact root.");
   assertNewOutputPath(output);
-  const inputs = [snapshot, ...[...validation.envelopesById.values()].map((entry) => entry.snapshot), ...validation.evidenceSnapshots.values()];
+  const inputs = [snapshot, ...validatedRunSnapshots(validation)];
   const assertInputs = () => { for (const input of inputs) assertStableFile(input, "worksheet input"); };
   if (options.command === "export") {
     const bytes = options.format === "xlsx" ? await (await import("./lib/human-review-xlsx.mjs")).encodeXlsx(expected)

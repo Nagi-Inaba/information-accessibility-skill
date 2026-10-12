@@ -1,6 +1,6 @@
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { assertNewOutputPath, assertStableFile, readStableFile, validateAuditRun, writeNewJson } from "./lib/audit-run.mjs";
+import { assertNewOutputPath, assertStableFile, assertValidatedRunStable, readStableFile, validateAuditRun, writeNewJson } from "./lib/audit-run.mjs";
 import { compareEvidenceReferences } from "./lib/run-evidence.mjs";
 
 export function main(argv = process.argv.slice(2)) {
@@ -28,8 +28,7 @@ export function main(argv = process.argv.slice(2)) {
     comparisons: compareEvidenceReferences(before.rows, after.rows) };
   for (const input of inputs) {
     assertStableFile(input.snapshot, "comparison run");
-    for (const { snapshot } of input.validation.envelopesById.values()) assertStableFile(snapshot, "registered artifact");
-    for (const raw of input.validation.evidenceSnapshots.values()) assertStableFile(raw, "raw evidence");
+    assertValidatedRunStable(input.validation);
   }
   writeNewJson(options["--output"], result);
   process.stdout.write(`${JSON.stringify({ status: "PASS", output: options["--output"], comparisons: result.comparisons.length })}\n`);

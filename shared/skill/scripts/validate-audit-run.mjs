@@ -2,7 +2,7 @@ import path from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
 
-import { assertNewOutputPath, assertStableFile, readStableFile, validateAuditRun, writeNewJson } from "./lib/audit-run.mjs";
+import { assertNewOutputPath, assertStableFile, assertValidatedRunStable, readStableFile, validateAuditRun, writeNewJson } from "./lib/audit-run.mjs";
 
 function parseArgs(argv) {
   const options = {};
@@ -32,9 +32,7 @@ export function main(argv = process.argv.slice(2)) {
   const snapshot = readStableFile(input, { label: "audit run input" });
   const result = validateAuditRun(parseSnapshot(snapshot), { runFile: input, historicalResourceRoot: options.historicalResources });
   assertStableFile(snapshot, "audit run input");
-  for (const historical of result.historicalResourceSnapshots ?? []) assertStableFile(historical, "historical resource");
-  for (const { snapshot: artifact } of result.envelopesById?.values() ?? []) assertStableFile(artifact, "registered artifact");
-  for (const evidence of result.evidenceSnapshots?.values() ?? []) assertStableFile(evidence, "raw evidence");
+  assertValidatedRunStable(result);
   writeNewJson(output, { valid: result.valid, errors: result.errors });
   process.stdout.write(`${JSON.stringify({ status: result.valid ? "PASS" : "FAIL", input, output, valid: result.valid })}\n`);
   if (!result.valid) {

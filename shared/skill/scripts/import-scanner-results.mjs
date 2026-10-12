@@ -1,6 +1,6 @@
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { assertNewOutputPath, assertStableFile, readStableFile, resolveInside, validateAuditRun, validateArtifact, writeNewJson } from "./lib/audit-run.mjs";
+import { assertNewOutputPath, assertStableFile, assertValidatedRunStable, readStableFile, resolveInside, validateAuditRun, validateArtifact, writeNewJson } from "./lib/audit-run.mjs";
 import { buildAxeImport, importedScreeningArtifact } from "./lib/scanner-import.mjs";
 import { createRunEvidenceReference, collectScreeningEvidence } from "./lib/run-evidence.mjs";
 import { targetSpecification } from "./lib/run-targets.mjs";
@@ -65,8 +65,7 @@ export function main(argv = process.argv.slice(2)) {
   assertStableFile(runSnapshot, "audit run");
   assertStableFile(inputSnapshot, "raw scanner result");
   if (configSnapshot) assertStableFile(configSnapshot, "scanner configuration");
-  for (const { snapshot } of validation.envelopesById.values()) assertStableFile(snapshot, "registered artifact");
-  for (const snapshot of validation.evidenceSnapshots.values()) assertStableFile(snapshot, "saved evidence");
+  assertValidatedRunStable(validation, { evidence: "saved evidence" });
   const current = observeLocalTarget(targetSpecification(targetSnapshot), { baseDir: path.dirname(runFile) }).snapshot;
   if (current.snapshot_id !== targetSnapshot.snapshot_id) throw new Error("Target drift in the saved scanner capture.");
   writeNewJson(recordFile, record);

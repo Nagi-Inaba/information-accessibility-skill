@@ -12,6 +12,8 @@ This project uses a Keep a Changelog-style structure. Until a tagged release is 
 
 - HTTP target observation always runs through the logged, size-bounded network session under the saved run policy. The second retrieval path, reachable only by direct library callers, did not reject content encodings, cap total bytes or keep a request log; it was removed. No CLI command used it.
 
+- Commands that validate a run and then write now confirm every file the validation read through one shared check, `assertValidatedRunStable`, instead of each carrying its own loops. The copies covered registered artifacts and saved evidence but only two also covered the historical resources used to validate older run formats, so the other commands could write after one of those files changed. All commands now share one list, and a test rejects new hand-written copies.
+
 - Removed internal plans, implementation reviews, status notes, and research source copies from the public source tree; retained official source links and attribution.
 
 - Reviewed the Digital Agency accessibility policy against the monitored source on 2026-09-25. The 18 additional criterion mappings and routing are unchanged; the catalog source hash, review date and attribution binding now match the reviewed page.

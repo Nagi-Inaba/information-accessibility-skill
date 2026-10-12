@@ -1,6 +1,6 @@
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { assertNewOutputPath, assertStableFile, readStableFile, validateAuditRun, writeNewJson } from "./lib/audit-run.mjs";
+import { assertNewOutputPath, assertStableFile, assertValidatedRunStable, readStableFile, validateAuditRun, writeNewJson } from "./lib/audit-run.mjs";
 import { compareRunTargets } from "./lib/run-targets.mjs";
 
 export function main(argv = process.argv.slice(2)) {
@@ -29,8 +29,7 @@ export function main(argv = process.argv.slice(2)) {
   const comparisons = compareRunTargets(before.run, before.run.target_inventory, after.run, after.run.target_inventory);
   for (const input of inputs) {
     assertStableFile(input.snapshot, "comparison run");
-    for (const { snapshot } of input.validation.envelopesById.values()) assertStableFile(snapshot, "registered artifact");
-    for (const snapshot of input.validation.evidenceSnapshots.values()) assertStableFile(snapshot, "raw evidence");
+    assertValidatedRunStable(input.validation);
   }
   writeNewJson(output, { schema_version: "1.0.0", publication: "private_by_default", before_run_id: before.run.run_id,
     after_run_id: after.run.run_id, comparisons, limitation: "Measured identity differences do not establish accessibility improvement. This comparison does not contact live targets." });

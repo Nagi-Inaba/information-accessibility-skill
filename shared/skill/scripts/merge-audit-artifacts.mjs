@@ -4,6 +4,7 @@ import { pathToFileURL } from "node:url";
 
 import {
   assertStableFile,
+  assertValidatedRunStable,
   assertNewOutputPath,
   loadAuditResources,
   mergeArtifacts,
@@ -91,8 +92,7 @@ export function main(argv = process.argv.slice(2)) {
   assertStableFile(runSnapshot, "audit run input");
   assertStableFile(assessmentSnapshot, "assessment input");
   for (const snapshot of artifactSnapshots) assertStableFile(snapshot, "merge artifact");
-  for (const { snapshot } of runValidation.envelopesById.values()) assertStableFile(snapshot, "registered artifact");
-  for (const snapshot of runValidation.evidenceSnapshots.values()) assertStableFile(snapshot, "raw evidence");
+  assertValidatedRunStable(runValidation);
   writeNewJson(output, merged, { beforeWrite() {
     for (const snapshot of [...trustInput.snapshots, ...reviewInputs.map((input) => input.snapshot)]) assertStableFile(snapshot, "review verification input");
   } });

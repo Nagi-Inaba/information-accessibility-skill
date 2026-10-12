@@ -11,7 +11,7 @@ import { interactionScopeSummary } from "./lib/interaction-policy.mjs";
 import { findingRelations, findingRetestSummary, remediationPlanItems } from "./lib/run-findings.mjs";
 import { lifecycleSummary, loadLifecycle } from "./lib/finding-lifecycle.mjs";
 import { reviewEntries, resolveHumanReviews, consensusReviewRows, consensusRemediationItems } from "./lib/human-review-consensus.mjs";
-import { assertStableFile, defaultSkillRoot, mergeArtifacts, readStableFile, validateAuditRun } from "./lib/audit-run.mjs";
+import { assertStableFile, assertValidatedRunStable, defaultSkillRoot, mergeArtifacts, readStableFile, validateAuditRun } from "./lib/audit-run.mjs";
 
 function parse(snapshot) {
   return JSON.parse(snapshot.bytes.toString("utf8").replace(/^\uFEFF/u, ""));
@@ -52,8 +52,7 @@ function discoverSuccessors(run, runFile, artifactRoot, skillRoot) {
         continue;
       }
       assertStableFile(snapshot, "sibling run candidate");
-      for (const record of validation.envelopesById.values()) assertStableFile(record.snapshot, "sibling registered artifact");
-      for (const evidence of validation.evidenceSnapshots.values()) assertStableFile(evidence, "sibling raw evidence");
+      assertValidatedRunStable(validation, { artifact: "sibling registered artifact", evidence: "sibling raw evidence" });
       if (retest || (validation.artifactRoot === artifactRoot && extendsRun(candidate, run))) {
         candidates.push({ file: entry.name, run_id: candidate.run_id, state: candidate.status, kind: retest ? "retest" : "registration" });
       } else if (sameRun && !isDeepStrictEqual(candidate, run) && !extendsRun(run, candidate)) {
@@ -161,8 +160,7 @@ export function auditStatus(runFile, { skillRoot = defaultSkillRoot, retestOf, l
         || !isDeepStrictEqual(run.scope, prior.scope) || !isDeepStrictEqual(run.inspection_request, prior.inspection_request)) throw new Error("Retest comparison requires the linked predecessor and the same target/profile/scope at a new version.");
       priorEnvelopes = [...priorValidation.envelopesById.values()].map((record) => record.envelope); comparison = true;
       assertStableFile(priorSnapshot, "retest predecessor");
-      for (const record of priorValidation.envelopesById.values()) assertStableFile(record.snapshot, "predecessor artifact");
-      for (const evidence of priorValidation.evidenceSnapshots?.values() ?? []) assertStableFile(evidence, "predecessor evidence");
+      assertValidatedRunStable(priorValidation, { artifact: "predecessor artifact", evidence: "predecessor evidence", historical: "predecessor historical resource" });
     }
     const resolve = (records) => resolveHumanReviews(reviewEntries(records.filter((item) => item.artifact_type === "declared-human-review")
       .map((item) => ({ payload: item.payload, artifact_id: item.artifact_id }))));
@@ -177,8 +175,7 @@ export function auditStatus(runFile, { skillRoot = defaultSkillRoot, retestOf, l
     }));
   }
   assertStableFile(snapshot, "audit run");
-  for (const record of validation.envelopesById?.values() ?? []) assertStableFile(record.snapshot, "registered artifact");
-  for (const evidence of validation.evidenceSnapshots?.values() ?? []) assertStableFile(evidence, "raw evidence");
+  assertValidatedRunStable(validation);
   return result;
 }
 
