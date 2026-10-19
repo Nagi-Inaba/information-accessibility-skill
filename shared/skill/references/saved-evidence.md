@@ -84,10 +84,12 @@ in addition to registered artifact snapshots.
 ## Private before/after comparison
 
 ```text
-node <skill_root>/scripts/accessibility-audit.mjs compare-evidence --before before/run.json --after after/run.json --output comparison.private.json
+node <skill_root>/scripts/accessibility-audit.mjs compare-evidence --before before/run.json --after after/run.json --output after/artifacts/comparison.private.json
 ```
 
-Both runs and their referenced files must validate. Results group captures by
+The output must be a new file inside the after-run's private artifact root
+(`after/artifacts` in this example). Both runs and their referenced files must
+validate. Results group captures by
 screening requirement, exact target reference and evidence type. Status is
 `added`, `removed`, `bytes_changed` or `bytes_unchanged`. `context_changed` separately
 identifies changes to the declared version, target context or environment, even

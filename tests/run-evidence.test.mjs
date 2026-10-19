@@ -172,15 +172,19 @@ test("bind-evidence creates a new artifact from captured bytes without changing 
   assert.doesNotThrow(() => registerArtifact(f.run, bound, { runFile: f.runFile, artifactFile: output }));
 });
 
-test("comparison records before/after bytes, dates and versions without interpreting outcomes", (t) => {
+test("comparison writes inside the after-run private artifact root without interpreting outcomes", (t) => {
   const before = fixture(t);
   const after = fixture(t, { suffix: "0002", version: "release-2", bytes: Buffer.from("<main>Changed content</main>") });
   const beforeFile = path.join(before.temp, "registered.json");
   const afterFile = path.join(after.temp, "registered.json");
   writeNewJson(beforeFile, before.register());
   writeNewJson(afterFile, after.register());
-  const output = path.join(after.temp, "comparison.json");
-  pass(cli(["compare-evidence", "--before", beforeFile, "--after", afterFile, "--output", output]));
+  const output = path.join(after.artifactRoot, "comparison.json");
+  const args = ["compare-evidence", "--before", beforeFile, "--after", afterFile, "--output", output];
+  pass(cli(args));
+  const saved = fs.readFileSync(output);
+  assert.equal(cli(args).status, 1, "existing output is never overwritten");
+  assert.deepEqual(fs.readFileSync(output), saved);
   const result = json(output);
   assert.equal(result.publication, "private_by_default");
   assert.equal(result.comparisons[0].status, "bytes_changed");
@@ -199,4 +203,20 @@ test("comparison records before/after bytes, dates and versions without interpre
   assert.equal(compareEvidenceReferences(rows, [])[0].status, "removed");
   const evidence = collectScreeningEvidence(before.run, [before.artifact], () => ({ bytes: before.bytes, sha256: hash(before.bytes) }));
   assert.deepEqual(evidence.errors, []);
+});
+
+test("comparison rejects outputs outside the successor private artifact root without writing", (t) => {
+  const before = fixture(t);
+  const after = fixture(t, { suffix: "0002" });
+  const beforeFile = path.join(before.temp, "registered.json");
+  const afterFile = path.join(after.temp, "registered.json");
+  writeNewJson(beforeFile, before.register());
+  writeNewJson(afterFile, after.register());
+  for (const output of [path.join(after.temp, "comparison.json"), path.join(before.artifactRoot, "comparison.json"), path.join(`${after.artifactRoot}-outside`, "comparison.json")]) {
+    const result = cli(["compare-evidence", "--before", beforeFile, "--after", afterFile, "--output", output]);
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /Comparison outputs must stay inside the successor private artifact root\./);
+    assert.equal(fs.existsSync(output), false);
+  }
+  assert.equal(fs.existsSync(`${after.artifactRoot}-outside`), false);
 });

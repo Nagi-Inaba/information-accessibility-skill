@@ -8,6 +8,8 @@ This project uses a Keep a Changelog-style structure. Until a tagged release is 
 
 ### Changed
 
+- `compare-evidence` now accepts `--output` only inside the successor run's private artifact root, as `compare-runs` and `compare-targets` already did, and checks it after both runs validate so a rejected path no longer creates parent directories. Scripts that wrote the comparison elsewhere must point `--output` at the `--after` run's artifact root; the saved-evidence example and the command usage line show the new form.
+
 - Node.js 22 or later is now required (package `engines`, `doctor`, the Web capability contract and the documentation). Node.js 20 reached end of life on 2026-04-30 and is no longer supported or tested. CI runs Node.js 22 and 24 on Ubuntu, Windows and macOS; workflow actions move to versions that run on Node.js 24 and are pinned by commit, and the browser E2E workflows pin Ubuntu 24.04. Contributors install test dependencies with `npm install` through a root `package.json`, which also stops an unrelated parent-directory `package.json` from capturing the install.
 
 - HTTP target observation always runs through the logged, size-bounded network session under the saved run policy. The second retrieval path, reachable only by direct library callers, did not reject content encodings, cap total bytes or keep a request log; it was removed. No CLI command used it.
