@@ -18,6 +18,8 @@ This project uses a Keep a Changelog-style structure. Until a tagged release is 
 
 - Reviewed the Digital Agency accessibility policy against the monitored source on 2026-09-25. The 18 additional criterion mappings and routing are unchanged; the catalog source hash, review date and attribution binding now match the reviewed page.
 
+- The browser test `tests/web-evidence-e2e.test.mjs` is opt-in through `RUN_WEB_EVIDENCE_E2E=1`, like the other browser E2E tests, so a different Playwright version found in a parent directory no longer makes it fail. The `web-evidence-e2e` workflow sets the variable.
+
 ### Added
 
 - JIS X 8341-3:2016 SC 4.1.1 has a direct English and Japanese parsing procedure, completing procedure availability for the three bundled Web profiles.
