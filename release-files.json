@@ -396,6 +396,7 @@
     "tests/interaction-browser-e2e.test.mjs",
     "tests/interaction-supervision.test.mjs",
     "tests/jis-procedure-reuse.test.mjs",
+    "tests/markdown-links.test.mjs",
     "tests/module-dependency.test.mjs",
     "tests/multi-agent-forward.test.mjs",
     "tests/network-address.test.mjs",
