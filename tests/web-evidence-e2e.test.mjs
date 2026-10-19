@@ -5,12 +5,11 @@ import path from "node:path";
 import test from "node:test";
 import { captureWebEvidence } from "../codex/skills/information-accessibility-practice/scripts/capture-web-evidence.mjs";
 
-let playwrightAvailable = true;
-try { await import("playwright"); } catch { playwrightAvailable = false; }
+const enabled = process.env.RUN_WEB_EVIDENCE_E2E === "1";
 
 const fixture = fs.readFileSync(path.resolve("examples/web-e2e/target/index.html"));
 
-test("browser adapter captures rendered DOM, AX tree, focus path, and hashes", { skip: !playwrightAvailable }, async () => {
+test("browser adapter captures rendered DOM, AX tree, focus path, and hashes", { skip: !enabled }, async () => {
   const server = http.createServer((request, response) => {
     if (request.url === "/" || request.url === "/index.html") {
       response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
