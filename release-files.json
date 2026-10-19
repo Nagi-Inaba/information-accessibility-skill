@@ -346,6 +346,7 @@
     "tests/agent-role-contracts.test.mjs",
     "tests/architecture-doc.test.mjs",
     "tests/artifact-authoring.test.mjs",
+    "tests/artifact-path-identity.test.mjs",
     "tests/assessment-output-contract.test.mjs",
     "tests/assessment-review-provenance.test.mjs",
     "tests/attestation-verifier.test.mjs",
