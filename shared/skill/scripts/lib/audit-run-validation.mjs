@@ -10,7 +10,7 @@ import { validateParticipantBindings, collectParticipantEvidence } from "./parti
 import { validateDeclaredChangeBindings, collectDeclaredChangeEvidence } from "./declared-change.mjs";
 import { collectFixExecutionEvidence } from "./fix-execution-evidence.mjs";
 import { targetBindingErrors } from "./run-targets.mjs";
-import { pathKey, parseJsonBytes, readStableFile, assertStableFile, resolveInside } from "./safe-file-io.mjs";
+import { artifactPathKey, parseJsonBytes, readStableFile, assertStableFile, resolveInside } from "./safe-file-io.mjs";
 import { defaultSkillRoot, loadAuditResources } from "./audit-resources.mjs";
 import { auditRunRegistryCompatibility, auditRunEnvelopeCompatibility } from "./orchestration-contracts.mjs";
 import { artifactRootFor, validateArtifact, registeredArtifactPath, canonicalPermissions, remediationPermissionError, validateRegisteredArtifactEntries, validateArtifactEnvelopeSemantics, validateHumanQueueBindings, validateScreeningProfileBindings, validateDeclaredHumanBindings, validateRemediationBindings } from "./audit-artifact-validation.mjs";
@@ -158,7 +158,7 @@ export function validateAuditRun(run, { skillRoot = defaultSkillRoot, runFile, r
     if (!artifactRoot) continue;
     try {
       const file = registeredArtifactPath(artifactRoot, entry);
-      const canonicalPath = pathKey(file);
+      const canonicalPath = artifactPathKey(file);
       if (canonicalArtifactPaths.has(canonicalPath)) errors.push(`Duplicate canonical artifact path: ${String(entry?.path)}.`);
       canonicalArtifactPaths.add(canonicalPath);
       const snapshot = readArtifactFile(file, { label: `registered artifact ${String(entry?.artifact_id)}` });

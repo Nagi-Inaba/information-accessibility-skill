@@ -11,6 +11,11 @@ export function pathKey(value) {
   return process.platform === "win32" ? normalized.toLowerCase() : normalized;
 }
 
+export function artifactPathKey(value, platform = process.platform) {
+  const normalized = path.normalize(path.resolve(value));
+  return platform === "win32" || platform === "darwin" ? normalized.toLowerCase() : normalized;
+}
+
 export function samePath(left, right) {
   return pathKey(left) === pathKey(right);
 }

@@ -16,7 +16,7 @@ import { networkPolicyErrors } from "./network-policy.mjs";
 import { afterChangeRun } from "./declared-change.mjs";
 import { collectFixExecutionEvidence } from "./fix-execution-evidence.mjs";
 import { targetInventoryErrors, targetBindingErrors, checkLocalRunTargets, consumeRunTargetCheck, checkRunTargets } from "./run-targets.mjs";
-import { pathKey, isWithinPath, hasTraversal, inspectRealComponents, parseJsonBytes, readStableFile, assertStableFile, resolveInside } from "./safe-file-io.mjs";
+import { artifactPathKey, isWithinPath, hasTraversal, inspectRealComponents, parseJsonBytes, readStableFile, assertStableFile, resolveInside } from "./safe-file-io.mjs";
 import { defaultSkillRoot, loadAuditResources } from "./audit-resources.mjs";
 import { compareText } from "./text-order.mjs";
 import { roleFor, validateArtifact, registeredArtifactPath, canonicalPermissions, remediationPermissionError, validateFixHandoffBinding, validateChangeRecordAuthorizationBinding, assertCurrentOperationalRun } from "./audit-artifact-validation.mjs";
@@ -173,7 +173,7 @@ export function registerArtifact(run, artifact, options = {}) {
   if (relativeSegments.includes(".fix-consumption") || relativeSegments.some((segment) => segment.includes("pending-change-record"))) {
     throw new Error(`Internal fixer runtime evidence is not registerable as a completed artifact: ${relativePath}`);
   }
-  if (run.artifacts.some((entry) => pathKey(registeredArtifactPath(validation.artifactRoot, entry)) === pathKey(artifactPath))) {
+  if (run.artifacts.some((entry) => artifactPathKey(registeredArtifactPath(validation.artifactRoot, entry)) === artifactPathKey(artifactPath))) {
     throw new Error(`Duplicate artifact path: ${relativePath}`);
   }
   const snapshot = readStableFile(artifactPath, { label: "artifact file" });
