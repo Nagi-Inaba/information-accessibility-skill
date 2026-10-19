@@ -119,7 +119,7 @@ const definitions = [
     name: "compare-evidence",
     script: "compare-audit-evidence.mjs",
     summary: "Compare validated saved evidence before and after a change, for private review.",
-    usage: ["accessibility-audit compare-evidence --before <run.json> --after <run.json> --output <new-private-comparison.json>"],
+    usage: ["accessibility-audit compare-evidence --before <run.json> --after <run.json> --output <after-artifacts/new-private-comparison.json>"],
     notes: ["Both runs and their saved files are revalidated. Results describe byte changes, not accessibility outcomes."]
   },
   {

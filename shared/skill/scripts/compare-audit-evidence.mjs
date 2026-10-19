@@ -3,6 +3,14 @@ import { pathToFileURL } from "node:url";
 import { assertNewOutputPath, assertStableFile, assertValidatedRunStable, readStableFile, validateAuditRun, writeNewJson } from "./lib/audit-run.mjs";
 import { compareEvidenceReferences } from "./lib/run-evidence.mjs";
 
+function insidePrivateRoot(root, file) {
+  const absolute = path.resolve(file), relative = path.relative(root, absolute);
+  if (!relative || path.isAbsolute(relative) || relative === ".." || relative.startsWith(`..${path.sep}`)) {
+    throw new Error("Comparison outputs must stay inside the successor private artifact root.");
+  }
+  return assertNewOutputPath(absolute);
+}
+
 export function main(argv = process.argv.slice(2)) {
   const options = {};
   for (let i = 0; i < argv.length; i += 2) {
@@ -12,7 +20,6 @@ export function main(argv = process.argv.slice(2)) {
     options[argv[i]] = argv[i + 1];
   }
   for (const flag of ["--before", "--after", "--output"]) if (!options[flag]) throw new Error(`${flag} is required`);
-  assertNewOutputPath(options["--output"]);
   const inputs = [options["--before"], options["--after"]].map((file) => {
     const snapshot = readStableFile(file);
     const run = JSON.parse(snapshot.bytes.toString("utf8").replace(/^\uFEFF/u, ""));
@@ -23,6 +30,7 @@ export function main(argv = process.argv.slice(2)) {
     return { run, snapshot, validation, rows: screenings.flatMap((artifact) => artifact.payload.observations) };
   });
   const [before, after] = inputs;
+  insidePrivateRoot(after.validation.artifactRoot, options["--output"]);
   const result = { schema_version: "1.0.0", publication: "private_by_default", before_run_id: before.run.run_id, after_run_id: after.run.run_id,
     limitation: "Byte differences are not accessibility judgements or proof that a live target still matches its capture.",
     comparisons: compareEvidenceReferences(before.rows, after.rows) };

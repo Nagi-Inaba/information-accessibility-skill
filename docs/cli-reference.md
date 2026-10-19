@@ -512,7 +512,7 @@ Notes:
 Compare validated saved evidence before and after a change, for private review.
 
 Usage:
-  accessibility-audit compare-evidence --before <run.json> --after <run.json> --output <new-private-comparison.json>
+  accessibility-audit compare-evidence --before <run.json> --after <run.json> --output <after-artifacts/new-private-comparison.json>
 
 Notes:
   - Both runs and their saved files are revalidated. Results describe byte changes, not accessibility outcomes.
@@ -524,7 +524,7 @@ Notes:
 変更前後の検証済み保存証拠を、非公開レビュー用に比較します。
 
 使用方法:
-  accessibility-audit compare-evidence --before <run.json> --after <run.json> --output <new-private-comparison.json>
+  accessibility-audit compare-evidence --before <run.json> --after <run.json> --output <after-artifacts/new-private-comparison.json>
 
 注意:
   - Both runs and their saved files are revalidated. Results describe byte changes, not accessibility outcomes.
