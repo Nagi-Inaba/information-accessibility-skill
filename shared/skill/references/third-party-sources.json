@@ -95,8 +95,8 @@
       "modification_notice": "Nagi-Inaba / information-accessibility-skill がA/AAの38項目を抽出し、名称の接尾句を整え、独自のIDと対応関係を追加。JIS規格本文は転載していない。",
       "redistribution_notes": "表示・原資料とライセンスへのリンク・加工表示を維持する。継承条件が適用される翻案部分には同じライセンスが必要。独自コードや監査対象の証拠を一律にCC BY-SAと扱わず、混合データへの適用範囲は再配布前に確認する。JIS原規格そのものの利用許諾を意味しない。",
       "derivative_notice": null,
-      "reviewed_source_sha256": "1228e28559f944b91b1264d0390a9fda2abbc257b38712b1a15ed8539254f1f7",
-      "checked_on": "2026-09-19",
+      "reviewed_source_sha256": "9dff6feb04b20909c3197d63f60912617482cb7a5968583e5472b48891058fff",
+      "checked_on": "2026-11-16",
       "report_notice": true
     },
     {
@@ -120,8 +120,8 @@
       "modification_notice": "Nagi-Inaba / information-accessibility-skill が追加18項目を抽出し、独自のID・分類・W3Cメタデータとの対応を追加。デジタル庁の未加工の公式資料として表示しない。",
       "redistribution_notes": "出典と加工主体を表示する。第三者が権利を持つ部分や個別の利用条件は別途確認する。この方針はデジタル庁の対象範囲に関するもので、日本の全公開Webサイトに一律に課される規格ではない。",
       "derivative_notice": null,
-      "reviewed_source_sha256": "0313376e796e282d177fadf9560bb01fd353455bd09d45852ad02fb94861f0b8",
-      "checked_on": "2026-09-25",
+      "reviewed_source_sha256": "4796df1f42c1222ab67a2ce909dee878c9fd8dd0bd119e13cf11a3dfbfec33cd",
+      "checked_on": "2026-11-16",
       "report_notice": true
     },
     {
@@ -244,7 +244,7 @@
   "resource_bindings": [
     {
       "path": "references/criteria-catalog.json",
-      "canonical_sha256": "8612f28fecd929ef9ca03ca7de3826a271d49ef5cfab57f9e5a72163aebf3084",
+      "canonical_sha256": "08350179ed09cc0b32210768fba150a8478816ec67153564988f57e8ca9a160d",
       "source_ids": [
         "WCAG-2.2",
         "WAIC-JIS-CHECKLIST-2020-12",

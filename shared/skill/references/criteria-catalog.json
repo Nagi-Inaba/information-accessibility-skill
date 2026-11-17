@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0.0",
   "catalog_status": "metadata_complete",
-  "verified_at": "2026-09-25",
+  "verified_at": "2026-11-16",
   "copyright_boundary": "Contains identifiers, titles, levels, source links, and original evidence classifications. Normative criterion text is not included.",
   "sources": [
     {
@@ -14,13 +14,13 @@
       "id": "WAIC-JIS-CHECKLIST-2020-12",
       "url": "https://waic.jp/docs/jis2016/test-guidelines/202012/gcl_example.html",
       "role": "Japanese checklist metadata",
-      "source_sha256": "1228e28559f944b91b1264d0390a9fda2abbc257b38712b1a15ed8539254f1f7"
+      "source_sha256": "9dff6feb04b20909c3197d63f60912617482cb7a5968583e5472b48891058fff"
     },
     {
       "id": "DIGITAL-AGENCY-JP-PROFILE",
       "url": "https://www.digital.go.jp/accessibility-statement",
       "role": "18 additional WCAG criteria profile",
-      "source_sha256": "0313376e796e282d177fadf9560bb01fd353455bd09d45852ad02fb94861f0b8"
+      "source_sha256": "4796df1f42c1222ab67a2ce909dee878c9fd8dd0bd119e13cf11a3dfbfec33cd"
     }
   ],
   "catalogs": {

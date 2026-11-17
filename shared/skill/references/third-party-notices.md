@@ -31,7 +31,7 @@ Copyright © 2023 W3C®. This software or document includes material copied from
 - 帰属表示: 出典：ウェブアクセシビリティ基盤委員会（WAIC）「JIS X 8341-3:2016 試験実施ガイドライン・達成基準チェックリストの例」（2020年12月版）。
 - 加工: Nagi-Inaba / information-accessibility-skill がA/AAの38項目を抽出し、名称の接尾句を整え、独自のIDと対応関係を追加。JIS規格本文は転載していない。
 - 再配布: 表示・原資料とライセンスへのリンク・加工表示を維持する。継承条件が適用される翻案部分には同じライセンスが必要。独自コードや監査対象の証拠を一律にCC BY-SAと扱わず、混合データへの適用範囲は再配布前に確認する。JIS原規格そのものの利用許諾を意味しない。
-- 法的レビュー: 未実施。確認日: 2026-09-19
+- 法的レビュー: 未実施。確認日: 2026-11-16
 
 ## デジタル庁 ウェブアクセシビリティ方針
 
@@ -43,7 +43,7 @@ Copyright © 2023 W3C®. This software or document includes material copied from
 - 帰属表示: 出典：デジタル庁「ウェブアクセシビリティ」。
 - 加工: Nagi-Inaba / information-accessibility-skill が追加18項目を抽出し、独自のID・分類・W3Cメタデータとの対応を追加。デジタル庁の未加工の公式資料として表示しない。
 - 再配布: 出典と加工主体を表示する。第三者が権利を持つ部分や個別の利用条件は別途確認する。この方針はデジタル庁の対象範囲に関するもので、日本の全公開Webサイトに一律に課される規格ではない。
-- 法的レビュー: 未実施。確認日: 2026-09-25
+- 法的レビュー: 未実施。確認日: 2026-11-16
 
 ## Accessible Rich Internet Applications \(WAI-ARIA\) 1.2
 
